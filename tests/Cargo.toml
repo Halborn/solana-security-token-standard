@@ -1,0 +1,16 @@
+[package]
+name = "security-token-tests"
+version.workspace = true
+description = "Integration tests mocks"
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+security-token-program = { path = "../program" }
+solana-program = { workspace = true }
+solana-program-test = { workspace = true }
+solana-sdk = { workspace = true }
+tokio = { workspace = true }

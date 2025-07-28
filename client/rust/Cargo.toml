@@ -1,0 +1,16 @@
+[package]
+name = "security-token-client"
+version.workspace = true
+description = "Rust client for Security Token Standard"
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[lib]
+name = "security_token_client"
+
+[dependencies]
+security-token-program = { path = "../../program" }
+solana-program = { workspace = true }
+thiserror = { workspace = true }
