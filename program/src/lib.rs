@@ -17,6 +17,7 @@ pub mod processor;
 /// State structures
 pub mod state;
 
+#[cfg(not(feature = "no-entrypoint"))]
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 solana_program::declare_id!("11111111111111111111111111111112");

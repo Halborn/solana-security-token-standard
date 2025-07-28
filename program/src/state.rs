@@ -5,7 +5,7 @@ use spl_pod::optional_keys::OptionalNonZeroPubkey;
 
 /// Configuration for verification requirements
 #[repr(C, packed)]
-#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable, Default)]
 pub struct VerificationConfig {
     /// KYC requirement level (0 = none, 1 = basic, 2 = full)
     pub kyc_level: u8,
@@ -15,17 +15,6 @@ pub struct VerificationConfig {
     pub accreditation_level: u8,
     /// Reserved for future use
     pub _reserved: [u8; 5],
-}
-
-impl Default for VerificationConfig {
-    fn default() -> Self {
-        Self {
-            kyc_level: 0,
-            aml_required: 0,
-            accreditation_level: 0,
-            _reserved: [0; 5],
-        }
-    }
 }
 
 /// Security token mint configuration
@@ -55,7 +44,7 @@ impl Default for SecurityTokenMint {
 
 /// Verification status for an account
 #[repr(C, packed)]
-#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable, Default)]
 pub struct VerificationStatus {
     /// KYC completion timestamp (0 if not completed)
     pub kyc_timestamp: u64,
@@ -65,15 +54,4 @@ pub struct VerificationStatus {
     pub is_whitelisted: u8,
     /// Reserved for future use
     pub _reserved: [u8; 32],
-}
-
-impl Default for VerificationStatus {
-    fn default() -> Self {
-        Self {
-            kyc_timestamp: 0,
-            aml_timestamp: 0,
-            is_whitelisted: 0,
-            _reserved: [0; 32],
-        }
-    }
 }
