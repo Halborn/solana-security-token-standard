@@ -1,0 +1,51 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+.cargo/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Solana
+*.so
+test-ledger/
+program_id.txt
+
+# Logs
+*.log
+
+# Build artifacts
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# Coverage reports
+coverage/
+*.profraw
+
+# Editor backups
+*.bak
+*.orig
+*.tmp
+
+# Security
+.env
+.env.local
+.env.*.local
+
+# Documentation build
+target/doc/
+
+# Requirements
+requirements.txt
