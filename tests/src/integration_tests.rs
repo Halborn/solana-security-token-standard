@@ -63,10 +63,8 @@ async fn test_initialize_mint_instruction() {
 
 #[test]
 fn test_security_token_mint_size() {
-    use std::mem;
-
     // Verify state structure sizes are reasonable
-    let mint_size = mem::size_of::<SecurityTokenMint>();
+    let mint_size = std::mem::size_of::<SecurityTokenMint>();
     println!("SecurityTokenMint size: {} bytes", mint_size);
 
     // Should be a reasonable size for on-chain storage

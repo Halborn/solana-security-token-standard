@@ -1,6 +1,8 @@
 //! Program entrypoint
 
-use crate::{error::SecurityTokenError, processor::Processor};
+#![allow(unexpected_cfgs)]
+
+use crate::processor::Processor;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
 
 solana_program::entrypoint!(process_instruction);

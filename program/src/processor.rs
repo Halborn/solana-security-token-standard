@@ -10,8 +10,8 @@ pub struct Processor;
 impl Processor {
     /// Processes an instruction
     pub fn process(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
+        _program_id: &Pubkey,
+        _accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
         let instruction = SecurityTokenInstruction::from(instruction_data[0]);
