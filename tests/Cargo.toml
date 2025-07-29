@@ -13,4 +13,5 @@ security-token-program = { path = "../program" }
 solana-program = { workspace = true }
 solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
+spl-pod = { workspace = true }
 tokio = { workspace = true }
