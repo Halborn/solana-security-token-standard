@@ -16,6 +16,8 @@ pub mod instruction;
 pub mod processor;
 /// State structures
 pub mod state;
+/// Utility functions
+pub mod utils;
 
 #[cfg(not(feature = "no-entrypoint"))]
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
