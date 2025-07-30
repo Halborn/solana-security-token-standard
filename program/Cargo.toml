@@ -17,6 +17,7 @@ no-entrypoint = []
 
 [dependencies]
 solana-program = { workspace = true }
+solana-system-interface = { workspace = true }
 spl-token-2022 = { workspace = true, features = ["no-entrypoint"] }
 spl-associated-token-account = { workspace = true }
 spl-pod = { workspace = true }
