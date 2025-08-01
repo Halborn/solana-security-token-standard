@@ -87,8 +87,8 @@ async fn test_initialize_mint_instruction() {
     // account size should be 338 bytes as calculated by Token-2022
     assert_eq!(
         mint_account.data.len(),
-        338,
-        "Mint with all three security token extensions should be exactly 338 bytes"
+        375,
+        "Mint with all three security token extensions should be exactly 375 bytes"
     );
     println!(
         "Mint account size with all security token extensions: {} bytes",
@@ -117,9 +117,15 @@ async fn test_initialize_mint_instruction() {
         "Initial supply should be 0"
     );
 
-    // Verify mint authority is the expected PDA
+    // Get expected PDAs
     let expected_mint_authority =
         utils::find_mint_authority_pda(&mint_keypair.pubkey(), &payer.pubkey(), &program_id).0;
+    let expected_freeze_authority =
+        utils::find_freeze_authority_pda(&mint_keypair.pubkey(), &program_id).0;
+
+    let expected_permanent_delegate =
+        utils::find_permanent_delegate_pda(&mint_keypair.pubkey(), &program_id).0;
+
     assert_eq!(
         mint_with_extensions.base.mint_authority.unwrap(),
         expected_mint_authority,
@@ -129,7 +135,7 @@ async fn test_initialize_mint_instruction() {
     // Verify freeze authority is also set to the same PDA
     assert_eq!(
         mint_with_extensions.base.freeze_authority.unwrap(),
-        expected_mint_authority,
+        expected_freeze_authority,
         "Freeze authority should be the same PDA"
     );
 
@@ -160,6 +166,11 @@ async fn test_initialize_mint_instruction() {
     assert!(
         extension_types.contains(&ExtensionType::TransferHook),
         "TransferHook extension should be present"
+    );
+
+    assert!(
+        extension_types.contains(&ExtensionType::Pausable),
+        "Pausable extension should be present"
     );
 
     println!("All extensions confirmed present:");
@@ -200,7 +211,7 @@ async fn test_initialize_mint_instruction() {
 
     assert_eq!(
         Option::<Pubkey>::from(permanent_delegate.delegate),
-        Some(expected_mint_authority),
+        Some(expected_permanent_delegate),
         "PermanentDelegate should be our mint authority PDA"
     );
     let delegate_key: Option<Pubkey> = Option::from(permanent_delegate.delegate);
@@ -305,8 +316,8 @@ async fn test_initialize_mint_with_different_decimals() {
         // All security token mints should have the same account size regardless of decimals
         assert_eq!(
             mint_account.data.len(),
-            338,
-            "All security token mints should be 338 bytes regardless of decimals"
+            375,
+            "All security token mints should be 375 bytes regardless of decimals"
         );
 
         println!("{} decimals: verified successfully", decimals);

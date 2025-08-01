@@ -6,16 +6,16 @@ use solana_program::pubkey::Pubkey;
 pub mod seeds {
     /// Seed for mint authority PDA
     pub const MINT_AUTHORITY: &[u8] = b"mint.authority";
-    /// Seed for permanent delegate PDA
-    pub const PERMANENT_DELEGATE: &[u8] = b"mint.permanent_delegate";
     /// Seed for pause authority PDA
     pub const PAUSE_AUTHORITY: &[u8] = b"mint.pause_authority";
     /// Seed for freeze authority PDA
     pub const FREEZE_AUTHORITY: &[u8] = b"mint.freeze_authority";
     /// Seed for transfer hook PDA
     pub const TRANSFER_HOOK: &[u8] = b"mint.transfer_hook";
-    /// Seed for metadata pointer PDA
-    pub const METADATA_POINTER: &[u8] = b"mint.metadata_pointer";
+    /// Seed for permanent delegate PDA
+    pub const PERMANENT_DELEGATE: &[u8] = b"mint.permanent_delegate";
+    /// Seed for account delegate PDA
+    pub const ACCOUNT_DELEGATE: &[u8] = b"account.delegate";
 }
 
 /// Derive mint authority PDA
@@ -29,12 +29,6 @@ pub fn find_mint_authority_pda(
         &[seeds::MINT_AUTHORITY, mint.as_ref(), creator.as_ref()],
         program_id,
     )
-}
-
-/// Derive permanent delegate PDA  
-/// Seeds: ["mint.permanent_delegate", mint_pubkey]
-pub fn find_permanent_delegate_pda(mint: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[seeds::PERMANENT_DELEGATE, mint.as_ref()], program_id)
 }
 
 /// Derive pause authority PDA
@@ -55,8 +49,15 @@ pub fn find_transfer_hook_pda(mint: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8
     Pubkey::find_program_address(&[seeds::TRANSFER_HOOK, mint.as_ref()], program_id)
 }
 
-/// Derive metadata pointer PDA
-/// Seeds: ["mint.metadata_pointer", mint_pubkey]
-pub fn find_metadata_pointer_pda(mint: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[seeds::METADATA_POINTER, mint.as_ref()], program_id)
+/// Derive permanent delegate PDA
+/// Seeds: ["mint.permanent_delegate", mint_pubkey]
+pub fn find_permanent_delegate_pda(mint: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[seeds::PERMANENT_DELEGATE, mint.as_ref()], program_id)
 }
+
+/// Derive account delegate PDA
+/// Seeds: ["account.delegate", account_pubkey]
+pub fn find_account_delegate_pda(account: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[seeds::ACCOUNT_DELEGATE, account.as_ref()], program_id)
+}
+

@@ -45,7 +45,6 @@ impl Processor {
     }
 
     /// Process InitializeMint instruction
-    /// Phase 2: Real Token-2022 mint initialization with extensions
     fn process_initialize_mint(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -82,13 +81,14 @@ impl Processor {
             ExtensionType::MetadataPointer,
             ExtensionType::PermanentDelegate,
             ExtensionType::TransferHook,
+            ExtensionType::Pausable
         ];
 
         let mint_size = ExtensionType::try_calculate_account_len::<Mint>(&required_extensions)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         msg!(
-            "Calculated mint account size: {} bytes (with MetadataPointer extension)",
+            "Calculated mint account size: {} bytes",
             mint_size
         );
 
@@ -116,7 +116,6 @@ impl Processor {
         )?;
 
         msg!("Mint account created successfully");
-
         msg!("Extensions setup - checking account structure and PDAs");
 
         // For now, we'll verify that extensions are properly calculated in account size
@@ -128,19 +127,17 @@ impl Processor {
         msg!("Required extensions: MetadataPointer, PermanentDelegate, TransferHook");
 
         // Calculate all PDAs that will be used for extensions
-        let (metadata_pointer_pda, _bump) =
-            utils::find_metadata_pointer_pda(mint_info.key, program_id);
 
-        let (permanent_delegate_pda, _bump) =
-            utils::find_permanent_delegate_pda(mint_info.key, program_id);
-
+        // TODO: Figure out how do they come
         let (transfer_hook_pda, _bump) = utils::find_transfer_hook_pda(mint_info.key, program_id);
+        let (permanent_delegate_pda, _bump) = utils::find_permanent_delegate_pda(mint_info.key, program_id);
+        let (freeze_authority_pda, _bump) = utils::find_freeze_authority_pda(mint_info.key, program_id);
 
-        msg!("MetadataPointer PDA: {}", metadata_pointer_pda);
-        msg!("PermanentDelegate PDA: {}", permanent_delegate_pda);
         msg!("TransferHook PDA: {}", transfer_hook_pda);
+        msg!("PermanentDelegate PDA: {}", permanent_delegate_pda);
+        msg!("FreezeAuthority PDA: {}", freeze_authority_pda);
         msg!("All extension PDAs calculated successfully");
-        msg!("Step 4: Initializing Token-2022 extensions before mint");
+        msg!("Initializing Token-2022 extensions before mint");
 
         // Get mint authority PDA - this will be the mint authority for the token
         let (mint_authority_pda, _mint_authority_bump) =
@@ -176,7 +173,7 @@ impl Processor {
         let permanent_delegate_init_instruction = instruction::initialize_permanent_delegate(
             token_program_info.key, // SPL Token 2022 program ID
             mint_info.key,          // mint account
-            &mint_authority_pda,    // delegate authority (our PDA)
+            &permanent_delegate_pda,    // delegate authority (our PDA)
         )?;
 
         invoke(
@@ -184,19 +181,30 @@ impl Processor {
             &[mint_info.clone(), token_program_info.clone()],
         )?;
         msg!("PermanentDelegate extension initialized");
+
+        let pausable_init_instruction = spl_token_2022::extension::pausable::instruction::initialize(
+            token_program_info.key,   // SPL Token 2022 program ID
+            mint_info.key,            // mint account
+            &mint_authority_pda, // pause authority (our PDA)
+        )?;
+
+        invoke(
+            &pausable_init_instruction,
+            &[mint_info.clone(), token_program_info.clone()],
+        )?;
+        msg!("Pausable extension initialized");
+
         msg!("All security token extensions initialized successfully");
 
         // Now initialize the basic mint
         msg!("Initializing basic mint after all extensions");
 
         // Initialize basic mint with all security token extensions
-        let freeze_authority = Some(mint_authority_pda); // Same PDA can freeze tokens
-
         let initialize_mint_instruction = instruction::initialize_mint2(
             token_program_info.key,    // SPL Token 2022 program ID
             mint_info.key,             // mint account
             &mint_authority_pda,       // mint authority
-            freeze_authority.as_ref(), // freeze authority (optional)
+            Some(freeze_authority_pda).as_ref(), // freeze authority (optional)
             decimals,                  // decimals
         )?;
 
