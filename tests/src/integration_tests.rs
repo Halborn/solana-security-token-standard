@@ -6,7 +6,6 @@ use security_token_program::{
     state::{Rate, Receipt, SecurityTokenMint, VerificationConfig, VerificationStatus},
     utils,
 };
-use solana_program::program_pack::Pack;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -49,7 +48,7 @@ async fn test_initialize_mint_instruction() {
 
     let instruction = Instruction::new_with_bytes(
         program_id,
-        &[SecurityTokenInstruction::InitializeMint as u8, 9], // 9 decimals
+        &[SecurityTokenInstruction::InitializeMint as u8, 9], // Simple format: discriminator + decimals
         vec![
             AccountMeta::new(mint_keypair.pubkey(), true), // 0. Mint account (must be signer)
             AccountMeta::new_readonly(payer.pubkey(), true), // 1. Creator (signer)
@@ -345,7 +344,7 @@ async fn test_initialize_mint_error_cases() {
 
         let instruction = Instruction::new_with_bytes(
             program_id,
-            &[SecurityTokenInstruction::InitializeMint as u8, 9],
+            &[SecurityTokenInstruction::InitializeMint as u8, 9], // Test case 1: mint not signer
             vec![
                 AccountMeta::new(mint_keypair.pubkey(), false),
                 AccountMeta::new_readonly(payer.pubkey(), true),
@@ -375,7 +374,7 @@ async fn test_initialize_mint_error_cases() {
 
         let instruction = Instruction::new_with_bytes(
             program_id,
-            &[SecurityTokenInstruction::InitializeMint as u8, 9],
+            &[SecurityTokenInstruction::InitializeMint as u8, 9], // Test case 2: creator not signer
             vec![
                 AccountMeta::new(mint_keypair.pubkey(), true),
                 AccountMeta::new_readonly(fake_creator.pubkey(), false),

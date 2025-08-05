@@ -19,13 +19,15 @@ solana-system-interface = "1.0.0"
 
 # SPL
 spl-token-2022 = { version = "9.0.0", features = ["no-entrypoint"] }
+spl-token-metadata-interface = "0.7.0"
 spl-associated-token-account = { version = "7.0.0", features = [
     "no-entrypoint",
 ] }
-spl-pod = "0.4.0"
+spl-pod = "0.5.1"
 
 # Core serialization (Token-2022 style)
 bytemuck = { version = "1.18.0", features = ["derive"] }
+borsh = "1.5.3"
 
 # Error handling
 thiserror = "2.0.3"

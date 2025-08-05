@@ -61,3 +61,16 @@ pub fn find_account_delegate_pda(account: &Pubkey, program_id: &Pubkey) -> (Pubk
     Pubkey::find_program_address(&[seeds::ACCOUNT_DELEGATE, account.as_ref()], program_id)
 }
 
+/// Get seeds for mint authority PDA signing
+pub fn get_mint_authority_seeds<'a>(
+    mint: &'a Pubkey,
+    creator: &'a Pubkey,
+    bump: &'a u8,
+) -> [&'a [u8]; 4] {
+    [
+        seeds::MINT_AUTHORITY,
+        mint.as_ref(),
+        creator.as_ref(),
+        std::slice::from_ref(bump),
+    ]
+}
