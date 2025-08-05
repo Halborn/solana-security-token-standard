@@ -37,18 +37,6 @@ impl Processor {
                 msg!("Instruction: Initialize Mint");
                 Self::process_initialize_mint(program_id, accounts, args_data)
             }
-            SecurityTokenInstruction::UpdateVerificationConfig => {
-                msg!("Instruction: UpdateVerificationConfig");
-                Err(ProgramError::InvalidInstructionData)
-            }
-            SecurityTokenInstruction::SetVerificationStatus => {
-                msg!("Instruction: SetVerificationStatus");
-                Err(ProgramError::InvalidInstructionData)
-            }
-            SecurityTokenInstruction::UpdateWhitelist => {
-                msg!("Instruction: UpdateWhitelist");
-                Err(ProgramError::InvalidInstructionData)
-            }
         }
     }
 
@@ -363,9 +351,6 @@ impl From<u8> for SecurityTokenInstruction {
     fn from(value: u8) -> Self {
         match value {
             0 => SecurityTokenInstruction::InitializeMint,
-            1 => SecurityTokenInstruction::UpdateVerificationConfig,
-            2 => SecurityTokenInstruction::SetVerificationStatus,
-            3 => SecurityTokenInstruction::UpdateWhitelist,
             _ => SecurityTokenInstruction::InitializeMint,
         }
     }
