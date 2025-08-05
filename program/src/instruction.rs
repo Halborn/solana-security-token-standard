@@ -317,15 +317,6 @@ pub enum SecurityTokenInstruction {
     /// 3. `[]` The system program ID
     /// 4. `[]` The rent sysvar
     InitializeMint = 0,
-
-    /// Update verification configuration
-    UpdateVerificationConfig = 1,
-
-    /// Set verification status for an account
-    SetVerificationStatus = 2,
-
-    /// Update whitelist settings
-    UpdateWhitelist = 3,
 }
 
 #[cfg(test)]
