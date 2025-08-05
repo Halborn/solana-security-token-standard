@@ -1,9 +1,12 @@
-use crate::{instruction::SecurityTokenInstruction, utils};
+use crate::{
+    instruction::{InitializeArgs, InitializeMintArgs, SecurityTokenInstruction},
+    utils,
+};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
-    program::invoke,
+    program::{invoke, invoke_signed},
     program_error::ProgramError,
     pubkey::Pubkey,
     rent::Rent,
@@ -22,12 +25,17 @@ impl Processor {
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
-        let instruction = SecurityTokenInstruction::from(instruction_data[0]);
+        // Extract instruction type from the first byte
+        let (&instruction_type, args_data) = instruction_data
+            .split_first()
+            .ok_or(ProgramError::InvalidInstructionData)?;
+
+        let instruction = SecurityTokenInstruction::from(instruction_type);
 
         match instruction {
             SecurityTokenInstruction::InitializeMint => {
-                msg!("Instruction: InitializeMint");
-                Self::process_initialize_mint(program_id, accounts, instruction_data)
+                msg!("Instruction: Initialize Mint");
+                Self::process_initialize_mint(program_id, accounts, args_data)
             }
             SecurityTokenInstruction::UpdateVerificationConfig => {
                 msg!("Instruction: UpdateVerificationConfig");
@@ -48,18 +56,77 @@ impl Processor {
     fn process_initialize_mint(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        instruction_data: &[u8],
+        args_data: &[u8],
     ) -> ProgramResult {
         msg!("Processing InitializeMint with Token-2022 extensions");
 
-        // Parse decimals from instruction data (second byte, first is instruction discriminator)
-        let decimals = if instruction_data.len() < 2 {
-            6 // Default decimals
+        // Support three formats:
+        // 1. Simple - only decimals (one byte)
+        // 2. Mint only - InitializeMintArgs structure
+        // 3. Full - InitializeArgs with mint + metadata
+        let (decimals, _mint_authority_opt, _freeze_authority_opt, metadata_opt) = if args_data
+            .is_empty()
+        {
+            (6u8, None, None, None) // Default decimals
+        } else if args_data.len() == 1 {
+            // Simple format - only decimals
+            (args_data[0], None, None, None)
         } else {
-            instruction_data[1]
+            // Try full InitializeArgs first (with metadata)
+            match InitializeArgs::unpack(args_data) {
+                Ok(full_args) => {
+                    msg!("Successfully unpacked full InitializeArgs");
+                    if let Some(metadata) = &full_args.ix_metadata {
+                        msg!("Token name: {}", metadata.name);
+                        msg!("Token symbol: {}", metadata.symbol);
+                        msg!("Token URI: {}", metadata.uri);
+                    }
+                    msg!("Mint authority: {}", full_args.ix_mint.mint_authority);
+                    if let Some(freeze_auth) = full_args.ix_mint.freeze_authority {
+                        msg!("Freeze authority: {}", freeze_auth);
+                    }
+                    (
+                        full_args.ix_mint.decimals,
+                        Some(full_args.ix_mint.mint_authority),
+                        full_args.ix_mint.freeze_authority,
+                        full_args.ix_metadata,
+                    )
+                }
+                Err(_) => {
+                    // Fallback to mint-only format
+                    match InitializeMintArgs::unpack(args_data) {
+                        Ok(mint_args) => {
+                            msg!("Successfully unpacked InitializeMintArgs (mint only)");
+                            msg!("Mint authority: {}", mint_args.mint_authority);
+                            if let Some(freeze_auth) = mint_args.freeze_authority {
+                                msg!("Freeze authority: {}", freeze_auth);
+                            }
+                            (
+                                mint_args.decimals,
+                                Some(mint_args.mint_authority),
+                                mint_args.freeze_authority,
+                                None,
+                            )
+                        }
+                        Err(_) => {
+                            // Final fallback to simple format
+                            msg!("Failed to unpack structured data, using first byte as decimals");
+                            (args_data[0], None, None, None)
+                        }
+                    }
+                }
+            }
         };
 
         msg!("Initializing mint with {} decimals", decimals);
+        if let Some(metadata) = &metadata_opt {
+            msg!(
+                "With metadata: {} ({}) - {}",
+                metadata.name,
+                metadata.symbol,
+                metadata.uri
+            );
+        }
 
         // Parse accounts
         let account_info_iter = &mut accounts.iter();
@@ -81,16 +148,13 @@ impl Processor {
             ExtensionType::MetadataPointer,
             ExtensionType::PermanentDelegate,
             ExtensionType::TransferHook,
-            ExtensionType::Pausable
+            ExtensionType::Pausable,
         ];
 
         let mint_size = ExtensionType::try_calculate_account_len::<Mint>(&required_extensions)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        msg!(
-            "Calculated mint account size: {} bytes",
-            mint_size
-        );
+        msg!("Calculated mint account size: {} bytes", mint_size);
 
         let rent = Rent::from_account_info(rent_info)?;
         let required_lamports = rent.minimum_balance(mint_size);
@@ -128,10 +192,12 @@ impl Processor {
 
         // Calculate all PDAs that will be used for extensions
 
-        // TODO: Figure out how do they come
+        // TODO: Figure out how they come
         let (transfer_hook_pda, _bump) = utils::find_transfer_hook_pda(mint_info.key, program_id);
-        let (permanent_delegate_pda, _bump) = utils::find_permanent_delegate_pda(mint_info.key, program_id);
-        let (freeze_authority_pda, _bump) = utils::find_freeze_authority_pda(mint_info.key, program_id);
+        let (permanent_delegate_pda, _bump) =
+            utils::find_permanent_delegate_pda(mint_info.key, program_id);
+        let (freeze_authority_pda, _bump) =
+            utils::find_freeze_authority_pda(mint_info.key, program_id);
 
         msg!("TransferHook PDA: {}", transfer_hook_pda);
         msg!("PermanentDelegate PDA: {}", permanent_delegate_pda);
@@ -171,9 +237,9 @@ impl Processor {
         msg!("TransferHook extension initialized");
 
         let permanent_delegate_init_instruction = instruction::initialize_permanent_delegate(
-            token_program_info.key, // SPL Token 2022 program ID
-            mint_info.key,          // mint account
-            &permanent_delegate_pda,    // delegate authority (our PDA)
+            token_program_info.key,  // SPL Token 2022 program ID
+            mint_info.key,           // mint account
+            &permanent_delegate_pda, // delegate authority (our PDA)
         )?;
 
         invoke(
@@ -182,11 +248,12 @@ impl Processor {
         )?;
         msg!("PermanentDelegate extension initialized");
 
-        let pausable_init_instruction = spl_token_2022::extension::pausable::instruction::initialize(
-            token_program_info.key,   // SPL Token 2022 program ID
-            mint_info.key,            // mint account
-            &mint_authority_pda, // pause authority (our PDA)
-        )?;
+        let pausable_init_instruction =
+            spl_token_2022::extension::pausable::instruction::initialize(
+                token_program_info.key, // SPL Token 2022 program ID
+                mint_info.key,          // mint account
+                &mint_authority_pda,    // pause authority (our PDA)
+            )?;
 
         invoke(
             &pausable_init_instruction,
@@ -201,11 +268,11 @@ impl Processor {
 
         // Initialize basic mint with all security token extensions
         let initialize_mint_instruction = instruction::initialize_mint2(
-            token_program_info.key,    // SPL Token 2022 program ID
-            mint_info.key,             // mint account
-            &mint_authority_pda,       // mint authority
+            token_program_info.key,              // SPL Token 2022 program ID
+            mint_info.key,                       // mint account
+            &mint_authority_pda,                 // mint authority
             Some(freeze_authority_pda).as_ref(), // freeze authority (optional)
-            decimals,                  // decimals
+            decimals,                            // decimals
         )?;
 
         invoke(
@@ -217,6 +284,77 @@ impl Processor {
             "Mint initialized successfully with {} decimals and all security token extensions",
             decimals
         );
+
+        // Now initialize the metadata through SPL Token Metadata Interface
+        if let Some(metadata) = &metadata_opt {
+            msg!("Initializing token metadata through SPL Token Metadata Interface");
+
+            // Create metadata initialize instruction using SPL Token Metadata Interface
+            // Note: For Token-2022 with MetadataPointer, metadata is handled by the token program itself
+            let metadata_init_instruction = spl_token_metadata_interface::instruction::initialize(
+                token_program_info.key, // Token-2022 program ID (handles metadata interface)
+                mint_info.key,          // metadata account (same as mint due to MetadataPointer)
+                &mint_authority_pda,    // update authority
+                mint_info.key,          // mint account
+                &mint_authority_pda,    // mint authority
+                metadata.name.clone(),
+                metadata.symbol.clone(),
+                metadata.uri.clone(),
+            );
+
+            // Sign with mint authority PDA to create metadata
+            let mint_authority_signer_seeds = utils::get_mint_authority_seeds(
+                mint_info.key,
+                creator_info.key,
+                &_mint_authority_bump,
+            );
+            let mint_authority_signers = &[&mint_authority_signer_seeds[..]];
+
+            invoke_signed(
+                &metadata_init_instruction,
+                &[
+                    mint_info.clone(), // metadata account
+                    mint_info.clone(), // update authority account
+                    mint_info.clone(), // mint account
+                    mint_info.clone(), // mint authority account (PDA)
+                ],
+                mint_authority_signers,
+            )?;
+            msg!("Basic metadata initialized");
+
+            // Add additional metadata fields if present
+            if !metadata.additional_metadata.is_empty() {
+                msg!(
+                    "Adding {} additional metadata fields",
+                    metadata.additional_metadata.len()
+                );
+
+                for (key, value) in &metadata.additional_metadata {
+                    let update_field_instruction =
+                        spl_token_metadata_interface::instruction::update_field(
+                            token_program_info.key, // Token-2022 program ID
+                            mint_info.key,          // metadata account
+                            &mint_authority_pda,    // update authority
+                            spl_token_metadata_interface::state::Field::Key(key.clone()),
+                            value.clone(),
+                        );
+
+                    invoke_signed(
+                        &update_field_instruction,
+                        &[
+                            mint_info.clone(), // metadata account
+                            mint_info.clone(), // update authority account (PDA)
+                        ],
+                        mint_authority_signers,
+                    )?;
+                    msg!("Added metadata field: {} = {}", key, value);
+                }
+            }
+
+            msg!("All metadata initialized successfully");
+        } else {
+            msg!("No metadata provided, skipping metadata initialization");
+        }
         Ok(())
     }
 }
