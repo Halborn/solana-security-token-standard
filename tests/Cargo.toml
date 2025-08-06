@@ -15,4 +15,5 @@ solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
 spl-pod = { workspace = true }
 spl-token-2022 = { workspace = true }
+spl-token-metadata-interface = { workspace = true }
 tokio = { workspace = true }
