@@ -1,12 +1,12 @@
 use crate::{
-    instruction::{InitializeArgs, InitializeMintArgs, SecurityTokenInstruction},
+    instruction::{InitializeArgs, SecurityTokenInstruction},
     utils,
 };
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
-    program::{invoke, invoke_signed},
+    program::invoke,
     program_error::ProgramError,
     pubkey::Pubkey,
     rent::Rent,
@@ -48,72 +48,39 @@ impl Processor {
     ) -> ProgramResult {
         msg!("Processing InitializeMint with Token-2022 extensions");
 
-        // Support three formats:
-        // 1. Simple - only decimals (one byte)
-        // 2. Mint only - InitializeMintArgs structure
-        // 3. Full - InitializeArgs with mint + metadata
-        let (decimals, _mint_authority_opt, _freeze_authority_opt, metadata_opt) = if args_data
-            .is_empty()
-        {
-            (6u8, None, None, None) // Default decimals
-        } else if args_data.len() == 1 {
-            // Simple format - only decimals
-            (args_data[0], None, None, None)
-        } else {
-            // Try full InitializeArgs first (with metadata)
-            match InitializeArgs::unpack(args_data) {
-                Ok(full_args) => {
-                    msg!("Successfully unpacked full InitializeArgs");
-                    if let Some(metadata) = &full_args.ix_metadata {
-                        msg!("Token name: {}", metadata.name);
-                        msg!("Token symbol: {}", metadata.symbol);
-                        msg!("Token URI: {}", metadata.uri);
-                    }
-                    msg!("Mint authority: {}", full_args.ix_mint.mint_authority);
-                    if let Some(freeze_auth) = full_args.ix_mint.freeze_authority {
-                        msg!("Freeze authority: {}", freeze_auth);
-                    }
-                    (
-                        full_args.ix_mint.decimals,
-                        Some(full_args.ix_mint.mint_authority),
-                        full_args.ix_mint.freeze_authority,
-                        full_args.ix_metadata,
-                    )
-                }
-                Err(_) => {
-                    // Fallback to mint-only format
-                    match InitializeMintArgs::unpack(args_data) {
-                        Ok(mint_args) => {
-                            msg!("Successfully unpacked InitializeMintArgs (mint only)");
-                            msg!("Mint authority: {}", mint_args.mint_authority);
-                            if let Some(freeze_auth) = mint_args.freeze_authority {
-                                msg!("Freeze authority: {}", freeze_auth);
-                            }
-                            (
-                                mint_args.decimals,
-                                Some(mint_args.mint_authority),
-                                mint_args.freeze_authority,
-                                None,
-                            )
-                        }
-                        Err(_) => {
-                            // Final fallback to simple format
-                            msg!("Failed to unpack structured data, using first byte as decimals");
-                            (args_data[0], None, None, None)
-                        }
-                    }
-                }
-            }
-        };
+        // Parse the full InitializeArgs structure
+        let args =
+            InitializeArgs::unpack(args_data).map_err(|_| ProgramError::InvalidInstructionData)?;
+
+        let decimals = args.ix_mint.decimals;
+        let mint_authority = args.ix_mint.mint_authority;
+        let freeze_authority_opt = args.ix_mint.freeze_authority;
+        let metadata_pointer_opt = args.ix_metadata_pointer;
+        let metadata_opt = args.ix_metadata;
+        let scaled_ui_amount_opt = args.ix_scaled_ui_amount;
 
         msg!("Initializing mint with {} decimals", decimals);
+        msg!("Mint authority: {}", mint_authority);
+        if let Some(freeze_auth) = freeze_authority_opt {
+            msg!("Freeze authority: {}", freeze_auth);
+        }
+
         if let Some(metadata) = &metadata_opt {
+            msg!("Token name: {}", metadata.name);
+            msg!("Token symbol: {}", metadata.symbol);
+            msg!("Token URI: {}", metadata.uri);
             msg!(
                 "With metadata: {} ({}) - {}",
                 metadata.name,
                 metadata.symbol,
                 metadata.uri
             );
+        }
+        if let Some(_metadata_pointer) = &metadata_pointer_opt {
+            msg!("MetadataPointer configuration provided by client");
+        }
+        if let Some(_scaled_ui_amount) = &scaled_ui_amount_opt {
+            msg!("ScaledUiAmount configuration provided by client");
         }
 
         // Parse accounts
@@ -132,12 +99,27 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let required_extensions: Vec<ExtensionType> = vec![
-            ExtensionType::MetadataPointer,
+        // Get mint authority PDA - this will be the mint authority for the token
+        let (mint_authority_pda, _mint_authority_bump) =
+            utils::find_mint_authority_pda(mint_info.key, creator_info.key, program_id);
+
+        // Build required extensions list based on client data and our security requirements
+        let mut required_extensions: Vec<ExtensionType> = vec![
             ExtensionType::PermanentDelegate,
             ExtensionType::TransferHook,
             ExtensionType::Pausable,
         ];
+
+        // Add MetadataPointer if metadata is provided
+        if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
+            required_extensions.push(ExtensionType::MetadataPointer);
+        }
+
+        // Add ScaledUiAmount if provided by client
+        if scaled_ui_amount_opt.is_some() {
+            required_extensions.push(ExtensionType::ScaledUiAmount);
+            msg!("ScaledUiAmount extension will be initialized");
+        }
 
         let mint_size = ExtensionType::try_calculate_account_len::<Mint>(&required_extensions)
             .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -179,8 +161,6 @@ impl Processor {
         msg!("Required extensions: MetadataPointer, PermanentDelegate, TransferHook");
 
         // Calculate all PDAs that will be used for extensions
-
-        // TODO: Figure out how they come
         let (transfer_hook_pda, _bump) = utils::find_transfer_hook_pda(mint_info.key, program_id);
         let (permanent_delegate_pda, _bump) =
             utils::find_permanent_delegate_pda(mint_info.key, program_id);
@@ -193,24 +173,41 @@ impl Processor {
         msg!("All extension PDAs calculated successfully");
         msg!("Initializing Token-2022 extensions before mint");
 
-        // Get mint authority PDA - this will be the mint authority for the token
-        let (mint_authority_pda, _mint_authority_bump) =
-            utils::find_mint_authority_pda(mint_info.key, creator_info.key, program_id);
-
         msg!("Mint authority PDA: {}", mint_authority_pda);
 
-        let metadata_pointer_init_instruction =
-            spl_token_2022::extension::metadata_pointer::instruction::initialize(
-                token_program_info.key,   // SPL Token 2022 program ID
-                mint_info.key,            // mint account
-                Some(mint_authority_pda), // metadata authority (our PDA)
-                Some(*mint_info.key),     // metadata address (store metadata ON the mint account)
+        // Initialize MetadataPointer extension if needed and store metadata address for later use
+        let metadata_account_address = if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
+            let (metadata_authority, metadata_address) =
+                if let Some(client_metadata_pointer) = &metadata_pointer_opt {
+                    // Use client-provided MetadataPointer configuration
+                    msg!("Using client-provided MetadataPointer configuration");
+                    let authority = client_metadata_pointer.authority.into();
+                    let address = client_metadata_pointer.metadata_address.into();
+                    (authority, address)
+                } else {
+                    // Fallback to default: creator as authority, mint as metadata storage
+                    msg!("Using default MetadataPointer configuration");
+                    (Some(*creator_info.key), Some(*mint_info.key))
+                };
+
+            let metadata_pointer_init_instruction =
+                spl_token_2022::extension::metadata_pointer::instruction::initialize(
+                    token_program_info.key, // SPL Token 2022 program ID
+                    mint_info.key,          // mint account
+                    metadata_authority,     // metadata authority (from client or our PDA)
+                    metadata_address,       // metadata address (from client or mint)
+                )?;
+            invoke(
+                &metadata_pointer_init_instruction,
+                &[mint_info.clone(), token_program_info.clone()],
             )?;
-        invoke(
-            &metadata_pointer_init_instruction,
-            &[mint_info.clone(), token_program_info.clone()],
-        )?;
-        msg!("MetadataPointer extension initialized");
+            msg!("MetadataPointer extension initialized");
+
+            // Return the metadata address for later use
+            metadata_address
+        } else {
+            None
+        };
         let transfer_hook_init_instruction =
             spl_token_2022::extension::transfer_hook::instruction::initialize(
                 token_program_info.key,   // SPL Token 2022 program ID
@@ -249,16 +246,37 @@ impl Processor {
         )?;
         msg!("Pausable extension initialized");
 
+        // Initialize ScaledUiAmount extension if provided by client
+        if let Some(scaled_ui_amount_config) = &scaled_ui_amount_opt {
+            msg!("Initializing ScaledUiAmount extension with client configuration");
+
+            let scaled_ui_amount_init_instruction =
+                spl_token_2022::extension::scaled_ui_amount::instruction::initialize(
+                    token_program_info.key,                        // SPL Token 2022 program ID
+                    mint_info.key,                                 // mint account
+                    scaled_ui_amount_config.authority.into(),      // authority from client
+                    f64::from(scaled_ui_amount_config.multiplier), // multiplier from client
+                )?;
+            invoke(
+                &scaled_ui_amount_init_instruction,
+                &[mint_info.clone(), token_program_info.clone()],
+            )?;
+            msg!(
+                "ScaledUiAmount extension initialized with multiplier: {}",
+                f64::from(scaled_ui_amount_config.multiplier)
+            );
+        }
+
         msg!("All security token extensions initialized successfully");
 
         // Now initialize the basic mint
         msg!("Initializing basic mint after all extensions");
 
-        // Initialize basic mint with all security token extensions
+        // Initialize basic mint with creator as temporary mint authority
         let initialize_mint_instruction = instruction::initialize_mint2(
             token_program_info.key,              // SPL Token 2022 program ID
             mint_info.key,                       // mint account
-            &mint_authority_pda,                 // mint authority
+            creator_info.key,                    // temporary mint authority (creator)
             Some(freeze_authority_pda).as_ref(), // freeze authority (optional)
             decimals,                            // decimals
         )?;
@@ -273,44 +291,58 @@ impl Processor {
             decimals
         );
 
-        // Now initialize the metadata through SPL Token Metadata Interface
         if let Some(metadata) = &metadata_opt {
             msg!("Initializing token metadata through SPL Token Metadata Interface");
 
-            // Create metadata initialize instruction using SPL Token Metadata Interface
-            // Note: For Token-2022 with MetadataPointer, metadata is handled by the token program itself
+            // Determine which account to use for metadata
+            let metadata_account_info = if let Some(metadata_addr) = metadata_account_address {
+                if metadata_addr == *mint_info.key {
+                    // Metadata is stored in mint account (in-mint storage)
+                    mint_info.clone()
+                } else {
+                    // Metadata is stored in external account - find it in accounts list
+                    accounts
+                        .iter()
+                        .find(|acc| acc.key == &metadata_addr)
+                        .ok_or_else(|| {
+                            msg!(
+                                "Metadata account {} not found in accounts list",
+                                metadata_addr
+                            );
+                            ProgramError::InvalidAccountData
+                        })?
+                        .clone()
+                }
+            } else {
+                // No metadata pointer, shouldn't happen if we have metadata
+                return Err(ProgramError::InvalidInstructionData);
+            };
+
+            // First initialize base metadata with name, symbol, uri
+            // Use creator as update authority since PDA might not have funds
             let metadata_init_instruction = spl_token_metadata_interface::instruction::initialize(
                 token_program_info.key, // Token-2022 program ID (handles metadata interface)
-                mint_info.key,          // metadata account (same as mint due to MetadataPointer)
-                &mint_authority_pda,    // update authority
+                metadata_account_info.key, // metadata account (from MetadataPointer)
+                creator_info.key,       // update authority (creator)
                 mint_info.key,          // mint account
-                &mint_authority_pda,    // mint authority
+                creator_info.key, // mint authority (creator is still mint authority at this point)
                 metadata.name.clone(),
                 metadata.symbol.clone(),
                 metadata.uri.clone(),
             );
 
-            // Sign with mint authority PDA to create metadata
-            let mint_authority_signer_seeds = utils::get_mint_authority_seeds(
-                mint_info.key,
-                creator_info.key,
-                &_mint_authority_bump,
-            );
-            let mint_authority_signers = &[&mint_authority_signer_seeds[..]];
-
-            invoke_signed(
+            invoke(
                 &metadata_init_instruction,
                 &[
-                    mint_info.clone(), // metadata account
-                    mint_info.clone(), // update authority account
-                    mint_info.clone(), // mint account
-                    mint_info.clone(), // mint authority account (PDA)
+                    metadata_account_info.clone(), // metadata account (from MetadataPointer)
+                    creator_info.clone(),          // update authority (creator)
+                    mint_info.clone(),             // mint account
+                    creator_info.clone(),          // mint authority (creator - must sign)
                 ],
-                mint_authority_signers,
             )?;
-            msg!("Basic metadata initialized");
+            msg!("Base metadata initialized successfully");
 
-            // Add additional metadata fields if present
+            // Add additional metadata fields if present - each field requires separate instruction
             if !metadata.additional_metadata.is_empty() {
                 msg!(
                     "Adding {} additional metadata fields",
@@ -320,20 +352,19 @@ impl Processor {
                 for (key, value) in &metadata.additional_metadata {
                     let update_field_instruction =
                         spl_token_metadata_interface::instruction::update_field(
-                            token_program_info.key, // Token-2022 program ID
-                            mint_info.key,          // metadata account
-                            &mint_authority_pda,    // update authority
+                            token_program_info.key,    // Token-2022 program ID
+                            metadata_account_info.key, // metadata account (from MetadataPointer)
+                            creator_info.key,          // update authority (creator)
                             spl_token_metadata_interface::state::Field::Key(key.clone()),
                             value.clone(),
                         );
 
-                    invoke_signed(
+                    invoke(
                         &update_field_instruction,
                         &[
-                            mint_info.clone(), // metadata account
-                            mint_info.clone(), // update authority account (PDA)
+                            metadata_account_info.clone(), // metadata account (from MetadataPointer)
+                            creator_info.clone(),          // update authority (creator)
                         ],
-                        mint_authority_signers,
                     )?;
                     msg!("Added metadata field: {} = {}", key, value);
                 }
@@ -343,6 +374,32 @@ impl Processor {
         } else {
             msg!("No metadata provided, skipping metadata initialization");
         }
+
+        // Transfer mint authority from creator to our PDA for security token control
+        msg!("Transferring mint authority from creator to PDA for security token control");
+        let set_authority_instruction = spl_token_2022::instruction::set_authority(
+            token_program_info.key,    // SPL Token 2022 program
+            mint_info.key,             // mint account
+            Some(&mint_authority_pda), // new authority (our PDA)
+            spl_token_2022::instruction::AuthorityType::MintTokens, // authority type
+            creator_info.key,          // current authority (creator)
+            &[],                       // multisig signers (none)
+        )?;
+
+        invoke(
+            &set_authority_instruction,
+            &[
+                mint_info.clone(),
+                creator_info.clone(), // current authority must sign
+                token_program_info.clone(),
+            ],
+        )?;
+
+        msg!(
+            "Mint authority successfully transferred to PDA: {}",
+            mint_authority_pda
+        );
+        msg!("Security token mint initialization completed successfully");
         Ok(())
     }
 }

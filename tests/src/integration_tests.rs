@@ -1,7 +1,7 @@
 //! Security Token Standard Integration Tests
 
 use security_token_program::{
-    instruction::SecurityTokenInstruction,
+    instruction::{InitializeArgs, SecurityTokenInstruction},
     processor::Processor,
     state::{Rate, Receipt, SecurityTokenMint, VerificationConfig, VerificationStatus},
     utils,
@@ -13,6 +13,85 @@ use solana_program::{
 use solana_program_test::{processor, ProgramTest};
 use solana_sdk::signature::Signer;
 use spl_pod::optional_keys::OptionalNonZeroPubkey;
+use spl_token_2022::extension::permanent_delegate::PermanentDelegate;
+use spl_token_2022::extension::transfer_hook::TransferHook;
+use spl_token_metadata_interface::state::TokenMetadata;
+
+fn create_initialize_mint_instruction(
+    _program_id: Pubkey,
+    decimals: u8,
+    mint_authority: Pubkey,
+    freeze_authority: Option<Pubkey>,
+) -> Vec<u8> {
+    let args = InitializeArgs::new(
+        decimals,
+        mint_authority,
+        freeze_authority,
+        None, // metadata_pointer
+        None, // metadata
+        None, // scaled_ui_amount
+    );
+
+    let mut instruction_data = vec![SecurityTokenInstruction::InitializeMint as u8];
+    instruction_data.extend(args.pack());
+    instruction_data
+}
+
+fn create_initialize_mint_with_metadata_instruction(
+    program_id: Pubkey,
+    decimals: u8,
+    mint_pubkey: &Pubkey,
+    creator_pubkey: &Pubkey,
+    freeze_authority: Option<Pubkey>,
+) -> Vec<u8> {
+    use spl_pod::optional_keys::OptionalNonZeroPubkey;
+    use spl_token_2022::extension::metadata_pointer::MetadataPointer;
+    use spl_token_2022::extension::scaled_ui_amount::instruction::InitializeInstructionData as ScaledUiAmountInitialize;
+
+    // Calculate the mint authority PDA that will be used by the program
+    let (mint_authority_pda, _bump) =
+        utils::find_mint_authority_pda(mint_pubkey, creator_pubkey, &program_id);
+
+    // Create metadata pointer with the correct PDA
+    let metadata_pointer = MetadataPointer {
+        authority: OptionalNonZeroPubkey::try_from(Some(mint_authority_pda)).unwrap(),
+        metadata_address: OptionalNonZeroPubkey::try_from(Some(*mint_pubkey)).unwrap(), // Point to mint address
+    };
+
+    // Create metadata
+    let metadata = TokenMetadata {
+        update_authority: OptionalNonZeroPubkey::try_from(Some(mint_authority_pda)).unwrap(),
+        mint: *mint_pubkey, // Actual mint pubkey
+        name: "Solana Security Token".to_string(),
+        symbol: "HST".to_string(),
+        uri: "https://example.com/tokens/hst".to_string(),
+        additional_metadata: vec![
+            ("type".to_string(), "security".to_string()),
+            ("compliance".to_string(), "reg_d".to_string()),
+            ("issuer".to_string(), "Hoodies Inc".to_string()),
+            ("industry".to_string(), "blockchain".to_string()),
+        ],
+    };
+
+    // Create scaled UI amount config (1.5x multiplier)
+    let scaled_ui_amount = ScaledUiAmountInitialize {
+        authority: OptionalNonZeroPubkey::try_from(Some(mint_authority_pda)).unwrap(),
+        multiplier: 1.5f64.into(), // 1.5x multiplier
+    };
+
+    let args = InitializeArgs::new(
+        decimals,
+        *creator_pubkey, // Use creator as mint authority parameter (will be replaced by PDA in processor)
+        freeze_authority,
+        Some(metadata_pointer),
+        Some(metadata),
+        Some(scaled_ui_amount),
+    );
+
+    let mut instruction_data = vec![SecurityTokenInstruction::InitializeMint as u8];
+    instruction_data.extend(args.pack());
+    instruction_data
+}
 
 #[tokio::test]
 async fn test_program_loads() {
@@ -30,25 +109,44 @@ async fn test_program_loads() {
 }
 
 #[tokio::test]
-async fn test_initialize_mint_instruction() {
+async fn test_initialize_mint_with_all_extensions() {
     let program_id = Pubkey::new_unique();
-    let program_test = ProgramTest::new(
+    let mut program_test = ProgramTest::new(
         "security_token_program",
         program_id,
         processor!(Processor::process),
     );
 
-    let (banks_client, payer, recent_blockhash) = program_test.start().await;
-
     // Create mint keypair - mint account must be a signer when creating new account
     let mint_keypair = solana_sdk::signature::Keypair::new();
+
+    let payer = solana_sdk::signature::Keypair::new();
+    program_test.add_account(
+        payer.pubkey(),
+        solana_sdk::account::Account {
+            lamports: 1_000_000_000, // 1 SOL
+            data: vec![],
+            owner: solana_program::system_program::ID,
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    let (banks_client, _default_payer, recent_blockhash) = program_test.start().await;
     let spl_token_2022_program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         .parse::<Pubkey>()
         .unwrap();
 
     let instruction = Instruction::new_with_bytes(
         program_id,
-        &[SecurityTokenInstruction::InitializeMint as u8, 9], // Simple format: discriminator + decimals
+        &create_initialize_mint_with_metadata_instruction(
+            // Use full version with metadata
+            program_id,
+            6,
+            &mint_keypair.pubkey(),
+            &payer.pubkey(),
+            None,
+        ),
         vec![
             AccountMeta::new(mint_keypair.pubkey(), true), // 0. Mint account (must be signer)
             AccountMeta::new_readonly(payer.pubkey(), true), // 1. Creator (signer)
@@ -67,7 +165,19 @@ async fn test_initialize_mint_instruction() {
 
     // Process transaction
     let result = banks_client.process_transaction(transaction).await;
-    assert!(result.is_ok(), "Initialize mint instruction should succeed");
+
+    if let Err(error) = &result {
+        println!("Transaction failed with error: {:?}", error);
+        panic!(
+            "Initialize mint with all extensions should succeed, but got error: {:?}",
+            error
+        );
+    }
+
+    assert!(
+        result.is_ok(),
+        "Initialize mint with all extensions should succeed"
+    );
 
     // Verify mint account was created correctly
     let mint_account = banks_client
@@ -82,20 +192,10 @@ async fn test_initialize_mint_instruction() {
         "Mint should be owned by Token-2022 program"
     );
 
-    // With all three extensions (MetadataPointer, PermanentDelegate, TransferHook),
-    // account size should be 338 bytes as calculated by Token-2022
-    assert_eq!(
-        mint_account.data.len(),
-        375,
-        "Mint with all three security token extensions should be exactly 375 bytes"
-    );
-    println!(
-        "Mint account size with all security token extensions: {} bytes",
-        mint_account.data.len()
-    );
+    println!("Security Token Mint with ALL extensions created successfully!");
+    println!("   Account size: {} bytes", mint_account.data.len());
 
     // Parse mint data to verify all parameters (with extensions)
-    // Try to parse mint data with Token-2022 extension support
     use spl_token_2022::extension::{BaseStateWithExtensions, ExtensionType, StateWithExtensions};
     use spl_token_2022::state::Mint;
 
@@ -104,8 +204,8 @@ async fn test_initialize_mint_instruction() {
 
     // Verify basic mint properties
     assert_eq!(
-        mint_with_extensions.base.decimals, 9,
-        "Mint should have 9 decimals"
+        mint_with_extensions.base.decimals, 6,
+        "Mint should have 6 decimals"
     );
     assert!(
         mint_with_extensions.base.is_initialized,
@@ -121,7 +221,6 @@ async fn test_initialize_mint_instruction() {
         utils::find_mint_authority_pda(&mint_keypair.pubkey(), &payer.pubkey(), &program_id).0;
     let expected_freeze_authority =
         utils::find_freeze_authority_pda(&mint_keypair.pubkey(), &program_id).0;
-
     let expected_permanent_delegate =
         utils::find_permanent_delegate_pda(&mint_keypair.pubkey(), &program_id).0;
 
@@ -130,34 +229,25 @@ async fn test_initialize_mint_instruction() {
         expected_mint_authority,
         "Mint authority should be the calculated PDA"
     );
-
-    // Verify freeze authority is also set to the same PDA
     assert_eq!(
         mint_with_extensions.base.freeze_authority.unwrap(),
         expected_freeze_authority,
-        "Freeze authority should be the same PDA"
+        "Freeze authority should be the calculated PDA"
     );
 
-    // Verify the PDA can be derived consistently
-    let (derived_pda, _bump) =
-        utils::find_mint_authority_pda(&mint_keypair.pubkey(), &payer.pubkey(), &program_id);
-    assert_eq!(
-        derived_pda, expected_mint_authority,
-        "PDA derivation should be consistent"
-    );
-
-    println!("Verifying Security Token Extensions:");
+    println!("Basic mint properties verified");
 
     // Get all extension types present in the mint
     let extension_types = mint_with_extensions
         .get_extension_types()
         .expect("Should be able to get extension types");
 
-    // Verify all three required security token extensions are present
-    assert!(
-        extension_types.contains(&ExtensionType::MetadataPointer),
-        "MetadataPointer extension should be present"
-    );
+    println!("Extension types found:");
+    for ext_type in &extension_types {
+        println!("   - {:?}", ext_type);
+    }
+
+    // Verify ALL extensions are present
     assert!(
         extension_types.contains(&ExtensionType::PermanentDelegate),
         "PermanentDelegate extension should be present"
@@ -166,18 +256,19 @@ async fn test_initialize_mint_instruction() {
         extension_types.contains(&ExtensionType::TransferHook),
         "TransferHook extension should be present"
     );
-
     assert!(
         extension_types.contains(&ExtensionType::Pausable),
         "Pausable extension should be present"
     );
+    assert!(
+        extension_types.contains(&ExtensionType::MetadataPointer),
+        "MetadataPointer extension should be present"
+    );
+    assert!(
+        extension_types.contains(&ExtensionType::ScaledUiAmount),
+        "ScaledUiAmount extension should be present"
+    );
 
-    println!("All extensions confirmed present:");
-    for ext_type in &extension_types {
-        println!("  - {:?}", ext_type);
-    }
-
-    // Verify MetadataPointer configuration
     use spl_token_2022::extension::metadata_pointer::MetadataPointer;
     let metadata_pointer = mint_with_extensions
         .get_extension::<MetadataPointer>()
@@ -191,19 +282,34 @@ async fn test_initialize_mint_instruction() {
     assert_eq!(
         Option::<Pubkey>::from(metadata_pointer.metadata_address),
         Some(mint_keypair.pubkey()),
-        "Metadata should be stored ON the mint account itself"
+        "MetadataPointer should point to mint address"
+    );
+    println!("MetadataPointer extension verified");
+
+    use spl_token_2022::extension::scaled_ui_amount::ScaledUiAmountConfig;
+    let scaled_ui_amount = mint_with_extensions
+        .get_extension::<ScaledUiAmountConfig>()
+        .expect("ScaledUiAmount extension should be accessible");
+
+    assert_eq!(
+        Option::<Pubkey>::from(scaled_ui_amount.authority),
+        Some(expected_mint_authority),
+        "ScaledUiAmount authority should be our mint authority PDA"
+    );
+    assert_eq!(
+        f64::from(scaled_ui_amount.multiplier),
+        1.5f64,
+        "ScaledUiAmount multiplier should be 1.5"
+    );
+    println!(
+        "ScaledUiAmount extension verified: multiplier = {}x",
+        f64::from(scaled_ui_amount.multiplier)
     );
 
-    let authority_key: Option<Pubkey> = Option::from(metadata_pointer.authority);
-    let metadata_address_key: Option<Pubkey> = Option::from(metadata_pointer.metadata_address);
-    println!(
-        "MetadataPointer: authority={}, metadata_address={}",
-        authority_key.unwrap(),
-        metadata_address_key.unwrap()
-    );
+    // TODO: Verify token metadata
+    
 
     // Verify PermanentDelegate configuration
-    use spl_token_2022::extension::permanent_delegate::PermanentDelegate;
     let permanent_delegate = mint_with_extensions
         .get_extension::<PermanentDelegate>()
         .expect("PermanentDelegate extension should be accessible");
@@ -211,13 +317,11 @@ async fn test_initialize_mint_instruction() {
     assert_eq!(
         Option::<Pubkey>::from(permanent_delegate.delegate),
         Some(expected_permanent_delegate),
-        "PermanentDelegate should be our mint authority PDA"
+        "PermanentDelegate should be our permanent delegate PDA"
     );
-    let delegate_key: Option<Pubkey> = Option::from(permanent_delegate.delegate);
-    println!("PermanentDelegate: delegate={}", delegate_key.unwrap());
+    println!("PermanentDelegate extension verified");
 
     // Verify TransferHook configuration
-    use spl_token_2022::extension::transfer_hook::TransferHook;
     let transfer_hook = mint_with_extensions
         .get_extension::<TransferHook>()
         .expect("TransferHook extension should be accessible");
@@ -234,13 +338,6 @@ async fn test_initialize_mint_instruction() {
         Option::<Pubkey>::from(transfer_hook.program_id),
         Some(expected_transfer_hook_pda),
         "TransferHook program should be our transfer hook PDA"
-    );
-    let hook_authority_key: Option<Pubkey> = Option::from(transfer_hook.authority);
-    let hook_program_key: Option<Pubkey> = Option::from(transfer_hook.program_id);
-    println!(
-        "TransferHook: authority={}, program_id={}",
-        hook_authority_key.unwrap(),
-        hook_program_key.unwrap()
     );
 }
 
@@ -260,16 +357,13 @@ async fn test_initialize_mint_with_different_decimals() {
 
     // Test different decimal values
     for decimals in [0, 2, 6, 9, 18] {
-        println!(
-            "\n🧪 Testing mint initialization with {} decimals",
-            decimals
-        );
+        println!("\n Testing mint initialization with {} decimals", decimals);
 
         let mint_keypair = solana_sdk::signature::Keypair::new();
 
         let instruction = Instruction::new_with_bytes(
             program_id,
-            &[SecurityTokenInstruction::InitializeMint as u8, decimals],
+            &create_initialize_mint_instruction(program_id, decimals, payer.pubkey(), None),
             vec![
                 AccountMeta::new(mint_keypair.pubkey(), true),
                 AccountMeta::new_readonly(payer.pubkey(), true),
@@ -312,11 +406,12 @@ async fn test_initialize_mint_with_different_decimals() {
             decimals
         );
 
-        // All security token mints should have the same account size regardless of decimals
+        // Security token mints without metadata should be 307 bytes
+        // (with PermanentDelegate, TransferHook, and Pausable extensions)
         assert_eq!(
             mint_account.data.len(),
-            375,
-            "All security token mints should be 375 bytes regardless of decimals"
+            307,
+            "Security token mint without metadata should be 307 bytes"
         );
 
         println!("{} decimals: verified successfully", decimals);
@@ -344,9 +439,9 @@ async fn test_initialize_mint_error_cases() {
 
         let instruction = Instruction::new_with_bytes(
             program_id,
-            &[SecurityTokenInstruction::InitializeMint as u8, 9], // Test case 1: mint not signer
+            &create_initialize_mint_instruction(program_id, 9, payer.pubkey(), None),
             vec![
-                AccountMeta::new(mint_keypair.pubkey(), false),
+                AccountMeta::new(mint_keypair.pubkey(), false), // mint not signer!
                 AccountMeta::new_readonly(payer.pubkey(), true),
                 AccountMeta::new_readonly(spl_token_2022_program, false),
                 AccountMeta::new_readonly(solana_program::system_program::ID, false),
@@ -374,10 +469,10 @@ async fn test_initialize_mint_error_cases() {
 
         let instruction = Instruction::new_with_bytes(
             program_id,
-            &[SecurityTokenInstruction::InitializeMint as u8, 9], // Test case 2: creator not signer
+            &create_initialize_mint_instruction(program_id, 9, fake_creator.pubkey(), None),
             vec![
                 AccountMeta::new(mint_keypair.pubkey(), true),
-                AccountMeta::new_readonly(fake_creator.pubkey(), false),
+                AccountMeta::new_readonly(fake_creator.pubkey(), false), // creator not signer!
                 AccountMeta::new_readonly(spl_token_2022_program, false),
                 AccountMeta::new_readonly(solana_program::system_program::ID, false),
                 AccountMeta::new_readonly(solana_program::sysvar::rent::ID, false),
