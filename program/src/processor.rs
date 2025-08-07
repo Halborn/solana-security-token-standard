@@ -113,6 +113,7 @@ impl Processor {
         // Add MetadataPointer if metadata is provided
         if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
             required_extensions.push(ExtensionType::MetadataPointer);
+            // required_extensions.push(ExtensionType::TokenMetadata);
         }
 
         // Add ScaledUiAmount if provided by client
@@ -121,22 +122,37 @@ impl Processor {
             msg!("ScaledUiAmount extension will be initialized");
         }
 
+        // Calculate mint size with extensions (but without metadata TLV data)
         let mint_size = ExtensionType::try_calculate_account_len::<Mint>(&required_extensions)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        msg!("Calculated mint account size: {} bytes", mint_size);
+        // Calculate total size for rent (mint + metadata)
+        let metadata_size = if let Some(metadata) = &metadata_opt {
+            metadata.tlv_size_of()?
+        } else {
+            0
+        };
+        let total_size = mint_size + metadata_size;
+
+        msg!("Mint size: {} bytes", mint_size);
+        msg!("Metadata TLV size: {} bytes", metadata_size);
+        msg!("Total size for rent: {} bytes", total_size);
 
         let rent = Rent::from_account_info(rent_info)?;
-        let required_lamports = rent.minimum_balance(mint_size);
+        let required_lamports = rent.minimum_balance(total_size);
 
-        msg!("Creating mint account with {} lamports", required_lamports);
+        msg!(
+            "Creating mint account with {} lamports for {} bytes",
+            required_lamports,
+            mint_size
+        );
 
-        // CPI to System Program to create account
+        // CPI to System Program to create account - only mint size, metadata will be added by SPL Token 2022
         let create_account_instruction = system_instruction::create_account(
             creator_info.key,       // from (payer)
             mint_info.key,          // to (new account)
-            required_lamports,      // lamports
-            mint_size as u64,       // space
+            required_lamports,      // lamports (calculated from total size)
+            mint_size as u64,       // space (only mint size, not metadata)
             token_program_info.key, // owner (SPL Token 2022 program)
         );
 
@@ -150,17 +166,8 @@ impl Processor {
         )?;
 
         msg!("Mint account created successfully");
-        msg!("Extensions setup - checking account structure and PDAs");
 
-        // For now, we'll verify that extensions are properly calculated in account size
-        // The actual extension initialization will be done after basic mint initialization
-        msg!(
-            "Extension space allocated in mint account: {} bytes",
-            mint_size
-        );
-        msg!("Required extensions: MetadataPointer, PermanentDelegate, TransferHook");
-
-        // Calculate all PDAs that will be used for extensions
+        // Calculate all PDAs that will be used for extensions and mint initialization
         let (transfer_hook_pda, _bump) = utils::find_transfer_hook_pda(mint_info.key, program_id);
         let (permanent_delegate_pda, _bump) =
             utils::find_permanent_delegate_pda(mint_info.key, program_id);
@@ -171,9 +178,11 @@ impl Processor {
         msg!("PermanentDelegate PDA: {}", permanent_delegate_pda);
         msg!("FreezeAuthority PDA: {}", freeze_authority_pda);
         msg!("All extension PDAs calculated successfully");
-        msg!("Initializing Token-2022 extensions before mint");
 
-        msg!("Mint authority PDA: {}", mint_authority_pda);
+        msg!("Extensions setup - initializing extensions BEFORE basic mint");
+
+        // Initialize all extensions first, then basic mint
+        msg!("Initializing Token-2022 extensions before basic mint");
 
         // Initialize MetadataPointer extension if needed and store metadata address for later use
         let metadata_account_address = if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
@@ -208,6 +217,9 @@ impl Processor {
         } else {
             None
         };
+
+        msg!("Mint authority PDA: {}", mint_authority_pda);
+
         let transfer_hook_init_instruction =
             spl_token_2022::extension::transfer_hook::instruction::initialize(
                 token_program_info.key,   // SPL Token 2022 program ID
@@ -269,10 +281,9 @@ impl Processor {
 
         msg!("All security token extensions initialized successfully");
 
-        // Now initialize the basic mint
-        msg!("Initializing basic mint after all extensions");
+        // NOW initialize basic mint AFTER all extensions
+        msg!("Initializing basic mint AFTER extensions");
 
-        // Initialize basic mint with creator as temporary mint authority
         let initialize_mint_instruction = instruction::initialize_mint2(
             token_program_info.key,              // SPL Token 2022 program ID
             mint_info.key,                       // mint account
@@ -287,12 +298,12 @@ impl Processor {
         )?;
 
         msg!(
-            "Mint initialized successfully with {} decimals and all security token extensions",
+            "Basic mint initialized successfully with {} decimals",
             decimals
         );
 
         if let Some(metadata) = &metadata_opt {
-            msg!("Initializing token metadata through SPL Token Metadata Interface");
+            msg!("Preparing to initialize token metadata through SPL Token Metadata Interface");
 
             // Determine which account to use for metadata
             let metadata_account_info = if let Some(metadata_addr) = metadata_account_address {
@@ -317,6 +328,8 @@ impl Processor {
                 // No metadata pointer, shouldn't happen if we have metadata
                 return Err(ProgramError::InvalidInstructionData);
             };
+
+            msg!("Initializing token metadata");
 
             // First initialize base metadata with name, symbol, uri
             // Use creator as update authority since PDA might not have funds
