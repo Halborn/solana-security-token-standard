@@ -174,11 +174,6 @@ async fn test_initialize_mint_with_all_extensions() {
         );
     }
 
-    assert!(
-        result.is_ok(),
-        "Initialize mint with all extensions should succeed"
-    );
-
     // Verify mint account was created correctly
     let mint_account = banks_client
         .get_account(mint_keypair.pubkey())

@@ -113,7 +113,6 @@ impl Processor {
         // Add MetadataPointer if metadata is provided
         if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
             required_extensions.push(ExtensionType::MetadataPointer);
-            // required_extensions.push(ExtensionType::TokenMetadata);
         }
 
         // Add ScaledUiAmount if provided by client
@@ -147,7 +146,6 @@ impl Processor {
             mint_size
         );
 
-        // CPI to System Program to create account - only mint size, metadata will be added by SPL Token 2022
         let create_account_instruction = system_instruction::create_account(
             creator_info.key,       // from (payer)
             mint_info.key,          // to (new account)
@@ -280,8 +278,6 @@ impl Processor {
         }
 
         msg!("All security token extensions initialized successfully");
-
-        // NOW initialize basic mint AFTER all extensions
         msg!("Initializing basic mint AFTER extensions");
 
         let initialize_mint_instruction = instruction::initialize_mint2(
