@@ -543,7 +543,7 @@ async fn test_update_metadata() {
             ("1".to_string(), "2.0".to_string()),
             ("version".to_string(), "2.0".to_string()),
             ("issuer".to_string(), "Hoodies".to_string()),
-            ("industry".to_string(), "blockchain".to_string()), 
+            ("industry".to_string(), "blockchain".to_string()),
         ],
         mint_keypair.pubkey(),
         payer.pubkey(), // Use payer as signing authority for this test
