@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use num_derive::FromPrimitive;
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use spl_token_2022::extension::metadata_pointer::MetadataPointer;
@@ -306,6 +307,44 @@ impl InitializeArgs {
     }
 }
 
+/// Arguments for UpdateMetadata instruction
+#[derive(Clone, Debug)]
+pub struct UpdateMetadataArgs {
+    /// Metadata to update
+    pub metadata: TokenMetadata,
+}
+
+impl UpdateMetadataArgs {
+    /// Create new UpdateMetadataArgs
+    pub fn new(metadata: TokenMetadata) -> Self {
+        Self { metadata }
+    }
+
+    /// Pack the arguments into bytes
+    pub fn pack(&self) -> Vec<u8> {
+        borsh::to_vec(&self.metadata).unwrap()
+    }
+
+    /// Unpack arguments from bytes
+    pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
+        let metadata = TokenMetadata::try_from_slice(data)
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+        Ok(Self { metadata })
+    }
+
+    /// Validate the arguments
+    pub fn validate(&self) -> Result<(), ProgramError> {
+        // Validate metadata
+        if self.metadata.name.is_empty() {
+            return Err(ProgramError::InvalidArgument);
+        }
+        if self.metadata.symbol.is_empty() {
+            return Err(ProgramError::InvalidArgument);
+        }
+        Ok(())
+    }
+}
+
 /// Security Token Program instructions
 #[derive(Clone, Debug, PartialEq, FromPrimitive)]
 pub enum SecurityTokenInstruction {
@@ -317,6 +356,13 @@ pub enum SecurityTokenInstruction {
     /// 3. `[]` The system program ID
     /// 4. `[]` The rent sysvar
     InitializeMint = 0,
+    /// Update the metadata of an existing security token mint
+    /// Accounts expected:
+    /// 0. `[writable]` The mint account
+    /// 1. `[signer]` The mint authority account
+    /// 2. `[]` The SPL Token 2022 program ID
+    /// 3. `[]` The system program ID - NOTE: Add lamports if needed
+    UpdateMetadata = 1,
 }
 
 #[cfg(test)]
@@ -495,6 +541,52 @@ mod tests {
             metadata.additional_metadata,
             unpacked_metadata.additional_metadata
         );
+    }
+
+    #[test]
+    fn test_update_metadata_args_pack_unpack() {
+        let update_authority = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+
+        let metadata = TokenMetadata {
+            update_authority: OptionalNonZeroPubkey::try_from(Some(update_authority)).unwrap(),
+            mint,
+            name: "Updated Token".to_string(),
+            symbol: "UPD".to_string(),
+            uri: "https://updated.example.com".to_string(),
+            additional_metadata: vec![
+                ("version".to_string(), "2.0".to_string()),
+                ("updated".to_string(), "2024".to_string()),
+            ],
+        };
+
+        let original = UpdateMetadataArgs::new(metadata.clone());
+
+        // Test validation
+        assert!(original.validate().is_ok());
+
+        let packed = original.pack();
+        let unpacked = UpdateMetadataArgs::unpack(&packed).unwrap();
+
+        assert_eq!(original.metadata.name, unpacked.metadata.name);
+        assert_eq!(original.metadata.symbol, unpacked.metadata.symbol);
+        assert_eq!(original.metadata.uri, unpacked.metadata.uri);
+        assert_eq!(
+            original.metadata.additional_metadata,
+            unpacked.metadata.additional_metadata
+        );
+
+        // Test validation failure with empty name
+        let bad_metadata = TokenMetadata {
+            update_authority: OptionalNonZeroPubkey::try_from(Some(update_authority)).unwrap(),
+            mint,
+            name: "".to_string(),
+            symbol: "UPD".to_string(),
+            uri: "https://updated.example.com".to_string(),
+            additional_metadata: Vec::new(),
+        };
+        let invalid_args = UpdateMetadataArgs::new(bad_metadata);
+        assert!(invalid_args.validate().is_err());
     }
 
     #[test]
