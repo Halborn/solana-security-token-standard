@@ -1,7 +1,7 @@
 //! Security Token Standard Integration Tests
 
 use security_token_program::{
-    instruction::{InitializeArgs, SecurityTokenInstruction},
+    instruction::{InitializeArgs, SecurityTokenInstruction, UpdateMetadataArgs},
     processor::Processor,
     state::{Rate, Receipt, SecurityTokenMint, VerificationConfig, VerificationStatus},
     utils,
@@ -89,6 +89,32 @@ fn create_initialize_mint_with_metadata_instruction(
     );
 
     let mut instruction_data = vec![SecurityTokenInstruction::InitializeMint as u8];
+    instruction_data.extend(args.pack());
+    instruction_data
+}
+
+fn create_update_metadata_instruction(
+    new_name: String,
+    new_symbol: String,
+    new_uri: String,
+    additional_metadata: Vec<(String, String)>,
+    mint: Pubkey,
+    update_authority: Pubkey,
+) -> Vec<u8> {
+    use spl_pod::optional_keys::OptionalNonZeroPubkey;
+
+    let metadata = TokenMetadata {
+        update_authority: OptionalNonZeroPubkey::try_from(Some(update_authority)).unwrap(),
+        mint,
+        name: new_name,
+        symbol: new_symbol,
+        uri: new_uri,
+        additional_metadata,
+    };
+
+    let args = UpdateMetadataArgs::new(metadata);
+
+    let mut instruction_data = vec![SecurityTokenInstruction::UpdateMetadata as u8];
     instruction_data.extend(args.pack());
     instruction_data
 }
@@ -434,6 +460,167 @@ async fn test_initialize_mint_with_all_extensions() {
         Option::<Pubkey>::from(transfer_hook.program_id),
         Some(expected_transfer_hook_pda),
         "TransferHook program should be our transfer hook PDA"
+    );
+}
+
+#[tokio::test]
+async fn test_update_metadata() {
+    let program_id = Pubkey::new_unique();
+    let mut program_test = ProgramTest::new(
+        "security_token_program",
+        program_id,
+        processor!(Processor::process),
+    );
+
+    // Add SPL Token 2022 program for metadata updates
+    program_test.add_program(
+        "spl_token_2022",
+        spl_token_2022::id(),
+        processor!(spl_token_2022::processor::Processor::process),
+    );
+
+    // Create mint keypair - mint account must be a signer when creating new account
+    let mint_keypair = solana_sdk::signature::Keypair::new();
+
+    let payer = solana_sdk::signature::Keypair::new();
+    program_test.add_account(
+        payer.pubkey(),
+        solana_sdk::account::Account {
+            lamports: 10_000_000_000, // 10 SOL (increased for metadata rent)
+            data: vec![],
+            owner: solana_program::system_program::ID,
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    let (banks_client, _default_payer, recent_blockhash) = program_test.start().await;
+
+    let spl_token_2022_program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        .parse::<Pubkey>()
+        .unwrap();
+
+    // First, initialize mint with metadata
+    let initialize_instruction = Instruction::new_with_bytes(
+        program_id,
+        &create_initialize_mint_with_metadata_instruction(
+            program_id,
+            6,
+            &mint_keypair.pubkey(),
+            &payer.pubkey(),
+            None,
+        ),
+        vec![
+            AccountMeta::new(mint_keypair.pubkey(), true), // 0. Mint account (must be signer)
+            AccountMeta::new(payer.pubkey(), true), // 1. Creator (signer, mutable for funding)
+            AccountMeta::new_readonly(spl_token_2022_program, false), // 2. SPL Token 2022 program
+            AccountMeta::new_readonly(solana_program::system_program::ID, false), // 3. System program
+            AccountMeta::new_readonly(solana_program::sysvar::rent::ID, false),   // 4. Rent sysvar
+        ],
+    );
+
+    let initialize_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[initialize_instruction],
+        Some(&payer.pubkey()),
+        &[&payer, &mint_keypair],
+        recent_blockhash,
+    );
+
+    // Process initialization transaction
+    let result = banks_client
+        .process_transaction(initialize_transaction)
+        .await;
+    assert!(result.is_ok(), "Initialize mint should succeed");
+
+    // Now test updating metadata
+    let update_instruction_data = create_update_metadata_instruction(
+        "Updated Security Token".to_string(),
+        "UHST".to_string(),
+        "https://ample.com/tokens/uhst".to_string(),
+        vec![
+            ("type".to_string(), "updated_security".to_string()),
+            ("version".to_string(), "2.0".to_string()),
+        ],
+        mint_keypair.pubkey(),
+        payer.pubkey(), // Use payer as signing authority for this test
+    );
+
+    let update_instruction = Instruction::new_with_bytes(
+        program_id,
+        &update_instruction_data,
+        vec![
+            AccountMeta::new(mint_keypair.pubkey(), false), // 0. Mint account
+            AccountMeta::new(payer.pubkey(), true), // 1. Update authority (signer, mutable for rent)
+            AccountMeta::new_readonly(spl_token_2022::id(), false), // 2. SPL Token 2022 program
+            AccountMeta::new_readonly(solana_program::system_program::ID, false), // 3. System program
+        ],
+    );
+
+    let update_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[update_instruction],
+        Some(&payer.pubkey()),
+        &[&payer], // Only payer signs (metadata authority is PDA, validation happens in program)
+        recent_blockhash,
+    );
+
+    // Process update transaction
+    let update_result = banks_client.process_transaction(update_transaction).await;
+    if let Err(e) = &update_result {
+        println!("Update metadata transaction failed: {:?}", e);
+    }
+    assert!(update_result.is_ok(), "Update metadata should succeed");
+
+    // Verify metadata was updated correctly
+    let mint_account = banks_client
+        .get_account(mint_keypair.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+
+    use spl_token_2022::extension::{BaseStateWithExtensions, StateWithExtensions};
+    use spl_token_2022::state::Mint;
+    use spl_token_metadata_interface::state::TokenMetadata;
+
+    let mint_with_extensions = StateWithExtensions::<Mint>::unpack(&mint_account.data)
+        .expect("Should be able to unpack mint with extensions");
+
+    let metadata = mint_with_extensions
+        .get_variable_len_extension::<TokenMetadata>()
+        .expect("Should be able to get updated metadata");
+
+    // Verify updated metadata fields
+    assert_eq!(
+        metadata.name, "Updated Security Token",
+        "Name should be updated"
+    );
+    assert_eq!(metadata.symbol, "UHST", "Symbol should be updated");
+    assert_eq!(
+        metadata.uri, "https://ample.com/tokens/uhst",
+        "URI should be updated"
+    );
+
+    // Verify additional metadata was updated
+    let additional_map: std::collections::HashMap<String, String> =
+        metadata.additional_metadata.iter().cloned().collect();
+
+    assert_eq!(
+        additional_map.get("type"),
+        Some(&"updated_security".to_string()),
+        "Type should be updated"
+    );
+    assert_eq!(
+        additional_map.get("version"),
+        Some(&"2.0".to_string()),
+        "Version should be added"
+    );
+
+    println!("UpdateMetadata test completed successfully!");
+    println!("  Updated name: {}", metadata.name);
+    println!("  Updated symbol: {}", metadata.symbol);
+    println!("  Updated URI: {}", metadata.uri);
+    println!(
+        "  Additional metadata fields: {}",
+        metadata.additional_metadata.len()
     );
 }
 
