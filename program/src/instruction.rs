@@ -160,7 +160,6 @@ impl InitializeArgs {
 
     /// Unpack arguments from bytes
     pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
-        use borsh::BorshDeserialize;
         use bytemuck::try_from_bytes;
 
         // First, unpack the mint arguments
