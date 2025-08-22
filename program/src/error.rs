@@ -1,7 +1,7 @@
 //! Security Token program errors
 
 use num_derive::FromPrimitive;
-use solana_program::program_error::ProgramError;
+use pinocchio::program_error::ProgramError;
 use thiserror::Error;
 
 /// Errors that may be returned by the Security Token program

@@ -1,7 +1,7 @@
 //! Corporate actions state structures
 
 use bytemuck::{Pod, Zeroable};
-use solana_program::pubkey::Pubkey;
+use pinocchio::pubkey::Pubkey;
 
 /// Rate for conversions and splits
 #[repr(C)]

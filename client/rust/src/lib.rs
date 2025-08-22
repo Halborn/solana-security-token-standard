@@ -1,38 +1,27 @@
-//! Security Token Rust Client
+//! Security Token Client
 //!
-//! This crate provides a basic Rust client for interacting with the Security Token program.
+//! This crate provides a Rust client for interacting with the Security Token Standard program.
+//! It includes generated instruction builders, types, and error handling for the security token program.
 
-pub mod error;
+pub mod generated;
 
-pub use error::SecurityTokenClientError;
-
-// Re-export program types
-pub use security_token_program::{
-    id as program_id,
-    instruction::SecurityTokenInstruction,
-    state::{SecurityTokenMint, VerificationConfig, VerificationStatus},
+// Re-export commonly used items for convenience
+pub use generated::{
+    errors::SecurityTokenError, instructions::*, programs::SECURITY_TOKEN_ID, types::*,
 };
 
-/// Client library version
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub use solana_account_info::AccountInfo;
+pub use solana_instruction::{AccountMeta, Instruction};
+/// Convenience re-exports from solana crates
+pub use solana_pubkey::Pubkey;
 
-/// Basic client struct
-pub struct SecurityTokenClient {
-    /// Program ID for the security token program
-    pub program_id: solana_program::pubkey::Pubkey,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl SecurityTokenClient {
-    /// Create a new client instance
-    pub fn new() -> Self {
-        Self {
-            program_id: program_id(),
-        }
-    }
-}
-
-impl Default for SecurityTokenClient {
-    fn default() -> Self {
-        Self::new()
+    #[test]
+    fn test_program_id() {
+        // Verify the program ID is accessible
+        let _program_id = SECURITY_TOKEN_ID;
     }
 }

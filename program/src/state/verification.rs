@@ -1,14 +1,14 @@
 //! Verification-related state structures
 
 use bytemuck::{Pod, Zeroable};
-use spl_pod::optional_keys::OptionalNonZeroPubkey;
+use pinocchio::pubkey::Pubkey;
 
 /// Verification configuration for instructions
 #[repr(C, packed)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable, Default)]
 pub struct VerificationConfig {
     /// Required verification programs (up to 4 for Phase 1)
-    pub verification_programs: [OptionalNonZeroPubkey; 4],
+    pub verification_programs: [Pubkey; 4],
     /// Instruction discriminator this config applies to
     pub instruction_discriminator: [u8; 8],
     /// Configuration flags
