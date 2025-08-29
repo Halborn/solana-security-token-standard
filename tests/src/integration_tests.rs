@@ -473,7 +473,6 @@ async fn test_update_metadata() {
         recent_blockhash,
     );
 
-    // Process transaction
     let result = context.banks_client.process_transaction(transaction).await;
 
     if let Err(error) = &result {
