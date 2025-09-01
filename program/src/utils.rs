@@ -58,7 +58,7 @@ pub fn find_transfer_hook_pda(mint: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8
 /// Derive permanent delegate PDA
 /// Seeds: ["mint.permanent_delegate", mint_pubkey]
 pub fn find_permanent_delegate_pda(mint: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8) {
-    find_program_address(&[seeds::PERMANENT_DELEGATE, mint], program_id)
+    find_program_address(&[seeds::PERMANENT_DELEGATE, mint.as_ref()], program_id)
 }
 
 /// Derive account delegate PDA

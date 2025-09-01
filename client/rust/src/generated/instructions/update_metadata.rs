@@ -9,7 +9,7 @@ use crate::generated::types::UpdateMetadataArgs;
 use borsh::BorshSerialize;
 use borsh::BorshDeserialize;
 
-
+pub const UPDATE_METADATA_DISCRIMINATOR: u8 = 1;
 
 /// Accounts.
 #[derive(Debug)]
@@ -76,12 +76,14 @@ impl UpdateMetadata {
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
  pub struct UpdateMetadataInstructionData {
-        }
+            discriminator: u8,
+            }
 
 impl UpdateMetadataInstructionData {
   pub fn new() -> Self {
     Self {
-                        }
+                        discriminator: 1,
+                                }
   }
 }
 
@@ -94,7 +96,7 @@ impl Default for UpdateMetadataInstructionData {
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
  pub struct UpdateMetadataInstructionArgs {
-            pub args: UpdateMetadataArgs,
+                  pub args: UpdateMetadataArgs,
       }
 
 
@@ -112,7 +114,7 @@ pub struct UpdateMetadataBuilder {
                 mint_authority: Option<solana_pubkey::Pubkey>,
                 token_program: Option<solana_pubkey::Pubkey>,
                 system_program: Option<solana_pubkey::Pubkey>,
-                  args: Option<UpdateMetadataArgs>,
+                        args: Option<UpdateMetadataArgs>,
         __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
@@ -144,7 +146,7 @@ impl UpdateMetadataBuilder {
                         self.system_program = Some(system_program);
                     self
     }
-              #[inline(always)]
+                    #[inline(always)]
       pub fn args(&mut self, args: UpdateMetadataArgs) -> &mut Self {
         self.args = Some(args);
         self
@@ -170,7 +172,7 @@ impl UpdateMetadataBuilder {
                                         system_program: self.system_program.expect("system_program is not set"),
                       };
           let args = UpdateMetadataInstructionArgs {
-                                            args: self.args.clone().expect("args is not set"),
+                                                              args: self.args.clone().expect("args is not set"),
                                     };
     
     accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
@@ -334,7 +336,7 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
               mint_authority: None,
               token_program: None,
               system_program: None,
-                              args: None,
+                                            args: None,
                     __remaining_accounts: Vec::new(),
     });
     Self { instruction }
@@ -363,7 +365,7 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
                         self.instruction.system_program = Some(system_program);
                     self
     }
-              #[inline(always)]
+                    #[inline(always)]
       pub fn args(&mut self, args: UpdateMetadataArgs) -> &mut Self {
         self.instruction.args = Some(args);
         self
@@ -391,7 +393,7 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
   #[allow(clippy::vec_init_then_push)]
   pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
           let args = UpdateMetadataInstructionArgs {
-                                            args: self.instruction.args.clone().expect("args is not set"),
+                                                              args: self.instruction.args.clone().expect("args is not set"),
                                     };
         let instruction = UpdateMetadataCpi {
         __program: self.instruction.__program,
@@ -416,7 +418,7 @@ struct UpdateMetadataCpiBuilderInstruction<'a, 'b> {
                 mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
                 token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
                 system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
-                  args: Option<UpdateMetadataArgs>,
+                        args: Option<UpdateMetadataArgs>,
         /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
   __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }

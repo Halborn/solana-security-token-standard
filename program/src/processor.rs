@@ -44,18 +44,21 @@ impl Processor {
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
-        // No discriminant byte; detect instruction by trying to unpack known payloads
-        // TODO: Add a discriminant byte
-        if UpdateMetadataArgs::unpack(instruction_data).is_ok() {
-            msg!("Instruction: Update Metadata");
-            return Self::process_update_metadata(program_id, accounts, instruction_data);
+        if instruction_data.is_empty() {
+            return Err(ProgramError::InvalidInstructionData);
         }
-        if InitializeArgs::unpack(instruction_data).is_ok() {
-            msg!("Instruction: Initialize Mint");
-            return Self::process_initialize_mint(program_id, accounts, instruction_data);
+        let (discriminant, rest) = instruction_data.split_first().unwrap();
+        match discriminant {
+            0 => {
+                msg!("Instruction: Initialize Mint");
+                Self::process_initialize_mint(program_id, accounts, rest)
+            }
+            1 => {
+                msg!("Instruction: Update Metadata");
+                Self::process_update_metadata(program_id, accounts, rest)
+            }
+            _ => Err(ProgramError::InvalidInstructionData),
         }
-
-        Err(ProgramError::InvalidInstructionData)
     }
 
     fn process_update_metadata(

@@ -16,12 +16,12 @@ import {
   rootNode,
   definedTypeLinkNode,
   fixedCountNode,
+  fieldDiscriminatorNode,
+  numberValueNode,
 } from '@codama/nodes';
 
 import { renderVisitor as renderRustVisitor } from '@codama/renderers-rust';
 import { visit } from '@codama/visitors-core';
-
-
 
 const program = programNode({
   name: 'securityToken',
@@ -206,9 +206,10 @@ const program = programNode({
   ],
 
   instructions: [
-    // InitializeMint
+    // InitializeMint (discriminant = 0)
     instructionNode({
       name: 'initializeMint',
+      discriminators: [fieldDiscriminatorNode('discriminator', 0)],
       docs: [
         'Initialize a new security token mint with metadata and compliance features',
       ],
@@ -248,15 +249,22 @@ const program = programNode({
       ],
       arguments: [
         instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(0),
+          defaultValueStrategy: 'omitted',
+        }),
+        instructionArgumentNode({
           name: 'args',
           type: definedTypeLinkNode('InitializeArgs'),
         }),
       ],
     }),
 
-    // UpdateMetadata
+    // UpdateMetadata (discriminant = 1)
     instructionNode({
       name: 'updateMetadata',
+      discriminators: [fieldDiscriminatorNode('discriminator', 1)],
       docs: ['Update the metadata of an existing security token mint'],
       accounts: [
         instructionAccountNode({
@@ -285,6 +293,12 @@ const program = programNode({
         }),
       ],
       arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(1),
+          defaultValueStrategy: 'omitted',
+        }),
         instructionArgumentNode({
           name: 'args',
           type: definedTypeLinkNode('UpdateMetadataArgs'),
