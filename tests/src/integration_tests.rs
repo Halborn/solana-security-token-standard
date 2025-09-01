@@ -493,6 +493,7 @@ async fn test_update_metadata() {
             "compliance".to_string(),
             "reg_d req_g reg_d req_g reg_d req_g and overflow".to_string(),
         ),
+        ("new_field".to_string(), "new_value".to_string()),
     ];
 
     let encoded = encode_additional_metadata(&updated_additional_metadata);
@@ -580,6 +581,12 @@ async fn test_update_metadata() {
         "Compliance should be updated"
     );
 
+    assert_eq!(
+        additional_map.get("new_field"),
+        Some(&"new_value".to_string()),
+        "new_field should be created"
+    );
+
     // Verify old fields were removed (issuer and industry should no longer exist)
     assert_eq!(
         additional_map.get("issuer"),
@@ -594,8 +601,8 @@ async fn test_update_metadata() {
 
     assert_eq!(
         additional_map.len(),
-        2,
-        "Should only have 2 additional metadata fields after update (type and compliance)"
+        3,
+        "Should only have 3 additional metadata fields after update (type and compliance) and new_field"
     );
 }
 

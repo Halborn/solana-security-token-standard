@@ -264,56 +264,87 @@ impl Processor {
 
         let (fields_buffer, field_lengths, field_count) = existing_additional_fields;
 
-        // Step 2: Remove existing additional metadata fields (if any were found)
+        // Step 2: Remove only existing fields that are NOT in the new metadata
         if field_count > 0 {
-            log!(
-                "Removing {} existing additional metadata fields",
-                field_count
-            );
-            // TODO: Skip field to update
+            log!("Checking {} existing fields for removal", field_count);
+
             for i in 0..field_count {
                 let key_bytes = &fields_buffer[i][..field_lengths[i]];
-                if let Ok(key_str) = core::str::from_utf8(key_bytes) {
-                    log!("Found existing additional metadata field: {}", key_str);
-                    let remove_field_instruction = CustomRemoveKey::new(
-                        &metadata_account_info,
-                        authority_info,
-                        key_str,
-                        true, // idempotent - don't error if key doesn't exist
-                    );
+                if let Ok(existing_key) = core::str::from_utf8(key_bytes) {
+                    // Check if this existing field is in the new metadata by parsing new metadata
+                    let mut found_in_new = false;
 
-                    let remove_result = remove_field_instruction.invoke();
-                    if remove_result.is_ok() {
-                        log!("Removed existing metadata field: {}", key_str);
+                    if !args.metadata.additional_metadata.is_empty() {
+                        let _check_result = utils::parse_additional_metadata(
+                            args.metadata.additional_metadata,
+                            |new_key, _value| {
+                                if existing_key == new_key {
+                                    found_in_new = true;
+                                }
+                                Ok(())
+                            },
+                        );
                     }
-                    // Ignore errors since we're using idempotent flag
+
+                    if !found_in_new {
+                        log!(
+                            "Removing existing metadata field not in update: {}",
+                            existing_key
+                        );
+                        let remove_field_instruction = CustomRemoveKey::new(
+                            &metadata_account_info,
+                            authority_info,
+                            existing_key,
+                            true, // idempotent - don't error if key doesn't exist
+                        );
+
+                        let remove_result = remove_field_instruction.invoke();
+                        if remove_result.is_ok() {
+                            log!("Removed existing metadata field: {}", existing_key);
+                        }
+                        // Ignore errors since we're using idempotent flag
+                    } else {
+                        log!(
+                            "Keeping existing metadata field (will be updated): {}",
+                            existing_key
+                        );
+                    }
                 }
             }
         } else {
-            log!("No existing additional metadata fields found to remove");
+            log!("No existing additional metadata fields found to check");
         }
 
-        // Step 3: Add new additional metadata fields
+        // Step 4: Add/update new additional metadata fields
         if !args.metadata.additional_metadata.is_empty() {
             let additional_metadata_len = args.metadata.additional_metadata.len();
             log!(
-                "Adding {} bytes of new additional metadata",
+                "Adding/updating {} bytes of new additional metadata",
                 additional_metadata_len
             );
 
-            utils::parse_additional_metadata(args.metadata.additional_metadata, |key, value| {
-                let update_field_instruction = CustomUpdateField::new(
-                    &metadata_account_info,
-                    authority_info,
-                    Field::Key(key),
-                    value,
-                );
-                update_field_instruction.invoke()?;
-                log!("Added new metadata field: {} = {}", key, value);
-                Ok(())
-            })?;
+            let result = utils::parse_additional_metadata(
+                args.metadata.additional_metadata,
+                |key, value| {
+                    log!(
+                        "Adding/updating additional metadata field: {} = {}",
+                        key,
+                        value
+                    );
+                    let update_field_instruction = CustomUpdateField::new(
+                        &metadata_account_info,
+                        authority_info,
+                        Field::Key(key),
+                        value,
+                    );
+                    update_field_instruction.invoke()
+                },
+            );
+
+            result.map_err(|_e| ProgramError::InvalidInstructionData)?;
+            log!("All additional metadata fields added/updated successfully");
         } else {
-            log!("No new additional metadata to add");
+            log!("No new additional metadata fields to add/update");
         }
 
         log!(
