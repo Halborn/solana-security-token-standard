@@ -203,6 +203,34 @@ const program = programNode({
         }),
       ]),
     }),
+
+    // InitializeVerificationConfigArgs
+    definedTypeNode({
+      name: 'InitializeVerificationConfigArgs',
+      docs: ['Arguments for InitializeVerificationConfig instruction'],
+      type: structTypeNode([
+        structFieldTypeNode({
+          name: 'instructionDiscriminator',
+          docs: [
+            '8-byte discriminator for the instruction type (e.g., burn, transfer)',
+          ],
+          type: arrayTypeNode(numberTypeNode('u8'), fixedCountNode(8)),
+        }),
+        structFieldTypeNode({
+          name: 'programCount',
+          docs: ['Number of valid verification programs (0-16)'],
+          type: numberTypeNode('u8'),
+        }),
+        structFieldTypeNode({
+          name: 'programAddresses',
+          docs: ['Array of verification program addresses (up to 16)'],
+          type: arrayTypeNode(
+            arrayTypeNode(numberTypeNode('u8'), fixedCountNode(32)),
+            fixedCountNode(16)
+          ),
+        }),
+      ]),
+    }),
   ],
 
   instructions: [
@@ -302,6 +330,63 @@ const program = programNode({
         instructionArgumentNode({
           name: 'args',
           type: definedTypeLinkNode('UpdateMetadataArgs'),
+        }),
+      ],
+    }),
+
+    // InitializeVerificationConfig (discriminant = 2)
+    instructionNode({
+      name: 'initializeVerificationConfig',
+      discriminators: [fieldDiscriminatorNode('discriminator', 2)],
+      docs: [
+        'Initialize a verification configuration PDA for a specific instruction type',
+      ],
+      accounts: [
+        instructionAccountNode({
+          name: 'configAccount',
+          docs: [
+            'The VerificationConfig PDA (derived from instruction_id + mint)',
+          ],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'payer',
+          docs: ['The payer account for account creation'],
+          isSigner: true,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'mintAccount',
+          docs: ['The mint account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'authority',
+          docs: [
+            'The authority account (mint authority or designated config authority)',
+          ],
+          isSigner: true,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'systemProgram',
+          docs: ['The system program ID'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(2),
+          defaultValueStrategy: 'omitted',
+        }),
+        instructionArgumentNode({
+          name: 'args',
+          type: definedTypeLinkNode('InitializeVerificationConfigArgs'),
         }),
       ],
     }),

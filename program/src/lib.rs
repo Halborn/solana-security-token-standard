@@ -11,6 +11,10 @@ pub mod entrypoint;
 pub mod error;
 /// Instruction definitions
 pub mod instruction;
+/// SBF-compatible instruction wrappers
+pub mod instructions;
+/// Security Token program modules (verification & operations)
+pub mod modules;
 /// Instruction processor
 pub mod processor;
 /// State structures

@@ -4,8 +4,10 @@ use borsh::BorshDeserialize;
 use kaigan::types::RemainderVec;
 use security_token_client::{
     InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
-    MetadataPointer, ScaledUiAmountConfig, TokenMetadata, UpdateMetadata, UpdateMetadataArgs,
-    UpdateMetadataInstructionArgs, SECURITY_TOKEN_ID,
+    InitializeVerificationConfig, InitializeVerificationConfigArgs,
+    InitializeVerificationConfigInstructionArgs, MetadataPointer, ScaledUiAmountConfig,
+    TokenMetadata, UpdateMetadata, UpdateMetadataArgs, UpdateMetadataInstructionArgs,
+    SECURITY_TOKEN_ID,
 };
 
 use solana_program_test::ProgramTest;
@@ -812,4 +814,182 @@ async fn test_initialize_mint_error_cases() {
         );
         println!("Correctly rejected creator not being signer");
     }
+}
+
+#[tokio::test]
+async fn test_initialize_verification_config() {
+    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
+
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    pt.prefer_bpf(true);
+
+    // Create mint keypair - we need this to derive the verification config PDA
+    let mint_keypair = solana_sdk::signature::Keypair::new();
+    let context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+
+    println!("Testing InitializeVerificationConfig");
+    println!("Mint keypair: {}", mint_keypair.pubkey());
+    println!("Context payer: {}", context.payer.pubkey());
+
+    // First, we need to create a mint (requirement for verification config)
+    let spl_token_2022_program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        .parse::<Pubkey>()
+        .unwrap();
+
+    let name = "Test Token";
+    let symbol = "TEST";
+    let uri = "https://example.com";
+
+    let initialize_mint_ix = security_token_client::InitializeMint {
+        mint: mint_keypair.pubkey(),
+        payer: context.payer.pubkey(),
+        token_program: spl_token_2022_program,
+        system_program: solana_system_interface::program::ID,
+        rent: sysvar::rent::ID,
+    }
+    .instruction(security_token_client::InitializeMintInstructionArgs {
+        args: security_token_client::InitializeArgs {
+            ix_mint: security_token_client::InitializeMintArgs {
+                decimals: 6,
+                mint_authority: context.payer.pubkey(),
+                freeze_authority: None,
+            },
+            ix_metadata_pointer: Some(security_token_client::MetadataPointer {
+                authority: context.payer.pubkey(),
+                metadata_address: mint_keypair.pubkey(),
+            }),
+            ix_metadata: Some(security_token_client::TokenMetadata {
+                update_authority: context.payer.pubkey(),
+                mint: mint_keypair.pubkey(),
+                name_len: name.len() as u32,
+                name: name.to_string().into(),
+                symbol_len: symbol.len() as u32,
+                symbol: symbol.to_string().into(),
+                uri_len: uri.len() as u32,
+                uri: uri.to_string().into(),
+                additional_metadata_len: 0,
+                additional_metadata: RemainderVec::<u8>::try_from_slice(&[]).unwrap(),
+            }),
+            ix_scaled_ui_amount: None,
+        },
+    });
+
+    // Create and process mint transaction
+    let mint_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[initialize_mint_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &mint_keypair],
+        recent_blockhash,
+    );
+
+    let mint_result = context
+        .banks_client
+        .process_transaction(mint_transaction)
+        .await;
+    if let Err(error) = &mint_result {
+        println!("Mint transaction failed: {}", error);
+        panic!("Mint transaction failed: {}", error);
+    }
+    println!("Mint created successfully");
+
+    // Now test InitializeVerificationConfig
+
+    // Define instruction discriminator (8 bytes for "transfer" instruction as example)
+    let instruction_discriminator = [116, 114, 97, 110, 115, 102, 101, 114]; // "transfer" as bytes
+
+    // Define some test verification programs (using known program IDs)
+    let verification_programs = vec![solana_sdk::system_program::ID, spl_token_2022_program];
+
+    let program_count = verification_programs.len() as u8;
+
+    // Convert to the required format [[u8; 32]; 16] with only needed entries
+    let mut program_addresses = [[0u8; 32]; 16];
+    for (i, program_id) in verification_programs.iter().enumerate() {
+        program_addresses[i] = program_id.to_bytes();
+    }
+
+    // Derive the expected VerificationConfig PDA
+    let (config_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"verification_config",
+            &mint_keypair.pubkey().to_bytes(),
+            &instruction_discriminator,
+        ],
+        &SECURITY_TOKEN_ID,
+    );
+
+    println!("Expected config PDA: {}", config_pda);
+
+    // Create InitializeVerificationConfig instruction using generated client code
+    let initialize_config_ix = InitializeVerificationConfig {
+        config_account: config_pda,
+        payer: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        authority: context.payer.pubkey(),
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(InitializeVerificationConfigInstructionArgs {
+        args: InitializeVerificationConfigArgs {
+            instruction_discriminator,
+            program_count,
+            program_addresses,
+        },
+    });
+
+    // Create and process verification config transaction
+    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[initialize_config_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let config_result = context
+        .banks_client
+        .process_transaction(config_transaction)
+        .await;
+    if let Err(error) = &config_result {
+        println!("VerificationConfig transaction failed: {}", error);
+        panic!("VerificationConfig transaction failed: {}", error);
+    }
+
+    println!("VerificationConfig created successfully");
+
+    // Verify the PDA account was created correctly
+    let config_account = context.banks_client.get_account(config_pda).await.unwrap();
+    assert!(
+        config_account.is_some(),
+        "VerificationConfig PDA should exist"
+    );
+
+    let config_account = config_account.unwrap();
+    println!(
+        "VerificationConfig account data length: {}",
+        config_account.data.len()
+    );
+
+    // Verify account owner is our security token program
+    assert_eq!(
+        config_account.owner, SECURITY_TOKEN_ID,
+        "Config PDA should be owned by security token program"
+    );
+
+    let expected_discriminator = b"VrfyCfg\0";
+    assert_eq!(&config_account.data[0..8], expected_discriminator);
+
+    let stored_instruction_discriminator = &config_account.data[8..16];
+    assert_eq!(stored_instruction_discriminator, &instruction_discriminator);
+
+    let stored_program_count = config_account.data[16];
+    assert_eq!(stored_program_count, program_count);
+
+    for i in 0..program_count as usize {
+        let offset = 17 + (i * 32);
+        let stored_program = &config_account.data[offset..offset + 32];
+        let expected_program = verification_programs[i].to_bytes();
+        assert_eq!(stored_program, &expected_program);
+    }
+
+    println!("VerificationConfig PDA validation successful");
 }

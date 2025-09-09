@@ -7,9 +7,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "generate:rust": "node scripts/generate_rust_client.mjs",
-    "generate:idl": "./scripts/generate_idl.sh"
+    "generate:rust": "npx tsx codama.ts"
   },
   "repository": {
     "type": "git",

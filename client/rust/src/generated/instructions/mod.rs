@@ -6,8 +6,10 @@
 //!
 
   pub(crate) mod r#initialize_mint;
+  pub(crate) mod r#initialize_verification_config;
   pub(crate) mod r#update_metadata;
 
   pub use self::r#initialize_mint::*;
+  pub use self::r#initialize_verification_config::*;
   pub use self::r#update_metadata::*;
 
