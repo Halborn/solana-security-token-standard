@@ -710,7 +710,7 @@ impl VerificationModule {
 
         // Derive expected PDA address
         let (expected_config_pda, bump) =
-            VerificationConfig::find_pda(mint_account.key(), &disc_array, program_id);
+            utils::find_verification_config_pda(mint_account.key(), &disc_array, program_id);
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
@@ -744,7 +744,7 @@ impl VerificationModule {
         // Create seeds for PDA signing
         let bump_seed = [bump];
         let seeds = [
-            Seed::from(b"verification_config".as_ref()),
+            Seed::from(utils::seeds::VERIFICATION_CONFIG.as_ref()),
             Seed::from(mint_account.key().as_ref()),
             Seed::from(disc_array.as_ref()),
             Seed::from(bump_seed.as_ref()),
@@ -754,10 +754,8 @@ impl VerificationModule {
         create_account_instruction.invoke_signed(&[signer])?;
 
         // Create the VerificationConfig data
-        let config = VerificationConfig::new(
-            disc_array,
-            &program_addresses[..program_count as usize],
-        )?;
+        let config =
+            VerificationConfig::new(disc_array, &program_addresses[..program_count as usize])?;
 
         // Write data to the account
         let mut data = config_account.try_borrow_mut_data()?;

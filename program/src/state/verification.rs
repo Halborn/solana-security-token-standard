@@ -56,22 +56,6 @@ impl VerificationConfig {
         &self.verification_programs[..self.program_count as usize]
     }
 
-    /// Find PDA for verification config
-    pub fn find_pda(
-        mint: &Pubkey,
-        instruction_discriminator: &[u8; 8],
-        program_id: &Pubkey,
-    ) -> (Pubkey, u8) {
-        find_program_address(
-            &[
-                b"verification_config",
-                mint.as_ref(),
-                instruction_discriminator,
-            ],
-            program_id,
-        )
-    }
-
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), ProgramError> {
         // Validate program count

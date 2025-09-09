@@ -975,7 +975,6 @@ async fn test_initialize_verification_config() {
         "Config PDA should be owned by security token program"
     );
 
-
     let stored_instruction_discriminator = &config_account.data[0..8];
     assert_eq!(stored_instruction_discriminator, &instruction_discriminator);
 

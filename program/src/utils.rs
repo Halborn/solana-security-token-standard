@@ -22,6 +22,24 @@ pub mod seeds {
     pub const PERMANENT_DELEGATE: &[u8] = b"mint.permanent_delegate";
     /// Seed for account delegate PDA
     pub const ACCOUNT_DELEGATE: &[u8] = b"account.delegate";
+    /// Seed for verification config
+    pub const VERIFICATION_CONFIG: &[u8] = b"verification_config";
+}
+
+/// Find PDA for verification config
+pub fn find_verification_config_pda(
+    mint: &Pubkey,
+    instruction_discriminator: &[u8; 8],
+    program_id: &Pubkey,
+) -> (Pubkey, u8) {
+    find_program_address(
+        &[
+            seeds::VERIFICATION_CONFIG,
+            mint.as_ref(),
+            instruction_discriminator,
+        ],
+        program_id,
+    )
 }
 
 /// Derive mint authority PDA
