@@ -2,7 +2,6 @@
 
 use bytemuck::{Pod, Zeroable};
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::{find_program_address, Pubkey};
 
 /// Verification configuration for instructions
 #[repr(C, packed)]
@@ -72,18 +71,4 @@ impl VerificationConfig {
 
         Ok(())
     }
-}
-
-/// Individual account verification status
-#[repr(C, packed)]
-#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable, Default)]
-pub struct VerificationStatus {
-    /// KYC completion timestamp (0 if not completed)
-    pub kyc_timestamp: u64,
-    /// AML check timestamp (0 if not completed)
-    pub aml_timestamp: u64,
-    /// Account whitelist status (0 = false, 1 = true)
-    pub is_whitelisted: u8,
-    /// Reserved for future use
-    pub _reserved: [u8; 32],
 }
