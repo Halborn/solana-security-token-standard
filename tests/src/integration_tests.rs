@@ -975,17 +975,15 @@ async fn test_initialize_verification_config() {
         "Config PDA should be owned by security token program"
     );
 
-    let expected_discriminator = b"VrfyCfg\0";
-    assert_eq!(&config_account.data[0..8], expected_discriminator);
 
-    let stored_instruction_discriminator = &config_account.data[8..16];
+    let stored_instruction_discriminator = &config_account.data[0..8];
     assert_eq!(stored_instruction_discriminator, &instruction_discriminator);
 
-    let stored_program_count = config_account.data[16];
+    let stored_program_count = config_account.data[8];
     assert_eq!(stored_program_count, program_count);
 
     for i in 0..program_count as usize {
-        let offset = 17 + (i * 32);
+        let offset = 9 + (i * 32);
         let stored_program = &config_account.data[offset..offset + 32];
         let expected_program = verification_programs[i].to_bytes();
         assert_eq!(stored_program, &expected_program);

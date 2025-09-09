@@ -8,37 +8,25 @@ use pinocchio::pubkey::{find_program_address, Pubkey};
 #[repr(C, packed)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 pub struct VerificationConfig {
-    /// Discriminator for account type validation
-    pub discriminator: [u8; 8],
     /// Instruction discriminator this config applies to
     pub instruction_discriminator: [u8; 8],
     /// Number of valid verification programs (0-16)
     pub program_count: u8,
     /// Required verification programs (up to 16)
     pub verification_programs: [[u8; 32]; 16],
-    /// Configuration flags
-    pub flags: u64,
-    /// Reserved for future use
-    pub _reserved: [u8; 7],
 }
 
 impl Default for VerificationConfig {
     fn default() -> Self {
         Self {
-            discriminator: Self::DISCRIMINATOR,
             instruction_discriminator: [0; 8],
             program_count: 0,
             verification_programs: [[0u8; 32]; 16],
-            flags: 0,
-            _reserved: [0; 7],
         }
     }
 }
 
 impl VerificationConfig {
-    /// Account type discriminator
-    pub const DISCRIMINATOR: [u8; 8] = *b"VrfyCfg\0";
-
     /// Size of the VerificationConfig account
     pub const SIZE: usize = std::mem::size_of::<Self>();
 
@@ -57,12 +45,9 @@ impl VerificationConfig {
         }
 
         Ok(Self {
-            discriminator: Self::DISCRIMINATOR,
             instruction_discriminator,
             program_count: verification_program_addresses.len() as u8,
             verification_programs: programs,
-            flags: 0,
-            _reserved: [0; 7],
         })
     }
 
@@ -89,11 +74,6 @@ impl VerificationConfig {
 
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), ProgramError> {
-        // Validate discriminator
-        if self.discriminator != Self::DISCRIMINATOR {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
         // Validate program count
         if self.program_count > 16 {
             return Err(ProgramError::InvalidAccountData);
