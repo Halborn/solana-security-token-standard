@@ -47,20 +47,19 @@ impl Processor {
         if instruction_data.is_empty() {
             return Err(ProgramError::InvalidInstructionData);
         }
-        let (discriminant, rest) = instruction_data.split_first().unwrap();
-        match discriminant {
-            0 => {
-                msg!("Instruction: Initialize Mint");
+        let (discriminant, rest) = instruction_data
+            .split_first()
+            .ok_or(ProgramError::InvalidInstructionData)?;
+
+        match SecurityTokenInstruction::try_from(*discriminant)? {
+            SecurityTokenInstruction::InitializeMint => {
                 Self::process_initialize_mint(program_id, accounts, rest)
             }
-            1 => {
-                msg!("Instruction: Update Metadata");
+            SecurityTokenInstruction::UpdateMetadata => {
                 Self::process_update_metadata(program_id, accounts, rest)
             }
-            _ => Err(ProgramError::InvalidInstructionData),
         }
     }
-
     fn process_update_metadata(
         _program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -662,15 +661,5 @@ impl Processor {
         set_authority_instruction.invoke()?;
         msg!("Security token mint initialization completed successfully");
         Ok(())
-    }
-}
-
-impl From<u8> for SecurityTokenInstruction {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => SecurityTokenInstruction::InitializeMint,
-            1 => SecurityTokenInstruction::UpdateMetadata,
-            _ => SecurityTokenInstruction::InitializeMint,
-        }
     }
 }

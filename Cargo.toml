@@ -31,10 +31,6 @@ tokio = { version = "1.41.1", features = ["full"] }
 rand = "0.8.5"
 getrandom = { version = "0.3", features = ["dummy"] }
 
-
-[workspace.metadata.solana]
-program-id = "Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH"
-
 [profile.release]
 overflow-checks = true
 lto = "fat"

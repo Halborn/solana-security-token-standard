@@ -813,3 +813,36 @@ async fn test_initialize_mint_error_cases() {
         println!("Correctly rejected creator not being signer");
     }
 }
+
+#[tokio::test]
+async fn test_unknown_instruction_discriminator() {
+    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
+
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    pt.prefer_bpf(true);
+
+    let (banks_client, payer, recent_blockhash) = pt.start().await;
+
+    let unknown_discriminator = 99u8;
+    let instruction_data = vec![unknown_discriminator];
+
+    let instruction = solana_sdk::instruction::Instruction {
+        program_id: SECURITY_TOKEN_ID,
+        accounts: vec![],
+        data: instruction_data,
+    };
+
+    let mut transaction =
+        solana_sdk::transaction::Transaction::new_with_payer(&[instruction], Some(&payer.pubkey()));
+    transaction.sign(&[&payer], recent_blockhash);
+
+    let result = banks_client.process_transaction(transaction).await;
+    let error = result.unwrap_err();
+    let error_string = format!("{:?}", error);
+    assert!(
+        error_string.contains("InvalidInstructionData")
+            || error_string.contains("InvalidInstruction"),
+        "Expected InvalidInstructionData error, got: {}",
+        error_string
+    );
+}

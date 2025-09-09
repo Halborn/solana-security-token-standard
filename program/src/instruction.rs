@@ -829,6 +829,18 @@ pub enum SecurityTokenInstruction {
     UpdateMetadata = 1,
 }
 
+impl TryFrom<u8> for SecurityTokenInstruction {
+    type Error = ProgramError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(SecurityTokenInstruction::InitializeMint),
+            1 => Ok(SecurityTokenInstruction::UpdateMetadata),
+            _ => Err(ProgramError::InvalidInstructionData),
+        }
+    }
+}
+
 #[cfg(test)]
 fn random_pubkey() -> Pubkey {
     use pinocchio::pubkey::PUBKEY_BYTES;
