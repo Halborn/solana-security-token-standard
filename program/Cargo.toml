@@ -33,6 +33,3 @@ rand = { workspace = true }
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
-
-[package.metadata.solana]
-program-id = "11111111111111111111111111111112"
