@@ -24,12 +24,20 @@ impl Processor {
         if instruction_data.is_empty() {
             return Err(ProgramError::InvalidInstructionData);
         }
-        let (discriminant, rest) = instruction_data.split_first().unwrap();
-        match discriminant {
-            0 => Self::process_initialize_mint(program_id, accounts, rest),
-            1 => Self::process_update_metadata(program_id, accounts, rest),
-            2 => Self::process_initialize_verification_config(program_id, accounts, rest),
-            _ => Err(ProgramError::InvalidInstructionData),
+        let (discriminant, rest) = instruction_data
+            .split_first()
+            .ok_or(ProgramError::InvalidInstructionData)?;
+
+        match SecurityTokenInstruction::try_from(*discriminant)? {
+            SecurityTokenInstruction::InitializeMint => {
+                Self::process_initialize_mint(program_id, accounts, rest)
+            }
+            SecurityTokenInstruction::UpdateMetadata => {
+                Self::process_update_metadata(program_id, accounts, rest)
+            }
+            SecurityTokenInstruction::InitializeVerificationConfig => {
+                Self::process_initialize_verification_config(program_id, accounts, rest)
+            }
         }
     }
 
@@ -71,16 +79,5 @@ impl Processor {
             &instruction_args.args.program_addresses,
             instruction_args.args.program_count,
         )
-    }
-}
-
-impl From<u8> for SecurityTokenInstruction {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => SecurityTokenInstruction::InitializeMint,
-            1 => SecurityTokenInstruction::UpdateMetadata,
-            2 => SecurityTokenInstruction::InitializeVerificationConfig,
-            _ => SecurityTokenInstruction::InitializeMint,
-        }
     }
 }

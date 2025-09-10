@@ -921,6 +921,19 @@ pub enum SecurityTokenInstruction {
     InitializeVerificationConfig = 2,
 }
 
+impl TryFrom<u8> for SecurityTokenInstruction {
+    type Error = ProgramError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(SecurityTokenInstruction::InitializeMint),
+            1 => Ok(SecurityTokenInstruction::UpdateMetadata),
+            2 => Ok(SecurityTokenInstruction::InitializeVerificationConfig),
+            _ => Err(ProgramError::InvalidInstructionData),
+        }
+    }
+}
+
 #[cfg(test)]
 fn random_pubkey() -> Pubkey {
     use pinocchio::pubkey::PUBKEY_BYTES;
