@@ -26,9 +26,7 @@ thiserror = "2.0.3"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
 
-# Development and testing
-tokio = { version = "1.41.1", features = ["macros", "rt"] }
-rand = "0.8.5"
+# Leave for CI
 getrandom = { version = "0.3", features = ["dummy"] }
 
 [profile.release]
