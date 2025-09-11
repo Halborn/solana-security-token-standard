@@ -8,7 +8,6 @@
 use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::{AccountMeta, Instruction, Signer};
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::Pubkey;
 use pinocchio::ProgramResult;
 use pinocchio_token_2022::extensions::metadata::{
     Field, InitializeTokenMetadata, TokenMetadata, UpdateField,

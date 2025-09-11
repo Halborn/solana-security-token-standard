@@ -5,6 +5,8 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![deny(missing_docs)]
 
+/// Constants and discriminators
+pub mod constants;
 /// Program entrypoint
 pub mod entrypoint;
 /// Error types

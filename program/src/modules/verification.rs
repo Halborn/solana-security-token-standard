@@ -33,9 +33,11 @@ use pinocchio_token_2022::{
     instructions::AuthorityType,
 };
 
-use crate::instruction::{
-    CustomInitializeTokenMetadata, CustomRemoveKey, CustomUpdateField, InitializeArgs,
-    SecurityTokenInstruction, UpdateMetadataArgs,
+use crate::instruction::SecurityTokenInstruction;
+use crate::instructions::{InitializeArgs, UpdateMetadataArgs};
+
+use crate::instructions::token_wrappers::{
+    CustomInitializeTokenMetadata, CustomRemoveKey, CustomUpdateField,
 };
 use crate::state::VerificationConfig;
 use crate::utils;

@@ -1,7 +1,7 @@
 use crate::{
-    instruction::{
-        InitializeArgs, InitializeVerificationConfigInstructionArgs, SecurityTokenInstruction,
-        UpdateMetadataArgs,
+    instruction::SecurityTokenInstruction,
+    instructions::{
+        InitializeArgs, InitializeVerificationConfigInstructionArgs, UpdateMetadataArgs,
     },
     modules::verification::VerificationModule,
 };
@@ -21,22 +21,18 @@ impl Processor {
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
-        if instruction_data.is_empty() {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-        let (discriminant, rest) = instruction_data
-            .split_first()
-            .ok_or(ProgramError::InvalidInstructionData)?;
+        let (instruction, args_data) =
+            SecurityTokenInstruction::parse_instruction(instruction_data)?;
 
-        match SecurityTokenInstruction::try_from(*discriminant)? {
+        match instruction {
             SecurityTokenInstruction::InitializeMint => {
-                Self::process_initialize_mint(program_id, accounts, rest)
+                Self::process_initialize_mint(program_id, accounts, args_data)
             }
             SecurityTokenInstruction::UpdateMetadata => {
-                Self::process_update_metadata(program_id, accounts, rest)
+                Self::process_update_metadata(program_id, accounts, args_data)
             }
             SecurityTokenInstruction::InitializeVerificationConfig => {
-                Self::process_initialize_verification_config(program_id, accounts, rest)
+                Self::process_initialize_verification_config(program_id, accounts, args_data)
             }
         }
     }
