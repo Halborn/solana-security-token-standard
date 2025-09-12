@@ -29,16 +29,14 @@ use pinocchio_token_2022::extensions::{
 use pinocchio_token_2022::instructions::{InitializeMint2, SetAuthority};
 use pinocchio_token_2022::state::Mint;
 use pinocchio_token_2022::{
-    extensions::metadata::{Field, TokenMetadata},
+    extensions::metadata::{Field, TokenMetadata, UpdateField},
     instructions::AuthorityType,
 };
 
 use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs};
 
-use crate::instructions::token_wrappers::{
-    CustomInitializeTokenMetadata, CustomRemoveKey, CustomUpdateField,
-};
+use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::state::VerificationConfig;
 use crate::utils;
 
@@ -297,6 +295,7 @@ impl VerificationModule {
                 metadata.symbol,
                 metadata.uri,
             );
+            // let _test = Vec::with_capacity(100);
             let invoke_result = metadata_init_instruction.invoke();
 
             if let Err(err) = &invoke_result {
@@ -320,12 +319,12 @@ impl VerificationModule {
 
                 // Parse additional metadata from raw bytes and process each field
                 utils::parse_additional_metadata(metadata.additional_metadata, |key, value| {
-                    let update_field_instruction = CustomUpdateField::new(
-                        &metadata_account_info,
-                        creator_info,
-                        Field::Key(key),
+                    let update_field_instruction = UpdateField {
+                        metadata: &metadata_account_info,
+                        update_authority: creator_info,
+                        field: Field::Key(key),
                         value,
-                    );
+                    };
                     update_field_instruction.invoke()?;
                     Ok(())
                 })?;
@@ -464,32 +463,32 @@ impl VerificationModule {
             log!("No system program provided - assuming current space is sufficient");
         }
 
-        let update_field_instruction = CustomUpdateField::new(
-            &metadata_account_info,
-            authority_info,
-            Field::Name,
-            args.metadata.name,
-        );
+        let update_field_instruction = UpdateField {
+            metadata: &metadata_account_info,
+            update_authority: authority_info,
+            field: Field::Name,
+            value: args.metadata.name,
+        };
 
         update_field_instruction.invoke()?;
 
         // Update symbol
-        let update_symbol_instruction = CustomUpdateField::new(
-            &metadata_account_info,
-            authority_info,
-            Field::Symbol,
-            args.metadata.symbol,
-        );
+        let update_symbol_instruction = UpdateField {
+            metadata: &metadata_account_info,
+            update_authority: authority_info,
+            field: Field::Symbol,
+            value: args.metadata.symbol,
+        };
 
         update_symbol_instruction.invoke()?;
 
         // Update URI
-        let update_uri_instruction = CustomUpdateField::new(
-            &metadata_account_info,
-            authority_info,
-            Field::Uri,
-            args.metadata.uri,
-        );
+        let update_uri_instruction = UpdateField {
+            metadata: &metadata_account_info,
+            update_authority: authority_info,
+            field: Field::Uri,
+            value: args.metadata.uri,
+        };
 
         update_uri_instruction.invoke()?;
 
@@ -621,12 +620,12 @@ impl VerificationModule {
                         key,
                         value
                     );
-                    let update_field_instruction = CustomUpdateField::new(
-                        &metadata_account_info,
-                        authority_info,
-                        Field::Key(key),
+                    let update_field_instruction = UpdateField {
+                        metadata: &metadata_account_info,
+                        update_authority: authority_info,
+                        field: Field::Key(key),
                         value,
-                    );
+                    };
                     update_field_instruction.invoke()
                 },
             );

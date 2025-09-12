@@ -4,13 +4,13 @@
 
 use crate::processor::Processor;
 use pinocchio::{
-    account_info::AccountInfo, default_panic_handler, no_allocator, program_entrypoint,
+    account_info::AccountInfo, default_panic_handler, default_allocator, program_entrypoint,
     pubkey::Pubkey, ProgramResult,
 };
 
 program_entrypoint!(process_instruction);
 default_panic_handler!();
-no_allocator!();
+default_allocator!();
 
 /// The entrypoint to the Security Token program
 fn process_instruction(
