@@ -1,5 +1,5 @@
 //! Security Token account structures
-//! 
+//!
 //! Contains main account types used by the Security Token program
 
 use bytemuck::{Pod, Zeroable};
@@ -12,20 +12,12 @@ use pinocchio::pubkey::Pubkey;
 pub struct SecurityTokenMint {
     /// Token creator (used for PDA generation)
     pub creator: Pubkey,
-    /// Verification requirements
-    pub verification_config: super::VerificationConfig,
-    /// Reserved for future extensions
-    pub _reserved: [u8; 32],
 }
 
 impl SecurityTokenMint {
     /// Create new SecurityTokenMint configuration
     pub fn new(creator: Pubkey) -> Self {
-        Self {
-            creator,
-            verification_config: super::VerificationConfig::default(),
-            _reserved: [0; 32],
-        }
+        Self { creator }
     }
 }
 

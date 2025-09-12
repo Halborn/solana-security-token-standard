@@ -5,19 +5,18 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
+use solana_pubkey::Pubkey;
 use borsh::BorshSerialize;
 use borsh::BorshDeserialize;
 
-/// Arguments for InitializeVerificationConfig instruction
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitializeVerificationConfigArgs {
 /// 8-byte discriminator for the instruction type (e.g., burn, transfer)
 pub instruction_discriminator: [u8; 8],
-/// Number of valid verification programs (0-16)
-pub program_count: u8,
-/// Array of verification program addresses (up to 16)
-pub program_addresses: [[u8; 32]; 16],
+/// Array of verification program addresses
+#[cfg_attr(feature = "serde", serde(with = "serde_with::As::<Vec<serde_with::DisplayFromStr>>"))]
+pub program_addresses: Vec<Pubkey>,
 }
 
 

@@ -1,74 +1,67 @@
 //! Verification-related state structures
 
-use bytemuck::{Pod, Zeroable};
+use borsh::{BorshDeserialize, BorshSerialize};
 use pinocchio::program_error::ProgramError;
+use pinocchio::pubkey::Pubkey;
 
 /// Verification configuration for instructions
-#[repr(C, packed)]
-#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Debug, PartialEq, BorshSerialize, BorshDeserialize)]
 pub struct VerificationConfig {
     /// Instruction discriminator this config applies to
     pub instruction_discriminator: [u8; 8],
-    /// Number of valid verification programs (0-16)
-    pub program_count: u8,
-    /// Required verification programs (up to 16)
-    pub verification_programs: [[u8; 32]; 16],
+    /// Required verification programs
+    pub verification_programs: Vec<Pubkey>,
 }
 
 impl Default for VerificationConfig {
     fn default() -> Self {
         Self {
             instruction_discriminator: [0; 8],
-            program_count: 0,
-            verification_programs: [[0u8; 32]; 16],
+            verification_programs: Vec::new(),
         }
     }
 }
 
 impl VerificationConfig {
-    /// Size of the VerificationConfig account
-    pub const SIZE: usize = std::mem::size_of::<Self>();
+    /// Maximum size estimate for the VerificationConfig account (for rent calculation)
+    /// Includes discriminator (8) + Vec overhead + space for reasonable number of programs
+    pub const MAX_SIZE: usize = 8 + 4 + (32 * 16); // discriminator + vec_len + 16 programs
 
     /// Create new VerificationConfig
     pub fn new(
         instruction_discriminator: [u8; 8],
-        verification_program_addresses: &[[u8; 32]],
+        verification_program_addresses: &[Pubkey],
     ) -> Result<Self, ProgramError> {
-        if verification_program_addresses.len() > 16 {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        let mut programs = [[0u8; 32]; 16];
-        for (i, program_bytes) in verification_program_addresses.iter().enumerate() {
-            programs[i] = *program_bytes;
-        }
-
         Ok(Self {
             instruction_discriminator,
-            program_count: verification_program_addresses.len() as u8,
-            verification_programs: programs,
+            verification_programs: verification_program_addresses.to_vec(),
         })
     }
 
     /// Get active verification programs
-    pub fn get_active_programs(&self) -> &[[u8; 32]] {
-        &self.verification_programs[..self.program_count as usize]
+    pub fn get_active_programs(&self) -> &[Pubkey] {
+        &self.verification_programs
+    }
+
+    /// Get program count
+    pub fn program_count(&self) -> usize {
+        self.verification_programs.len()
     }
 
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), ProgramError> {
-        // Validate program count
-        if self.program_count > 16 {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Validate that all active programs are non-zero
-        for i in 0..self.program_count as usize {
-            if self.verification_programs[i] == [0u8; 32] {
+        // Validate that all programs are non-zero (valid pubkeys)
+        for program in &self.verification_programs {
+            if *program == Pubkey::default() {
                 return Err(ProgramError::InvalidAccountData);
             }
         }
 
         Ok(())
+    }
+
+    /// Calculate the actual size needed for serialization
+    pub fn serialized_size(&self) -> usize {
+        8 + 4 + (self.verification_programs.len() * 32) // discriminator + vec_len + programs
     }
 }

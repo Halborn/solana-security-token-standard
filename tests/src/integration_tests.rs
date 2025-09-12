@@ -932,14 +932,6 @@ async fn test_initialize_verification_config() {
     // Define some test verification programs (using known program IDs)
     let verification_programs = vec![solana_sdk::system_program::ID, spl_token_2022_program];
 
-    let program_count = verification_programs.len() as u8;
-
-    // Convert to the required format [[u8; 32]; 16] with only needed entries
-    let mut program_addresses = [[0u8; 32]; 16];
-    for (i, program_id) in verification_programs.iter().enumerate() {
-        program_addresses[i] = program_id.to_bytes();
-    }
-
     // Derive the expected VerificationConfig PDA
     let (config_pda, _bump) = Pubkey::find_program_address(
         &[
@@ -963,8 +955,7 @@ async fn test_initialize_verification_config() {
     .instruction(InitializeVerificationConfigInstructionArgs {
         args: InitializeVerificationConfigArgs {
             instruction_discriminator,
-            program_count,
-            program_addresses,
+            program_addresses: verification_programs.clone(),
         },
     });
 
@@ -1006,17 +997,31 @@ async fn test_initialize_verification_config() {
         "Config PDA should be owned by security token program"
     );
 
-    let stored_instruction_discriminator = &config_account.data[0..8];
-    assert_eq!(stored_instruction_discriminator, &instruction_discriminator);
+    // Deserialize and verify the stored VerificationConfig
+    use borsh::BorshDeserialize;
+    use security_token_program::state::VerificationConfig;
 
-    let stored_program_count = config_account.data[8];
-    assert_eq!(stored_program_count, program_count);
+    let stored_config = VerificationConfig::try_from_slice(&config_account.data)
+        .expect("Should be able to deserialize VerificationConfig");
 
-    for i in 0..program_count as usize {
-        let offset = 9 + (i * 32);
-        let stored_program = &config_account.data[offset..offset + 32];
-        let expected_program = verification_programs[i].to_bytes();
-        assert_eq!(stored_program, &expected_program);
+    assert_eq!(
+        stored_config.instruction_discriminator, instruction_discriminator,
+        "Instruction discriminator should match"
+    );
+
+    assert_eq!(
+        stored_config.verification_programs.len(),
+        verification_programs.len(),
+        "Number of verification programs should match"
+    );
+
+    for (i, expected_program) in verification_programs.iter().enumerate() {
+        assert_eq!(
+            stored_config.verification_programs[i],
+            expected_program.to_bytes(),
+            "Program at index {} should match",
+            i
+        );
     }
 
     println!("VerificationConfig PDA validation successful");

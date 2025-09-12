@@ -12,10 +12,8 @@ use pinocchio::pubkey::Pubkey;
 pub struct InitializeVerificationConfigArgs {
     /// 8-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
     pub instruction_discriminator: [u8; 8],
-    /// Number of valid program addresses (0-16)
-    pub program_count: u8,
-    /// Array of verification program addresses (up to 16)
-    pub program_addresses: [[u8; 32]; 16], // Static array for SBF compatibility
+    /// Vector of verification program addresses
+    pub program_addresses: Vec<Pubkey>,
 }
 
 /// Wrapper struct that matches what codama generates
@@ -35,15 +33,9 @@ impl InitializeVerificationConfigArgs {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let mut addresses = [[0u8; 32]; 16];
-        for (i, pubkey) in program_addresses.iter().enumerate() {
-            addresses[i] = *pubkey;
-        }
-
         Ok(Self {
             instruction_discriminator,
-            program_count: program_addresses.len() as u8,
-            program_addresses: addresses,
+            program_addresses: program_addresses.to_vec(),
         })
     }
 
@@ -57,18 +49,19 @@ impl InitializeVerificationConfigArgs {
         Self::try_from_slice(data).map_err(|_| ProgramError::InvalidInstructionData)
     }
 
-    /// Get program addresses as iterator for SBF compatibility
-    pub fn program_addresses_iter(&self) -> impl Iterator<Item = Pubkey> + '_ {
-        (0..self.program_count as usize).map(move |i| Pubkey::from(self.program_addresses[i]))
+    /// Get program count
+    pub fn program_count(&self) -> u8 {
+        self.program_addresses.len() as u8
+    }
+
+    /// Get program addresses as slice
+    pub fn program_addresses(&self) -> &[Pubkey] {
+        &self.program_addresses
     }
 
     /// Get specific program address by index
     pub fn get_program_address(&self, index: usize) -> Option<Pubkey> {
-        if index < self.program_count as usize {
-            Some(Pubkey::from(self.program_addresses[index]))
-        } else {
-            None
-        }
+        self.program_addresses.get(index).copied()
     }
 }
 
@@ -102,10 +95,10 @@ mod tests {
             original.instruction_discriminator,
             unpacked.instruction_discriminator
         );
-        assert_eq!(original.program_count, unpacked.program_count);
+        assert_eq!(original.program_count(), unpacked.program_count());
 
-        let original_addresses: Vec<Pubkey> = original.program_addresses_iter().collect();
-        let unpacked_addresses: Vec<Pubkey> = unpacked.program_addresses_iter().collect();
+        let original_addresses = original.program_addresses();
+        let unpacked_addresses = unpacked.program_addresses();
         assert_eq!(original_addresses, unpacked_addresses);
         assert_eq!(program_addresses, unpacked_addresses);
     }
@@ -117,7 +110,7 @@ mod tests {
         let max_args =
             InitializeVerificationConfigArgs::new(discriminators::BURN_TOKENS, &max_programs)
                 .unwrap();
-        assert_eq!(max_args.program_count, 16);
+        assert_eq!(max_args.program_count(), 16);
 
         // Test with too many programs (should fail)
         let too_many_programs: Vec<Pubkey> = (0..17).map(|_| random_pubkey()).collect();
@@ -133,6 +126,6 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(empty_args.program_count, 0);
+        assert_eq!(empty_args.program_count(), 0);
     }
 }

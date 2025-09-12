@@ -71,9 +71,7 @@ impl Processor {
         VerificationModule::initialize_verification_config(
             program_id,
             accounts,
-            &instruction_args.args.instruction_discriminator,
-            &instruction_args.args.program_addresses,
-            instruction_args.args.program_count,
+            &instruction_args.args,
         )
     }
 }

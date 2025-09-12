@@ -18,6 +18,7 @@ import {
   fixedCountNode,
   fieldDiscriminatorNode,
   numberValueNode,
+  prefixedCountNode,
 } from '@codama/nodes';
 
 import { renderVisitor as renderRustVisitor } from '@codama/renderers-rust';
@@ -207,7 +208,6 @@ const program = programNode({
     // InitializeVerificationConfigArgs
     definedTypeNode({
       name: 'InitializeVerificationConfigArgs',
-      docs: ['Arguments for InitializeVerificationConfig instruction'],
       type: structTypeNode([
         structFieldTypeNode({
           name: 'instructionDiscriminator',
@@ -217,16 +217,11 @@ const program = programNode({
           type: arrayTypeNode(numberTypeNode('u8'), fixedCountNode(8)),
         }),
         structFieldTypeNode({
-          name: 'programCount',
-          docs: ['Number of valid verification programs (0-16)'],
-          type: numberTypeNode('u8'),
-        }),
-        structFieldTypeNode({
           name: 'programAddresses',
-          docs: ['Array of verification program addresses (up to 16)'],
+          docs: ['Array of verification program addresses'],
           type: arrayTypeNode(
-            arrayTypeNode(numberTypeNode('u8'), fixedCountNode(32)),
-            fixedCountNode(16)
+            publicKeyTypeNode(),
+            prefixedCountNode(numberTypeNode('u32'))
           ),
         }),
       ]),

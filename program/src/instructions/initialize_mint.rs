@@ -170,9 +170,10 @@ impl<'a> InitializeArgs<'a> {
                 .map_err(|_| ProgramError::InvalidRealloc)?,
         );
         offset += 4;
-
+     
         // Read additional_metadata
         let additional_metadata = if additional_metadata_len > 0 {
+            
             if data.len() < offset + additional_metadata_len as usize {
                 return Err(ProgramError::InvalidRealloc);
             }
@@ -180,7 +181,7 @@ impl<'a> InitializeArgs<'a> {
         } else {
             &[]
         };
-
+    
         let meta = TokenMetadata {
             update_authority,
             mint,

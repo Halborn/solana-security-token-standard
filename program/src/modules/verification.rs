@@ -34,11 +34,12 @@ use pinocchio_token_2022::{
 };
 
 use crate::instruction::SecurityTokenInstruction;
-use crate::instructions::{InitializeArgs, UpdateMetadataArgs};
+use crate::instructions::{InitializeArgs, InitializeVerificationConfigArgs, UpdateMetadataArgs};
 
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::state::VerificationConfig;
 use crate::utils;
+use borsh::BorshSerialize;
 
 /// Verification Module - handles all authorization and compliance checks
 pub struct VerificationModule;
@@ -308,7 +309,7 @@ impl VerificationModule {
             }
 
             log!("TokenMetadata invoke succeeded");
-
+            log!("###########################################1");
             // Add additional metadata fields if present - each field requires separate instruction
             if !metadata.additional_metadata.is_empty() {
                 let additional_metadata_len = metadata.additional_metadata.len();
@@ -329,6 +330,7 @@ impl VerificationModule {
                     Ok(())
                 })?;
             }
+            log!("###########################################1");
 
             msg!("All metadata initialized successfully");
         } else {
@@ -668,9 +670,7 @@ impl VerificationModule {
     pub fn initialize_verification_config(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        instruction_discriminator: &[u8], // 8-byte discriminator (e.g., burn vs transfer)
-        program_addresses: &[[u8; 32]],   // Static array of program addresses
-        program_count: u8,                // Number of valid addresses
+        args: &crate::instructions::InitializeVerificationConfigArgs,
     ) -> ProgramResult {
         // Expected accounts:
         // 0. [writable] VerificationConfig PDA (derived from instruction_id + mint)
@@ -697,17 +697,8 @@ impl VerificationModule {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate input parameters
-        if program_count > 16 {
-            return Err(ProgramError::InvalidArgument);
-        }
-        if instruction_discriminator.len() != 8 {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        // Convert instruction discriminator to fixed array
-        let mut disc_array = [0u8; 8];
-        disc_array.copy_from_slice(instruction_discriminator);
+        // Get instruction discriminator
+        let disc_array = args.instruction_discriminator;
 
         // Derive expected PDA address
         let (expected_config_pda, bump) =
@@ -725,20 +716,25 @@ impl VerificationModule {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
+        // Create the VerificationConfig data first to calculate exact size
+        let config = VerificationConfig::new(disc_array, args.program_addresses())?;
+
+        let account_size = config.serialized_size();
+
         // Calculate rent for the account
         let rent = Rent {
             lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
             exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
             burn_percent: DEFAULT_BURN_PERCENT,
         };
-        let required_lamports = rent.minimum_balance(VerificationConfig::SIZE);
+        let required_lamports = rent.minimum_balance(account_size);
 
         // Create the PDA account
         let create_account_instruction = CreateAccount {
             from: payer,
             to: config_account,
             lamports: required_lamports,
-            space: VerificationConfig::SIZE as u64,
+            space: account_size as u64,
             owner: program_id,
         };
 
@@ -754,18 +750,16 @@ impl VerificationModule {
 
         create_account_instruction.invoke_signed(&[signer])?;
 
-        // Create the VerificationConfig data
-        let config =
-            VerificationConfig::new(disc_array, &program_addresses[..program_count as usize])?;
-
-        // Write data to the account
+        // Write data to the account using Borsh serialization
         let mut data = config_account.try_borrow_mut_data()?;
-        let config_bytes = bytemuck::bytes_of(&config);
-        data[..config_bytes.len()].copy_from_slice(config_bytes);
+        let config_bytes = config
+            .try_to_vec()
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        data[..config_bytes.len()].copy_from_slice(&config_bytes);
 
         log!(
             "VerificationConfig PDA created for {} programs",
-            program_count
+            args.program_count()
         );
         log!("Config PDA address: {}", config_account.key());
         log!("Mint: {}", mint_account.key());
