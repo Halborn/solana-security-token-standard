@@ -27,6 +27,21 @@ pub enum SecurityTokenInstruction {
     /// 3. `[signer]` The authority account (mint authority)
     /// 4. `[]` The system program ID
     InitializeVerificationConfig = 2,
+    /// Update verification configuration for an instruction
+    /// Accounts expected:
+    /// 0. `[writable]` The VerificationConfig PDA account
+    /// 1. `[]` The mint account
+    /// 2. `[signer]` The authority account (mint authority)
+    /// 3. `[]` The system program ID
+    UpdateVerificationConfig = 3,
+    /// Trim verification configuration to recover rent
+    /// Accounts expected:
+    /// 0. `[writable]` The VerificationConfig PDA account
+    /// 1. `[]` The mint account
+    /// 2. `[signer]` The authority account (mint authority)
+    /// 3. `[writable]` The rent recipient account (to receive recovered lamports)
+    /// 4. `[]` The system program ID (optional for closing account)
+    TrimVerificationConfig = 4,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -37,6 +52,8 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             0 => Ok(SecurityTokenInstruction::InitializeMint),
             1 => Ok(SecurityTokenInstruction::UpdateMetadata),
             2 => Ok(SecurityTokenInstruction::InitializeVerificationConfig),
+            3 => Ok(SecurityTokenInstruction::UpdateVerificationConfig),
+            4 => Ok(SecurityTokenInstruction::TrimVerificationConfig),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -63,6 +80,8 @@ impl SecurityTokenInstruction {
             SecurityTokenInstruction::InitializeMint => 0,
             SecurityTokenInstruction::UpdateMetadata => 1,
             SecurityTokenInstruction::InitializeVerificationConfig => 2,
+            SecurityTokenInstruction::UpdateVerificationConfig => 3,
+            SecurityTokenInstruction::TrimVerificationConfig => 4,
         }
     }
 }

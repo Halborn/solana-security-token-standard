@@ -50,12 +50,23 @@ impl VerificationConfig {
 
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), ProgramError> {
+        use pinocchio_log::log;
+
+        // Create zero pubkey for comparison (actual zeros, not Pubkey::default)
+        let zero_pubkey = [0u8; 32];
+
         // Validate that all programs are non-zero (valid pubkeys)
-        for program in &self.verification_programs {
-            if *program == Pubkey::default() {
+        log!(
+            "Validating {} verification programs",
+            self.verification_programs.len()
+        );
+        for (i, program) in self.verification_programs.iter().enumerate() {
+            if *program == zero_pubkey {
+                log!("Found invalid (zero) pubkey at index {}", i);
                 return Err(ProgramError::InvalidAccountData);
             }
         }
+        log!("All programs validated successfully");
 
         Ok(())
     }

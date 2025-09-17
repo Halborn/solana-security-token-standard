@@ -6,8 +6,10 @@ use security_token_client::{
     InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
     InitializeVerificationConfig, InitializeVerificationConfigArgs,
     InitializeVerificationConfigInstructionArgs, MetadataPointer, ScaledUiAmountConfig,
-    TokenMetadata, UpdateMetadata, UpdateMetadataArgs, UpdateMetadataInstructionArgs,
-    SECURITY_TOKEN_ID,
+    TokenMetadata, TrimVerificationConfig, TrimVerificationConfigArgs,
+    TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataArgs,
+    UpdateMetadataInstructionArgs, UpdateVerificationConfig, UpdateVerificationConfigArgs,
+    UpdateVerificationConfigInstructionArgs, SECURITY_TOKEN_ID,
 };
 
 use solana_program_test::ProgramTest;
@@ -848,7 +850,7 @@ async fn test_initialize_mint_error_cases() {
 }
 
 #[tokio::test]
-async fn test_initialize_verification_config() {
+async fn test_verification_config() {
     std::env::set_var("SBF_OUT_DIR", "../target/deploy");
 
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
@@ -929,8 +931,10 @@ async fn test_initialize_verification_config() {
     // Define instruction discriminator (8 bytes for "transfer" instruction as example)
     let instruction_discriminator = [116, 114, 97, 110, 115, 102, 101, 114]; // "transfer" as bytes
 
+    let (program_1, program_2) = (Pubkey::new_unique(), Pubkey::new_unique());
+
     // Define some test verification programs (using known program IDs)
-    let verification_programs = vec![solana_sdk::system_program::ID, spl_token_2022_program];
+    let verification_programs = vec![program_1, program_2];
 
     // Derive the expected VerificationConfig PDA
     let (config_pda, _bump) = Pubkey::find_program_address(
@@ -1025,4 +1029,267 @@ async fn test_initialize_verification_config() {
     }
 
     println!("VerificationConfig PDA validation successful");
+
+    println!("\nTesting UpdateVerificationConfig");
+
+    let (program_3, program_4) = (Pubkey::new_unique(), Pubkey::new_unique());
+
+    // Define new verification programs to add (at offset 1)
+    let new_verification_programs = vec![program_3, program_4];
+    let offset = 1u8; // Start replacing at index 1
+
+    // Create UpdateVerificationConfig instruction
+    let update_config_ix = UpdateVerificationConfig {
+        config_account: config_pda,
+        mint_account: mint_keypair.pubkey(),
+        authority: context.payer.pubkey(),
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(UpdateVerificationConfigInstructionArgs {
+        args: UpdateVerificationConfigArgs {
+            instruction_discriminator,
+            program_addresses: new_verification_programs.clone(),
+            offset,
+        },
+    });
+
+    // Create and process update transaction
+    let update_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[update_config_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let update_result = context
+        .banks_client
+        .process_transaction(update_transaction)
+        .await;
+    if let Err(error) = &update_result {
+        println!("UpdateVerificationConfig transaction failed: {}", error);
+        panic!("UpdateVerificationConfig transaction failed: {}", error);
+    }
+
+    println!("VerificationConfig updated successfully");
+
+    // Verify the updated configuration
+    let updated_config_account = context
+        .banks_client
+        .get_account(config_pda)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let updated_config = VerificationConfig::try_from_slice(&updated_config_account.data)
+        .expect("Should be able to deserialize updated VerificationConfig");
+
+    // Verify the configuration was updated correctly
+    assert_eq!(
+        updated_config.instruction_discriminator, instruction_discriminator,
+        "Instruction discriminator should remain unchanged"
+    );
+
+    // The original program at index 0 should remain
+    assert_eq!(
+        updated_config.verification_programs[0],
+        verification_programs[0].to_bytes(),
+        "Original program at index 0 should remain unchanged"
+    );
+
+    // The programs starting at offset should be updated
+    for (i, expected_program) in new_verification_programs.iter().enumerate() {
+        let config_index = offset as usize + i;
+        assert_eq!(
+            updated_config.verification_programs[config_index],
+            expected_program.to_bytes(),
+            "Updated program at index {} should match",
+            config_index
+        );
+    }
+
+    println!("UpdateVerificationConfig validation successful");
+    println!(
+        "Final verification programs count: {}",
+        updated_config.verification_programs.len()
+    );
+
+    println!("\nTesting TrimVerificationConfig");
+
+    // Create a rent recipient account (we'll use payer as recipient)
+    let rent_recipient = context.payer.pubkey();
+    let original_recipient_balance = context
+        .banks_client
+        .get_account(rent_recipient)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
+    // Test Case 1: Trim the array from 3 programs to 2 programs (recover some rent)
+    let new_size = 2u8;
+    let close = false;
+
+    let trim_config_ix = TrimVerificationConfig {
+        config_account: config_pda,
+        mint_account: mint_keypair.pubkey(),
+        authority: context.payer.pubkey(),
+        rent_recipient: rent_recipient,
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(TrimVerificationConfigInstructionArgs {
+        args: TrimVerificationConfigArgs {
+            instruction_discriminator,
+            size: new_size,
+            close,
+        },
+    });
+
+    // Create and process trim transaction
+    let trim_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[trim_config_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let trim_result = context
+        .banks_client
+        .process_transaction(trim_transaction)
+        .await;
+    if let Err(error) = &trim_result {
+        println!("TrimVerificationConfig transaction failed: {}", error);
+        panic!("TrimVerificationConfig transaction failed: {}", error);
+    }
+
+    println!("VerificationConfig trimmed successfully");
+
+    // Verify the trimmed configuration
+    let trimmed_config_account = context
+        .banks_client
+        .get_account(config_pda)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let trimmed_config = VerificationConfig::try_from_slice(&trimmed_config_account.data)
+        .expect("Should be able to deserialize trimmed VerificationConfig");
+
+    // Verify the configuration was trimmed correctly
+    assert_eq!(
+        trimmed_config.instruction_discriminator, instruction_discriminator,
+        "Instruction discriminator should remain unchanged"
+    );
+
+    assert_eq!(
+        trimmed_config.verification_programs.len(),
+        new_size as usize,
+        "Verification programs count should be trimmed to {}",
+        new_size
+    );
+
+    // Verify that remaining programs are correct (first 2 programs should remain)
+    assert_eq!(
+        trimmed_config.verification_programs[0],
+        verification_programs[0].to_bytes(),
+        "First program should remain unchanged"
+    );
+    assert_eq!(
+        trimmed_config.verification_programs[1],
+        new_verification_programs[0].to_bytes(),
+        "Second program should be the first updated program"
+    );
+
+    // Verify that some rent was recovered
+    let new_recipient_balance = context
+        .banks_client
+        .get_account(rent_recipient)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
+    assert!(
+        new_recipient_balance > original_recipient_balance,
+        "Rent recipient should have received recovered lamports"
+    );
+
+    let recovered_rent = new_recipient_balance - original_recipient_balance;
+    println!("Recovered {} lamports from trimming", recovered_rent);
+
+    println!("TrimVerificationConfig (resize) validation successful");
+
+    // Test Case 2: Close the account completely
+    println!("\nTesting TrimVerificationConfig with close=true");
+
+    let close_config_ix = TrimVerificationConfig {
+        config_account: config_pda,
+        mint_account: mint_keypair.pubkey(),
+        authority: context.payer.pubkey(),
+        rent_recipient: rent_recipient,
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(TrimVerificationConfigInstructionArgs {
+        args: TrimVerificationConfigArgs {
+            instruction_discriminator,
+            size: 0,
+            close: true,
+        },
+    });
+
+    // Get config account balance before closing
+    let config_balance_before_close = trimmed_config_account.lamports;
+
+    let close_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[close_config_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let close_result = context
+        .banks_client
+        .process_transaction(close_transaction)
+        .await;
+    if let Err(error) = &close_result {
+        println!("TrimVerificationConfig close transaction failed: {}", error);
+        panic!("TrimVerificationConfig close transaction failed: {}", error);
+    }
+
+    println!("VerificationConfig closed successfully");
+
+    // Verify the account was closed
+    let closed_config_account = context.banks_client.get_account(config_pda).await.unwrap();
+
+    if let Some(account) = closed_config_account {
+        // Account exists but should have 0 lamports and 0 data
+        assert_eq!(account.lamports, 0, "Closed account should have 0 lamports");
+        assert_eq!(
+            account.data.len(),
+            0,
+            "Closed account should have 0 data length"
+        );
+        println!("Config account closed - 0 lamports, 0 data length");
+    } else {
+        println!("Config account completely deleted");
+    }
+
+    // Verify all lamports were transferred to recipient
+    let final_recipient_balance = context
+        .banks_client
+        .get_account(rent_recipient)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
+    let total_recovered_rent = final_recipient_balance - original_recipient_balance;
+    assert!(
+        total_recovered_rent >= config_balance_before_close,
+        "Should have recovered at least {} lamports, got {}",
+        config_balance_before_close,
+        total_recovered_rent
+    );
+
+    println!("Total recovered rent: {} lamports", total_recovered_rent);
+    println!("TrimVerificationConfig (close) validation successful");
 }

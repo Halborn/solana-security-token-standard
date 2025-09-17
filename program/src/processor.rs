@@ -1,7 +1,9 @@
 use crate::{
     instruction::SecurityTokenInstruction,
     instructions::{
-        InitializeArgs, InitializeVerificationConfigInstructionArgs, UpdateMetadataArgs,
+        verification_config::TrimVerificationConfigInstructionArgs, InitializeArgs,
+        InitializeVerificationConfigInstructionArgs, UpdateMetadataArgs,
+        UpdateVerificationConfigInstructionArgs,
     },
     modules::verification::VerificationModule,
 };
@@ -33,6 +35,12 @@ impl Processor {
             }
             SecurityTokenInstruction::InitializeVerificationConfig => {
                 Self::process_initialize_verification_config(program_id, accounts, args_data)
+            }
+            SecurityTokenInstruction::UpdateVerificationConfig => {
+                Self::process_update_verification_config(program_id, accounts, args_data)
+            }
+            SecurityTokenInstruction::TrimVerificationConfig => {
+                Self::process_trim_verification_config(program_id, accounts, args_data)
             }
         }
     }
@@ -73,5 +81,29 @@ impl Processor {
             accounts,
             &instruction_args.args,
         )
+    }
+
+    /// Process UpdateVerificationConfig instruction
+    fn process_update_verification_config(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let instruction_args = UpdateVerificationConfigInstructionArgs::try_from_slice(args_data)
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+
+        VerificationModule::update_verification_config(program_id, accounts, &instruction_args.args)
+    }
+
+    /// Process TrimVerificationConfig instruction
+    fn process_trim_verification_config(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let instruction_args = TrimVerificationConfigInstructionArgs::try_from_slice(args_data)
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+
+        VerificationModule::trim_verification_config(program_id, accounts, &instruction_args.args)
     }
 }

@@ -7,6 +7,8 @@ use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
+// TODO: Temporary
+use pinocchio::pubkey::log as pubkey_log;
 use pinocchio::ProgramResult;
 use pinocchio::{
     msg,
@@ -34,12 +36,12 @@ use pinocchio_token_2022::{
 };
 
 use crate::instruction::SecurityTokenInstruction;
-use crate::instructions::{InitializeArgs, InitializeVerificationConfigArgs, UpdateMetadataArgs};
-
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
+use crate::instructions::verification_config::TrimVerificationConfigArgs;
+use crate::instructions::{InitializeArgs, InitializeVerificationConfigArgs, UpdateMetadataArgs};
 use crate::state::VerificationConfig;
 use crate::utils;
-use borsh::BorshSerialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 
 /// Verification Module - handles all authorization and compliance checks
 pub struct VerificationModule;
@@ -309,7 +311,6 @@ impl VerificationModule {
             }
 
             log!("TokenMetadata invoke succeeded");
-            log!("###########################################1");
             // Add additional metadata fields if present - each field requires separate instruction
             if !metadata.additional_metadata.is_empty() {
                 let additional_metadata_len = metadata.additional_metadata.len();
@@ -330,8 +331,6 @@ impl VerificationModule {
                     Ok(())
                 })?;
             }
-            log!("###########################################1");
-
             msg!("All metadata initialized successfully");
         } else {
             msg!("No metadata provided, skipping metadata initialization");
@@ -767,30 +766,287 @@ impl VerificationModule {
 
         Ok(())
     }
-}
 
-/// Update verification configuration for an instruction
-pub fn update_verification_config(
-    _accounts: &[AccountInfo],
-    _program_addresses: &[pinocchio::pubkey::Pubkey],
-    _offset: u8,
-) -> ProgramResult {
-    // TODO: Update VerificationConfig account
-    // TODO: Overwrite at specified offset
+    /// Update verification configuration for an instruction
+    pub fn update_verification_config(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args: &crate::instructions::UpdateVerificationConfigArgs,
+    ) -> ProgramResult {
+        // Expected accounts:
+        // 0. [writable] VerificationConfig PDA account
+        // 1. [] Mint account
+        // 2. [signer] Authority (mint authority or designated config authority)
+        // 3. [] System program (if resizing is needed)
+        let [config_account, mint_account, authority, _system_program_info] = accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
 
-    Ok(())
-}
+        // Verify authority is signer
+        if !authority.is_signer() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
 
-/// Trim verification configuration to recover rent
-pub fn trim_verification_config(
-    _accounts: &[AccountInfo],
-    _size: u8,
-    _close: bool,
-) -> ProgramResult {
-    // TODO: Resize VerificationConfig account
-    // TODO: Recover rent if applicable
+        // TODO: Add proper authority validation
+        // For now, we accept any signer as authority
+        // In production, should validate against mint authority or config-specific authority
 
-    Ok(())
+        // Get instruction discriminator
+        let disc_array = args.instruction_discriminator;
+
+        // Derive expected PDA address
+        let (expected_config_pda, _bump) =
+            utils::find_verification_config_pda(mint_account.key(), &disc_array, program_id);
+
+        // Verify that the provided config account matches the expected PDA
+        if *config_account.key() != expected_config_pda {
+            log!("Invalid config account");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check if account exists
+        if config_account.data_len() == 0 {
+            log!("VerificationConfig account does not exist");
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        // Load existing config
+        let mut existing_config = {
+            let data = config_account.try_borrow_data()?;
+            VerificationConfig::try_from_slice(&data)
+                .map_err(|_| ProgramError::InvalidAccountData)?
+        };
+
+        // Verify discriminator matches
+        if existing_config.instruction_discriminator != disc_array {
+            log!("Discriminator mismatch");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Update verification programs starting at the specified offset
+        let offset = args.offset() as usize;
+        let new_programs = args.program_addresses();
+
+        if offset + new_programs.len() > existing_config.verification_programs.len() {
+            existing_config
+                .verification_programs
+                .resize(offset + new_programs.len(), Pubkey::default());
+        }
+
+        // Replace programs starting at offset
+        for (i, &new_program) in new_programs.iter().enumerate() {
+            existing_config.verification_programs[offset + i] = new_program;
+        }
+
+        existing_config.validate()?;
+
+        let new_size = existing_config.serialized_size();
+        let current_size = config_account.data_len();
+
+        if new_size > current_size {
+            let additional_space = new_size - current_size;
+            let rent = Rent {
+                lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
+                exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
+                burn_percent: DEFAULT_BURN_PERCENT,
+            };
+            let additional_rent = rent.minimum_balance(additional_space);
+
+            log!(
+                "Expanding account from {} to {} bytes",
+                current_size,
+                new_size
+            );
+            log!("Additional rent needed: {} lamports", additional_rent);
+
+            let transfer = Transfer {
+                from: authority,
+                to: config_account,
+                lamports: additional_rent,
+            };
+            transfer.invoke()?;
+            config_account.realloc(new_size, false)?;
+        }
+
+        let config_bytes = existing_config
+            .try_to_vec()
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        {
+            let mut data = config_account.try_borrow_mut_data()?;
+            data[..config_bytes.len()].copy_from_slice(&config_bytes);
+        }
+
+        log!(
+            "VerificationConfig updated: {} programs at offset {}",
+            new_programs.len(),
+            offset
+        );
+        Ok(())
+    }
+
+    /// Trim verification configuration to recover rent
+    pub fn trim_verification_config(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args: &TrimVerificationConfigArgs,
+    ) -> ProgramResult {
+        // Expected accounts:
+        // 0. [writable] VerificationConfig PDA account
+        // 1. [] Mint account
+        // 2. [signer] Authority (mint authority or designated config authority)
+        // 3. [writable] Rent recipient account (to receive recovered lamports)
+        // 4. [] System program ID (optional for closing account)
+
+        let [config_account, mint_account, authority, rent_recipient, _system_program] = accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        // Verify authority is signer
+        if !authority.is_signer() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // TODO: Add proper authority validation
+        // For now, we accept any signer as authority
+        // In production, should validate against mint authority or config-specific authority
+
+        // Get instruction discriminator
+        let disc_array = args.instruction_discriminator;
+
+        // Derive expected PDA address
+        let (expected_config_pda, _bump) =
+            utils::find_verification_config_pda(mint_account.key(), &disc_array, program_id);
+
+        // Verify that the provided config account matches the expected PDA
+        if *config_account.key() != expected_config_pda {
+            log!("Invalid config account");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check if account exists
+        if config_account.data_len() == 0 {
+            log!("VerificationConfig account does not exist");
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        // Load existing config
+        let mut existing_config = {
+            let data = config_account.try_borrow_data()?;
+            VerificationConfig::try_from_slice(&data)
+                .map_err(|_| ProgramError::InvalidAccountData)?
+        };
+
+        // Verify discriminator matches
+        if existing_config.instruction_discriminator != disc_array {
+            log!("Discriminator mismatch");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let current_program_count = existing_config.verification_programs.len();
+        let new_size = args.size as usize;
+
+        // Validate new size
+        if new_size > current_program_count {
+            log!("Cannot trim to a larger size");
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        if args.close {
+            // Close the account completely - transfer all lamports to recipient
+            log!("Closing VerificationConfig account completely");
+
+            let config_lamports = config_account.lamports();
+
+            // Transfer all lamports to recipient
+            *config_account.try_borrow_mut_lamports()? = 0;
+            *rent_recipient.try_borrow_mut_lamports()? = rent_recipient
+                .lamports()
+                .checked_add(config_lamports)
+                .ok_or(ProgramError::InsufficientFunds)?;
+
+            // Clear account data
+            config_account.realloc(0, false)?;
+
+            log!("Account closed, recovered {} lamports", config_lamports);
+        } else if new_size < current_program_count {
+            // Trim the array and resize account
+            log!(
+                "Trimming VerificationConfig from {} to {} programs",
+                current_program_count,
+                new_size
+            );
+
+            // Trim the verification programs array
+            existing_config.verification_programs.truncate(new_size);
+
+            // Validate the trimmed configuration
+            existing_config.validate()?;
+
+            // Calculate new account size
+            let new_account_size = existing_config.serialized_size();
+            let current_account_size = config_account.data_len();
+
+            if new_account_size < current_account_size {
+                // Calculate recovered rent
+                let space_recovered = current_account_size - new_account_size;
+                let rent = Rent {
+                    lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
+                    exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
+                    burn_percent: DEFAULT_BURN_PERCENT,
+                };
+                let recovered_rent = rent.minimum_balance(space_recovered);
+
+                log!("Recovering {} bytes of space", space_recovered);
+                log!("Recovered rent: {} lamports", recovered_rent);
+
+                // Transfer recovered rent to recipient
+                *config_account.try_borrow_mut_lamports()? = config_account
+                    .lamports()
+                    .checked_sub(recovered_rent)
+                    .ok_or(ProgramError::InsufficientFunds)?;
+
+                *rent_recipient.try_borrow_mut_lamports()? = rent_recipient
+                    .lamports()
+                    .checked_add(recovered_rent)
+                    .ok_or(ProgramError::InsufficientFunds)?;
+
+                // Resize account to new size
+                config_account.realloc(new_account_size, false)?;
+            }
+
+            // Write the trimmed config back to the account
+            let config_bytes = existing_config
+                .try_to_vec()
+                .map_err(|_| ProgramError::InvalidAccountData)?;
+
+            {
+                let mut data = config_account.try_borrow_mut_data()?;
+                data[..config_bytes.len()].copy_from_slice(&config_bytes);
+            }
+
+            log!(
+                "VerificationConfig trimmed to {} programs, recovered {} lamports",
+                new_size,
+                if new_account_size < current_account_size {
+                    let space_recovered = current_account_size - new_account_size;
+                    let rent = Rent {
+                        lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
+                        exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
+                        burn_percent: DEFAULT_BURN_PERCENT,
+                    };
+                    rent.minimum_balance(space_recovered)
+                } else {
+                    0
+                }
+            );
+        } else {
+            log!("No trimming needed - current size equals requested size");
+        }
+
+        Ok(())
+    }
 }
 
 /// Verify specific operation against configured verification programs

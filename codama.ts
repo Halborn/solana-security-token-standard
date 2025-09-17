@@ -19,6 +19,7 @@ import {
   fieldDiscriminatorNode,
   numberValueNode,
   prefixedCountNode,
+  booleanTypeNode,
 } from '@codama/nodes';
 
 import { renderVisitor as renderRustVisitor } from '@codama/renderers-rust';
@@ -226,6 +227,60 @@ const program = programNode({
         }),
       ]),
     }),
+
+    // UpdateVerificationConfigArgs
+    definedTypeNode({
+      name: 'UpdateVerificationConfigArgs',
+      type: structTypeNode([
+        structFieldTypeNode({
+          name: 'instructionDiscriminator',
+          docs: [
+            '8-byte discriminator for the instruction type (e.g., burn, transfer)',
+          ],
+          type: arrayTypeNode(numberTypeNode('u8'), fixedCountNode(8)),
+        }),
+        structFieldTypeNode({
+          name: 'programAddresses',
+          docs: ['Array of new verification program addresses to add/replace'],
+          type: arrayTypeNode(
+            publicKeyTypeNode(),
+            prefixedCountNode(numberTypeNode('u32'))
+          ),
+        }),
+        structFieldTypeNode({
+          name: 'offset',
+          docs: [
+            'Offset at which to start replacement/insertion (0-based index)',
+          ],
+          type: numberTypeNode('u8'),
+        }),
+      ]),
+    }),
+
+    // TrimVerificationConfigArgs
+    definedTypeNode({
+      name: 'TrimVerificationConfigArgs',
+      docs: ['Arguments for TrimVerificationConfig instruction'],
+      type: structTypeNode([
+        structFieldTypeNode({
+          name: 'instructionDiscriminator',
+          docs: [
+            '8-byte discriminator for the instruction type (e.g., burn, transfer)',
+          ],
+          type: arrayTypeNode(numberTypeNode('u8'), fixedCountNode(8)),
+        }),
+        structFieldTypeNode({
+          name: 'size',
+          docs: ['New size of the program array (number of Pubkeys to keep)'],
+          type: numberTypeNode('u8'),
+        }),
+        structFieldTypeNode({
+          name: 'close',
+          docs: ['Whether to close the account completely'],
+          type: booleanTypeNode()
+        }),
+      ]),
+    }),
   ],
 
   instructions: [
@@ -382,6 +437,102 @@ const program = programNode({
         instructionArgumentNode({
           name: 'args',
           type: definedTypeLinkNode('InitializeVerificationConfigArgs'),
+        }),
+      ],
+    }),
+
+    // UpdateVerificationConfig (discriminant = 3)
+    instructionNode({
+      name: 'updateVerificationConfig',
+      discriminators: [fieldDiscriminatorNode('discriminator', 3)],
+      docs: ['Update verification configuration for an instruction'],
+      accounts: [
+        instructionAccountNode({
+          name: 'configAccount',
+          docs: ['The VerificationConfig PDA account'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'mintAccount',
+          docs: ['The mint account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'authority',
+          docs: ['The authority account (mint authority)'],
+          isSigner: true,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'systemProgram',
+          docs: ['The system program ID'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(3),
+          defaultValueStrategy: 'omitted',
+        }),
+        instructionArgumentNode({
+          name: 'args',
+          type: definedTypeLinkNode('UpdateVerificationConfigArgs'),
+        }),
+      ],
+    }),
+
+    // TrimVerificationConfig (discriminant = 4)
+    instructionNode({
+      name: 'trimVerificationConfig',
+      discriminators: [fieldDiscriminatorNode('discriminator', 4)],
+      docs: ['Trim verification configuration to recover rent'],
+      accounts: [
+        instructionAccountNode({
+          name: 'configAccount',
+          docs: ['The VerificationConfig PDA account'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'mintAccount',
+          docs: ['The mint account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'authority',
+          docs: ['The authority account (mint authority)'],
+          isSigner: true,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'rentRecipient',
+          docs: ['The rent recipient account (to receive recovered lamports)'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'systemProgram',
+          docs: ['The system program ID (optional for closing account)'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(4),
+          defaultValueStrategy: 'omitted',
+        }),
+        instructionArgumentNode({
+          name: 'args',
+          type: definedTypeLinkNode('TrimVerificationConfigArgs'),
         }),
       ],
     }),
