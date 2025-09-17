@@ -20,6 +20,7 @@ pinocchio-log = "0.5.0"
 
 bytemuck = { version = "1.18.0", features = ["derive"] }
 borsh = "0.10.4"
+bs58 = "0.4"
 
 # Error handling
 thiserror = "2.0.3"

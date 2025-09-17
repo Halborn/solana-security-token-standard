@@ -7,8 +7,6 @@ use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
-// TODO: Temporary
-use pinocchio::pubkey::log as pubkey_log;
 use pinocchio::ProgramResult;
 use pinocchio::{
     msg,
@@ -38,7 +36,8 @@ use pinocchio_token_2022::{
 use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
-use crate::instructions::{InitializeArgs, InitializeVerificationConfigArgs, UpdateMetadataArgs};
+use crate::instructions::{InitializeArgs, UpdateMetadataArgs};
+use crate::modules::verify_signer;
 use crate::state::VerificationConfig;
 use crate::utils;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -82,21 +81,14 @@ impl VerificationModule {
             log!("ScaledUiAmount configuration provided by client");
         }
 
-        // Parse accounts
-        let account_info_iter = &mut accounts.iter();
-        let mint_info = utils::next_account_info(account_info_iter)?; // 0. Mint account
-        let creator_info = utils::next_account_info(account_info_iter)?; // 1. Creator (signer)
-        let token_program_info = utils::next_account_info(account_info_iter)?; // 2. SPL Token 2022 program
-        let _system_program_info = utils::next_account_info(account_info_iter)?; // 3. System program
-        let rent_info = utils::next_account_info(account_info_iter)?; // 4. Rent sysvar
+        let [mint_info, creator_info, token_program_info, _system_program_info, rent_info] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
 
-        if !creator_info.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        if !mint_info.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
+        verify_signer(creator_info, false)?;
+        verify_signer(mint_info, false)?;
 
         // Build required extensions list without heap allocations (SBF no-allocator)
         let mut extensions_buf: [ExtensionType; 5] = [ExtensionType::Pausable; 5];
@@ -365,16 +357,12 @@ impl VerificationModule {
         // Validate arguments
         args.validate()?;
 
-        // Parse accounts
-        let account_info_iter = &mut accounts.iter();
-        let mint_info = utils::next_account_info(account_info_iter)?; // 0. Mint account
-        let authority_info = utils::next_account_info(account_info_iter)?; // 1. Authority (signer)
-        let _token_program_info = utils::next_account_info(account_info_iter).ok(); // 2. Optional Token program
-        let system_program_info = utils::next_account_info(account_info_iter).ok(); // 3. Optional System program
+        let [mint_info, authority_info, _token_program_info, _system_program_info] = accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
 
-        if !authority_info.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
+        verify_signer(authority_info, false)?;
 
         // Get metadata account address from MetadataPointer extension
         let metadata_address: Option<Pubkey> = {
@@ -401,67 +389,64 @@ impl VerificationModule {
         log!("Updating base metadata fields (name, symbol, URI)");
 
         // Calculate additional space needed for metadata updates and transfer rent if needed
-        if let Some(_system_program) = system_program_info {
-            log!("Calculating additional rent for metadata updates");
 
-            // Calculate current and new metadata sizes
-            let new_metadata_size = utils::calculate_metadata_tlv_size(&args.metadata)?;
-            let current_account_size = metadata_account_info.data_len();
+        log!("Calculating additional rent for metadata updates");
 
-            log!("Current account size: {} bytes", current_account_size);
-            log!("New metadata TLV size needed: {} bytes", new_metadata_size);
+        // Calculate current and new metadata sizes
+        let new_metadata_size = utils::calculate_metadata_tlv_size(&args.metadata)?;
+        let current_account_size = metadata_account_info.data_len();
 
-            // Get current metadata size to calculate the difference
-            let current_metadata_size = {
-                let mint_data = metadata_account_info.try_borrow_data()?;
+        log!("Current account size: {} bytes", current_account_size);
+        log!("New metadata TLV size needed: {} bytes", new_metadata_size);
 
-                // Use pinocchio's get_extension_data_bytes_for_variable_pack to get current metadata
-                if let Some(metadata_bytes) =
-                    get_extension_data_bytes_for_variable_pack::<TokenMetadata>(&mint_data)
-                {
-                    // The length of the raw extension data includes TLV headers
-                    // For simplification, use the raw byte length as the current size
-                    metadata_bytes.len() + 4 // Add 4 bytes for TLV header (type + length)
-                } else {
-                    // No metadata currently, so current size is 0
-                    0
-                }
+        // Get current metadata size to calculate the difference
+        let current_metadata_size = {
+            let mint_data = metadata_account_info.try_borrow_data()?;
+
+            // Use pinocchio's get_extension_data_bytes_for_variable_pack to get current metadata
+            if let Some(metadata_bytes) =
+                get_extension_data_bytes_for_variable_pack::<TokenMetadata>(&mint_data)
+            {
+                // The length of the raw extension data includes TLV headers
+                // For simplification, use the raw byte length as the current size
+                metadata_bytes.len() + 4 // Add 4 bytes for TLV header (type + length)
+            } else {
+                // No metadata currently, so current size is 0
+                0
+            }
+        };
+
+        log!("Current metadata TLV size: {} bytes", current_metadata_size);
+
+        if new_metadata_size > current_metadata_size {
+            let additional_metadata_space = new_metadata_size - current_metadata_size;
+            let rent = Rent {
+                lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
+                exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
+                burn_percent: DEFAULT_BURN_PERCENT,
+            };
+            let additional_rent = rent.minimum_balance(additional_metadata_space);
+
+            log!(
+                "Additional metadata space needed: {} bytes",
+                additional_metadata_space
+            );
+            log!("Additional rent needed: {} lamports", additional_rent);
+
+            let transfer = Transfer {
+                from: authority_info,       // from (authority pays)
+                to: &metadata_account_info, // to (metadata account)
+                lamports: additional_rent,  // amount
             };
 
-            log!("Current metadata TLV size: {} bytes", current_metadata_size);
+            transfer.invoke()?;
 
-            if new_metadata_size > current_metadata_size {
-                let additional_metadata_space = new_metadata_size - current_metadata_size;
-                let rent = Rent {
-                    lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-                    exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
-                    burn_percent: DEFAULT_BURN_PERCENT,
-                };
-                let additional_rent = rent.minimum_balance(additional_metadata_space);
-
-                log!(
-                    "Additional metadata space needed: {} bytes",
-                    additional_metadata_space
-                );
-                log!("Additional rent needed: {} lamports", additional_rent);
-
-                let transfer = Transfer {
-                    from: authority_info,       // from (authority pays)
-                    to: &metadata_account_info, // to (metadata account)
-                    lamports: additional_rent,  // amount
-                };
-
-                transfer.invoke()?;
-
-                log!(
-                    "Transferred {} lamports for additional metadata space",
-                    additional_rent
-                );
-            } else {
-                log!("No additional rent needed - current metadata space is sufficient");
-            }
+            log!(
+                "Transferred {} lamports for additional metadata space",
+                additional_rent
+            );
         } else {
-            log!("No system program provided - assuming current space is sufficient");
+            log!("No additional rent needed - current metadata space is sufficient");
         }
 
         let update_field_instruction = UpdateField {
@@ -678,23 +663,12 @@ impl VerificationModule {
         // 3. [signer] Authority (mint authority or designated config authority)
         // 4. [] System program
 
-        if accounts.len() != 5 {
+        let [config_account, payer, mint_account, authority, _system_program] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
-        }
+        };
 
-        let config_account = &accounts[0];
-        let payer = &accounts[1];
-        let mint_account = &accounts[2];
-        let authority = &accounts[3];
-        let _system_program = &accounts[4];
-
-        // Verify signers
-        if !payer.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
+        verify_signer(payer, false)?;
+        verify_signer(authority, false)?;
 
         // Get instruction discriminator
         let disc_array = args.instruction_discriminator;
@@ -781,12 +755,7 @@ impl VerificationModule {
         let [config_account, mint_account, authority, _system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-
-        // Verify authority is signer
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
+        verify_signer(authority, false)?;
         // TODO: Add proper authority validation
         // For now, we accept any signer as authority
         // In production, should validate against mint authority or config-specific authority
@@ -902,12 +871,7 @@ impl VerificationModule {
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-
-        // Verify authority is signer
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
+        verify_signer(authority, false)?;
         // TODO: Add proper authority validation
         // For now, we accept any signer as authority
         // In production, should validate against mint authority or config-specific authority
@@ -1024,7 +988,7 @@ impl VerificationModule {
             {
                 let mut data = config_account.try_borrow_mut_data()?;
                 data[..config_bytes.len()].copy_from_slice(&config_bytes);
-            }
+            } // data borrow is released here
 
             log!(
                 "VerificationConfig trimmed to {} programs, recovered {} lamports",

@@ -11,7 +11,6 @@ use borsh::BorshDeserialize;
 use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
-use pinocchio_log::log;
 
 /// Program state handler
 pub struct Processor;

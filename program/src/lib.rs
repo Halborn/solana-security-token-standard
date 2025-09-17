@@ -13,8 +13,10 @@ pub mod entrypoint;
 pub mod error;
 /// Instruction definitions
 pub mod instruction;
-/// SBF-compatible instruction wrappers
+/// Instruction wrappers
 pub mod instructions;
+/// Macros used throughout the Security Token program
+pub mod macros;
 /// Security Token program modules (verification & operations)
 pub mod modules;
 /// Instruction processor
@@ -23,6 +25,7 @@ pub mod processor;
 pub mod state;
 /// Utility functions
 pub mod utils;
+
 use pinocchio_pubkey::declare_id;
 
 #[cfg(not(feature = "no-entrypoint"))]

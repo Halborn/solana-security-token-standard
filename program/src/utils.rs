@@ -1,7 +1,6 @@
 //! Utility functions for PDA derivation and common operations
 
 use pinocchio::{
-    account_info::AccountInfo,
     program_error::ProgramError,
     pubkey::{find_program_address, Pubkey},
 };
@@ -97,13 +96,6 @@ pub fn get_mint_authority_seeds<'a>(
         creator.as_ref(),
         std::slice::from_ref(bump),
     ]
-}
-
-/// A copy-paste of next_account_info from spltoken
-pub fn next_account_info<'a>(
-    iter: &mut core::slice::Iter<'a, AccountInfo>,
-) -> Result<&'a AccountInfo, ProgramError> {
-    iter.next().ok_or(ProgramError::NotEnoughAccountKeys)
 }
 
 /// Parse additional metadata from raw bytes in TLV format
