@@ -6,6 +6,9 @@
   "directories": {
     "test": "tests"
   },
+  "scripts": {
+    "generate:rust": "npx tsx ./client/codama.ts"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hoodieshq/security-token.git"
