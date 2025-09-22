@@ -2,3 +2,6 @@
 
 #[cfg(test)]
 pub mod integration_tests;
+
+#[cfg(test)]
+pub mod verify_workflow_test;

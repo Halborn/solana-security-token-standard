@@ -12,9 +12,12 @@ use security_token_client::{
     UpdateVerificationConfigInstructionArgs, SECURITY_TOKEN_ID,
 };
 
-use solana_program_test::ProgramTest;
-use solana_sdk::sysvar;
-use solana_sdk::{pubkey::Pubkey, signature::Signer};
+use solana_program_test::{ProgramTest};
+use solana_sdk::{
+    pubkey::Pubkey,
+    signature::Signer,
+    sysvar,
+};
 use solana_system_interface::program as system_program;
 use spl_token_2022::extension::{
     permanent_delegate::PermanentDelegate, transfer_hook::TransferHook,
@@ -1293,3 +1296,4 @@ async fn test_verification_config() {
     println!("Total recovered rent: {} lamports", total_recovered_rent);
     println!("TrimVerificationConfig (close) validation successful");
 }
+

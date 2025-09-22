@@ -15,6 +15,8 @@ use pinocchio::{
     },
 };
 use pinocchio_log::log;
+// TODO: Temporary
+
 use pinocchio_system::instructions::{CreateAccount, Transfer};
 use pinocchio_token_2022::extensions::metadata_pointer::{
     Initialize as MetadataPointerInitialize, MetadataPointer,
@@ -627,21 +629,265 @@ impl VerificationModule {
         Ok(())
     }
 
-    /// Verify authorization for Security Token instructions
-    ///
-    /// Supports two modes:
-    /// - Instruction Introspection Mode: reads prior instructions in transaction
-    /// - CPI Mode: executes CPIs to verification programs
-    pub fn verify_authorization(
-        _accounts: &[AccountInfo],
-        _instruction: &SecurityTokenInstruction,
+    /// Verify specific operation against configured verification programs
+    pub fn verify(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args: &crate::instructions::VerifyArgs,
     ) -> ProgramResult {
-        // TODO: Load VerificationConfig account if exists
-        // TODO: Check if custom verification workflow is configured
-        // TODO: If configured, execute verification flow
-        // TODO: If not configured, use standard authorization (creator signature)
+        log!("Verifying instruction discriminant: {}", args.ix);
 
-        // Placeholder implementation
+        // Expected accounts:
+        // 0. [] The mint account
+        // 1. [] The verification config PDA (optional)
+        // 2. [] Instructions sysvar (for introspection mode)
+        let [mint_account, verification_config_account, _instructions_sysvar] = &accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        log!("Mint account: {}", crate::key_as_str!(mint_account.key()));
+
+        // Try to find VerificationConfig for this instruction
+        let instruction_discriminator = [args.ix, 0, 0, 0, 0, 0, 0, 0];
+        let (config_pda, _bump) = utils::find_verification_config_pda(
+            mint_account.key(),
+            &instruction_discriminator,
+            program_id,
+        );
+
+        log!(
+            "Looking for VerificationConfig PDA: {}",
+            crate::key_as_str!(config_pda)
+        );
+
+        // Load VerificationConfig from the provided account
+        let verification_config = if verification_config_account.key() == &config_pda
+            && verification_config_account.data_len() > 0
+        {
+            let data = verification_config_account
+                .try_borrow_data()
+                .map_err(|_| ProgramError::AccountBorrowFailed)?;
+            VerificationConfig::try_from_slice(&data).ok()
+        } else {
+            None
+        };
+
+        match verification_config {
+            Some(config) => {
+                log!(
+                    "Found VerificationConfig with {} verification programs",
+                    config.verification_programs.len()
+                );
+
+                // Execute verification using Instruction Introspection Mode
+                log!("Using INTROSPECTION MODE verification");
+
+                if config.verification_programs.is_empty() {
+                    log!("No verification programs configured - rejecting");
+                    return Err(ProgramError::MissingRequiredSignature);
+                }
+
+                // Check Instructions Sysvar for prior verification program calls
+                log!("Checking if required verification programs were called in this transaction");
+
+                // Parse instructions sysvar (simplified version)
+                let instructions_sysvar = &_instructions_sysvar;
+                let instructions_data = instructions_sysvar
+                    .try_borrow_data()
+                    .map_err(|_| ProgramError::AccountBorrowFailed)?;
+
+                log!(
+                    "Instructions sysvar data length: {}",
+                    instructions_data.len()
+                );
+
+                // Debug: print first 10 bytes of instructions sysvar data
+                let debug_len = core::cmp::min(10, instructions_data.len());
+                if debug_len >= 10 {
+                    log!(
+                        "First 10 bytes: {} {} {} {} {} {} {} {} {} {}",
+                        instructions_data[0],
+                        instructions_data[1],
+                        instructions_data[2],
+                        instructions_data[3],
+                        instructions_data[4],
+                        instructions_data[5],
+                        instructions_data[6],
+                        instructions_data[7],
+                        instructions_data[8],
+                        instructions_data[9]
+                    );
+                }
+
+                let num_instructions =
+                    u16::from_le_bytes([instructions_data[0], instructions_data[1]]);
+                log!("Found {} instructions in transaction", num_instructions);
+                log!(
+                    "Required verification programs: {}",
+                    config.verification_programs.len()
+                );
+
+                // Simple check to ensure there are enough instructions
+                // At least one instruction is the Verify instruction itself
+                let required_instructions = num_instructions - 1;
+                if required_instructions < config.verification_programs.len() as u16 {
+                    log!(
+                        "Not enough instructions in transaction: {} < {}",
+                        required_instructions,
+                        config.verification_programs.len()
+                    );
+                    return Err(ProgramError::Custom(1001)); // Not enough instructions
+                }
+                // Parse transaction accounts first (needed to resolve program_id_index)
+                // Instructions Sysvar format:
+                // [num_instructions: u16][instruction_0][instruction_1]...[accounts_count: u16][account_0][account_1]...
+                // But actually, let's look for account list first
+
+                let mut accounts_start_offset = 2; // Skip num_instructions
+
+                // Skip all instruction data to find accounts section
+                for _i in 0..num_instructions {
+                    if accounts_start_offset + 4 > instructions_data.len() {
+                        return Err(ProgramError::Custom(1002));
+                    }
+
+                    let _program_id_index = instructions_data[accounts_start_offset];
+                    let accounts_len = instructions_data[accounts_start_offset + 1] as usize;
+                    let data_len = u16::from_le_bytes([
+                        instructions_data[accounts_start_offset + 2],
+                        instructions_data[accounts_start_offset + 3],
+                    ]) as usize;
+
+                    accounts_start_offset += 4 + accounts_len + data_len;
+                }
+
+                // Parse transaction accounts
+                if accounts_start_offset + 2 > instructions_data.len() {
+                    return Err(ProgramError::Custom(1002));
+                }
+
+                let accounts_count = u16::from_le_bytes([
+                    instructions_data[accounts_start_offset],
+                    instructions_data[accounts_start_offset + 1],
+                ]);
+
+                log!("Found {} accounts in transaction", accounts_count);
+
+                // Use static array instead of Vec (no-allocator environment)
+                const MAX_ACCOUNTS: usize = 32;
+                let mut transaction_accounts: [Pubkey; MAX_ACCOUNTS] =
+                    [Pubkey::default(); MAX_ACCOUNTS];
+                let accounts_count_usize = accounts_count as usize;
+
+                if accounts_count_usize > MAX_ACCOUNTS {
+                    log!(
+                        "Too many accounts in transaction: {} > {}",
+                        accounts_count_usize,
+                        MAX_ACCOUNTS
+                    );
+                    return Err(ProgramError::Custom(1002));
+                }
+
+                let mut accounts_offset = accounts_start_offset + 2;
+
+                for i in 0..accounts_count_usize {
+                    if accounts_offset + 32 > instructions_data.len() {
+                        return Err(ProgramError::Custom(1002));
+                    }
+
+                    let account_pubkey =
+                        Pubkey::try_from(&instructions_data[accounts_offset..accounts_offset + 32])
+                            .map_err(|_| ProgramError::Custom(1002))?;
+                    transaction_accounts[i] = account_pubkey;
+                    accounts_offset += 32;
+                }
+
+                log!("Parsed {} transaction accounts", accounts_count_usize);
+
+                // Now parse instructions and resolve program_ids
+                let mut verification_index = 0;
+                let mut offset = 2; // Skip num_instructions
+
+                for i in 0..num_instructions {
+                    if offset + 4 > instructions_data.len() {
+                        log!("Not enough data to parse instruction {}", i);
+                        return Err(ProgramError::Custom(1002));
+                    }
+
+                    let program_id_index = instructions_data[offset] as usize;
+                    let accounts_len = instructions_data[offset + 1] as usize;
+                    let data_len = u16::from_le_bytes([
+                        instructions_data[offset + 2],
+                        instructions_data[offset + 3],
+                    ]) as usize;
+
+                    // Resolve program_id from transaction accounts
+                    if program_id_index >= accounts_count_usize {
+                        log!(
+                            "Invalid program_id_index: {} >= {}",
+                            program_id_index,
+                            accounts_count_usize
+                        );
+                        return Err(ProgramError::Custom(1002));
+                    }
+
+                    let program_id_extracted = transaction_accounts[program_id_index];
+
+                    // Skip our own program (the Verify instruction)
+                    if program_id != &program_id_extracted {
+                        // Check if this matches the next expected verification program
+                        if verification_index < config.verification_programs.len() {
+                            let expected_program = config.verification_programs[verification_index];
+                            if program_id_extracted == expected_program {
+                                log!(
+                                    "Found required verification program {} at position {}",
+                                    crate::key_as_str!(program_id_extracted),
+                                    verification_index
+                                );
+                                verification_index += 1;
+                            } else {
+                                log!(
+                                    "Verification program mismatch at position {}: expected {}, found {}",
+                                    verification_index,
+                                    crate::key_as_str!(expected_program),
+                                    crate::key_as_str!(program_id_extracted)
+                                );
+                                return Err(ProgramError::Custom(1004)); // Wrong program order
+                            }
+                        } else {
+                            log!(
+                                "Additional program found after all verification programs: {}",
+                                crate::key_as_str!(program_id_extracted)
+                            );
+                        }
+                    }
+
+                    // Skip to next instruction (no need to re-read accounts_len and data_len)
+                    offset += 4 + accounts_len + data_len;
+                }
+
+                // Check if all required verification programs were found
+                if verification_index < config.verification_programs.len() {
+                    log!(
+                        "Missing verification programs: found {}, required {}",
+                        verification_index,
+                        config.verification_programs.len()
+                    );
+                    return Err(ProgramError::Custom(1003)); // Missing programs
+                }
+
+                log!("All required verification programs called in correct order");
+                log!("Introspection verification passed");
+            }
+            None => {
+                log!("No VerificationConfig found - using STANDARD AUTHORIZATION");
+
+                // Step 4: Fall back to standard authorization
+                // For now, just accept any transaction (placeholder)
+                log!("Standard authorization accepted (placeholder)");
+                // TODO: Implement proper signature validation
+            }
+        }
         Ok(())
     }
 
@@ -1010,10 +1256,4 @@ impl VerificationModule {
 
         Ok(())
     }
-}
-
-/// Verify specific operation against configured verification programs
-pub fn verify(_accounts: &[AccountInfo], _instruction: &SecurityTokenInstruction) -> ProgramResult {
-    // Main verification entry point
-    VerificationModule::verify_authorization(_accounts, _instruction)
 }

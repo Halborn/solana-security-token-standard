@@ -281,6 +281,19 @@ const program = programNode({
         }),
       ]),
     }),
+
+    // VerifyArgs
+    definedTypeNode({
+      name: 'VerifyArgs',
+      docs: ['Arguments for Verify instruction'],
+      type: structTypeNode([
+        structFieldTypeNode({
+          name: 'ix',
+          docs: ['The Security Token instruction discriminant to verify'],
+          type: numberTypeNode('u8'),
+        }),
+      ]),
+    }),
   ],
 
   instructions: [
@@ -533,6 +546,48 @@ const program = programNode({
         instructionArgumentNode({
           name: 'args',
           type: definedTypeLinkNode('TrimVerificationConfigArgs'),
+        }),
+      ],
+    }),
+
+    // Verify (discriminant = 5)
+    instructionNode({
+      name: 'verify',
+      discriminators: [fieldDiscriminatorNode('discriminator', 5)],
+      docs: [
+        'Verify that a specific instruction type can be executed according to configured verification programs',
+      ],
+      accounts: [
+        instructionAccountNode({
+          name: 'mintAccount',
+          docs: ['The mint account to verify against'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: ['The verification config PDA for this instruction type'],
+          isSigner: false,
+          isWritable: false,
+          isOptional: true, // Optional since not all instructions may have verification config
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: ['The Solana Instructions sysvar account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(5),
+          defaultValueStrategy: 'omitted',
+        }),
+        instructionArgumentNode({
+          name: 'args',
+          type: definedTypeLinkNode('VerifyArgs'),
         }),
       ],
     }),

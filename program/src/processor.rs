@@ -3,7 +3,7 @@ use crate::{
     instructions::{
         verification_config::TrimVerificationConfigInstructionArgs, InitializeArgs,
         InitializeVerificationConfigInstructionArgs, UpdateMetadataArgs,
-        UpdateVerificationConfigInstructionArgs,
+        UpdateVerificationConfigInstructionArgs, VerifyArgs,
     },
     modules::verification::VerificationModule,
 };
@@ -40,6 +40,9 @@ impl Processor {
             }
             SecurityTokenInstruction::TrimVerificationConfig => {
                 Self::process_trim_verification_config(program_id, accounts, args_data)
+            }
+            SecurityTokenInstruction::Verify => {
+                Self::process_verify(program_id, accounts, args_data)
             }
         }
     }
@@ -104,5 +107,34 @@ impl Processor {
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
         VerificationModule::trim_verification_config(program_id, accounts, &instruction_args.args)
+    }
+
+    /// Process Verify instruction
+    fn process_verify(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        // Client sends Borsh-serialized data with wrapper structure
+        // Let's parse it directly without complex structures
+
+        // Debug: log what we received
+        pinocchio_log::log!("Verify instruction received {} bytes", args_data.len());
+
+        // The client sends VerifyInstructionArgs { args: VerifyArgs { ix: u8 } }
+        // This gets Borsh-serialized, so we need to deserialize it
+        // But since it's just a wrapper around one byte, let's try a simpler approach
+
+        if args_data.len() < 1 {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // For now, assume the first byte is our discriminant
+        // TODO: Properly deserialize Borsh if needed
+        let discriminant = args_data[0];
+        let args = VerifyArgs { ix: discriminant };
+
+        // Call the verify function from VerificationModule
+        VerificationModule::verify(program_id, accounts, &args)
     }
 }

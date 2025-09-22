@@ -79,6 +79,9 @@ pub enum SecurityTokenError {
     /// Account already initialized
     #[error("Account already initialized")]
     AccountAlreadyInitialized = 23,
+    /// Not enough verification instructions
+    #[error("Not enough verification instructions")]
+    NotEnoughVerificationInstructions = 24,
 }
 
 impl From<SecurityTokenError> for ProgramError {
