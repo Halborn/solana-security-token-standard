@@ -185,7 +185,7 @@ pub fn calculate_mint_size_with_extensions(extensions: &[ExtensionType]) -> usiz
                 ExtensionType::Pausable => 33,          // Authority + u8
                 ExtensionType::MetadataPointer => 64,   // Authority + Address
                 ExtensionType::ScaledUiAmount => 56, // Authority + multiplier + new_multiplier_effective_timestamp + new_multiplier
-                _ => 0,                              // Default size for unknown extensions
+                _ => unreachable!(),                              // Default size for unknown extensions
             };
             EXTENSION_TYPE_LEN + EXTENSION_LENGTH_LEN + extension_data_size
         })
@@ -194,7 +194,7 @@ pub fn calculate_mint_size_with_extensions(extensions: &[ExtensionType]) -> usiz
     base_size + padding_size + account_type_size + extensions_size
 }
 
-/// Calculate TLV size for TokenMetadata (equivalent to tlv_size_of)
+/// Calculate TLV size for TokenMetadata (equivalent to TokenMetadata::tlv_size_of)
 pub fn calculate_metadata_tlv_size(metadata: &TokenMetadata) -> Result<usize, ProgramError> {
     use pinocchio_token_2022::extensions::{EXTENSION_LENGTH_LEN, EXTENSION_TYPE_LEN};
 
@@ -202,7 +202,7 @@ pub fn calculate_metadata_tlv_size(metadata: &TokenMetadata) -> Result<usize, Pr
     let tlv_header_size = EXTENSION_TYPE_LEN + EXTENSION_LENGTH_LEN;
 
     // Calculate additional metadata size using callback
-    let mut additional_metadata_size = 0usize;
+    let mut additional_metadata_size: usize = 0;
     parse_additional_metadata(metadata.additional_metadata, |key, value| {
         additional_metadata_size += 4 + key.len() + 4 + value.len(); // key_len + key + value_len + value
         Ok(())

@@ -2,14 +2,9 @@
   "name": "solana_security_token",
   "version": "1.0.0",
   "description": "pending",
-  "main": "index.js",
+  "private": true,
   "directories": {
     "test": "tests"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "generate:rust": "node scripts/generate_rust_client.mjs",
-    "generate:idl": "./scripts/generate_idl.sh"
   },
   "repository": {
     "type": "git",
@@ -17,7 +12,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/hoodieshq/security-token/issues"
   },
