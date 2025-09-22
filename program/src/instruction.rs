@@ -42,6 +42,12 @@ pub enum SecurityTokenInstruction {
     /// 3. `[writable]` The rent recipient account (to receive recovered lamports)
     /// 4. `[]` The system program ID (optional for closing account)
     TrimVerificationConfig = 4,
+    /// Verify a security token instruction using configured verification programs
+    /// Accounts expected:
+    /// 0. `[]` The mint account
+    /// 1. `[]` Instructions sysvar (for introspection mode)
+    /// 2. Remaining accounts depend on the instruction being verified and CPI mode requirements
+    Verify = 5,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -54,6 +60,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             2 => Ok(SecurityTokenInstruction::InitializeVerificationConfig),
             3 => Ok(SecurityTokenInstruction::UpdateVerificationConfig),
             4 => Ok(SecurityTokenInstruction::TrimVerificationConfig),
+            5 => Ok(SecurityTokenInstruction::Verify),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -82,6 +89,12 @@ impl SecurityTokenInstruction {
             SecurityTokenInstruction::InitializeVerificationConfig => 2,
             SecurityTokenInstruction::UpdateVerificationConfig => 3,
             SecurityTokenInstruction::TrimVerificationConfig => 4,
+            SecurityTokenInstruction::Verify => 5,
         }
+    }
+
+    /// Create instruction from discriminant byte
+    pub fn from_discriminant(discriminant: u8) -> Option<Self> {
+        Self::try_from(discriminant).ok()
     }
 }
