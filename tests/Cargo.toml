@@ -9,11 +9,20 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+assert_matches = "1.5.0"
 security-token-program = { path = "../program" }
-solana-program = { workspace = true }
-solana-program-test = { workspace = true }
-solana-sdk = { workspace = true }
-spl-pod = { workspace = true }
-spl-token-2022 = { workspace = true }
-spl-token-metadata-interface = { workspace = true }
-tokio = { workspace = true }
+security-token-client = { path = "../client/rust" }
+tokio = { version = "1.41.1", features = ["macros", "rt"] }
+kaigan = "0.2.2"
+borsh = "0.10.4"
+solana-program-test = "2.3.1"
+solana-sdk = "2.3.1"
+solana-system-interface = "1.0.0"
+solana-pubkey = "2.4.0"                             # For extensions compatibility
+
+spl-token-2022 = { version = "9.0.0", features = ["no-entrypoint"] }
+spl-token-metadata-interface = "0.7.0"
+spl-associated-token-account = { version = "7.0.0", features = [
+    "no-entrypoint",
+] }
+spl-pod = "0.5.1"

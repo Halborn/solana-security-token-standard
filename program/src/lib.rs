@@ -4,7 +4,6 @@
 
 #![allow(clippy::arithmetic_side_effects)]
 #![deny(missing_docs)]
-#![cfg_attr(not(test), warn(unsafe_code))]
 
 /// Program entrypoint
 pub mod entrypoint;
@@ -18,18 +17,9 @@ pub mod processor;
 pub mod state;
 /// Utility functions
 pub mod utils;
+use pinocchio_pubkey::declare_id;
 
 #[cfg(not(feature = "no-entrypoint"))]
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
 
-solana_program::declare_id!("11111111111111111111111111111112");
-
-/// Program entrypoint implementation
-#[cfg(not(feature = "no-entrypoint"))]
-pub fn process_instruction(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
-    processor::Processor::process(program_id, accounts, instruction_data)
-}
+declare_id!("Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH");

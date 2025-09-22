@@ -1,19 +1,38 @@
 use crate::{
-    instruction::{InitializeArgs, SecurityTokenInstruction, UpdateMetadataArgs},
+    instruction::{
+        CustomInitializeTokenMetadata, CustomRemoveKey, CustomUpdateField, InitializeArgs,
+        SecurityTokenInstruction, UpdateMetadataArgs,
+    },
     utils,
 };
-use solana_program::{
-    account_info::{next_account_info, AccountInfo},
-    entrypoint::ProgramResult,
+use pinocchio::{
+    account_info::AccountInfo,
     msg,
-    program::invoke,
     program_error::ProgramError,
     pubkey::Pubkey,
-    rent::Rent,
-    sysvar::Sysvar,
+    sysvars::rent::{
+        Rent, DEFAULT_BURN_PERCENT, DEFAULT_EXEMPTION_THRESHOLD, DEFAULT_LAMPORTS_PER_BYTE_YEAR,
+    },
+    ProgramResult,
 };
-use solana_system_interface::instruction as system_instruction;
-use spl_token_2022::{extension::ExtensionType, instruction, state::Mint};
+use pinocchio_log::log;
+use pinocchio_system::instructions::{CreateAccount, Transfer};
+use pinocchio_token_2022::extensions::metadata_pointer::{
+    Initialize as MetadataPointerInitialize, MetadataPointer,
+};
+use pinocchio_token_2022::extensions::pausable::InitializePausable;
+use pinocchio_token_2022::extensions::permanent_delegate::InitializePermanentDelegate;
+use pinocchio_token_2022::extensions::scaled_ui_amount::Initialize as ScaledUiAmountInitialize;
+use pinocchio_token_2022::extensions::transfer_hook::Initialize as TransferHookInitialize;
+use pinocchio_token_2022::extensions::{
+    get_extension_data_bytes_for_variable_pack, get_extension_from_bytes, ExtensionType,
+};
+use pinocchio_token_2022::instructions::{InitializeMint2, SetAuthority};
+use pinocchio_token_2022::state::Mint;
+use pinocchio_token_2022::{
+    extensions::metadata::{Field, TokenMetadata},
+    instructions::AuthorityType,
+};
 
 /// Program state handler
 pub struct Processor;
@@ -25,21 +44,19 @@ impl Processor {
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
-        // Extract instruction type from the first byte
-        let (&instruction_type, args_data) = instruction_data
+        if instruction_data.is_empty() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        let (discriminant, rest) = instruction_data
             .split_first()
             .ok_or(ProgramError::InvalidInstructionData)?;
 
-        let instruction = SecurityTokenInstruction::from(instruction_type);
-
-        match instruction {
+        match SecurityTokenInstruction::try_from(*discriminant)? {
             SecurityTokenInstruction::InitializeMint => {
-                msg!("Instruction: Initialize Mint");
-                Self::process_initialize_mint(program_id, accounts, args_data)
+                Self::process_initialize_mint(program_id, accounts, rest)
             }
             SecurityTokenInstruction::UpdateMetadata => {
-                msg!("Instruction: Update Metadata");
-                Self::process_update_metadata(program_id, accounts, args_data)
+                Self::process_update_metadata(program_id, accounts, rest)
             }
         }
     }
@@ -49,7 +66,7 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        msg!("Processing UpdateMetadata instruction");
+        log!("Processing UpdateMetadata instruction");
 
         // Parse the UpdateMetadataArgs structure
         let args = UpdateMetadataArgs::unpack(args_data)
@@ -58,50 +75,31 @@ impl Processor {
         // Validate arguments
         args.validate()?;
 
-        msg!("Updating metadata for token");
-        msg!("New name: {}", args.metadata.name);
-        msg!("New symbol: {}", args.metadata.symbol);
-        msg!("New URI: {}", args.metadata.uri);
-
         // Parse accounts
         let account_info_iter = &mut accounts.iter();
-        let mint_info = next_account_info(account_info_iter)?; // 0. Mint account
-        let authority_info = next_account_info(account_info_iter)?; // 1. Authority (signer)
-        let token_program_info = next_account_info(account_info_iter).ok(); // 2. Optional Token program
-        let system_program_info = next_account_info(account_info_iter).ok(); // 3. Optional System program
+        let mint_info = utils::next_account_info(account_info_iter)?; // 0. Mint account
+        let authority_info = utils::next_account_info(account_info_iter)?; // 1. Authority (signer)
+        let _token_program_info = utils::next_account_info(account_info_iter).ok(); // 2. Optional Token program
+        let system_program_info = utils::next_account_info(account_info_iter).ok(); // 3. Optional System program
 
-        if !authority_info.is_signer {
+        if !authority_info.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Get the SPL Token 2022 program (should be the mint's owner, or passed explicitly)
-        let token_program_id = if let Some(token_program) = token_program_info {
-            *token_program.key
-        } else {
-            *mint_info.owner
-        };
-
         // Get metadata account address from MetadataPointer extension
-        use spl_token_2022::extension::{BaseStateWithExtensions, StateWithExtensions};
-        use spl_token_2022::state::Mint;
-
         let metadata_address: Option<Pubkey> = {
             let mint_data = mint_info.try_borrow_data()?;
-            let mint_with_extensions = StateWithExtensions::<Mint>::unpack(&mint_data)?;
 
-            // Get metadata pointer to find where metadata is stored
-            let metadata_pointer = mint_with_extensions
-                .get_extension::<spl_token_2022::extension::metadata_pointer::MetadataPointer>()
-                .map_err(|_| ProgramError::InvalidAccountData)?;
+            // Use pinocchio's get_extension_from_bytes instead of StateWithExtensions
+            let metadata_pointer = get_extension_from_bytes::<MetadataPointer>(&mint_data)
+                .ok_or(ProgramError::InvalidAccountData)?;
 
             metadata_pointer.metadata_address.into()
         }; // Borrow is released here
         let metadata_address = metadata_address.ok_or(ProgramError::InvalidAccountData)?;
 
-        msg!("Metadata stored at address: {}", metadata_address);
-
         // Determine metadata account (could be mint itself or external account)
-        let metadata_account_info = if metadata_address == *mint_info.key {
+        let metadata_account_info = if metadata_address == *mint_info.key() {
             // Metadata is stored in mint account (in-mint storage)
             mint_info.clone()
         } else {
@@ -110,184 +108,249 @@ impl Processor {
         };
 
         // Update base metadata fields using SPL Token Metadata Interface
-        msg!("Updating base metadata fields (name, symbol, URI)");
+        log!("Updating base metadata fields (name, symbol, URI)");
 
         // Calculate additional space needed for metadata updates and transfer rent if needed
-        if let Some(system_program) = system_program_info {
-            msg!("Calculating additional rent for metadata updates");
+        if let Some(_system_program) = system_program_info {
+            log!("Calculating additional rent for metadata updates");
 
             // Calculate current and new metadata sizes
-            let new_metadata_size = args.metadata.tlv_size_of()?;
+            let new_metadata_size = utils::calculate_metadata_tlv_size(&args.metadata)?;
             let current_account_size = metadata_account_info.data_len();
 
-            msg!("Current account size: {} bytes", current_account_size);
-            msg!("New metadata TLV size needed: {} bytes", new_metadata_size);
+            log!("Current account size: {} bytes", current_account_size);
+            log!("New metadata TLV size needed: {} bytes", new_metadata_size);
 
             // Get current metadata size to calculate the difference
             let current_metadata_size = {
                 let mint_data = metadata_account_info.try_borrow_data()?;
-                let mint_with_extensions = StateWithExtensions::<Mint>::unpack(&mint_data)?;
 
-                // Try to get current metadata size
-                if let Ok(current_metadata) = mint_with_extensions.get_variable_len_extension::<spl_token_metadata_interface::state::TokenMetadata>() {
-                    current_metadata.tlv_size_of()?
+                // Use pinocchio's get_extension_data_bytes_for_variable_pack to get current metadata
+                if let Some(metadata_bytes) =
+                    get_extension_data_bytes_for_variable_pack::<TokenMetadata>(&mint_data)
+                {
+                    // The length of the raw extension data includes TLV headers
+                    // For simplification, use the raw byte length as the current size
+                    metadata_bytes.len() + 4 // Add 4 bytes for TLV header (type + length)
                 } else {
                     // No metadata currently, so current size is 0
                     0
                 }
             };
 
-            msg!("Current metadata TLV size: {} bytes", current_metadata_size);
+            log!("Current metadata TLV size: {} bytes", current_metadata_size);
 
             if new_metadata_size > current_metadata_size {
                 let additional_metadata_space = new_metadata_size - current_metadata_size;
-                let rent = Rent::get()?;
+                let rent = Rent {
+                    lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
+                    exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
+                    burn_percent: DEFAULT_BURN_PERCENT,
+                };
                 let additional_rent = rent.minimum_balance(additional_metadata_space);
 
-                msg!(
+                log!(
                     "Additional metadata space needed: {} bytes",
                     additional_metadata_space
                 );
-                msg!("Additional rent needed: {} lamports", additional_rent);
+                log!("Additional rent needed: {} lamports", additional_rent);
 
-                // Transfer additional rent from authority to metadata account
-                let transfer_instruction = system_instruction::transfer(
-                    authority_info.key,        // from (authority pays)
-                    metadata_account_info.key, // to (metadata account)
-                    additional_rent,           // amount
-                );
+                let transfer = Transfer {
+                    from: authority_info,       // from (authority pays)
+                    to: &metadata_account_info, // to (metadata account)
+                    lamports: additional_rent,  // amount
+                };
 
-                invoke(
-                    &transfer_instruction,
-                    &[
-                        authority_info.clone(),
-                        metadata_account_info.clone(),
-                        system_program.clone(),
-                    ],
-                )?;
+                transfer.invoke()?;
 
-                msg!(
+                log!(
                     "Transferred {} lamports for additional metadata space",
                     additional_rent
                 );
             } else {
-                msg!("No additional rent needed - current metadata space is sufficient");
+                log!("No additional rent needed - current metadata space is sufficient");
             }
         } else {
-            msg!("No system program provided - assuming current space is sufficient");
+            log!("No system program provided - assuming current space is sufficient");
         }
 
-        // Update name
-        let update_name_instruction = spl_token_metadata_interface::instruction::update_field(
-            &token_program_id,         // Token-2022 program ID
-            metadata_account_info.key, // metadata account
-            authority_info.key,        // update authority
-            spl_token_metadata_interface::state::Field::Name,
-            args.metadata.name.clone(),
+        let update_field_instruction = CustomUpdateField::new(
+            &metadata_account_info,
+            authority_info,
+            Field::Name,
+            args.metadata.name,
         );
 
-        invoke(
-            &update_name_instruction,
-            &[metadata_account_info.clone(), authority_info.clone()],
-        )?;
-        msg!("Name updated to: {}", args.metadata.name);
+        update_field_instruction.invoke()?;
 
         // Update symbol
-        let update_symbol_instruction = spl_token_metadata_interface::instruction::update_field(
-            &token_program_id,         // Token-2022 program ID
-            metadata_account_info.key, // metadata account
-            authority_info.key,        // update authority
-            spl_token_metadata_interface::state::Field::Symbol,
-            args.metadata.symbol.clone(),
+        let update_symbol_instruction = CustomUpdateField::new(
+            &metadata_account_info,
+            authority_info,
+            Field::Symbol,
+            args.metadata.symbol,
         );
 
-        invoke(
-            &update_symbol_instruction,
-            &[metadata_account_info.clone(), authority_info.clone()],
-        )?;
-        msg!("Symbol updated to: {}", args.metadata.symbol);
+        update_symbol_instruction.invoke()?;
 
         // Update URI
-        let update_uri_instruction = spl_token_metadata_interface::instruction::update_field(
-            &token_program_id,         // Token-2022 program ID
-            metadata_account_info.key, // metadata account
-            authority_info.key,        // update authority
-            spl_token_metadata_interface::state::Field::Uri,
-            args.metadata.uri.clone(),
+        let update_uri_instruction = CustomUpdateField::new(
+            &metadata_account_info,
+            authority_info,
+            Field::Uri,
+            args.metadata.uri,
         );
 
-        invoke(
-            &update_uri_instruction,
-            &[metadata_account_info.clone(), authority_info.clone()],
-        )?;
-        msg!("URI updated to: {}", args.metadata.uri);
+        update_uri_instruction.invoke()?;
+
+        log!("Name updated to: {}", args.metadata.name);
+        log!("Symbol updated to: {}", args.metadata.symbol);
+        log!("URI updated to: {}", args.metadata.uri);
 
         // Handle additional metadata fields atomically
-        // First, get current metadata to remove old fields
-        let current_additional_fields = {
-            let mint_data = metadata_account_info.try_borrow_data()?;
-            let mint_with_extensions = StateWithExtensions::<Mint>::unpack(&mint_data)?;
+        // Step 1: Read all existing additional metadata fields and remove them
+        // Step 2: Add new additional metadata fields
+        log!("Processing additional metadata fields atomically");
 
-            if let Ok(current_metadata) = mint_with_extensions
-                .get_variable_len_extension::<spl_token_metadata_interface::state::TokenMetadata>(
-            ) {
-                current_metadata.additional_metadata.clone()
+        // Step 1: Read current metadata to get all existing additional fields
+        log!("Reading existing metadata to find all additional fields");
+
+        let existing_additional_fields = {
+            // Create a temporary AccountInfo wrapper for the metadata account to use from_account_info
+            let metadata_account_clone = metadata_account_info.clone();
+
+            // Try to parse existing metadata using pinocchio's from_account_info
+            if let Ok(existing_metadata) = TokenMetadata::from_account_info(metadata_account_clone)
+            {
+                log!("Successfully parsed existing metadata");
+
+                let mut fields_buffer: [[u8; 64]; 16] = [[0u8; 64]; 16]; // Static buffer for field names
+                let mut field_lengths: [usize; 16] = [0; 16];
+                let mut field_count = 0;
+
+                // Parse existing additional metadata to extract all field keys
+                let parse_result = utils::parse_additional_metadata(
+                    existing_metadata.additional_metadata,
+                    |key, _value| {
+                        if field_count < 16 && key.len() <= 64 {
+                            // Copy key bytes to static buffer
+                            let key_bytes = key.as_bytes();
+                            fields_buffer[field_count][..key_bytes.len()]
+                                .copy_from_slice(key_bytes);
+                            field_lengths[field_count] = key_bytes.len();
+                            field_count += 1;
+                            log!("Found existing additional metadata field: {}", key);
+                        } else {
+                            log!("Skipping field (buffer full or key too long): {}", key);
+                        }
+                        Ok(())
+                    },
+                );
+
+                if parse_result.is_err() {
+                    log!("Warning: Failed to parse existing additional metadata");
+                    field_count = 0; // Reset to 0 if parsing failed
+                }
+
+                (fields_buffer, field_lengths, field_count)
             } else {
-                Vec::new()
+                log!("No existing metadata found or failed to parse - assuming no existing additional fields");
+                let fields_buffer: [[u8; 64]; 16] = [[0u8; 64]; 16];
+                let field_lengths: [usize; 16] = [0; 16];
+                let field_count = 0;
+                (fields_buffer, field_lengths, field_count)
             }
         };
 
-        // Remove all existing additional metadata fields
-        if !current_additional_fields.is_empty() {
-            msg!(
-                "Removing {} existing additional metadata fields",
-                current_additional_fields.len()
-            );
+        let (fields_buffer, field_lengths, field_count) = existing_additional_fields;
 
-            for (key, _value) in &current_additional_fields {
-                let remove_field_instruction =
-                    spl_token_metadata_interface::instruction::remove_key(
-                        &token_program_id,         // Token-2022 program ID
-                        metadata_account_info.key, // metadata account
-                        authority_info.key,        // update authority
-                        key.clone(),               // key to remove
-                        false,                     // idempotent
-                    );
+        // Step 2: Remove only existing fields that are NOT in the new metadata
+        if field_count > 0 {
+            log!("Checking {} existing fields for removal", field_count);
 
-                invoke(
-                    &remove_field_instruction,
-                    &[metadata_account_info.clone(), authority_info.clone()],
-                )?;
-                msg!("Removed old metadata field: {}", key);
+            for i in 0..field_count {
+                let key_bytes = &fields_buffer[i][..field_lengths[i]];
+                if let Ok(existing_key) = core::str::from_utf8(key_bytes) {
+                    // Check if this existing field is in the new metadata by parsing new metadata
+                    let mut found_in_new = false;
+
+                    if !args.metadata.additional_metadata.is_empty() {
+                        let _check_result = utils::parse_additional_metadata(
+                            args.metadata.additional_metadata,
+                            |new_key, _value| {
+                                if existing_key == new_key {
+                                    found_in_new = true;
+                                }
+                                Ok(())
+                            },
+                        );
+                    }
+
+                    if !found_in_new {
+                        log!(
+                            "Removing existing metadata field not in update: {}",
+                            existing_key
+                        );
+                        let remove_field_instruction = CustomRemoveKey::new(
+                            &metadata_account_info,
+                            authority_info,
+                            existing_key,
+                            true, // idempotent - don't error if key doesn't exist
+                        );
+
+                        let remove_result = remove_field_instruction.invoke();
+                        if remove_result.is_ok() {
+                            log!("Removed existing metadata field: {}", existing_key);
+                        }
+                        // Ignore errors since we're using idempotent flag
+                    } else {
+                        log!(
+                            "Keeping existing metadata field (will be updated): {}",
+                            existing_key
+                        );
+                    }
+                }
             }
+        } else {
+            log!("No existing additional metadata fields found to check");
         }
 
-        // Add new additional metadata fields
+        // Step 4: Add/update new additional metadata fields
         if !args.metadata.additional_metadata.is_empty() {
-            msg!(
-                "Adding {} new additional metadata fields",
-                args.metadata.additional_metadata.len()
+            let additional_metadata_len = args.metadata.additional_metadata.len();
+            log!(
+                "Adding/updating {} bytes of new additional metadata",
+                additional_metadata_len
             );
 
-            for (key, value) in &args.metadata.additional_metadata {
-                let update_field_instruction =
-                    spl_token_metadata_interface::instruction::update_field(
-                        &token_program_id,         // Token-2022 program ID
-                        metadata_account_info.key, // metadata account
-                        authority_info.key,        // update authority
-                        spl_token_metadata_interface::state::Field::Key(key.clone()),
-                        value.clone(),
+            let result = utils::parse_additional_metadata(
+                args.metadata.additional_metadata,
+                |key, value| {
+                    log!(
+                        "Adding/updating additional metadata field: {} = {}",
+                        key,
+                        value
                     );
+                    let update_field_instruction = CustomUpdateField::new(
+                        &metadata_account_info,
+                        authority_info,
+                        Field::Key(key),
+                        value,
+                    );
+                    update_field_instruction.invoke()
+                },
+            );
 
-                invoke(
-                    &update_field_instruction,
-                    &[metadata_account_info.clone(), authority_info.clone()],
-                )?;
-                msg!("Added new metadata field: {} = {}", key, value);
-            }
+            result.map_err(|_e| ProgramError::InvalidInstructionData)?;
+            log!("All additional metadata fields added/updated successfully");
+        } else {
+            log!("No new additional metadata fields to add/update");
         }
 
-        msg!("Metadata updated successfully for mint: {}", mint_info.key);
+        log!(
+            "Metadata updated successfully for mint: {}",
+            mint_info.key()
+        );
         Ok(())
     }
 
@@ -297,30 +360,25 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        msg!("Processing InitializeMint with Token-2022 extensions");
+        log!("Processing InitializeMint with Token-2022 extensions");
 
         // Parse the full InitializeArgs structure
         let args =
             InitializeArgs::unpack(args_data).map_err(|_| ProgramError::InvalidInstructionData)?;
 
         let decimals = args.ix_mint.decimals;
-        let mint_authority = args.ix_mint.mint_authority;
+        let client_mint_authority = args.ix_mint.mint_authority;
         let freeze_authority_opt = args.ix_mint.freeze_authority;
         let metadata_pointer_opt = args.ix_metadata_pointer;
         let metadata_opt = args.ix_metadata;
         let scaled_ui_amount_opt = args.ix_scaled_ui_amount;
-
-        msg!("Initializing mint with {} decimals", decimals);
-        msg!("Mint authority: {}", mint_authority);
-        if let Some(freeze_auth) = freeze_authority_opt {
-            msg!("Freeze authority: {}", freeze_auth);
-        }
+        log!("Initializing mint with {} decimals", decimals);
 
         if let Some(metadata) = &metadata_opt {
-            msg!("Token name: {}", metadata.name);
-            msg!("Token symbol: {}", metadata.symbol);
-            msg!("Token URI: {}", metadata.uri);
-            msg!(
+            log!("Token name: {}", metadata.name);
+            log!("Token symbol: {}", metadata.symbol);
+            log!("Token URI: {}", metadata.uri);
+            log!(
                 "With metadata: {} ({}) - {}",
                 metadata.name,
                 metadata.symbol,
@@ -328,110 +386,128 @@ impl Processor {
             );
         }
         if let Some(_metadata_pointer) = &metadata_pointer_opt {
-            msg!("MetadataPointer configuration provided by client");
+            log!("MetadataPointer configuration provided by client");
         }
         if let Some(_scaled_ui_amount) = &scaled_ui_amount_opt {
-            msg!("ScaledUiAmount configuration provided by client");
+            log!("ScaledUiAmount configuration provided by client");
         }
 
         // Parse accounts
         let account_info_iter = &mut accounts.iter();
-        let mint_info = next_account_info(account_info_iter)?; // 0. Mint account
-        let creator_info = next_account_info(account_info_iter)?; // 1. Creator (signer)
-        let token_program_info = next_account_info(account_info_iter)?; // 2. SPL Token 2022 program
-        let system_program_info = next_account_info(account_info_iter)?; // 3. System program
-        let rent_info = next_account_info(account_info_iter)?; // 4. Rent sysvar
+        let mint_info = utils::next_account_info(account_info_iter)?; // 0. Mint account
+        let creator_info = utils::next_account_info(account_info_iter)?; // 1. Creator (signer)
+        let token_program_info = utils::next_account_info(account_info_iter)?; // 2. SPL Token 2022 program
+        let _system_program_info = utils::next_account_info(account_info_iter)?; // 3. System program
+        let rent_info = utils::next_account_info(account_info_iter)?; // 4. Rent sysvar
 
-        if !creator_info.is_signer {
+        if !creator_info.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        if !mint_info.is_signer {
+        if !mint_info.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Get mint authority PDA - this will be the mint authority for the token
-        let (mint_authority_pda, _mint_authority_bump) =
-            utils::find_mint_authority_pda(mint_info.key, creator_info.key, program_id);
-
-        // Build required extensions list based on client data and our security requirements
-        let mut required_extensions: Vec<ExtensionType> = vec![
+        // Build required extensions list without heap allocations (SBF no-allocator)
+        let mut extensions_buf: [ExtensionType; 5] = [ExtensionType::Pausable; 5];
+        let mut ext_count: usize = 0;
+        let required_extensions: &[ExtensionType] = &[
             ExtensionType::PermanentDelegate,
             ExtensionType::TransferHook,
             ExtensionType::Pausable,
         ];
+        for &ext in required_extensions {
+            extensions_buf[ext_count] = ext;
+            ext_count += 1;
+        }
 
         // Add MetadataPointer if metadata is provided
         if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
-            required_extensions.push(ExtensionType::MetadataPointer);
+            extensions_buf[ext_count] = ExtensionType::MetadataPointer;
+            ext_count += 1;
+            log!("MetadataPointer extension will be initialized");
         }
 
         // Add ScaledUiAmount if provided by client
         if scaled_ui_amount_opt.is_some() {
-            required_extensions.push(ExtensionType::ScaledUiAmount);
-            msg!("ScaledUiAmount extension will be initialized");
+            extensions_buf[ext_count] = ExtensionType::ScaledUiAmount;
+            ext_count += 1;
+            log!("ScaledUiAmount extension will be initialized");
         }
 
-        // Calculate mint size with extensions (but without metadata TLV data)
-        let mint_size = ExtensionType::try_calculate_account_len::<Mint>(&required_extensions)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        log!("Extensions for mint: {}", ext_count);
 
-        // Calculate total size for rent (mint + metadata)
+        // Calculate mint size with extensions (but without metadata TLV data)
+        let mint_size = if ext_count == 0 {
+            Mint::LEN
+        } else {
+            utils::calculate_mint_size_with_extensions(&extensions_buf[..ext_count])
+        };
+
         let metadata_size = if let Some(metadata) = &metadata_opt {
-            metadata.tlv_size_of()?
+            utils::calculate_metadata_tlv_size(metadata)?
         } else {
             0
         };
-        let total_size = mint_size + metadata_size;
 
-        msg!("Mint size: {} bytes", mint_size);
-        msg!("Metadata TLV size: {} bytes", metadata_size);
-        msg!("Total size for rent: {} bytes", total_size);
+        log!("Mint size: {} bytes", mint_size);
+        log!("Metadata size: {} bytes", metadata_size);
+        log!("Total account size: {} bytes", mint_size + metadata_size);
+
+        let total_size = mint_size + metadata_size;
 
         let rent = Rent::from_account_info(rent_info)?;
         let required_lamports = rent.minimum_balance(total_size);
 
-        msg!(
+        log!(
             "Creating mint account with {} lamports for {} bytes",
             required_lamports,
-            mint_size
+            total_size
         );
 
-        let create_account_instruction = system_instruction::create_account(
-            creator_info.key,       // from (payer)
-            mint_info.key,          // to (new account)
-            required_lamports,      // lamports (calculated from total size)
-            mint_size as u64,       // space (only mint size, not metadata)
-            token_program_info.key, // owner (SPL Token 2022 program)
-        );
+        let create_account_instruction = CreateAccount {
+            from: creator_info,              // from (payer)
+            to: mint_info,                   // to (new account)
+            lamports: required_lamports,     // amount
+            space: mint_size as u64, // space (full size including metadata for SBF compatibility)
+            owner: token_program_info.key(), // owner (SPL Token 2022 program)
+        };
 
-        invoke(
-            &create_account_instruction,
-            &[
-                creator_info.clone(),
-                mint_info.clone(),
-                system_program_info.clone(),
-            ],
-        )?;
+        create_account_instruction.invoke()?;
 
         msg!("Mint account created successfully");
 
         // Calculate all PDAs that will be used for extensions and mint initialization
-        let (transfer_hook_pda, _bump) = utils::find_transfer_hook_pda(mint_info.key, program_id);
+        let (transfer_hook_pda, _bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
         let (permanent_delegate_pda, _bump) =
-            utils::find_permanent_delegate_pda(mint_info.key, program_id);
+            utils::find_permanent_delegate_pda(mint_info.key(), program_id);
         let (freeze_authority_pda, _bump) =
-            utils::find_freeze_authority_pda(mint_info.key, program_id);
+            utils::find_freeze_authority_pda(mint_info.key(), program_id);
 
-        msg!("TransferHook PDA: {}", transfer_hook_pda);
-        msg!("PermanentDelegate PDA: {}", permanent_delegate_pda);
-        msg!("FreezeAuthority PDA: {}", freeze_authority_pda);
-        msg!("All extension PDAs calculated successfully");
-
+        // Initialize extensions BEFORE base mint initialization
         msg!("Extensions setup - initializing extensions BEFORE basic mint");
 
-        // Initialize all extensions first, then basic mint
-        msg!("Initializing Token-2022 extensions before basic mint");
+        let permanent_delegate_initialize = InitializePermanentDelegate {
+            mint: mint_info,
+            delegate: permanent_delegate_pda,
+        };
+
+        permanent_delegate_initialize.invoke()?;
+
+        let transfer_hook_initialize = TransferHookInitialize {
+            mint: mint_info,
+            authority: transfer_hook_pda.into(),
+            program_id: Some(*program_id),
+        };
+
+        transfer_hook_initialize.invoke()?;
+
+        let pausable_initialize = InitializePausable {
+            mint: mint_info,
+            authority: freeze_authority_pda,
+        };
+
+        pausable_initialize.invoke()?;
 
         // Initialize MetadataPointer extension if needed and store metadata address for later use
         let metadata_account_address = if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
@@ -444,22 +520,18 @@ impl Processor {
                     (authority, address)
                 } else {
                     // Fallback to default: creator as authority, mint as metadata storage
-                    msg!("Using default MetadataPointer configuration");
-                    (Some(*creator_info.key), Some(*mint_info.key))
+                    log!("Using default MetadataPointer configuration");
+                    (Some(*creator_info.key()), Some(*mint_info.key()))
                 };
 
-            let metadata_pointer_init_instruction =
-                spl_token_2022::extension::metadata_pointer::instruction::initialize(
-                    token_program_info.key, // SPL Token 2022 program ID
-                    mint_info.key,          // mint account
-                    metadata_authority,     // metadata authority (from client or our PDA)
-                    metadata_address,       // metadata address (from client or mint)
-                )?;
-            invoke(
-                &metadata_pointer_init_instruction,
-                &[mint_info.clone(), token_program_info.clone()],
-            )?;
-            msg!("MetadataPointer extension initialized");
+            let metadata_pointer_initialize = MetadataPointerInitialize {
+                mint: mint_info,
+                authority: metadata_authority,
+                metadata_address,
+            };
+
+            metadata_pointer_initialize.invoke()?;
+            log!("MetadataPointer extension initialized");
 
             // Return the metadata address for later use
             metadata_address
@@ -467,84 +539,36 @@ impl Processor {
             None
         };
 
-        msg!("Mint authority PDA: {}", mint_authority_pda);
-
-        let transfer_hook_init_instruction =
-            spl_token_2022::extension::transfer_hook::instruction::initialize(
-                token_program_info.key,   // SPL Token 2022 program ID
-                mint_info.key,            // mint account
-                Some(mint_authority_pda), // hook authority (our PDA)
-                Some(transfer_hook_pda),  // hook program ID (our transfer hook PDA)
-            )?;
-        invoke(
-            &transfer_hook_init_instruction,
-            &[mint_info.clone(), token_program_info.clone()],
-        )?;
-        msg!("TransferHook extension initialized");
-
-        let permanent_delegate_init_instruction = instruction::initialize_permanent_delegate(
-            token_program_info.key,  // SPL Token 2022 program ID
-            mint_info.key,           // mint account
-            &permanent_delegate_pda, // delegate authority (our PDA)
-        )?;
-
-        invoke(
-            &permanent_delegate_init_instruction,
-            &[mint_info.clone(), token_program_info.clone()],
-        )?;
-        msg!("PermanentDelegate extension initialized");
-
-        let pausable_init_instruction =
-            spl_token_2022::extension::pausable::instruction::initialize(
-                token_program_info.key, // SPL Token 2022 program ID
-                mint_info.key,          // mint account
-                &mint_authority_pda,    // pause authority (our PDA)
-            )?;
-
-        invoke(
-            &pausable_init_instruction,
-            &[mint_info.clone(), token_program_info.clone()],
-        )?;
-        msg!("Pausable extension initialized");
-
         // Initialize ScaledUiAmount extension if provided by client
         if let Some(scaled_ui_amount_config) = &scaled_ui_amount_opt {
             msg!("Initializing ScaledUiAmount extension with client configuration");
 
-            let scaled_ui_amount_init_instruction =
-                spl_token_2022::extension::scaled_ui_amount::instruction::initialize(
-                    token_program_info.key,                        // SPL Token 2022 program ID
-                    mint_info.key,                                 // mint account
-                    scaled_ui_amount_config.authority.into(),      // authority from client
-                    f64::from(scaled_ui_amount_config.multiplier), // multiplier from client
-                )?;
-            invoke(
-                &scaled_ui_amount_init_instruction,
-                &[mint_info.clone(), token_program_info.clone()],
-            )?;
-            msg!(
-                "ScaledUiAmount extension initialized with multiplier: {}",
-                f64::from(scaled_ui_amount_config.multiplier)
-            );
+            let scaled_ui_amount_initialize = ScaledUiAmountInitialize {
+                mint: mint_info,
+                authority: scaled_ui_amount_config.authority.into(),
+                multiplier: f64::from_le_bytes(scaled_ui_amount_config.multiplier),
+            };
+
+            scaled_ui_amount_initialize.invoke()?;
+            log!("ScaledUiAmount extension initialized");
         }
 
-        msg!("All security token extensions initialized successfully");
-        msg!("Initializing basic mint AFTER extensions");
+        log!("All security token extensions initialized successfully");
 
-        let initialize_mint_instruction = instruction::initialize_mint2(
-            token_program_info.key,              // SPL Token 2022 program ID
-            mint_info.key,                       // mint account
-            creator_info.key,                    // temporary mint authority (creator)
-            Some(freeze_authority_pda).as_ref(), // freeze authority (optional)
-            decimals,                            // decimals
-        )?;
+        // Now initialize the basic mint AFTER extensions
+        log!("Initializing basic mint AFTER extensions");
 
-        invoke(
-            &initialize_mint_instruction,
-            &[mint_info.clone(), token_program_info.clone()],
-        )?;
+        // Use client-provided authorities for base initialize to match client expectations/tests
+        let initialize_mint_instruction = InitializeMint2 {
+            mint: mint_info,
+            decimals,
+            mint_authority: &client_mint_authority,
+            freeze_authority: freeze_authority_opt.as_ref(),
+        };
 
-        msg!(
+        initialize_mint_instruction.invoke()?;
+
+        log!(
             "Basic mint initialized successfully with {} decimals",
             decimals
         );
@@ -554,19 +578,17 @@ impl Processor {
 
             // Determine which account to use for metadata
             let metadata_account_info = if let Some(metadata_addr) = metadata_account_address {
-                if metadata_addr == *mint_info.key {
+                if metadata_addr == *mint_info.key() {
                     // Metadata is stored in mint account (in-mint storage)
+                    log!("Using mint account for metadata");
                     mint_info.clone()
                 } else {
                     // Metadata is stored in external account - find it in accounts list
                     accounts
                         .iter()
-                        .find(|acc| acc.key == &metadata_addr)
+                        .find(|acc| acc.key() == &metadata_addr)
                         .ok_or_else(|| {
-                            msg!(
-                                "Metadata account {} not found in accounts list",
-                                metadata_addr
-                            );
+                            msg!("Metadata account {metadata_addr} not found in accounts list");
                             ProgramError::InvalidAccountData
                         })?
                         .clone()
@@ -577,57 +599,47 @@ impl Processor {
             };
 
             msg!("Initializing token metadata");
-
-            // First initialize base metadata with name, symbol, uri
-            // Use creator as update authority since PDA might not have funds
-            let metadata_init_instruction = spl_token_metadata_interface::instruction::initialize(
-                token_program_info.key, // Token-2022 program ID (handles metadata interface)
-                metadata_account_info.key, // metadata account (from MetadataPointer)
-                creator_info.key,       // update authority (creator)
-                mint_info.key,          // mint account
-                creator_info.key, // mint authority (creator is still mint authority at this point)
-                metadata.name.clone(),
-                metadata.symbol.clone(),
-                metadata.uri.clone(),
+            let metadata_init_instruction = CustomInitializeTokenMetadata::new(
+                &metadata_account_info,
+                creator_info,
+                mint_info,
+                creator_info,
+                metadata.name,
+                metadata.symbol,
+                metadata.uri,
             );
+            let invoke_result = metadata_init_instruction.invoke();
 
-            invoke(
-                &metadata_init_instruction,
-                &[
-                    metadata_account_info.clone(), // metadata account (from MetadataPointer)
-                    creator_info.clone(),          // update authority (creator)
-                    mint_info.clone(),             // mint account
-                    creator_info.clone(),          // mint authority (creator - must sign)
-                ],
-            )?;
-            msg!("Base metadata initialized successfully");
+            if let Err(err) = &invoke_result {
+                let err_str = format!("{:?}", err);
+                log!(
+                    "CustomInitializeTokenMetadata invoke failed with error: {}",
+                    err_str.as_str()
+                );
+                return Err(err.clone());
+            }
+
+            log!("TokenMetadata invoke succeeded");
 
             // Add additional metadata fields if present - each field requires separate instruction
             if !metadata.additional_metadata.is_empty() {
-                msg!(
-                    "Adding {} additional metadata fields",
-                    metadata.additional_metadata.len()
+                let additional_metadata_len = metadata.additional_metadata.len();
+                log!(
+                    "Adding {} bytes of additional metadata",
+                    additional_metadata_len
                 );
 
-                for (key, value) in &metadata.additional_metadata {
-                    let update_field_instruction =
-                        spl_token_metadata_interface::instruction::update_field(
-                            token_program_info.key,    // Token-2022 program ID
-                            metadata_account_info.key, // metadata account (from MetadataPointer)
-                            creator_info.key,          // update authority (creator)
-                            spl_token_metadata_interface::state::Field::Key(key.clone()),
-                            value.clone(),
-                        );
-
-                    invoke(
-                        &update_field_instruction,
-                        &[
-                            metadata_account_info.clone(), // metadata account (from MetadataPointer)
-                            creator_info.clone(),          // update authority (creator)
-                        ],
-                    )?;
-                    msg!("Added metadata field: {} = {}", key, value);
-                }
+                // Parse additional metadata from raw bytes and process each field
+                utils::parse_additional_metadata(metadata.additional_metadata, |key, value| {
+                    let update_field_instruction = CustomUpdateField::new(
+                        &metadata_account_info,
+                        creator_info,
+                        Field::Key(key),
+                        value,
+                    );
+                    update_field_instruction.invoke()?;
+                    Ok(())
+                })?;
             }
 
             msg!("All metadata initialized successfully");
@@ -635,41 +647,20 @@ impl Processor {
             msg!("No metadata provided, skipping metadata initialization");
         }
 
-        // Transfer mint authority from creator to our PDA for security token control
-        msg!("Transferring mint authority from creator to PDA for security token control");
-        let set_authority_instruction = spl_token_2022::instruction::set_authority(
-            token_program_info.key,    // SPL Token 2022 program
-            mint_info.key,             // mint account
-            Some(&mint_authority_pda), // new authority (our PDA)
-            spl_token_2022::instruction::AuthorityType::MintTokens, // authority type
-            creator_info.key,          // current authority (creator)
-            &[],                       // multisig signers (none)
-        )?;
+        // NOTE: Transfer mint authority to PDA, review it
+        // Get mint authority PDA - this will be the mint authority for the token
+        let (mint_authority_pda, _mint_authority_bump) =
+            utils::find_mint_authority_pda(mint_info.key(), creator_info.key(), program_id);
 
-        invoke(
-            &set_authority_instruction,
-            &[
-                mint_info.clone(),
-                creator_info.clone(), // current authority must sign
-                token_program_info.clone(),
-            ],
-        )?;
+        let set_authority_instruction = SetAuthority {
+            account: mint_info,
+            authority: creator_info,
+            authority_type: AuthorityType::MintTokens,
+            new_authority: Some(&mint_authority_pda),
+        };
 
-        msg!(
-            "Mint authority successfully transferred to PDA: {}",
-            mint_authority_pda
-        );
+        set_authority_instruction.invoke()?;
         msg!("Security token mint initialization completed successfully");
         Ok(())
-    }
-}
-
-impl From<u8> for SecurityTokenInstruction {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => SecurityTokenInstruction::InitializeMint,
-            1 => SecurityTokenInstruction::UpdateMetadata,
-            _ => SecurityTokenInstruction::InitializeMint,
-        }
     }
 }

@@ -3,9 +3,14 @@
 #![allow(unexpected_cfgs)]
 
 use crate::processor::Processor;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
+use pinocchio::{
+    account_info::AccountInfo, default_panic_handler, no_allocator, program_entrypoint,
+    pubkey::Pubkey, ProgramResult,
+};
 
-solana_program::entrypoint!(process_instruction);
+program_entrypoint!(process_instruction);
+default_panic_handler!();
+no_allocator!();
 
 /// The entrypoint to the Security Token program
 fn process_instruction(
@@ -14,8 +19,6 @@ fn process_instruction(
     instruction_data: &[u8],
 ) -> ProgramResult {
     if let Err(error) = Processor::process(program_id, accounts, instruction_data) {
-        // log the error to the program logs
-        msg!("Security Token Program error: {}", error);
         Err(error)
     } else {
         Ok(())
