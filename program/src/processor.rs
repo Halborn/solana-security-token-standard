@@ -60,6 +60,7 @@ impl Processor {
             }
         }
     }
+
     fn process_update_metadata(
         _program_id: &Pubkey,
         accounts: &[AccountInfo],
