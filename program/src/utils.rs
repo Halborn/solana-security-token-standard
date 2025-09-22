@@ -185,7 +185,7 @@ pub fn calculate_mint_size_with_extensions(extensions: &[ExtensionType]) -> usiz
                 ExtensionType::Pausable => 33,          // Authority + u8
                 ExtensionType::MetadataPointer => 64,   // Authority + Address
                 ExtensionType::ScaledUiAmount => 56, // Authority + multiplier + new_multiplier_effective_timestamp + new_multiplier
-                _ => unreachable!(),                              // Default size for unknown extensions
+                _ => unreachable!(),                 // Default size for unknown extensions
             };
             EXTENSION_TYPE_LEN + EXTENSION_LENGTH_LEN + extension_data_size
         })
