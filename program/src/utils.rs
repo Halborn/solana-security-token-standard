@@ -100,7 +100,6 @@ pub fn get_mint_authority_seeds<'a>(
 }
 
 /// Parse additional metadata from raw bytes in TLV format
-/// SBF-compatible version using static arrays and callback processing
 /// Calls the provided callback for each key-value pair found
 pub fn parse_additional_metadata<F>(data: &[u8], mut callback: F) -> Result<(), ProgramError>
 where

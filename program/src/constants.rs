@@ -1,7 +1,4 @@
-/// Maximum number of program addresses in verification config
-pub const MAX_PROGRAM_ADDRESSES: usize = 16;
-
-/// Instruction discriminators (first 8 bytes of SHA256 of instruction name)z
+/// Instruction discriminators (first 8 bytes of SHA256 of instruction name)
 pub mod discriminators {
     /// InitializeMint discriminator
     pub const INITIALIZE_MINT: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0]; // Simple discriminator for now

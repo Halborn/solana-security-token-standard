@@ -23,10 +23,6 @@ impl Default for VerificationConfig {
 }
 
 impl VerificationConfig {
-    /// Maximum size estimate for the VerificationConfig account (for rent calculation)
-    /// Includes discriminator (8) + Vec overhead + space for reasonable number of programs
-    pub const MAX_SIZE: usize = 8 + 4 + (32 * 16); // discriminator + vec_len + 16 programs
-
     /// Create new VerificationConfig
     pub fn new(
         instruction_discriminator: [u8; 8],

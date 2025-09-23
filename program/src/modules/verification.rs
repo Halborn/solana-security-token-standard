@@ -90,7 +90,6 @@ impl VerificationModule {
         verify_signer(creator_info, false)?;
         verify_signer(mint_info, false)?;
 
-        // Build required extensions list without heap allocations (SBF no-allocator)
         let mut extensions_buf: [ExtensionType; 5] = [ExtensionType::Pausable; 5];
         let mut ext_count: usize = 0;
         let required_extensions: &[ExtensionType] = &[
@@ -151,7 +150,7 @@ impl VerificationModule {
             from: creator_info,              // from (payer)
             to: mint_info,                   // to (new account)
             lamports: required_lamports,     // amount
-            space: mint_size as u64, // space (full size including metadata for SBF compatibility)
+            space: mint_size as u64,         // space (full size including metadata)
             owner: token_program_info.key(), // owner (SPL Token 2022 program)
         };
 
@@ -290,7 +289,6 @@ impl VerificationModule {
                 metadata.symbol,
                 metadata.uri,
             );
-            // let _test = Vec::with_capacity(100);
             let invoke_result = metadata_init_instruction.invoke();
 
             if let Err(err) = &invoke_result {

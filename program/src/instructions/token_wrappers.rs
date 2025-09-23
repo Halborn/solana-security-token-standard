@@ -86,13 +86,13 @@ impl<'a> CustomRemoveKey<'a> {
     }
 }
 
-/// SBF-compatible wrapper for InitializeTokenMetadata
+/// Wrapper for InitializeTokenMetadata
 pub struct CustomInitializeTokenMetadata<'a> {
     inner: InitializeTokenMetadata<'a>,
 }
 
 impl<'a> CustomInitializeTokenMetadata<'a> {
-    /// Create new SBF-compatible wrapper
+    /// Create new wrapper
     pub fn new(
         metadata: &'a AccountInfo,
         update_authority: &'a AccountInfo,
@@ -115,7 +115,7 @@ impl<'a> CustomInitializeTokenMetadata<'a> {
         }
     }
 
-    /// Invoke the InitializeTokenMetadata instruction using SBF-compatible static arrays.
+    /// Invoke the InitializeTokenMetadata instruction
     pub fn invoke(&self) -> ProgramResult {
         let ix_len = 8 // instruction discriminator
                 + 4 // name length

@@ -4,7 +4,7 @@
 
 use crate::processor::Processor;
 use pinocchio::{
-    account_info::AccountInfo, default_panic_handler, default_allocator, program_entrypoint,
+    account_info::AccountInfo, default_allocator, default_panic_handler, program_entrypoint,
     pubkey::Pubkey, ProgramResult,
 };
 
