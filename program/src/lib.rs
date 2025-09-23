@@ -27,7 +27,4 @@ pub mod state;
 pub mod utils;
 use pinocchio_pubkey::declare_id;
 
-#[cfg(not(feature = "no-entrypoint"))]
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
-
 declare_id!("Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH");

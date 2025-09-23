@@ -4,7 +4,6 @@
 //! All operations are wrappers around SPL Token 2022 instructions.
 
 use pinocchio::account_info::AccountInfo;
-use pinocchio::program_error::ProgramError;
 use pinocchio::ProgramResult;
 
 /// Operations Module - executes token operations
