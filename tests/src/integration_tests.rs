@@ -928,8 +928,8 @@ async fn test_verification_config() {
 
     // Now test InitializeVerificationConfig
 
-    // Define instruction discriminator (8 bytes for "transfer" instruction as example)
-    let instruction_discriminator = [116, 114, 97, 110, 115, 102, 101, 114]; // "transfer" as bytes
+    // Define instruction discriminator (1 byte for "UpdateMetadata" instruction as example)
+    let instruction_discriminator: u8 = 1; // UpdateMetadata discriminator
 
     let (program_1, program_2) = (Pubkey::new_unique(), Pubkey::new_unique());
 
@@ -941,7 +941,7 @@ async fn test_verification_config() {
         &[
             b"verification_config",
             &mint_keypair.pubkey().to_bytes(),
-            &instruction_discriminator,
+            &[instruction_discriminator],
         ],
         &SECURITY_TOKEN_ID,
     );

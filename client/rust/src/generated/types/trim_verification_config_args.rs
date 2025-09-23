@@ -12,8 +12,8 @@ use borsh::BorshDeserialize;
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TrimVerificationConfigArgs {
-/// 8-byte discriminator for the instruction type (e.g., burn, transfer)
-pub instruction_discriminator: [u8; 8],
+/// 1-byte discriminator for the instruction type (e.g., burn, transfer)
+pub instruction_discriminator: u8,
 /// New size of the program array (number of Pubkeys to keep)
 pub size: u8,
 /// Whether to close the account completely

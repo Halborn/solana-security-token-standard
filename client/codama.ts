@@ -213,9 +213,9 @@ const program = programNode({
         structFieldTypeNode({
           name: 'instructionDiscriminator',
           docs: [
-            '8-byte discriminator for the instruction type (e.g., burn, transfer)',
+            '1-byte discriminator for the instruction type (e.g., burn, transfer)',
           ],
-          type: arrayTypeNode(numberTypeNode('u8'), fixedCountNode(8)),
+          type: numberTypeNode('u8'),
         }),
         structFieldTypeNode({
           name: 'programAddresses',
@@ -235,9 +235,9 @@ const program = programNode({
         structFieldTypeNode({
           name: 'instructionDiscriminator',
           docs: [
-            '8-byte discriminator for the instruction type (e.g., burn, transfer)',
+            '1-byte discriminator for the instruction type (e.g., burn, transfer)',
           ],
-          type: arrayTypeNode(numberTypeNode('u8'), fixedCountNode(8)),
+          type: numberTypeNode('u8'),
         }),
         structFieldTypeNode({
           name: 'programAddresses',
@@ -265,9 +265,9 @@ const program = programNode({
         structFieldTypeNode({
           name: 'instructionDiscriminator',
           docs: [
-            '8-byte discriminator for the instruction type (e.g., burn, transfer)',
+            '1-byte discriminator for the instruction type (e.g., burn, transfer)',
           ],
-          type: arrayTypeNode(numberTypeNode('u8'), fixedCountNode(8)),
+          type: numberTypeNode('u8'),
         }),
         structFieldTypeNode({
           name: 'size',
@@ -277,7 +277,7 @@ const program = programNode({
         structFieldTypeNode({
           name: 'close',
           docs: ['Whether to close the account completely'],
-          type: booleanTypeNode()
+          type: booleanTypeNode(),
         }),
       ]),
     }),

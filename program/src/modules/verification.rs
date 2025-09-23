@@ -669,11 +669,11 @@ impl VerificationModule {
         verify_signer(authority, false)?;
 
         // Get instruction discriminator
-        let disc_array = args.instruction_discriminator;
+        let discriminator = args.instruction_discriminator;
 
         // Derive expected PDA address
         let (expected_config_pda, bump) =
-            utils::find_verification_config_pda(mint_account.key(), &disc_array, program_id);
+            utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
@@ -688,7 +688,7 @@ impl VerificationModule {
         }
 
         // Create the VerificationConfig data first to calculate exact size
-        let config = VerificationConfig::new(disc_array, args.program_addresses())?;
+        let config = VerificationConfig::new(discriminator, args.program_addresses())?;
 
         let account_size = config.serialized_size();
 
@@ -711,10 +711,11 @@ impl VerificationModule {
 
         // Create seeds for PDA signing
         let bump_seed = [bump];
+        let discriminator_seed = [discriminator];
         let seeds = [
             Seed::from(utils::seeds::VERIFICATION_CONFIG.as_ref()),
             Seed::from(mint_account.key().as_ref()),
-            Seed::from(disc_array.as_ref()),
+            Seed::from(discriminator_seed.as_ref()),
             Seed::from(bump_seed.as_ref()),
         ];
         let signer = Signer::from(&seeds);
@@ -759,11 +760,11 @@ impl VerificationModule {
         // In production, should validate against mint authority or config-specific authority
 
         // Get instruction discriminator
-        let disc_array = args.instruction_discriminator;
+        let discriminator = args.instruction_discriminator;
 
         // Derive expected PDA address
         let (expected_config_pda, _bump) =
-            utils::find_verification_config_pda(mint_account.key(), &disc_array, program_id);
+            utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
@@ -785,7 +786,7 @@ impl VerificationModule {
         };
 
         // Verify discriminator matches
-        if existing_config.instruction_discriminator != disc_array {
+        if existing_config.instruction_discriminator != discriminator {
             log!("Discriminator mismatch");
             return Err(ProgramError::InvalidAccountData);
         }
@@ -875,11 +876,11 @@ impl VerificationModule {
         // In production, should validate against mint authority or config-specific authority
 
         // Get instruction discriminator
-        let disc_array = args.instruction_discriminator;
+        let discriminator = args.instruction_discriminator;
 
         // Derive expected PDA address
         let (expected_config_pda, _bump) =
-            utils::find_verification_config_pda(mint_account.key(), &disc_array, program_id);
+            utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
@@ -901,7 +902,7 @@ impl VerificationModule {
         };
 
         // Verify discriminator matches
-        if existing_config.instruction_discriminator != disc_array {
+        if existing_config.instruction_discriminator != discriminator {
             log!("Discriminator mismatch");
             return Err(ProgramError::InvalidAccountData);
         }

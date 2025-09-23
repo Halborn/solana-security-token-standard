@@ -29,14 +29,14 @@ pub mod seeds {
 /// Find PDA for verification config
 pub fn find_verification_config_pda(
     mint: &Pubkey,
-    instruction_discriminator: &[u8; 8],
+    instruction_discriminator: u8,
     program_id: &Pubkey,
 ) -> (Pubkey, u8) {
     find_program_address(
         &[
             seeds::VERIFICATION_CONFIG,
             mint.as_ref(),
-            instruction_discriminator,
+            &[instruction_discriminator],
         ],
         program_id,
     )

@@ -10,8 +10,8 @@ use pinocchio::pubkey::Pubkey;
 /// Arguments for InitializeVerificationConfig instruction
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq)]
 pub struct InitializeVerificationConfigArgs {
-    /// 8-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
-    pub instruction_discriminator: [u8; 8],
+    /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
+    pub instruction_discriminator: u8,
     /// Vector of verification program addresses
     pub program_addresses: Vec<Pubkey>,
 }
@@ -26,8 +26,8 @@ pub struct InitializeVerificationConfigInstructionArgs {
 /// Arguments for UpdateVerificationConfig instruction
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq)]
 pub struct UpdateVerificationConfigArgs {
-    /// 8-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
-    pub instruction_discriminator: [u8; 8],
+    /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
+    pub instruction_discriminator: u8,
     /// Vector of new verification program addresses to add/replace
     pub program_addresses: Vec<Pubkey>,
     /// Offset at which to start replacement/insertion (0-based index)
@@ -44,7 +44,7 @@ pub struct UpdateVerificationConfigInstructionArgs {
 impl InitializeVerificationConfigArgs {
     /// Create new InitializeVerificationConfigArgs
     pub fn new(
-        instruction_discriminator: [u8; 8],
+        instruction_discriminator: u8,
         program_addresses: &[Pubkey],
     ) -> Result<Self, ProgramError> {
         if program_addresses.len() > 16 {
@@ -86,7 +86,7 @@ impl InitializeVerificationConfigArgs {
 impl UpdateVerificationConfigArgs {
     /// Create new UpdateVerificationConfigArgs
     pub fn new(
-        instruction_discriminator: [u8; 8],
+        instruction_discriminator: u8,
         program_addresses: &[Pubkey],
         offset: u8,
     ) -> Result<Self, ProgramError> {
@@ -131,8 +131,8 @@ impl UpdateVerificationConfigArgs {
 /// Arguments for TrimVerificationConfig instruction
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq)]
 pub struct TrimVerificationConfigArgs {
-    /// 8-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
-    pub instruction_discriminator: [u8; 8],
+    /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
+    pub instruction_discriminator: u8,
     /// New size of the program array (number of Pubkeys to keep)
     pub size: u8,
     /// Whether to close the account completely
@@ -151,14 +151,10 @@ impl TrimVerificationConfigArgs {
     ///
     /// # Arguments
     ///
-    /// * `instruction_discriminator` - 8-byte instruction discriminator.
+    /// * `instruction_discriminator` - 1-byte instruction discriminator.
     /// * `size` - New size of the program array (number of Pubkeys to keep).
     /// * `close` - Whether to close the account completely.
-    pub fn new(
-        instruction_discriminator: [u8; 8],
-        size: u8,
-        close: bool,
-    ) -> Result<Self, ProgramError> {
+    pub fn new(instruction_discriminator: u8, size: u8, close: bool) -> Result<Self, ProgramError> {
         Ok(Self {
             instruction_discriminator,
             size,
@@ -186,7 +182,7 @@ fn random_pubkey() -> Pubkey {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::discriminators;
+    use crate::instruction::SecurityTokenInstruction;
 
     #[test]
     fn test_initialize_verification_config_args_pack_unpack() {
@@ -195,10 +191,12 @@ mod tests {
         let program2 = random_pubkey();
         let program_addresses = vec![program1, program2];
 
-        // Test with MINT_TOKENS discriminator
-        let original =
-            InitializeVerificationConfigArgs::new(discriminators::MINT_TOKENS, &program_addresses)
-                .unwrap();
+        // Test with UpdateMetadata discriminator
+        let original = InitializeVerificationConfigArgs::new(
+            SecurityTokenInstruction::UpdateMetadata.discriminant(),
+            &program_addresses,
+        )
+        .unwrap();
 
         let packed = original.pack();
         let unpacked = InitializeVerificationConfigArgs::unpack(&packed).unwrap();
@@ -219,22 +217,24 @@ mod tests {
     fn test_initialize_verification_config_args_limits() {
         // Test with maximum allowed programs (16)
         let max_programs: Vec<Pubkey> = (0..16).map(|_| random_pubkey()).collect();
-        let max_args =
-            InitializeVerificationConfigArgs::new(discriminators::BURN_TOKENS, &max_programs)
-                .unwrap();
+        let max_args = InitializeVerificationConfigArgs::new(
+            SecurityTokenInstruction::InitializeMint.discriminant(),
+            &max_programs,
+        )
+        .unwrap();
         assert_eq!(max_args.program_count(), 16);
 
         // Test with too many programs (should fail)
         let too_many_programs: Vec<Pubkey> = (0..17).map(|_| random_pubkey()).collect();
         let result = InitializeVerificationConfigArgs::new(
-            discriminators::TRANSFER_TOKENS,
+            SecurityTokenInstruction::UpdateMetadata.discriminant(),
             &too_many_programs,
         );
         assert!(result.is_err());
 
         // Test with empty programs list
         let empty_args = InitializeVerificationConfigArgs::new(
-            discriminators::INITIALIZE_VERIFICATION_CONFIG,
+            SecurityTokenInstruction::InitializeVerificationConfig.discriminant(),
             &[],
         )
         .unwrap();

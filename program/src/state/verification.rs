@@ -8,7 +8,7 @@ use pinocchio::pubkey::Pubkey;
 #[derive(Clone, Debug, PartialEq, BorshSerialize, BorshDeserialize)]
 pub struct VerificationConfig {
     /// Instruction discriminator this config applies to
-    pub instruction_discriminator: [u8; 8],
+    pub instruction_discriminator: u8,
     /// Required verification programs
     pub verification_programs: Vec<Pubkey>,
 }
@@ -16,7 +16,7 @@ pub struct VerificationConfig {
 impl Default for VerificationConfig {
     fn default() -> Self {
         Self {
-            instruction_discriminator: [0; 8],
+            instruction_discriminator: 0,
             verification_programs: Vec::new(),
         }
     }
@@ -25,7 +25,7 @@ impl Default for VerificationConfig {
 impl VerificationConfig {
     /// Create new VerificationConfig
     pub fn new(
-        instruction_discriminator: [u8; 8],
+        instruction_discriminator: u8,
         verification_program_addresses: &[Pubkey],
     ) -> Result<Self, ProgramError> {
         Ok(Self {
@@ -69,6 +69,6 @@ impl VerificationConfig {
 
     /// Calculate the actual size needed for serialization
     pub fn serialized_size(&self) -> usize {
-        8 + 4 + (self.verification_programs.len() * 32) // discriminator + vec_len + programs
+        1 + 4 + (self.verification_programs.len() * 32) // discriminator + vec_len + programs
     }
 }
