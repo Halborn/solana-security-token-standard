@@ -2,12 +2,12 @@
   "name": "solana_security_token",
   "version": "1.0.0",
   "description": "pending",
-  "main": "index.js",
+  "private": true,
   "directories": {
     "test": "tests"
   },
   "scripts": {
-    "generate:rust": "npx tsx codama.ts"
+    "generate:rust": "npx tsx ./client/codama.ts"
   },
   "repository": {
     "type": "git",
@@ -15,7 +15,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/hoodieshq/security-token/issues"
   },

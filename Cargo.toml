@@ -5,17 +5,17 @@ members = ["program", "client/rust", "tests"]
 [workspace.package]
 version = "0.1.0"
 description = "Security Token Standard program for Solana"
-authors = ["Hoodies <>"]
+authors = [""]
 repository = "https://github.com/hoodieshq/security-token"
 license = "Apache-2.0"
 edition = "2021"
 
 [workspace.dependencies]
-pinocchio = { git = "https://github.com/Nagaprasadvr/pinocchio.git", branch = "feat-add-token-extensions" }
-pinocchio-token = { git = "https://github.com/Nagaprasadvr/pinocchio.git", branch = "feat-add-token-extensions" }
-pinocchio-pubkey = { git = "https://github.com/Nagaprasadvr/pinocchio.git", branch = "feat-add-token-extensions" }
-pinocchio-system = { git = "https://github.com/Nagaprasadvr/pinocchio.git", branch = "feat-add-token-extensions" }
-pinocchio-token-2022 = { git = "https://github.com/Nagaprasadvr/pinocchio.git", branch = "feat-add-token-extensions" }
+pinocchio = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
+pinocchio-token = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
+pinocchio-pubkey = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
+pinocchio-system = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
+pinocchio-token-2022 = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
 pinocchio-log = "0.5.0"
 
 bytemuck = { version = "1.18.0", features = ["derive"] }
