@@ -5,7 +5,7 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![deny(missing_docs)]
 
-/// Constants and discriminators
+/// Constants
 pub mod constants;
 /// Program entrypoint
 pub mod entrypoint;
