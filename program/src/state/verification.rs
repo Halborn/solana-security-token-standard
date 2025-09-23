@@ -2,7 +2,7 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 
 /// Verification configuration for instructions
 #[derive(Clone, Debug, PartialEq, BorshSerialize, BorshDeserialize)]
@@ -49,7 +49,7 @@ impl VerificationConfig {
         use pinocchio_log::log;
 
         // Create zero pubkey for comparison (actual zeros, not Pubkey::default)
-        let zero_pubkey = [0u8; 32];
+        let zero_pubkey = [0u8; PUBKEY_BYTES];
 
         // Validate that all programs are non-zero (valid pubkeys)
         log!(
@@ -69,6 +69,6 @@ impl VerificationConfig {
 
     /// Calculate the actual size needed for serialization
     pub fn serialized_size(&self) -> usize {
-        1 + 4 + (self.verification_programs.len() * 32) // discriminator + vec_len + programs
+        1 + 4 + (self.verification_programs.len() * PUBKEY_BYTES) // discriminator + vec_len + programs
     }
 }
