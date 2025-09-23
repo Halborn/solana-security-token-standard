@@ -5,21 +5,12 @@ use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 
 /// Verification configuration for instructions
-#[derive(Clone, Debug, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Default, Clone, Debug, PartialEq, BorshSerialize, BorshDeserialize)]
 pub struct VerificationConfig {
     /// Instruction discriminator this config applies to
     pub instruction_discriminator: u8,
     /// Required verification programs
     pub verification_programs: Vec<Pubkey>,
-}
-
-impl Default for VerificationConfig {
-    fn default() -> Self {
-        Self {
-            instruction_discriminator: 0,
-            verification_programs: Vec::new(),
-        }
-    }
 }
 
 impl VerificationConfig {

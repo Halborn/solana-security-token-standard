@@ -713,7 +713,7 @@ impl VerificationModule {
         let bump_seed = [bump];
         let discriminator_seed = [discriminator];
         let seeds = [
-            Seed::from(utils::seeds::VERIFICATION_CONFIG.as_ref()),
+            Seed::from(utils::seeds::VERIFICATION_CONFIG),
             Seed::from(mint_account.key().as_ref()),
             Seed::from(discriminator_seed.as_ref()),
             Seed::from(bump_seed.as_ref()),
