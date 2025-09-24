@@ -4,7 +4,7 @@ use pinocchio_token_2022::extensions::metadata::TokenMetadata;
 use pinocchio_token_2022::extensions::metadata_pointer::MetadataPointer;
 use pinocchio_token_2022::extensions::scaled_ui_amount::ScaledUiAmountConfig;
 
-/// Follows the pinocchio::instruction::TokenInstruction::InitializeMint
+/// Arguments to initialize mint
 #[repr(C)]
 #[derive(Clone, Debug)]
 pub struct InitializeMintArgs {
