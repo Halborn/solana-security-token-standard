@@ -4,8 +4,12 @@ use borsh::BorshDeserialize;
 use kaigan::types::RemainderVec;
 use security_token_client::{
     InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
-    MetadataPointer, ScaledUiAmountConfig, TokenMetadata, UpdateMetadata, UpdateMetadataArgs,
-    UpdateMetadataInstructionArgs, SECURITY_TOKEN_ID,
+    InitializeVerificationConfig, InitializeVerificationConfigArgs,
+    InitializeVerificationConfigInstructionArgs, MetadataPointer, ScaledUiAmountConfig,
+    TokenMetadata, TrimVerificationConfig, TrimVerificationConfigArgs,
+    TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataArgs,
+    UpdateMetadataInstructionArgs, UpdateVerificationConfig, UpdateVerificationConfigArgs,
+    UpdateVerificationConfigInstructionArgs, SECURITY_TOKEN_ID,
 };
 
 use solana_program_test::ProgramTest;
@@ -38,6 +42,37 @@ async fn test_program_loads() {
 
     // Basic test that program loads successfully
     println!("Security Token program loaded successfully");
+}
+
+#[tokio::test]
+async fn test_unknown_instruction_discriminator() {
+    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
+
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    pt.prefer_bpf(true);
+    let (banks_client, payer, recent_blockhash) = pt.start().await;
+
+    let unknown_discriminator = 99u8;
+    let instruction_data = vec![unknown_discriminator];
+
+    let instruction = solana_sdk::instruction::Instruction {
+        program_id: SECURITY_TOKEN_ID,
+        accounts: vec![],
+        data: instruction_data,
+    };
+    let mut transaction =
+        solana_sdk::transaction::Transaction::new_with_payer(&[instruction], Some(&payer.pubkey()));
+    transaction.sign(&[&payer], recent_blockhash);
+
+    let result = banks_client.process_transaction(transaction).await;
+    let error = result.unwrap_err();
+    let error_string = format!("{:?}", error);
+    assert!(
+        error_string.contains("InvalidInstructionData")
+            || error_string.contains("InvalidInstruction"),
+        "Expected InvalidInstructionData error, got: {}",
+        error_string
+    );
 }
 
 #[tokio::test]
@@ -815,34 +850,446 @@ async fn test_initialize_mint_error_cases() {
 }
 
 #[tokio::test]
-async fn test_unknown_instruction_discriminator() {
+async fn test_verification_config() {
     std::env::set_var("SBF_OUT_DIR", "../target/deploy");
 
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
     pt.prefer_bpf(true);
 
-    let (banks_client, payer, recent_blockhash) = pt.start().await;
+    // Create mint keypair - we need this to derive the verification config PDA
+    let mint_keypair = solana_sdk::signature::Keypair::new();
+    let context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
-    let unknown_discriminator = 99u8;
-    let instruction_data = vec![unknown_discriminator];
+    println!("Testing InitializeVerificationConfig");
+    println!("Mint keypair: {}", mint_keypair.pubkey());
+    println!("Context payer: {}", context.payer.pubkey());
 
-    let instruction = solana_sdk::instruction::Instruction {
-        program_id: SECURITY_TOKEN_ID,
-        accounts: vec![],
-        data: instruction_data,
-    };
+    // First, we need to create a mint (requirement for verification config)
+    let spl_token_2022_program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        .parse::<Pubkey>()
+        .unwrap();
 
-    let mut transaction =
-        solana_sdk::transaction::Transaction::new_with_payer(&[instruction], Some(&payer.pubkey()));
-    transaction.sign(&[&payer], recent_blockhash);
+    let name = "Test Token";
+    let symbol = "TEST";
+    let uri = "https://example.com";
 
-    let result = banks_client.process_transaction(transaction).await;
-    let error = result.unwrap_err();
-    let error_string = format!("{:?}", error);
-    assert!(
-        error_string.contains("InvalidInstructionData")
-            || error_string.contains("InvalidInstruction"),
-        "Expected InvalidInstructionData error, got: {}",
-        error_string
+    let initialize_mint_ix = security_token_client::InitializeMint {
+        mint: mint_keypair.pubkey(),
+        payer: context.payer.pubkey(),
+        token_program: spl_token_2022_program,
+        system_program: solana_system_interface::program::ID,
+        rent: sysvar::rent::ID,
+    }
+    .instruction(security_token_client::InitializeMintInstructionArgs {
+        args: security_token_client::InitializeArgs {
+            ix_mint: security_token_client::InitializeMintArgs {
+                decimals: 6,
+                mint_authority: context.payer.pubkey(),
+                freeze_authority: None,
+            },
+            ix_metadata_pointer: Some(security_token_client::MetadataPointer {
+                authority: context.payer.pubkey(),
+                metadata_address: mint_keypair.pubkey(),
+            }),
+            ix_metadata: Some(security_token_client::TokenMetadata {
+                update_authority: context.payer.pubkey(),
+                mint: mint_keypair.pubkey(),
+                name_len: name.len() as u32,
+                name: name.to_string().into(),
+                symbol_len: symbol.len() as u32,
+                symbol: symbol.to_string().into(),
+                uri_len: uri.len() as u32,
+                uri: uri.to_string().into(),
+                additional_metadata_len: 0,
+                additional_metadata: RemainderVec::<u8>::try_from_slice(&[]).unwrap(),
+            }),
+            ix_scaled_ui_amount: None,
+        },
+    });
+
+    // Create and process mint transaction
+    let mint_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[initialize_mint_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &mint_keypair],
+        recent_blockhash,
     );
+
+    let mint_result = context
+        .banks_client
+        .process_transaction(mint_transaction)
+        .await;
+    if let Err(error) = &mint_result {
+        println!("Mint transaction failed: {}", error);
+        panic!("Mint transaction failed: {}", error);
+    }
+    println!("Mint created successfully");
+
+    // Now test InitializeVerificationConfig
+
+    // Define instruction discriminator (1 byte for "UpdateMetadata" instruction as example)
+    let instruction_discriminator: u8 = 1; // UpdateMetadata discriminator
+
+    let (program_1, program_2) = (Pubkey::new_unique(), Pubkey::new_unique());
+
+    // Define some test verification programs (using known program IDs)
+    let verification_programs = vec![program_1, program_2];
+
+    // Derive the expected VerificationConfig PDA
+    let (config_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"verification_config",
+            &mint_keypair.pubkey().to_bytes(),
+            &[instruction_discriminator],
+        ],
+        &SECURITY_TOKEN_ID,
+    );
+
+    println!("Expected config PDA: {}", config_pda);
+
+    // Create InitializeVerificationConfig instruction using generated client code
+    let initialize_config_ix = InitializeVerificationConfig {
+        config_account: config_pda,
+        payer: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        authority: context.payer.pubkey(),
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(InitializeVerificationConfigInstructionArgs {
+        args: InitializeVerificationConfigArgs {
+            instruction_discriminator,
+            program_addresses: verification_programs.clone(),
+        },
+    });
+
+    // Create and process verification config transaction
+    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[initialize_config_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let config_result = context
+        .banks_client
+        .process_transaction(config_transaction)
+        .await;
+    if let Err(error) = &config_result {
+        println!("VerificationConfig transaction failed: {}", error);
+        panic!("VerificationConfig transaction failed: {}", error);
+    }
+
+    println!("VerificationConfig created successfully");
+
+    // Verify the PDA account was created correctly
+    let config_account = context.banks_client.get_account(config_pda).await.unwrap();
+    assert!(
+        config_account.is_some(),
+        "VerificationConfig PDA should exist"
+    );
+
+    let config_account = config_account.unwrap();
+    println!(
+        "VerificationConfig account data length: {}",
+        config_account.data.len()
+    );
+
+    // Verify account owner is our security token program
+    assert_eq!(
+        config_account.owner, SECURITY_TOKEN_ID,
+        "Config PDA should be owned by security token program"
+    );
+
+    // Deserialize and verify the stored VerificationConfig
+    use borsh::BorshDeserialize;
+    use security_token_program::state::VerificationConfig;
+
+    let stored_config = VerificationConfig::try_from_slice(&config_account.data)
+        .expect("Should be able to deserialize VerificationConfig");
+
+    assert_eq!(
+        stored_config.instruction_discriminator, instruction_discriminator,
+        "Instruction discriminator should match"
+    );
+
+    assert_eq!(
+        stored_config.verification_programs.len(),
+        verification_programs.len(),
+        "Number of verification programs should match"
+    );
+
+    for (i, expected_program) in verification_programs.iter().enumerate() {
+        assert_eq!(
+            stored_config.verification_programs[i],
+            expected_program.to_bytes(),
+            "Program at index {} should match",
+            i
+        );
+    }
+
+    println!("VerificationConfig PDA validation successful");
+
+    println!("\nTesting UpdateVerificationConfig");
+
+    let (program_3, program_4) = (Pubkey::new_unique(), Pubkey::new_unique());
+
+    // Define new verification programs to add (at offset 1)
+    let new_verification_programs = vec![program_3, program_4];
+    let offset = 1u8; // Start replacing at index 1
+
+    // Create UpdateVerificationConfig instruction
+    let update_config_ix = UpdateVerificationConfig {
+        config_account: config_pda,
+        mint_account: mint_keypair.pubkey(),
+        authority: context.payer.pubkey(),
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(UpdateVerificationConfigInstructionArgs {
+        args: UpdateVerificationConfigArgs {
+            instruction_discriminator,
+            program_addresses: new_verification_programs.clone(),
+            offset,
+        },
+    });
+
+    // Create and process update transaction
+    let update_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[update_config_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let update_result = context
+        .banks_client
+        .process_transaction(update_transaction)
+        .await;
+    if let Err(error) = &update_result {
+        println!("UpdateVerificationConfig transaction failed: {}", error);
+        panic!("UpdateVerificationConfig transaction failed: {}", error);
+    }
+
+    println!("VerificationConfig updated successfully");
+
+    // Verify the updated configuration
+    let updated_config_account = context
+        .banks_client
+        .get_account(config_pda)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let updated_config = VerificationConfig::try_from_slice(&updated_config_account.data)
+        .expect("Should be able to deserialize updated VerificationConfig");
+
+    // Verify the configuration was updated correctly
+    assert_eq!(
+        updated_config.instruction_discriminator, instruction_discriminator,
+        "Instruction discriminator should remain unchanged"
+    );
+
+    // The original program at index 0 should remain
+    assert_eq!(
+        updated_config.verification_programs[0],
+        verification_programs[0].to_bytes(),
+        "Original program at index 0 should remain unchanged"
+    );
+
+    // The programs starting at offset should be updated
+    for (i, expected_program) in new_verification_programs.iter().enumerate() {
+        let config_index = offset as usize + i;
+        assert_eq!(
+            updated_config.verification_programs[config_index],
+            expected_program.to_bytes(),
+            "Updated program at index {} should match",
+            config_index
+        );
+    }
+
+    println!("UpdateVerificationConfig validation successful");
+    println!(
+        "Final verification programs count: {}",
+        updated_config.verification_programs.len()
+    );
+
+    println!("\nTesting TrimVerificationConfig");
+
+    // Create a rent recipient account (we'll use payer as recipient)
+    let rent_recipient = context.payer.pubkey();
+    let original_recipient_balance = context
+        .banks_client
+        .get_account(rent_recipient)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
+    // Test Case 1: Trim the array from 3 programs to 2 programs (recover some rent)
+    let new_size = 2u8;
+    let close = false;
+
+    let trim_config_ix = TrimVerificationConfig {
+        config_account: config_pda,
+        mint_account: mint_keypair.pubkey(),
+        authority: context.payer.pubkey(),
+        rent_recipient: rent_recipient,
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(TrimVerificationConfigInstructionArgs {
+        args: TrimVerificationConfigArgs {
+            instruction_discriminator,
+            size: new_size,
+            close,
+        },
+    });
+
+    // Create and process trim transaction
+    let trim_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[trim_config_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let trim_result = context
+        .banks_client
+        .process_transaction(trim_transaction)
+        .await;
+    if let Err(error) = &trim_result {
+        println!("TrimVerificationConfig transaction failed: {}", error);
+        panic!("TrimVerificationConfig transaction failed: {}", error);
+    }
+
+    println!("VerificationConfig trimmed successfully");
+
+    // Verify the trimmed configuration
+    let trimmed_config_account = context
+        .banks_client
+        .get_account(config_pda)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let trimmed_config = VerificationConfig::try_from_slice(&trimmed_config_account.data)
+        .expect("Should be able to deserialize trimmed VerificationConfig");
+
+    // Verify the configuration was trimmed correctly
+    assert_eq!(
+        trimmed_config.instruction_discriminator, instruction_discriminator,
+        "Instruction discriminator should remain unchanged"
+    );
+
+    assert_eq!(
+        trimmed_config.verification_programs.len(),
+        new_size as usize,
+        "Verification programs count should be trimmed to {}",
+        new_size
+    );
+
+    // Verify that remaining programs are correct (first 2 programs should remain)
+    assert_eq!(
+        trimmed_config.verification_programs[0],
+        verification_programs[0].to_bytes(),
+        "First program should remain unchanged"
+    );
+    assert_eq!(
+        trimmed_config.verification_programs[1],
+        new_verification_programs[0].to_bytes(),
+        "Second program should be the first updated program"
+    );
+
+    // Verify that some rent was recovered
+    let new_recipient_balance = context
+        .banks_client
+        .get_account(rent_recipient)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
+    assert!(
+        new_recipient_balance > original_recipient_balance,
+        "Rent recipient should have received recovered lamports"
+    );
+
+    let recovered_rent = new_recipient_balance - original_recipient_balance;
+    println!("Recovered {} lamports from trimming", recovered_rent);
+
+    println!("TrimVerificationConfig (resize) validation successful");
+
+    // Test Case 2: Close the account completely
+    println!("\nTesting TrimVerificationConfig with close=true");
+
+    let close_config_ix = TrimVerificationConfig {
+        config_account: config_pda,
+        mint_account: mint_keypair.pubkey(),
+        authority: context.payer.pubkey(),
+        rent_recipient: rent_recipient,
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(TrimVerificationConfigInstructionArgs {
+        args: TrimVerificationConfigArgs {
+            instruction_discriminator,
+            size: 0,
+            close: true,
+        },
+    });
+
+    // Get config account balance before closing
+    let config_balance_before_close = trimmed_config_account.lamports;
+
+    let close_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[close_config_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let close_result = context
+        .banks_client
+        .process_transaction(close_transaction)
+        .await;
+    if let Err(error) = &close_result {
+        println!("TrimVerificationConfig close transaction failed: {}", error);
+        panic!("TrimVerificationConfig close transaction failed: {}", error);
+    }
+
+    println!("VerificationConfig closed successfully");
+
+    // Verify the account was closed
+    let closed_config_account = context.banks_client.get_account(config_pda).await.unwrap();
+
+    if let Some(account) = closed_config_account {
+        // Account exists but should have 0 lamports and 0 data
+        assert_eq!(account.lamports, 0, "Closed account should have 0 lamports");
+        assert_eq!(
+            account.data.len(),
+            0,
+            "Closed account should have 0 data length"
+        );
+        println!("Config account closed - 0 lamports, 0 data length");
+    } else {
+        println!("Config account completely deleted");
+    }
+
+    // Verify all lamports were transferred to recipient
+    let final_recipient_balance = context
+        .banks_client
+        .get_account(rent_recipient)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
+    let total_recovered_rent = final_recipient_balance - original_recipient_balance;
+    assert!(
+        total_recovered_rent >= config_balance_before_close,
+        "Should have recovered at least {} lamports, got {}",
+        config_balance_before_close,
+        total_recovered_rent
+    );
+
+    println!("Total recovered rent: {} lamports", total_recovered_rent);
+    println!("TrimVerificationConfig (close) validation successful");
 }

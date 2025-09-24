@@ -647,6 +647,12 @@ dependencies = [
 
 [[package]]
 name = "bs58"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
+
+[[package]]
+name = "bs58"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf88ba1141d185c399bee5288d850d63b8369520c1eafc32a0430b5b6c287bf4"
@@ -3646,6 +3652,7 @@ name = "security-token-program"
 version = "0.1.0"
 dependencies = [
  "borsh 0.10.4",
+ "bs58 0.4.0",
  "bytemuck",
  "num-derive",
  "num-traits",
@@ -3943,7 +3950,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59f2101f4cc33e3fbfc8d1d23ea35d8532d6f1fa6a7c7081742e886f98f33126"
 dependencies = [
  "base64 0.22.1",
- "bs58",
+ "bs58 0.5.1",
  "serde",
  "serde_derive",
  "serde_json",
@@ -4878,7 +4885,7 @@ checksum = "f8f3b668f433cd8716b2db7f58682abc8f7cc876dbe86f27620abb91fa13e4e5"
 dependencies = [
  "base64 0.22.1",
  "blake3",
- "bs58",
+ "bs58 0.5.1",
  "bytemuck",
 ]
 
@@ -5218,7 +5225,7 @@ dependencies = [
  "blake3",
  "borsh 0.10.4",
  "borsh 1.5.7",
- "bs58",
+ "bs58 0.5.1",
  "bytemuck",
  "console_error_panic_hook",
  "console_log",
@@ -5619,7 +5626,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "bincode",
- "bs58",
+ "bs58 0.5.1",
  "futures",
  "indicatif",
  "log",
@@ -5696,7 +5703,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e82a9b71f023a4bd511088f22e3c1f0e226a6e2e94b0656776509f234dd223a"
 dependencies = [
  "base64 0.22.1",
- "bs58",
+ "bs58 0.5.1",
  "semver",
  "serde",
  "serde_derive",
@@ -5903,7 +5910,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8cc0e4a7635b902791c44b6581bfb82f3ada32c5bc0929a64f39fe4bb384c86a"
 dependencies = [
  "bincode",
- "bs58",
+ "bs58 0.5.1",
  "getrandom 0.1.16",
  "js-sys",
  "serde",
@@ -5982,7 +5989,7 @@ version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "86280da8b99d03560f6ab5aca9de2e38805681df34e0bb8f238e69b29433b9df"
 dependencies = [
- "bs58",
+ "bs58 0.5.1",
  "proc-macro2",
  "quote",
  "syn 2.0.106",
@@ -6707,7 +6714,7 @@ checksum = "9e91068d54435121280c4a2f1c280d8d18381e3ccf54057c4530f40f26c2be1c"
 dependencies = [
  "base64 0.22.1",
  "bincode",
- "bs58",
+ "bs58 0.5.1",
  "serde",
  "serde_derive",
  "serde_json",
