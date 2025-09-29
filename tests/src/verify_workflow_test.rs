@@ -1,10 +1,9 @@
 use security_token_client::{
-    InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
     InitializeVerificationConfig, InitializeVerificationConfigArgs,
     InitializeVerificationConfigInstructionArgs, Verify, VerifyArgs, VerifyInstructionArgs,
     SECURITY_TOKEN_ID,
 };
-use security_token_program::instruction::{self, SecurityTokenInstruction};
+use security_token_program::instruction::SecurityTokenInstruction;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey as SolanaPubkey,
@@ -53,7 +52,7 @@ fn dummy_program_2_processor(
 
 /// Test verifies that our verification workflow works with any program calls
 #[tokio::test]
-async fn test_verification_with_dummy_programs() {
+async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::error::Error>> {
     std::env::set_var("SBF_OUT_DIR", "../target/deploy");
 
     // Create dummy program IDs for testing
@@ -63,7 +62,7 @@ async fn test_verification_with_dummy_programs() {
     // Setup program test with our security token program
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
 
-    // Disable BPF preference to use builtin functions instead of .so files
+    // Disable BPF preference to use dummy programs
     pt.prefer_bpf(false);
 
     // Add dummy programs using builtin functions
@@ -88,7 +87,6 @@ async fn test_verification_with_dummy_programs() {
     // Create mint keypair
     let mint_keypair = Keypair::new();
     let mint_pubkey = mint_keypair.pubkey();
-
     println!("Created mint: {}", mint_keypair.pubkey());
 
     let init_mint_instruction = security_token_client::InitializeMint {
@@ -118,31 +116,26 @@ async fn test_verification_with_dummy_programs() {
         recent_blockhash,
     );
 
-    let mint_result = banks_client.process_transaction(mint_transaction).await;
-    match mint_result {
-        Ok(_) => println!("Mint created successfully: {}", mint_pubkey),
-        Err(e) => {
-            println!("Failed to create mint: {:?}", e);
-            panic!("Cannot proceed without mint: {:?}", e);
-        }
-    }
+    banks_client
+        .process_transaction(mint_transaction)
+        .await
+        .map_err(|e| format!("Failed to create mint: {:?}", e))?;
+    println!("Mint created successfully: {}", mint_pubkey);
 
     // Find verification config PDA using the same logic as program
-    let mut instruction_discriminator = [0u8; 8];
-    instruction_discriminator[0] = SecurityTokenInstruction::UpdateMetadata.discriminant();
+    let instruction_discriminator = SecurityTokenInstruction::UpdateMetadata.discriminant();
 
     let (verification_config_pda, _bump) = Pubkey::find_program_address(
         &[
             b"verification_config",
             mint_pubkey.as_ref(),
-            &instruction_discriminator,
+            &[instruction_discriminator],
         ],
         &SECURITY_TOKEN_ID,
     );
 
     // Create InitializeVerificationConfig instruction using client
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
-
     let init_config_instruction = InitializeVerificationConfig {
         config_account: verification_config_pda,
         payer: payer.pubkey(),
@@ -164,93 +157,242 @@ async fn test_verification_with_dummy_programs() {
         recent_blockhash,
     );
 
-    let config_result = banks_client.process_transaction(config_transaction).await;
-    match config_result {
-        Ok(_) => println!("VerificationConfig created for UpdateMetadata instruction"),
-        Err(e) => {
-            panic!("Cannot proceed without VerificationConfig: {:?}", e);
+    banks_client
+        .process_transaction(config_transaction)
+        .await
+        .map_err(|e| format!("Failed to create VerificationConfig: {:?}", e))?;
+    println!("VerificationConfig created for UpdateMetadata instruction");
+
+    // Helper function to create verification test scenarios
+    async fn run_verification_test(
+        banks_client: &mut BanksClient,
+        payer: &Keypair,
+        recent_blockhash: solana_sdk::hash::Hash,
+        verification_config_pda: Pubkey,
+        test_name: &str,
+        verification_instructions: Vec<Instruction>, // Instructions that should be called before verify
+        verify_accounts: Vec<AccountMeta>,           // Accounts to pass to verify instruction
+        should_succeed: bool,                        // Expected result
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        println!("{}", test_name);
+
+        // Create verify instruction
+        let verify_instruction = Verify {
+            verification_config: Some(verification_config_pda),
+            instructions_sysvar: sysvar::instructions::ID,
+        }
+        .instruction_with_remaining_accounts(
+            VerifyInstructionArgs {
+                args: VerifyArgs {
+                    ix: SecurityTokenInstruction::UpdateMetadata.discriminant(),
+                },
+            },
+            &verify_accounts,
+        );
+
+        // Combine all instructions: verification calls + verify check
+        let mut all_instructions = verification_instructions;
+        all_instructions.push(verify_instruction);
+
+        let transaction = Transaction::new_signed_with_payer(
+            &all_instructions,
+            Some(&payer.pubkey()),
+            &[&payer],
+            recent_blockhash,
+        );
+
+        let result = banks_client.process_transaction(transaction).await;
+
+        match (result, should_succeed) {
+            (Ok(_), true) => {
+                println!("Test passed: verification succeeded as expected");
+                Ok(())
+            }
+            (Err(e), false) => {
+                println!("Test passed: verification failed as expected: {:?}", e);
+                Ok(())
+            }
+            (Ok(_), false) => {
+                println!("Test failed: verification should have failed but succeeded");
+                Err("Verification should have failed".into())
+            }
+            (Err(e), true) => {
+                println!(
+                    "Test failed: verification should have succeeded but failed: {:?}",
+                    e
+                );
+                Err(format!("Verification should have succeeded: {:?}", e).into())
+            }
         }
     }
 
     println!("Test 1: Verify without prior verification calls (should fail)");
-    let verify_only_instruction = Verify {
-        mint_account: mint_pubkey,
-        verification_config: Some(verification_config_pda),
-        instructions_sysvar: sysvar::instructions::ID,
-    }
-    .instruction(VerifyInstructionArgs {
-        args: VerifyArgs {
-            ix: SecurityTokenInstruction::UpdateMetadata.discriminant(),
-        },
-    });
-
-    let verify_only_transaction = Transaction::new_signed_with_payer(
-        &[verify_only_instruction],
-        Some(&payer.pubkey()),
-        &[&payer],
+    run_verification_test(
+        banks_client,
+        payer,
         recent_blockhash,
-    );
+        verification_config_pda,
+        "Test 1: Verify without prior verification calls (should fail)",
+        vec![], // No prior instructions
+        vec![], // No verify accounts
+        false,  // Should fail
+    )
+    .await?;
 
-    let verify_only_result = banks_client
-        .process_transaction(verify_only_transaction)
-        .await;
+    // Account for verification programs
+    let account_for_verification_1 = Keypair::new();
+    let account_for_verification_2 = Keypair::new();
+    let additional_account_for_verification = Keypair::new();
 
-    match verify_only_result {
-        Ok(_) => {
-            panic!("Verification unexpectedly succeeded without prior calls");
-        }
-        Err(e) => {
-            println!("Verification failed as expected: {:?}", e);
-        }
-    }
-
-    // Test 2: Verify instruction WITH prior instruction (should succeed)
-    println!("\nTest 2: Verify with prior instruction calls (should succeed)");
-
-    // Create a prior instruction using a memo program (simple and should work)
-    // We'll just create a simple instruction with one of our dummy programs
-    let instruction_1 = Instruction {
-        program_id: dummy_program_1_id,
-        accounts: vec![],
-        data: vec![1u8], // Dummy data - this will fail but we only need instruction count > 1
-    };
-
-    let instruction_2 = Instruction {
-        program_id: dummy_program_2_id,
-        accounts: vec![],
-        data: vec![1u8], // Dummy data - this will succeed
-    };
-
-    // Create Verify instruction to check that verification programs were called
-    let verify_instruction = Verify {
-        mint_account: mint_pubkey,
-        verification_config: Some(verification_config_pda),
-        instructions_sysvar: sysvar::instructions::ID,
-    }
-    .instruction(VerifyInstructionArgs {
-        args: VerifyArgs {
-            ix: SecurityTokenInstruction::UpdateMetadata.discriminant(),
+    // Test 2: Verify with proper prior instruction calls (should succeed)
+    let test_2_instructions = vec![
+        Instruction {
+            program_id: dummy_program_1_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![1u8],
         },
-    });
+        Instruction {
+            program_id: dummy_program_2_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+                AccountMeta::new_readonly(additional_account_for_verification.pubkey(), false),
+            ],
+            data: vec![1u8],
+        },
+    ];
 
-    // Single transaction with: prior instruction + verify check
-    let full_verification_transaction = Transaction::new_signed_with_payer(
-        &[instruction_1, instruction_2, verify_instruction],
-        Some(&payer.pubkey()),
-        &[&payer],
+    let test_2_verify_accounts = vec![
+        AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+        AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+        // Не добавляем дополнительный аккаунт - intersection должен быть только [аккаунт1, аккаунт2]
+    ];
+
+    run_verification_test(
+        banks_client,
+        payer,
         recent_blockhash,
-    );
+        verification_config_pda,
+        "Test 2: Verify with proper prior instruction calls (should succeed)",
+        test_2_instructions,
+        test_2_verify_accounts,
+        true, // Should succeed
+    )
+    .await?;
 
-    let full_verify_result = banks_client
-        .process_transaction(full_verification_transaction)
-        .await;
+    // Test 3: Verify with different accounts than intersection (should succeed)
+    let test_3_instructions = vec![
+        Instruction {
+            program_id: dummy_program_1_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![1u8],
+        },
+        Instruction {
+            program_id: dummy_program_2_id,
+            accounts: vec![AccountMeta::new_readonly(
+                account_for_verification_1.pubkey(),
+                false,
+            )],
+            data: vec![1u8],
+        },
+    ];
 
-    match full_verify_result {
-        Ok(_) => {
-            println!("Full verification workflow succeeded!");
-        }
-        Err(e) => {
-            panic!("Verification with prior calls failed: {:?}", e);
-        }
-    }
+    let test_3_verify_accounts = vec![AccountMeta::new_readonly(
+        account_for_verification_1.pubkey(),
+        false,
+    )];
+
+    run_verification_test(
+        banks_client,
+        payer,
+        recent_blockhash,
+        verification_config_pda,
+        "Test 3: Verify with different accounts than intersection (should fail)",
+        test_3_instructions,
+        test_3_verify_accounts,
+        true, // Should succeed
+    )
+    .await?;
+
+    // Test 4: Verify with correct accounts but verification program failure (should fail)
+    let test_4_instructions = vec![
+        Instruction {
+            program_id: dummy_program_1_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![1u8], // Success
+        },
+        Instruction {
+            program_id: dummy_program_1_id, // Use dummy_program_1_id which can fail
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![0u8], // This will cause dummy_program_processor to fail
+        },
+    ];
+
+    let test_4_verify_accounts = vec![
+        AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+        AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+    ];
+
+    run_verification_test(
+        banks_client,
+        payer,
+        recent_blockhash,
+        verification_config_pda,
+        "Test 4: Verify with correct accounts but verification program failure (should fail)",
+        test_4_instructions,
+        test_4_verify_accounts,
+        false, // Should fail because program fails
+    )
+    .await?;
+
+    // Test 5: Verify with lacking accounts (should fail)
+    let test_5_instructions = vec![
+        Instruction {
+            program_id: dummy_program_1_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![1u8],
+        },
+        Instruction {
+            program_id: dummy_program_2_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![1u8],
+        },
+    ];
+
+    let test_5_verify_accounts = vec![AccountMeta::new_readonly(
+        account_for_verification_1.pubkey(),
+        false,
+    )];
+
+    run_verification_test(
+        banks_client,
+        payer,
+        recent_blockhash,
+        verification_config_pda,
+        "Test 5: Verify with lacking accounts (should fail)",
+        test_5_instructions,
+        test_5_verify_accounts,
+        false, // Should fail - not all intersection accounts provided
+    )
+    .await?;
+
+    Ok(())
 }

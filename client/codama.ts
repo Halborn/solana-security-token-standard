@@ -559,12 +559,6 @@ const program = programNode({
       ],
       accounts: [
         instructionAccountNode({
-          name: 'mintAccount',
-          docs: ['The mint account to verify against'],
-          isSigner: false,
-          isWritable: false,
-        }),
-        instructionAccountNode({
           name: 'verificationConfig',
           docs: ['The verification config PDA for this instruction type'],
           isSigner: false,
@@ -594,104 +588,19 @@ const program = programNode({
   ],
   errors: [
     errorNode({
-      name: 'InvalidInstruction',
-      code: 0,
-      message: 'Invalid instruction',
+      name: 'VerificationProgramNotFound',
+      code: 1,
+      message: 'Verification program not found',
     }),
-    errorNode({ name: 'NotRentExempt', code: 1, message: 'Not rent exempt' }),
-    errorNode({ name: 'ExpectedMint', code: 2, message: 'Expected mint' }),
     errorNode({
-      name: 'ExpectedTokenAccount',
+      name: 'NotEnoughAccountsForVerification',
+      code: 2,
+      message: 'Not enough accounts for verification',
+    }),
+    errorNode({
+      name: 'AccountIntersectionMismatch',
       code: 3,
-      message: 'Expected token account',
-    }),
-    errorNode({
-      name: 'ExpectedMintAuthority',
-      code: 4,
-      message: 'Expected mint authority',
-    }),
-    errorNode({
-      name: 'InvalidMintAuthority',
-      code: 5,
-      message: 'Invalid mint authority',
-    }),
-    errorNode({
-      name: 'InvalidTokenOwner',
-      code: 6,
-      message: 'Invalid token owner',
-    }),
-    errorNode({
-      name: 'VerificationFailed',
-      code: 7,
-      message: 'Verification failed',
-    }),
-    errorNode({
-      name: 'TransferRestricted',
-      code: 8,
-      message: 'Transfer restricted',
-    }),
-    errorNode({ name: 'AccountFrozen', code: 9, message: 'Account frozen' }),
-    errorNode({ name: 'TokenPaused', code: 10, message: 'Token paused' }),
-    errorNode({
-      name: 'InsufficientCompliance',
-      code: 11,
-      message: 'Insufficient compliance',
-    }),
-    errorNode({
-      name: 'InvalidVerificationConfig',
-      code: 12,
-      message: 'Invalid verification config',
-    }),
-    errorNode({
-      name: 'MissingVerificationSignature',
-      code: 13,
-      message: 'Missing verification signature',
-    }),
-    errorNode({
-      name: 'CorporateActionNotFound',
-      code: 14,
-      message: 'Corporate action not found',
-    }),
-    errorNode({
-      name: 'InvalidRateConfiguration',
-      code: 15,
-      message: 'Invalid rate configuration',
-    }),
-    errorNode({
-      name: 'ReceiptAlreadyExists',
-      code: 16,
-      message: 'Receipt already exists',
-    }),
-    errorNode({
-      name: 'InvalidMerkleProof',
-      code: 17,
-      message: 'Invalid merkle proof',
-    }),
-    errorNode({
-      name: 'DistributionAlreadyClaimed',
-      code: 18,
-      message: 'Distribution already claimed',
-    }),
-    errorNode({
-      name: 'InsufficientBalance',
-      code: 19,
-      message: 'Insufficient balance',
-    }),
-    errorNode({ name: 'MathOverflow', code: 20, message: 'Math overflow' }),
-    errorNode({
-      name: 'InvalidAccountData',
-      code: 21,
-      message: 'Invalid account data',
-    }),
-    errorNode({
-      name: 'AccountNotInitialized',
-      code: 22,
-      message: 'Account not initialized',
-    }),
-    errorNode({
-      name: 'AccountAlreadyInitialized',
-      code: 23,
-      message: 'Account already initialized',
+      message: 'Account intersection mismatch',
     }),
   ],
 });
