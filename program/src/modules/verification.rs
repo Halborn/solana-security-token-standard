@@ -39,7 +39,7 @@ use pinocchio_token_2022::{
 use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
-use crate::instructions::{InitializeArgs, UpdateMetadataArgs};
+use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::verify_signer;
 use crate::state::VerificationConfig;
 use crate::utils;
@@ -641,7 +641,7 @@ impl VerificationModule {
     pub fn verify(
         _program_id: &Pubkey,
         accounts: &[AccountInfo],
-        args: &crate::instructions::VerifyArgs,
+        args: &VerifyArgs,
     ) -> ProgramResult {
         log!("Verifying instruction discriminant: {}", args.ix);
 
@@ -649,12 +649,12 @@ impl VerificationModule {
         // 0. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
         // 1. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
         // 2+ [any] Accounts for cross-set comparison with verification program calls
-        let [verification_config_account, instructions_sysvar, ..] = &accounts else {
+        let [verification_config_account, instructions_sysvar, comparison_accounts @ ..] = accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-
-        // Get accounts starting from index 2 for comparison with verification programs
-        let comparison_accounts: Vec<&Pubkey> = accounts[2..].iter().map(|acc| acc.key()).collect();
+        let comparison_accounts: Vec<&Pubkey> =
+            comparison_accounts.iter().map(|acc| acc.key()).collect();
         log!("Comparison accounts count: {}", comparison_accounts.len());
 
         // Load VerificationConfig from the provided PDA account
