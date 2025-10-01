@@ -3675,6 +3675,7 @@ dependencies = [
  "kaigan",
  "security-token-client",
  "security-token-program",
+ "solana-program",
  "solana-program-test",
  "solana-pubkey",
  "solana-sdk",
