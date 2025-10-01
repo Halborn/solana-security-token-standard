@@ -44,7 +44,7 @@ pub enum SecurityTokenInstruction {
     TrimVerificationConfig = 4,
     /// Verify a security token instruction using configured verification programs
     /// Accounts expected:
-    /// 0. `[]` The mint account
+    /// 0. `[]` The verification config PDA account
     /// 1. `[]` Instructions sysvar (for introspection mode)
     /// 2. Remaining accounts depend on the instruction being verified and CPI mode requirements
     Verify = 5,
@@ -83,14 +83,7 @@ impl SecurityTokenInstruction {
 
     /// Get the discriminant byte for this instruction
     pub fn discriminant(&self) -> u8 {
-        match self {
-            SecurityTokenInstruction::InitializeMint => 0,
-            SecurityTokenInstruction::UpdateMetadata => 1,
-            SecurityTokenInstruction::InitializeVerificationConfig => 2,
-            SecurityTokenInstruction::UpdateVerificationConfig => 3,
-            SecurityTokenInstruction::TrimVerificationConfig => 4,
-            SecurityTokenInstruction::Verify => 5,
-        }
+        self.clone() as u8
     }
 
     /// Create instruction from discriminant byte
