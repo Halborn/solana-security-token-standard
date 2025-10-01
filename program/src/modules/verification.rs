@@ -40,7 +40,7 @@ use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
-use crate::modules::verify_signer;
+use crate::modules::{verify_owner_mutability, verify_signer};
 use crate::state::VerificationConfig;
 use crate::utils;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -639,52 +639,53 @@ impl VerificationModule {
     /// to ensure cross-set validation (verification programs should be called with subset
     /// of accounts that appear in same order).
     pub fn verify(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         args: &VerifyArgs,
     ) -> ProgramResult {
         log!("Verifying instruction discriminant: {}", args.ix);
 
         // Expected accounts:
-        // 0. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
-        // 1. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
-        // 2+ [any] Accounts for cross-set comparison with verification program calls
-        let [verification_config_account, instructions_sysvar, comparison_accounts @ ..] = accounts
+        // 0. [readonly] Mint account - to derive VerificationConfig PDA
+        // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
+        // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
+        // 3+ [any] Accounts for cross-set comparison with verification program calls
+        let [mint_info, verification_config_account, instructions_sysvar, comparison_accounts @ ..] =
+            accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        //TODO: Should we pass?
+        if verification_config_account.data_len() == 0 {
+            log!("No VerificationConfig found");
+            return Ok(());
+        }
+
+        verify_owner_mutability(verification_config_account, program_id, false)?;
+
+        let (expected_pda, _bump) =
+            utils::find_verification_config_pda(&mint_info.key(), args.ix, program_id);
+
+        if verification_config_account.key().ne(&expected_pda) {
+            return Err(SecurityTokenError::InvalidMint.into());
+        }
+
         let comparison_accounts: Vec<&Pubkey> =
             comparison_accounts.iter().map(|acc| acc.key()).collect();
         log!("Comparison accounts count: {}", comparison_accounts.len());
 
-        // Load VerificationConfig from the provided PDA account
-        let verification_config = if verification_config_account.data_len() > 0 {
-            let data = verification_config_account
-                .try_borrow_data()
-                .map_err(|_| ProgramError::AccountBorrowFailed)?;
-            VerificationConfig::try_from_slice(&data).ok()
-        } else {
-            None
-        };
-        match verification_config {
-            Some(config) => {
-                // TODO: Should we reject?
-                if config.verification_programs.is_empty() {
-                    log!("No verification programs configured - rejecting");
-                    return Err(ProgramError::MissingRequiredSignature);
-                }
-                // Execute cross-set verification with accounts from index 2+
-                Self::execute_cross_set_verification(
-                    &config,
-                    instructions_sysvar,
-                    &comparison_accounts,
-                )?;
-            }
-            None => {
-                // TODO:Should we describe the final authorization?
-                log!("No VerificationConfig found - using standard authorization");
-            }
+        let data = verification_config_account.try_borrow_data()?;
+        let config = VerificationConfig::try_from_slice(&data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        // TODO: Should we reject?
+        if config.verification_programs.is_empty() {
+            log!("No verification programs configured - rejecting");
+            return Err(ProgramError::MissingRequiredSignature);
         }
+        // Execute cross-set verification with accounts from index 2+
+        Self::execute_cross_set_verification(&config, instructions_sysvar, &comparison_accounts)?;
         Ok(())
     }
 

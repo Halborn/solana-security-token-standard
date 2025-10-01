@@ -14,7 +14,12 @@ pub const VERIFY_DISCRIMINATOR: u8 = 5;
 /// Accounts.
 #[derive(Debug)]
 pub struct Verify {
-            /// The verification config PDA for this instruction type
+            /// The mint account
+
+    
+              
+          pub mint_account: solana_pubkey::Pubkey,
+                /// The verification config PDA for this instruction type
 
     
               
@@ -33,8 +38,12 @@ impl Verify {
   #[allow(clippy::arithmetic_side_effects)]
   #[allow(clippy::vec_init_then_push)]
   pub fn instruction_with_remaining_accounts(&self, args: VerifyInstructionArgs, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
-    let mut accounts = Vec::with_capacity(2+ remaining_accounts.len());
-                                        if let Some(verification_config) = self.verification_config {
+    let mut accounts = Vec::with_capacity(3+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.mint_account,
+            false
+          ));
+                                                      if let Some(verification_config) = self.verification_config {
               accounts.push(solana_instruction::AccountMeta::new_readonly(
                 verification_config,
                 false,
@@ -93,11 +102,13 @@ impl Default for VerifyInstructionData {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[optional]` verification_config
-          ///   1. `[]` instructions_sysvar
+          ///   0. `[]` mint_account
+                ///   1. `[optional]` verification_config
+          ///   2. `[]` instructions_sysvar
 #[derive(Clone, Debug, Default)]
 pub struct VerifyBuilder {
-            verification_config: Option<solana_pubkey::Pubkey>,
+            mint_account: Option<solana_pubkey::Pubkey>,
+                verification_config: Option<solana_pubkey::Pubkey>,
                 instructions_sysvar: Option<solana_pubkey::Pubkey>,
                         args: Option<VerifyArgs>,
         __remaining_accounts: Vec<solana_instruction::AccountMeta>,
@@ -107,6 +118,12 @@ impl VerifyBuilder {
   pub fn new() -> Self {
     Self::default()
   }
+            /// The mint account
+#[inline(always)]
+    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
+                        self.mint_account = Some(mint_account);
+                    self
+    }
             /// `[optional account]`
 /// The verification config PDA for this instruction type
 #[inline(always)]
@@ -140,7 +157,8 @@ impl VerifyBuilder {
   #[allow(clippy::clone_on_copy)]
   pub fn instruction(&self) -> solana_instruction::Instruction {
     let accounts = Verify {
-                              verification_config: self.verification_config,
+                              mint_account: self.mint_account.expect("mint_account is not set"),
+                                        verification_config: self.verification_config,
                                         instructions_sysvar: self.instructions_sysvar.expect("instructions_sysvar is not set"),
                       };
           let args = VerifyInstructionArgs {
@@ -153,7 +171,12 @@ impl VerifyBuilder {
 
   /// `verify` CPI accounts.
   pub struct VerifyCpiAccounts<'a, 'b> {
-                  /// The verification config PDA for this instruction type
+                  /// The mint account
+
+      
+                    
+              pub mint_account: &'b solana_account_info::AccountInfo<'a>,
+                        /// The verification config PDA for this instruction type
 
       
                     
@@ -169,7 +192,12 @@ impl VerifyBuilder {
 pub struct VerifyCpi<'a, 'b> {
   /// The program to invoke.
   pub __program: &'b solana_account_info::AccountInfo<'a>,
-            /// The verification config PDA for this instruction type
+            /// The mint account
+
+    
+              
+          pub mint_account: &'b solana_account_info::AccountInfo<'a>,
+                /// The verification config PDA for this instruction type
 
     
               
@@ -191,6 +219,7 @@ impl<'a, 'b> VerifyCpi<'a, 'b> {
       ) -> Self {
     Self {
       __program: program,
+              mint_account: accounts.mint_account,
               verification_config: accounts.verification_config,
               instructions_sysvar: accounts.instructions_sysvar,
                     __args: args,
@@ -216,8 +245,12 @@ impl<'a, 'b> VerifyCpi<'a, 'b> {
     signers_seeds: &[&[&[u8]]],
     remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
   ) -> solana_program_error::ProgramResult {
-    let mut accounts = Vec::with_capacity(2+ remaining_accounts.len());
-                            if let Some(verification_config) = self.verification_config {
+    let mut accounts = Vec::with_capacity(3+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.mint_account.key,
+            false
+          ));
+                                          if let Some(verification_config) = self.verification_config {
             accounts.push(solana_instruction::AccountMeta::new_readonly(
               *verification_config.key,
               false,
@@ -248,9 +281,10 @@ impl<'a, 'b> VerifyCpi<'a, 'b> {
       accounts,
       data,
     };
-    let mut account_infos = Vec::with_capacity(3 + remaining_accounts.len());
+    let mut account_infos = Vec::with_capacity(4 + remaining_accounts.len());
     account_infos.push(self.__program.clone());
-                  if let Some(verification_config) = self.verification_config {
+                  account_infos.push(self.mint_account.clone());
+                        if let Some(verification_config) = self.verification_config {
           account_infos.push(verification_config.clone());
         }
                         account_infos.push(self.instructions_sysvar.clone());
@@ -268,8 +302,9 @@ impl<'a, 'b> VerifyCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[optional]` verification_config
-          ///   1. `[]` instructions_sysvar
+          ///   0. `[]` mint_account
+                ///   1. `[optional]` verification_config
+          ///   2. `[]` instructions_sysvar
 #[derive(Clone, Debug)]
 pub struct VerifyCpiBuilder<'a, 'b> {
   instruction: Box<VerifyCpiBuilderInstruction<'a, 'b>>,
@@ -279,6 +314,7 @@ impl<'a, 'b> VerifyCpiBuilder<'a, 'b> {
   pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
     let instruction = Box::new(VerifyCpiBuilderInstruction {
       __program: program,
+              mint_account: None,
               verification_config: None,
               instructions_sysvar: None,
                                             args: None,
@@ -286,6 +322,12 @@ impl<'a, 'b> VerifyCpiBuilder<'a, 'b> {
     });
     Self { instruction }
   }
+      /// The mint account
+#[inline(always)]
+    pub fn mint_account(&mut self, mint_account: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+                        self.instruction.mint_account = Some(mint_account);
+                    self
+    }
       /// `[optional account]`
 /// The verification config PDA for this instruction type
 #[inline(always)]
@@ -332,6 +374,8 @@ impl<'a, 'b> VerifyCpiBuilder<'a, 'b> {
         let instruction = VerifyCpi {
         __program: self.instruction.__program,
                   
+          mint_account: self.instruction.mint_account.expect("mint_account is not set"),
+                  
           verification_config: self.instruction.verification_config,
                   
           instructions_sysvar: self.instruction.instructions_sysvar.expect("instructions_sysvar is not set"),
@@ -344,7 +388,8 @@ impl<'a, 'b> VerifyCpiBuilder<'a, 'b> {
 #[derive(Clone, Debug)]
 struct VerifyCpiBuilderInstruction<'a, 'b> {
   __program: &'b solana_account_info::AccountInfo<'a>,
-            verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
+            mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+                verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
                 instructions_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
                         args: Option<VerifyArgs>,
         /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

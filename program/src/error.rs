@@ -17,6 +17,11 @@ pub enum SecurityTokenError {
     /// Account intersection mismatch
     #[error("Account intersection mismatch")]
     AccountIntersectionMismatch = 3,
+
+    /// Mint Errors
+    /// Invalid Mint
+    #[error("Invalid Mint")]
+    InvalidMint = 4,
 }
 
 impl From<SecurityTokenError> for ProgramError {

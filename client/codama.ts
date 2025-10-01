@@ -559,6 +559,12 @@ const program = programNode({
       ],
       accounts: [
         instructionAccountNode({
+          name: 'mintAccount',
+          docs: ['The mint account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
           name: 'verificationConfig',
           docs: ['The verification config PDA for this instruction type'],
           isSigner: false,
@@ -601,6 +607,11 @@ const program = programNode({
       name: 'AccountIntersectionMismatch',
       code: 3,
       message: 'Account intersection mismatch',
+    }),
+    errorNode({
+      name: 'Invalid Mint',
+      code: 4,
+      message: 'Invalid mint account',
     }),
   ],
 });

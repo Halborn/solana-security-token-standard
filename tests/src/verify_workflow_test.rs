@@ -167,6 +167,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     async fn run_verification_test(
         banks_client: &mut BanksClient,
         payer: &Keypair,
+        mint: &Keypair,
         recent_blockhash: solana_sdk::hash::Hash,
         verification_config_pda: Pubkey,
         test_name: &str,
@@ -178,6 +179,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
         // Create verify instruction
         let verify_instruction = Verify {
+            mint_account: mint.pubkey(),
             verification_config: Some(verification_config_pda),
             instructions_sysvar: sysvar::instructions::ID,
         }
@@ -230,6 +232,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     run_verification_test(
         banks_client,
         payer,
+        &mint_keypair,
         recent_blockhash,
         verification_config_pda,
         "Test 1: Verify without prior verification calls (should fail)",
@@ -273,6 +276,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     run_verification_test(
         banks_client,
         payer,
+        &mint_keypair,
         recent_blockhash,
         verification_config_pda,
         "Test 2: Verify with proper prior instruction calls (should succeed)",
@@ -310,6 +314,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     run_verification_test(
         banks_client,
         payer,
+        &mint_keypair,
         recent_blockhash,
         verification_config_pda,
         "Test 3: Verify with different accounts than intersection (should succeed)",
@@ -347,6 +352,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     run_verification_test(
         banks_client,
         payer,
+        &mint_keypair,
         recent_blockhash,
         verification_config_pda,
         "Test 4: Verify with correct accounts but verification program failure (should fail)",
@@ -384,11 +390,50 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     run_verification_test(
         banks_client,
         payer,
+        &mint_keypair,
         recent_blockhash,
         verification_config_pda,
         "Test 5: Verify with lacking accounts (should fail)",
         test_5_instructions,
         test_5_verify_accounts,
+        false, // Should fail - not all intersection accounts provided
+    )
+    .await?;
+
+    // Test 6: Wrong mint
+    let test_6_instructions = vec![
+        Instruction {
+            program_id: dummy_program_1_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![1u8],
+        },
+        Instruction {
+            program_id: dummy_program_2_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![1u8],
+        },
+    ];
+
+    let test_6_verify_accounts = vec![AccountMeta::new_readonly(
+        account_for_verification_1.pubkey(),
+        false,
+    )];
+
+    run_verification_test(
+        banks_client,
+        payer,
+        &mint_keypair,
+        recent_blockhash,
+        verification_config_pda,
+        "Test 6: Wrong mint (should fail)",
+        test_6_instructions,
+        test_6_verify_accounts,
         false, // Should fail - not all intersection accounts provided
     )
     .await?;
