@@ -362,20 +362,20 @@ mod tests {
         )
         .unwrap();
 
-        let to_bytes_innered = original.to_bytes_inner();
-        let try_from_bytesed =
-            InitializeVerificationConfigArgs::try_from_bytes(&to_bytes_innered).unwrap();
+        let inner_bytes = original.to_bytes_inner();
+        let deserialized =
+            InitializeVerificationConfigArgs::try_from_bytes(&inner_bytes).unwrap();
 
         assert_eq!(
             original.instruction_discriminator,
-            try_from_bytesed.instruction_discriminator
+            deserialized.instruction_discriminator
         );
-        assert_eq!(original.program_count(), try_from_bytesed.program_count());
+        assert_eq!(original.program_count(), deserialized.program_count());
 
         let original_addresses = original.program_addresses();
-        let try_from_bytesed_addresses = try_from_bytesed.program_addresses();
-        assert_eq!(original_addresses, try_from_bytesed_addresses);
-        assert_eq!(program_addresses, try_from_bytesed_addresses);
+        let deserialized_addresses = deserialized.program_addresses();
+        assert_eq!(original_addresses, deserialized_addresses);
+        assert_eq!(program_addresses, deserialized_addresses);
     }
 
     #[test]

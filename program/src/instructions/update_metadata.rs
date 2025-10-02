@@ -74,17 +74,17 @@ mod tests {
         // Test validation
         assert!(original.validate().is_ok());
 
-        let to_bytes_innered = original.to_bytes_inner();
-        let try_from_bytesed = UpdateMetadataArgs::try_from_bytes(&to_bytes_innered).unwrap();
+        let inner_bytes = original.to_bytes_inner();
+        let deserialized = UpdateMetadataArgs::try_from_bytes(&inner_bytes).unwrap();
 
         assert_eq!(
             original.metadata.update_authority,
-            try_from_bytesed.metadata.update_authority
+            deserialized.metadata.update_authority
         );
-        assert_eq!(original.metadata.mint, try_from_bytesed.metadata.mint);
-        assert_eq!(original.metadata.name, try_from_bytesed.metadata.name);
-        assert_eq!(original.metadata.symbol, try_from_bytesed.metadata.symbol);
-        assert_eq!(original.metadata.uri, try_from_bytesed.metadata.uri);
+        assert_eq!(original.metadata.mint, deserialized.metadata.mint);
+        assert_eq!(original.metadata.name, deserialized.metadata.name);
+        assert_eq!(original.metadata.symbol, deserialized.metadata.symbol);
+        assert_eq!(original.metadata.uri, deserialized.metadata.uri);
 
         // Test validation failure with empty name
         let bad_metadata = TokenMetadata {

@@ -481,12 +481,12 @@ mod tests {
             freeze_authority,
         };
 
-        let to_bytes_innered = original.to_bytes_inner();
-        let try_from_bytesed = InitializeMintArgs::try_from_bytes(&to_bytes_innered).unwrap();
+        let inner_bytes = original.to_bytes_inner();
+        let deserialized = InitializeMintArgs::try_from_bytes(&inner_bytes).unwrap();
 
-        assert_eq!(original.decimals, try_from_bytesed.decimals);
-        assert_eq!(original.mint_authority, try_from_bytesed.mint_authority);
-        assert_eq!(original.freeze_authority, try_from_bytesed.freeze_authority);
+        assert_eq!(original.decimals, deserialized.decimals);
+        assert_eq!(original.mint_authority, deserialized.mint_authority);
+        assert_eq!(original.freeze_authority, deserialized.freeze_authority);
     }
 
     #[test]
@@ -536,49 +536,49 @@ mod tests {
             Some(scaled_ui_amount),
         );
 
-        let to_bytes_innered = original.to_bytes_inner();
-        let try_from_bytesed = InitializeArgs::try_from_bytes(&to_bytes_innered).unwrap();
+        let inner_bytes = original.to_bytes_inner();
+        let deserialized = InitializeArgs::try_from_bytes(&inner_bytes).unwrap();
 
-        assert_eq!(original.ix_mint.decimals, try_from_bytesed.ix_mint.decimals);
+        assert_eq!(original.ix_mint.decimals, deserialized.ix_mint.decimals);
         assert_eq!(
             original.ix_mint.mint_authority,
-            try_from_bytesed.ix_mint.mint_authority
+            deserialized.ix_mint.mint_authority
         );
         assert_eq!(
             original.ix_mint.freeze_authority,
-            try_from_bytesed.ix_mint.freeze_authority
+            deserialized.ix_mint.freeze_authority
         );
 
         // Verify that MetadataPointer is correctly restored
-        let try_from_bytesed_metadata_pointer = try_from_bytesed.ix_metadata_pointer.unwrap();
+        let deserialized_metadata_pointer = deserialized.ix_metadata_pointer.unwrap();
         assert_eq!(
             metadata_pointer.authority,
-            try_from_bytesed_metadata_pointer.authority
+            deserialized_metadata_pointer.authority
         );
         assert_eq!(
             metadata_pointer.metadata_address,
-            try_from_bytesed_metadata_pointer.metadata_address
+            deserialized_metadata_pointer.metadata_address
         );
 
         // Verify Metadata
-        let try_from_bytesed_metadata = try_from_bytesed.ix_metadata.unwrap();
-        assert_eq!(metadata.name, try_from_bytesed_metadata.name);
-        assert_eq!(metadata.symbol, try_from_bytesed_metadata.symbol);
-        assert_eq!(metadata.uri, try_from_bytesed_metadata.uri);
+        let deserialized_metadata = deserialized.ix_metadata.unwrap();
+        assert_eq!(metadata.name, deserialized_metadata.name);
+        assert_eq!(metadata.symbol, deserialized_metadata.symbol);
+        assert_eq!(metadata.uri, deserialized_metadata.uri);
         assert_eq!(
             metadata.additional_metadata,
-            try_from_bytesed_metadata.additional_metadata
+            deserialized_metadata.additional_metadata
         );
 
         // Verify ScaledUiAmount
-        let try_from_bytesed_scaled_ui_amount = try_from_bytesed.ix_scaled_ui_amount.unwrap();
+        let deserialized_scaled_ui_amount = deserialized.ix_scaled_ui_amount.unwrap();
         assert_eq!(
             scaled_ui_amount.authority,
-            try_from_bytesed_scaled_ui_amount.authority
+            deserialized_scaled_ui_amount.authority
         );
         assert_eq!(
             scaled_ui_amount.multiplier,
-            try_from_bytesed_scaled_ui_amount.multiplier
+            deserialized_scaled_ui_amount.multiplier
         );
     }
 
@@ -597,22 +597,22 @@ mod tests {
             None, // no scaled UI amount
         );
 
-        let to_bytes_innered = original.to_bytes_inner();
-        let try_from_bytesed = InitializeArgs::try_from_bytes(&to_bytes_innered).unwrap();
+        let inner_bytes = original.to_bytes_inner();
+        let deserialized = InitializeArgs::try_from_bytes(&inner_bytes).unwrap();
 
-        assert_eq!(original.ix_mint.decimals, try_from_bytesed.ix_mint.decimals);
+        assert_eq!(original.ix_mint.decimals, deserialized.ix_mint.decimals);
         assert_eq!(
             original.ix_mint.mint_authority,
-            try_from_bytesed.ix_mint.mint_authority
+            deserialized.ix_mint.mint_authority
         );
         assert_eq!(
             original.ix_mint.freeze_authority,
-            try_from_bytesed.ix_mint.freeze_authority
+            deserialized.ix_mint.freeze_authority
         );
 
-        assert!(try_from_bytesed.ix_metadata_pointer.is_none());
-        assert!(try_from_bytesed.ix_metadata.is_none());
-        assert!(try_from_bytesed.ix_scaled_ui_amount.is_none());
+        assert!(deserialized.ix_metadata_pointer.is_none());
+        assert!(deserialized.ix_metadata.is_none());
+        assert!(deserialized.ix_scaled_ui_amount.is_none());
     }
 
     #[test]
