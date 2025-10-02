@@ -9,16 +9,15 @@ use solana_pubkey::Pubkey;
 use borsh::BorshSerialize;
 use borsh::BorshDeserialize;
 
+/// Verification configuration for instructions stored as account data
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateVerificationConfigArgs {
-/// 1-byte discriminator for the instruction type (e.g., burn, transfer)
+pub struct VerificationConfig {
+/// Instruction discriminator this config applies to
 pub instruction_discriminator: u8,
-/// Offset at which to start replacement/insertion (0-based index)
-pub offset: u8,
-/// Array of new verification program addresses to add/replace
+/// Required verification programs as raw bytes (32 bytes each)
 #[cfg_attr(feature = "serde", serde(with = "serde_with::As::<Vec<serde_with::DisplayFromStr>>"))]
-pub program_addresses: Vec<Pubkey>,
+pub verification_programs: Vec<Pubkey>,
 }
 
 

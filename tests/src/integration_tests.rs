@@ -9,9 +9,8 @@ use security_token_client::{
     TokenMetadata, TrimVerificationConfig, TrimVerificationConfigArgs,
     TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataArgs,
     UpdateMetadataInstructionArgs, UpdateVerificationConfig, UpdateVerificationConfigArgs,
-    UpdateVerificationConfigInstructionArgs, SECURITY_TOKEN_ID,
+    UpdateVerificationConfigInstructionArgs, VerificationConfig, SECURITY_TOKEN_ID,
 };
-use security_token_program::state::VerificationConfig;
 use solana_program_test::ProgramTest;
 use solana_sdk::sysvar;
 use solana_sdk::{pubkey::Pubkey, signature::Signer};
@@ -1001,7 +1000,7 @@ async fn test_verification_config() {
         "Config PDA should be owned by security token program"
     );
 
-    let stored_config = VerificationConfig::try_from_bytes(&config_account.data)
+    let stored_config = VerificationConfig::try_from_slice(&config_account.data)
         .expect("Should be able to deserialize VerificationConfig");
 
     assert_eq!(
@@ -1017,8 +1016,7 @@ async fn test_verification_config() {
 
     for (i, expected_program) in verification_programs.iter().enumerate() {
         assert_eq!(
-            stored_config.verification_programs[i],
-            expected_program.to_bytes(),
+            stored_config.verification_programs[i], *expected_program,
             "Program at index {} should match",
             i
         );
@@ -1076,7 +1074,7 @@ async fn test_verification_config() {
         .unwrap()
         .unwrap();
 
-    let updated_config = VerificationConfig::try_from_bytes(&updated_config_account.data)
+    let updated_config = VerificationConfig::try_from_slice(&updated_config_account.data)
         .expect("Should be able to deserialize updated VerificationConfig");
 
     // Verify the configuration was updated correctly
@@ -1087,8 +1085,7 @@ async fn test_verification_config() {
 
     // The original program at index 0 should remain
     assert_eq!(
-        updated_config.verification_programs[0],
-        verification_programs[0].to_bytes(),
+        updated_config.verification_programs[0], verification_programs[0],
         "Original program at index 0 should remain unchanged"
     );
 
@@ -1096,8 +1093,7 @@ async fn test_verification_config() {
     for (i, expected_program) in new_verification_programs.iter().enumerate() {
         let config_index = offset as usize + i;
         assert_eq!(
-            updated_config.verification_programs[config_index],
-            expected_program.to_bytes(),
+            updated_config.verification_programs[config_index], *expected_program,
             "Updated program at index {} should match",
             config_index
         );
@@ -1167,7 +1163,7 @@ async fn test_verification_config() {
         .unwrap()
         .unwrap();
 
-    let trimmed_config = VerificationConfig::try_from_bytes(&trimmed_config_account.data)
+    let trimmed_config = VerificationConfig::try_from_slice(&trimmed_config_account.data)
         .expect("Should be able to deserialize trimmed VerificationConfig");
 
     // Verify the configuration was trimmed correctly
@@ -1185,13 +1181,11 @@ async fn test_verification_config() {
 
     // Verify that remaining programs are correct (first 2 programs should remain)
     assert_eq!(
-        trimmed_config.verification_programs[0],
-        verification_programs[0].to_bytes(),
+        trimmed_config.verification_programs[0], verification_programs[0],
         "First program should remain unchanged"
     );
     assert_eq!(
-        trimmed_config.verification_programs[1],
-        new_verification_programs[0].to_bytes(),
+        trimmed_config.verification_programs[1], new_verification_programs[0],
         "Second program should be the first updated program"
     );
 

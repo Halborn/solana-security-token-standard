@@ -30,6 +30,29 @@ const program = programNode({
   publicKey: 'Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH',
   version: '0.1.0',
   definedTypes: [
+    // VerificationConfig - Account type for storing verification configuration
+    definedTypeNode({
+      name: 'VerificationConfig',
+      docs: [
+        'Verification configuration for instructions stored as account data',
+      ],
+      type: structTypeNode([
+        structFieldTypeNode({
+          name: 'instructionDiscriminator',
+          docs: ['Instruction discriminator this config applies to'],
+          type: numberTypeNode('u8'),
+        }),
+        structFieldTypeNode({
+          name: 'verificationPrograms',
+          docs: ['Required verification programs as raw bytes (32 bytes each)'],
+          type: arrayTypeNode(
+            publicKeyTypeNode(),
+            prefixedCountNode(numberTypeNode('u32'))
+          ),
+        }),
+      ]),
+    }),
+
     // InitializeMintArgs
     definedTypeNode({
       name: 'InitializeMintArgs',
@@ -240,19 +263,19 @@ const program = programNode({
           type: numberTypeNode('u8'),
         }),
         structFieldTypeNode({
+          name: 'offset',
+          docs: [
+            'Offset at which to start replacement/insertion (0-based index)',
+          ],
+          type: numberTypeNode('u8'),
+        }),
+        structFieldTypeNode({
           name: 'programAddresses',
           docs: ['Array of new verification program addresses to add/replace'],
           type: arrayTypeNode(
             publicKeyTypeNode(),
             prefixedCountNode(numberTypeNode('u32'))
           ),
-        }),
-        structFieldTypeNode({
-          name: 'offset',
-          docs: [
-            'Offset at which to start replacement/insertion (0-based index)',
-          ],
-          type: numberTypeNode('u8'),
         }),
       ]),
     }),

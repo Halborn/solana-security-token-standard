@@ -39,10 +39,10 @@ impl InitializeVerificationConfigInstructionArgs {
 pub struct UpdateVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
     pub instruction_discriminator: u8,
-    /// Vector of new verification program addresses to add/replace
-    pub program_addresses: Vec<Pubkey>,
     /// Offset at which to start replacement/insertion (0-based index)
     pub offset: u8,
+    /// Vector of new verification program addresses to add/replace
+    pub program_addresses: Vec<Pubkey>,
 }
 
 /// Wrapper struct that matches what codama generates for UpdateVerificationConfig
@@ -175,11 +175,11 @@ impl UpdateVerificationConfigArgs {
         // Write instruction discriminator (1 byte)
         data.push(self.instruction_discriminator);
 
-        // Write program count (4 bytes)
-        data.extend(&(self.program_addresses.len() as u32).to_le_bytes());
-
         // Write offset (1 byte)
         data.push(self.offset);
+
+        // Write program count (4 bytes)
+        data.extend(&(self.program_addresses.len() as u32).to_le_bytes());
 
         // Write each program address (32 bytes each)
         for program in &self.program_addresses {
@@ -192,7 +192,7 @@ impl UpdateVerificationConfigArgs {
     /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         if data.len() < 6 {
-            // Minimum: 1 byte discriminator + 4 bytes count + 1 byte offset
+            // Minimum: 1 byte discriminator + 1 byte offset + 4 bytes count
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -202,6 +202,10 @@ impl UpdateVerificationConfigArgs {
         let instruction_discriminator = data[offset_pos];
         offset_pos += 1;
 
+        // Read offset (1 byte)
+        let offset = data[offset_pos];
+        offset_pos += 1;
+
         // Read program count (4 bytes)
         let program_count = u32::from_le_bytes(
             data[offset_pos..offset_pos + 4]
@@ -209,10 +213,6 @@ impl UpdateVerificationConfigArgs {
                 .map_err(|_| ProgramError::InvalidInstructionData)?,
         ) as usize;
         offset_pos += 4;
-
-        // Read offset (1 byte)
-        let offset = data[offset_pos];
-        offset_pos += 1;
 
         // Validate we have enough data for all programs
         if data.len() < offset_pos + (program_count * 32) {
