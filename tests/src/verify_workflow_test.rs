@@ -1,6 +1,10 @@
+use borsh::BorshDeserialize;
+use kaigan::types::RemainderVec;
 use security_token_client::{
+    InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
     InitializeVerificationConfig, InitializeVerificationConfigArgs,
-    InitializeVerificationConfigInstructionArgs, Verify, VerifyArgs, VerifyInstructionArgs,
+    InitializeVerificationConfigInstructionArgs, MetadataPointer, TokenMetadata, UpdateMetadata,
+    UpdateMetadataArgs, UpdateMetadataInstructionArgs, Verify, VerifyArgs, VerifyInstructionArgs,
     SECURITY_TOKEN_ID,
 };
 use security_token_program::instruction::SecurityTokenInstruction;
@@ -14,7 +18,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::Keypair,
     signer::Signer,
-    sysvar,
+    system_program, sysvar,
     transaction::Transaction,
 };
 
@@ -439,4 +443,307 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     .await?;
 
     Ok(())
+}
+
+#[tokio::test]
+async fn test_update_metadata_under_verification() {
+    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
+    let dummy_program_1_id = Pubkey::new_unique();
+    let dummy_program_2_id = Pubkey::new_unique();
+
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    pt.prefer_bpf(false);
+
+    // Add dummy programs using builtin functions
+    pt.add_program(
+        "dummy_program_1",
+        dummy_program_1_id,
+        processor!(dummy_program_processor),
+    );
+    pt.add_program(
+        "dummy_program_2",
+        dummy_program_2_id,
+        processor!(dummy_program_2_processor),
+    );
+
+    let mint_keypair = solana_sdk::signature::Keypair::new();
+
+    let context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
+
+    let spl_token_2022_program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        .parse::<Pubkey>()
+        .unwrap();
+    let name = "Test Token";
+    let symbol = "TEST";
+    let uri = "https://example.com";
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+
+    let ix = InitializeMint {
+        mint: mint_keypair.pubkey(),
+        payer: context.payer.pubkey(),
+        token_program: spl_token_2022_program,
+        system_program: system_program::ID,
+        rent: sysvar::rent::ID,
+    }
+    .instruction(InitializeMintInstructionArgs {
+        args: InitializeArgs {
+            ix_mint: InitializeMintArgs {
+                decimals: 6,
+                mint_authority: context.payer.pubkey(),
+                freeze_authority: None, // No freeze authority for this test
+            },
+            ix_metadata_pointer: Some(MetadataPointer {
+                authority: context.payer.pubkey(),
+                metadata_address: mint_keypair.pubkey(),
+            }),
+            ix_metadata: Some(TokenMetadata {
+                update_authority: context.payer.pubkey(),
+                mint: mint_keypair.pubkey(),
+                name_len: name.len() as u32,
+                name: name.to_string().into(),
+                symbol_len: symbol.len() as u32,
+                symbol: symbol.to_string().into(),
+                uri_len: uri.len() as u32,
+                uri: uri.to_string().into(),
+                additional_metadata_len: 0,
+                additional_metadata: RemainderVec::<u8>::try_from_slice(&[]).unwrap(),
+            }),
+            ix_scaled_ui_amount: None,
+        },
+    });
+
+    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &mint_keypair],
+        recent_blockhash,
+    );
+
+    let result = context.banks_client.process_transaction(transaction).await;
+
+    if let Err(error) = &result {
+        panic!("Transaction failed: {}", error);
+    }
+
+    let instruction_discriminator = SecurityTokenInstruction::UpdateMetadata.discriminant();
+
+    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"verification_config",
+            mint_keypair.pubkey().as_ref(),
+            &[instruction_discriminator],
+        ],
+        &SECURITY_TOKEN_ID,
+    );
+
+    let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
+    let init_config_instruction = InitializeVerificationConfig {
+        config_account: verification_config_pda,
+        payer: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        authority: context.payer.pubkey(), // Using payer as authority for simplicity
+        system_program: solana_sdk::system_program::ID,
+    }
+    .instruction(InitializeVerificationConfigInstructionArgs {
+        args: InitializeVerificationConfigArgs {
+            instruction_discriminator,
+            program_addresses: verification_programs,
+        },
+    });
+
+    let config_transaction = Transaction::new_signed_with_payer(
+        &[init_config_instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(config_transaction)
+        .await;
+
+    if let Err(error) = &result {
+        panic!("Transaction failed: {}", error);
+    }
+
+    let updated_name = "Updated Security Token";
+    let updated_symbol = "UHST";
+    let updated_uri = "https://example.com/tokens";
+
+    let update_metadata_instruction = UpdateMetadata {
+        verification_config: Some(verification_config_pda),
+        instructions_sysvar: sysvar::instructions::ID,
+        mint: mint_keypair.pubkey(),
+        mint_for_update: mint_keypair.pubkey(),
+        mint_authority: context.payer.pubkey(),
+        token_program: spl_token_2022_program,
+        system_program: system_program::ID,
+    }
+    .instruction(UpdateMetadataInstructionArgs {
+        args: UpdateMetadataArgs {
+            metadata: TokenMetadata {
+                update_authority: context.payer.pubkey(),
+                mint: mint_keypair.pubkey(),
+                name_len: updated_name.len() as u32,
+                name: updated_name.to_string().into(),
+                symbol_len: updated_symbol.len() as u32,
+                symbol: updated_symbol.to_string().into(),
+                uri_len: updated_uri.len() as u32,
+                uri: updated_uri.to_string().into(),
+                additional_metadata_len: 0,
+                additional_metadata: RemainderVec::<u8>::try_from_slice(&[]).unwrap(),
+            },
+        },
+    });
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+
+    let tx_update_metadata = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[update_metadata_instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    // Process transaction
+    let result = context
+        .banks_client
+        .process_transaction(tx_update_metadata)
+        .await;
+
+    assert!(
+        result.is_err(),
+        "Should fail, no verification instructions executed"
+    );
+
+    // Case: not enough accounts provided to verify
+    let account_for_verification_1 = Keypair::new();
+    let account_for_verification_2 = Keypair::new();
+
+    let verify_instructions = vec![
+        Instruction {
+            program_id: dummy_program_1_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![1u8],
+        },
+        Instruction {
+            program_id: dummy_program_2_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![1u8],
+        },
+    ];
+
+    let update_metadata_instruction = UpdateMetadata {
+        verification_config: Some(verification_config_pda),
+        instructions_sysvar: sysvar::instructions::ID,
+        mint: mint_keypair.pubkey(),
+        mint_for_update: mint_keypair.pubkey(),
+        mint_authority: context.payer.pubkey(),
+        token_program: spl_token_2022_program,
+        system_program: system_program::ID,
+    }
+    .instruction(UpdateMetadataInstructionArgs {
+        args: UpdateMetadataArgs {
+            metadata: TokenMetadata {
+                update_authority: context.payer.pubkey(),
+                mint: mint_keypair.pubkey(),
+                name_len: updated_name.len() as u32,
+                name: updated_name.to_string().into(),
+                symbol_len: updated_symbol.len() as u32,
+                symbol: updated_symbol.to_string().into(),
+                uri_len: updated_uri.len() as u32,
+                uri: updated_uri.to_string().into(),
+                additional_metadata_len: 0,
+                additional_metadata: RemainderVec::<u8>::try_from_slice(&[]).unwrap(),
+            },
+        },
+    });
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let mut instructions = verify_instructions.clone();
+    instructions.push(update_metadata_instruction);
+
+    let tx_update_metadata = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    // Process transaction
+    let result = context
+        .banks_client
+        .process_transaction(tx_update_metadata)
+        .await;
+
+    assert!(
+        result.is_err(),
+        "Should fail, not enough accounts provided to verify"
+    );
+
+    // Success case: enough accounts provided to verify
+    let update_metadata_instruction = UpdateMetadata {
+        verification_config: Some(verification_config_pda),
+        instructions_sysvar: sysvar::instructions::ID,
+        mint: mint_keypair.pubkey(),
+        mint_for_update: mint_keypair.pubkey(),
+        mint_authority: context.payer.pubkey(),
+        token_program: spl_token_2022_program,
+        system_program: system_program::ID,
+    }
+    .instruction_with_remaining_accounts(
+        UpdateMetadataInstructionArgs {
+            args: UpdateMetadataArgs {
+                metadata: TokenMetadata {
+                    update_authority: context.payer.pubkey(),
+                    mint: mint_keypair.pubkey(),
+                    name_len: updated_name.len() as u32,
+                    name: updated_name.to_string().into(),
+                    symbol_len: updated_symbol.len() as u32,
+                    symbol: updated_symbol.to_string().into(),
+                    uri_len: updated_uri.len() as u32,
+                    uri: updated_uri.to_string().into(),
+                    additional_metadata_len: 0,
+                    additional_metadata: RemainderVec::<u8>::try_from_slice(&[]).unwrap(),
+                },
+            },
+        },
+        &vec![
+            AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+            AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+        ],
+    );
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let mut instructions = verify_instructions.clone();
+    instructions.push(update_metadata_instruction);
+    println!("Total instructions count: {}", instructions.len());
+
+    let tx_update_metadata = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    // Process transaction
+    let result = context
+        .banks_client
+        .process_transaction(tx_update_metadata)
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "Should succeed, enough accounts provided to verify"
+    );
+
+    // Additional assertions or cleanup can be done here
 }

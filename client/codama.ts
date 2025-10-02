@@ -383,13 +383,38 @@ const program = programNode({
       accounts: [
         instructionAccountNode({
           name: 'mint',
-          docs: ['The mint account'],
+          docs: ['The mint account (position 0 - required for verification)'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: [
+            'The VerificationConfig PDA (position 1 - may not exist but position reserved)',
+          ],
+          isSigner: false,
+          isWritable: false,
+          isOptional: true,
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: [
+            'The Instructions sysvar (position 2 - required for Instruction Introspection)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'mintForUpdate',
+          docs: [
+            'The mint account again (position 3 - required for update_metadata function)',
+          ],
           isSigner: false,
           isWritable: true,
         }),
         instructionAccountNode({
           name: 'mintAuthority',
-          docs: ['The mint authority account'],
+          docs: ['The mint authority account (position 4)'],
           isSigner: true,
           isWritable: false,
         }),

@@ -357,7 +357,7 @@ impl VerificationModule {
         // Validate arguments
         args.validate()?;
 
-        let [mint_info, authority_info, _token_program_info, _system_program_info] = accounts
+        let [mint_info, authority_info, _token_program_info, _system_program_info, ..] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -663,6 +663,9 @@ impl VerificationModule {
 
         verify_owner_mutability(verification_config_account, program_id, false)?;
 
+        // TODO: this could be optimized further by removing the `solana-program` dependency
+        // and using `pubkey::checked_create_program_address` from Pinocchio to verify the
+        // pubkey and associated bump (needed to be added as arg) is valid.
         let (expected_pda, _bump) =
             utils::find_verification_config_pda(&mint_info.key(), args.ix, program_id);
 
@@ -691,12 +694,10 @@ impl VerificationModule {
     /// Execute cross-set account verification
     /// Checks that accounts from verification programs match current instruction accounts
     fn execute_cross_set_verification(
-        config: &crate::state::VerificationConfig,
+        config: &VerificationConfig,
         instructions_sysvar: &AccountInfo,
         current_account_keys: &[&Pubkey],
     ) -> ProgramResult {
-        use pinocchio_log::log;
-
         log!(
             "Starting cross-set verification for {} programs",
             config.verification_programs.len()
@@ -705,6 +706,7 @@ impl VerificationModule {
         // Get current instruction index
         let instructions = Instructions::try_from(instructions_sysvar)?;
         let current_index = instructions.load_current_index() as usize;
+        log!("Current instruction index: {}", current_index);
         log!(
             "Current instruction has {} accounts",
             current_account_keys.len()
@@ -729,6 +731,12 @@ impl VerificationModule {
                     match instructions.load_instruction_at(instr_idx) {
                         Ok(instruction) => {
                             let program_id = instruction.get_program_id();
+                            log!(
+                                "Instruction {} calls program {}",
+                                instr_idx,
+                                crate::key_as_str!(program_id)
+                            );
+
                             if *program_id == *required_program {
                                 log!(
                                     "Found verification program {} at instruction {}",
@@ -824,36 +832,18 @@ impl VerificationModule {
             intersection.len()
         );
 
-        // Current accounts must match intersection exactly - same length and order
-        if current_accounts.len() != intersection.len() {
-            log!(
-                "ERROR: Current instruction accounts count {} doesn't match intersection count {}",
-                current_accounts.len(),
-                intersection.len()
-            );
-            return Err(SecurityTokenError::NotEnoughAccountsForVerification.into());
-        }
+        // TODO: Should we also check order?
+        for intersection_account in &intersection {
+            let found = current_accounts
+                .iter()
+                .any(|current_account| **current_account == *intersection_account);
 
-        // Check that current accounts match intersection starting from index 0
-        for (i, current_account) in current_accounts.iter().enumerate() {
-            if i >= intersection.len() || intersection[i] != **current_account {
-                if i < intersection.len() {
-                    let expected = bs58::encode(&intersection[i]).into_string();
-                    let got = bs58::encode(current_account).into_string();
-                    log!(
-                        "ERROR: Account mismatch at position {}. Expected: {}, Got: {}",
-                        i,
-                        expected.as_str(),
-                        got.as_str()
-                    );
-                } else {
-                    let got = bs58::encode(current_account).into_string();
-                    log!(
-                        "ERROR: Account mismatch at position {}. Expected: <end>, Got: {}",
-                        i,
-                        got.as_str()
-                    );
-                }
+            if !found {
+                let missing = bs58::encode(intersection_account).into_string();
+                log!(
+                    "ERROR: Required verification account {} not found in current instruction accounts",
+                    missing.as_str()
+                );
                 return Err(SecurityTokenError::AccountIntersectionMismatch.into());
             }
         }

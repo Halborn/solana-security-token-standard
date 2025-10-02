@@ -10,6 +10,7 @@ use crate::{
 use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
+use pinocchio_log::log;
 
 /// Program state handler
 pub struct Processor;
@@ -28,9 +29,6 @@ impl Processor {
             SecurityTokenInstruction::InitializeMint => {
                 Self::process_initialize_mint(program_id, accounts, args_data)
             }
-            SecurityTokenInstruction::UpdateMetadata => {
-                Self::process_update_metadata(program_id, accounts, args_data)
-            }
             SecurityTokenInstruction::InitializeVerificationConfig => {
                 Self::process_initialize_verification_config(program_id, accounts, args_data)
             }
@@ -43,7 +41,45 @@ impl Processor {
             SecurityTokenInstruction::Verify => {
                 Self::process_verify(program_id, accounts, args_data)
             }
+            // Methods require verification
+            SecurityTokenInstruction::UpdateMetadata => {
+                let instruction_accounts = Self::verify_instruction_if_needed(
+                    program_id,
+                    accounts,
+                    instruction.discriminant(),
+                )?;
+                log!("instruction accounts len: {}", instruction_accounts.len());
+                Self::process_update_metadata(program_id, instruction_accounts, args_data)
+            }
         }
+    }
+
+    fn verify_instruction_if_needed<'a>(
+        program_id: &Pubkey,
+        accounts: &'a [AccountInfo],
+        instruction_discriminator: u8,
+    ) -> Result<&'a [AccountInfo], ProgramError> {
+        // Expected accounts:
+        // 0. [readonly] Mint account - to derive VerificationConfig PDA
+        // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
+        // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
+        // 3+ [any] Accounts for the target instruction and cross-set comparison with verification program calls
+        let [_mint_info, _verification_config_account, _instructions_sysvar, rest_accounts @ ..] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        // NOTE: VerificationModule::verify will internally check if verification is needed
+        VerificationModule::verify(
+            program_id,
+            accounts,
+            &VerifyArgs {
+                ix: instruction_discriminator,
+            },
+        )?;
+
+        Ok(rest_accounts)
     }
 
     fn process_update_metadata(
@@ -56,7 +92,6 @@ impl Processor {
         VerificationModule::update_metadata(program_id, accounts, &args)
     }
 
-    /// Process InitializeMint instruction
     fn process_initialize_mint(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -67,7 +102,6 @@ impl Processor {
         VerificationModule::initialize_mint(program_id, accounts, &args)
     }
 
-    /// Process InitializeVerificationConfig instruction
     fn process_initialize_verification_config(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -84,7 +118,6 @@ impl Processor {
         )
     }
 
-    /// Process UpdateVerificationConfig instruction
     fn process_update_verification_config(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -108,7 +141,6 @@ impl Processor {
         VerificationModule::trim_verification_config(program_id, accounts, &instruction_args.args)
     }
 
-    /// Process Verify instruction
     fn process_verify(
         program_id: &Pubkey,
         accounts: &[AccountInfo],

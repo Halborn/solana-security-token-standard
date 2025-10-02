@@ -14,10 +14,14 @@ pub enum SecurityTokenInstruction {
     InitializeMint = 0,
     /// Update the metadata of an existing security token mint
     /// Accounts expected:
-    /// 0. `[writable]` The mint account
-    /// 1. `[signer]` The mint authority account
-    /// 2. `[]` The SPL Token 2022 program ID
-    /// 3. `[]` The system program ID - NOTE: Add lamports if needed
+    /// 0. `[]` The mint account
+    /// 1. `[]` The verification config PDA account
+    /// 2. `[]` Instructions sysvar (for introspection mode)
+    /// 3. `[writable]` The mint account
+    /// 4. `[signer]` The mint authority account
+    /// 5. `[]` The SPL Token 2022 program ID
+    /// 6. `[]` The system program ID - NOTE: Add lamports if needed
+    /// 7. `[]` the remaining accounts for the verification purposes
     UpdateMetadata = 1,
     /// Initialize verification configuration for an instruction
     /// Accounts expected:
@@ -44,9 +48,10 @@ pub enum SecurityTokenInstruction {
     TrimVerificationConfig = 4,
     /// Verify a security token instruction using configured verification programs
     /// Accounts expected:
-    /// 0. `[]` The verification config PDA account
-    /// 1. `[]` Instructions sysvar (for introspection mode)
-    /// 2. Remaining accounts depend on the instruction being verified and CPI mode requirements
+    /// 0. `[]` The mint account
+    /// 1. `[]` The verification config PDA account
+    /// 2. `[]` Instructions sysvar (for introspection mode)
+    /// 3. Remaining accounts depend on the instruction being verified and CPI mode requirements
     Verify = 5,
 }
 

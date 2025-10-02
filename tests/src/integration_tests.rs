@@ -466,6 +466,11 @@ async fn test_update_metadata() {
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
+    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+        &[b"verification_config", mint_keypair.pubkey().as_ref(), &[1]],
+        &SECURITY_TOKEN_ID,
+    );
+
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
@@ -533,7 +538,10 @@ async fn test_update_metadata() {
     let encoded = encode_additional_metadata(&updated_additional_metadata);
 
     let update_metadata_instruction = UpdateMetadata {
+        verification_config: Some(verification_config_pda),
+        instructions_sysvar: sysvar::instructions::ID,
         mint: mint_keypair.pubkey(),
+        mint_for_update: mint_keypair.pubkey(),
         mint_authority: context.payer.pubkey(),
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
