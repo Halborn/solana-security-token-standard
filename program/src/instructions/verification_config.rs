@@ -3,12 +3,12 @@
 //! This module contains structures and functions for managing verification
 //! configuration instructions in the security token program.
 
-use borsh::{BorshDeserialize, BorshSerialize};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
 
 /// Arguments for InitializeVerificationConfig instruction
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
 pub struct InitializeVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
     pub instruction_discriminator: u8,
@@ -17,14 +17,25 @@ pub struct InitializeVerificationConfigArgs {
 }
 
 /// Wrapper struct that matches what codama generates
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
 pub struct InitializeVerificationConfigInstructionArgs {
     /// The verification config arguments
     pub args: InitializeVerificationConfigArgs,
 }
 
+impl InitializeVerificationConfigInstructionArgs {
+    /// Deserialize from bytes using manual deserialization
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
+        Ok(Self {
+            args: InitializeVerificationConfigArgs::try_from_bytes(data)?,
+        })
+    }
+}
+
 /// Arguments for UpdateVerificationConfig instruction
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
 pub struct UpdateVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
     pub instruction_discriminator: u8,
@@ -35,10 +46,20 @@ pub struct UpdateVerificationConfigArgs {
 }
 
 /// Wrapper struct that matches what codama generates for UpdateVerificationConfig
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
 pub struct UpdateVerificationConfigInstructionArgs {
     /// The verification config update arguments
     pub args: UpdateVerificationConfigArgs,
+}
+
+impl UpdateVerificationConfigInstructionArgs {
+    /// Deserialize from bytes using manual deserialization
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
+        Ok(Self {
+            args: UpdateVerificationConfigArgs::try_from_bytes(data)?,
+        })
+    }
 }
 
 impl InitializeVerificationConfigArgs {
@@ -57,14 +78,64 @@ impl InitializeVerificationConfigArgs {
         })
     }
 
-    /// Pack the arguments into bytes using Borsh serialization
+    /// Serialize to bytes using manual serialization (following SAS pattern)
     pub fn to_bytes_inner(&self) -> Vec<u8> {
-        self.try_to_vec().unwrap_or_default()
+        let mut data = Vec::new();
+
+        // Write instruction discriminator (1 byte)
+        data.push(self.instruction_discriminator);
+
+        // Write program count (4 bytes)
+        data.extend(&(self.program_addresses.len() as u32).to_le_bytes());
+
+        // Write each program address (32 bytes each)
+        for program in &self.program_addresses {
+            data.extend_from_slice(program.as_ref());
+        }
+
+        data
     }
 
-    /// Unto_bytes_inner arguments from bytes using Borsh deserialization
+    /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        Self::try_from_slice(data).map_err(|_| ProgramError::InvalidInstructionData)
+        if data.len() < 5 {
+            // Minimum: 1 byte discriminator + 4 bytes count
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let mut offset = 0;
+
+        // Read instruction discriminator (1 byte)
+        let instruction_discriminator = data[offset];
+        offset += 1;
+
+        // Read program count (4 bytes)
+        let program_count = u32::from_le_bytes(
+            data[offset..offset + 4]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        ) as usize;
+        offset += 4;
+
+        // Validate we have enough data for all programs
+        if data.len() < offset + (program_count * 32) {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // Read program addresses (32 bytes each)
+        let mut program_addresses = Vec::with_capacity(program_count);
+        for _ in 0..program_count {
+            let program_bytes: [u8; 32] = data[offset..offset + 32]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            program_addresses.push(Pubkey::from(program_bytes));
+            offset += 32;
+        }
+
+        Ok(Self {
+            instruction_discriminator,
+            program_addresses,
+        })
     }
 
     /// Get program count
@@ -97,14 +168,72 @@ impl UpdateVerificationConfigArgs {
         })
     }
 
-    /// Pack the arguments into bytes using Borsh serialization
+    /// Serialize to bytes using manual serialization (following SAS pattern)
     pub fn to_bytes_inner(&self) -> Vec<u8> {
-        self.try_to_vec().unwrap_or_default()
+        let mut data = Vec::new();
+
+        // Write instruction discriminator (1 byte)
+        data.push(self.instruction_discriminator);
+
+        // Write program count (4 bytes)
+        data.extend(&(self.program_addresses.len() as u32).to_le_bytes());
+
+        // Write offset (1 byte)
+        data.push(self.offset);
+
+        // Write each program address (32 bytes each)
+        for program in &self.program_addresses {
+            data.extend_from_slice(program.as_ref());
+        }
+
+        data
     }
 
-    /// Unto_bytes_inner arguments from bytes using Borsh deserialization
+    /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        Self::try_from_slice(data).map_err(|_| ProgramError::InvalidInstructionData)
+        if data.len() < 6 {
+            // Minimum: 1 byte discriminator + 4 bytes count + 1 byte offset
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let mut offset_pos = 0;
+
+        // Read instruction discriminator (1 byte)
+        let instruction_discriminator = data[offset_pos];
+        offset_pos += 1;
+
+        // Read program count (4 bytes)
+        let program_count = u32::from_le_bytes(
+            data[offset_pos..offset_pos + 4]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        ) as usize;
+        offset_pos += 4;
+
+        // Read offset (1 byte)
+        let offset = data[offset_pos];
+        offset_pos += 1;
+
+        // Validate we have enough data for all programs
+        if data.len() < offset_pos + (program_count * 32) {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // Read program addresses (32 bytes each)
+        let mut program_addresses = Vec::with_capacity(program_count);
+        for _ in 0..program_count {
+            let program_bytes: [u8; 32] = data[offset_pos..offset_pos + 32]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            program_addresses.push(Pubkey::from(program_bytes));
+            offset_pos += 32;
+        }
+
+        Ok(Self {
+            instruction_discriminator,
+            program_addresses,
+            offset,
+        })
     }
 
     /// Get program count
@@ -129,7 +258,8 @@ impl UpdateVerificationConfigArgs {
 }
 
 /// Arguments for TrimVerificationConfig instruction
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
 pub struct TrimVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
     pub instruction_discriminator: u8,
@@ -140,10 +270,20 @@ pub struct TrimVerificationConfigArgs {
 }
 
 /// Wrapper struct that matches what codama generates for TrimVerificationConfig
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
 pub struct TrimVerificationConfigInstructionArgs {
     /// The trim verification config arguments
     pub args: TrimVerificationConfigArgs,
+}
+
+impl TrimVerificationConfigInstructionArgs {
+    /// Deserialize from bytes using manual deserialization
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
+        Ok(Self {
+            args: TrimVerificationConfigArgs::try_from_bytes(data)?,
+        })
+    }
 }
 
 impl TrimVerificationConfigArgs {
@@ -162,14 +302,38 @@ impl TrimVerificationConfigArgs {
         })
     }
 
-    /// Pack the arguments into bytes using Borsh serialization
+    /// Serialize to bytes using manual serialization (following SAS pattern)
     pub fn to_bytes_inner(&self) -> Vec<u8> {
-        self.try_to_vec().unwrap_or_default()
+        let mut data = Vec::new();
+
+        // Write instruction discriminator (1 byte)
+        data.push(self.instruction_discriminator);
+
+        // Write size (1 byte)
+        data.push(self.size);
+
+        // Write close flag (1 byte: 1 for true, 0 for false)
+        data.push(if self.close { 1 } else { 0 });
+
+        data
     }
 
-    /// Unto_bytes_inner arguments from bytes using Borsh deserialization
+    /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        Self::try_from_slice(data).map_err(|_| ProgramError::InvalidInstructionData)
+        if data.len() < 3 {
+            // Minimum: 1 byte discriminator + 1 byte size + 1 byte close
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let instruction_discriminator = data[0];
+        let size = data[1];
+        let close = data[2] != 0; // Non-zero is true
+
+        Ok(Self {
+            instruction_discriminator,
+            size,
+            close,
+        })
     }
 }
 
@@ -199,7 +363,8 @@ mod tests {
         .unwrap();
 
         let to_bytes_innered = original.to_bytes_inner();
-        let try_from_bytesed = InitializeVerificationConfigArgs::try_from_bytes(&to_bytes_innered).unwrap();
+        let try_from_bytesed =
+            InitializeVerificationConfigArgs::try_from_bytes(&to_bytes_innered).unwrap();
 
         assert_eq!(
             original.instruction_discriminator,

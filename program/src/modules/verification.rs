@@ -43,7 +43,6 @@ use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{verify_owner_mutability, verify_signer};
 use crate::state::VerificationConfig;
 use crate::utils;
-use borsh::{BorshDeserialize, BorshSerialize};
 
 /// Verification Module - handles all authorization and compliance checks
 pub struct VerificationModule;
@@ -676,7 +675,7 @@ impl VerificationModule {
         log!("Comparison accounts count: {}", comparison_accounts.len());
 
         let data = verification_config_account.try_borrow_data()?;
-        let config = VerificationConfig::try_from_slice(&data)
+        let config = VerificationConfig::try_from_bytes(&data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         // TODO: Should we reject?
@@ -944,11 +943,9 @@ impl VerificationModule {
 
         create_account_instruction.invoke_signed(&[signer])?;
 
-        // Write data to the account using Borsh serialization
+        // Write data to the account using manual serialization
         let mut data = config_account.try_borrow_mut_data()?;
-        let config_bytes = config
-            .try_to_vec()
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let config_bytes = config.to_bytes_inner();
         data[..config_bytes.len()].copy_from_slice(&config_bytes);
 
         log!(
@@ -1003,7 +1000,7 @@ impl VerificationModule {
         // Load existing config
         let mut existing_config = {
             let data = config_account.try_borrow_data()?;
-            VerificationConfig::try_from_slice(&data)
+            VerificationConfig::try_from_bytes(&data)
                 .map_err(|_| ProgramError::InvalidAccountData)?
         };
 
@@ -1058,9 +1055,7 @@ impl VerificationModule {
             config_account.realloc(new_size, false)?;
         }
 
-        let config_bytes = existing_config
-            .try_to_vec()
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let config_bytes = existing_config.to_bytes_inner();
 
         {
             let mut data = config_account.try_borrow_mut_data()?;
@@ -1119,7 +1114,7 @@ impl VerificationModule {
         // Load existing config
         let mut existing_config = {
             let data = config_account.try_borrow_data()?;
-            VerificationConfig::try_from_slice(&data)
+            VerificationConfig::try_from_bytes(&data)
                 .map_err(|_| ProgramError::InvalidAccountData)?
         };
 
@@ -1202,9 +1197,7 @@ impl VerificationModule {
             }
 
             // Write the trimmed config back to the account
-            let config_bytes = existing_config
-                .try_to_vec()
-                .map_err(|_| ProgramError::InvalidAccountData)?;
+            let config_bytes = existing_config.to_bytes_inner();
 
             {
                 let mut data = config_account.try_borrow_mut_data()?;

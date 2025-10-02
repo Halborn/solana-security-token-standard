@@ -7,7 +7,6 @@ use crate::{
     },
     modules::verification::VerificationModule,
 };
-use borsh::BorshDeserialize;
 use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
@@ -75,7 +74,7 @@ impl Processor {
         args_data: &[u8],
     ) -> ProgramResult {
         let instruction_args =
-            InitializeVerificationConfigInstructionArgs::try_from_slice(args_data)
+            InitializeVerificationConfigInstructionArgs::try_from_bytes(args_data)
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
 
         VerificationModule::initialize_verification_config(
@@ -91,7 +90,7 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        let instruction_args = UpdateVerificationConfigInstructionArgs::try_from_slice(args_data)
+        let instruction_args = UpdateVerificationConfigInstructionArgs::try_from_bytes(args_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
         VerificationModule::update_verification_config(program_id, accounts, &instruction_args.args)
@@ -103,7 +102,7 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        let instruction_args = TrimVerificationConfigInstructionArgs::try_from_slice(args_data)
+        let instruction_args = TrimVerificationConfigInstructionArgs::try_from_bytes(args_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
         VerificationModule::trim_verification_config(program_id, accounts, &instruction_args.args)

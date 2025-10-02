@@ -11,13 +11,10 @@ use security_token_client::{
     UpdateMetadataInstructionArgs, UpdateVerificationConfig, UpdateVerificationConfigArgs,
     UpdateVerificationConfigInstructionArgs, SECURITY_TOKEN_ID,
 };
-
-use solana_program_test::{ProgramTest};
-use solana_sdk::{
-    pubkey::Pubkey,
-    signature::Signer,
-    sysvar,
-};
+use security_token_program::state::VerificationConfig;
+use solana_program_test::ProgramTest;
+use solana_sdk::sysvar;
+use solana_sdk::{pubkey::Pubkey, signature::Signer};
 use solana_system_interface::program as system_program;
 use spl_token_2022::extension::{
     permanent_delegate::PermanentDelegate, transfer_hook::TransferHook,
@@ -1004,11 +1001,7 @@ async fn test_verification_config() {
         "Config PDA should be owned by security token program"
     );
 
-    // Deserialize and verify the stored VerificationConfig
-    use borsh::BorshDeserialize;
-    use security_token_program::state::VerificationConfig;
-
-    let stored_config = VerificationConfig::try_from_slice(&config_account.data)
+    let stored_config = VerificationConfig::try_from_bytes(&config_account.data)
         .expect("Should be able to deserialize VerificationConfig");
 
     assert_eq!(
@@ -1083,7 +1076,7 @@ async fn test_verification_config() {
         .unwrap()
         .unwrap();
 
-    let updated_config = VerificationConfig::try_from_slice(&updated_config_account.data)
+    let updated_config = VerificationConfig::try_from_bytes(&updated_config_account.data)
         .expect("Should be able to deserialize updated VerificationConfig");
 
     // Verify the configuration was updated correctly
@@ -1174,7 +1167,7 @@ async fn test_verification_config() {
         .unwrap()
         .unwrap();
 
-    let trimmed_config = VerificationConfig::try_from_slice(&trimmed_config_account.data)
+    let trimmed_config = VerificationConfig::try_from_bytes(&trimmed_config_account.data)
         .expect("Should be able to deserialize trimmed VerificationConfig");
 
     // Verify the configuration was trimmed correctly
@@ -1296,4 +1289,3 @@ async fn test_verification_config() {
     println!("Total recovered rent: {} lamports", total_recovered_rent);
     println!("TrimVerificationConfig (close) validation successful");
 }
-

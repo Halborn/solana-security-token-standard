@@ -3651,7 +3651,6 @@ dependencies = [
 name = "security-token-program"
 version = "0.1.0"
 dependencies = [
- "borsh 0.10.4",
  "bs58 0.4.0",
  "bytemuck",
  "num-derive",
