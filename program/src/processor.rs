@@ -52,7 +52,7 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        let args = UpdateMetadataArgs::unpack(args_data)
+        let args = UpdateMetadataArgs::try_from_bytes(args_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
         VerificationModule::update_metadata(program_id, accounts, &args)
     }
@@ -63,8 +63,8 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        let args =
-            InitializeArgs::unpack(args_data).map_err(|_| ProgramError::InvalidInstructionData)?;
+        let args = InitializeArgs::try_from_bytes(args_data)
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
         VerificationModule::initialize_mint(program_id, accounts, &args)
     }
 
@@ -115,7 +115,7 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        let instruction_args = VerifyArgs::parse(args_data)?;
+        let instruction_args = VerifyArgs::try_from_bytes(args_data)?;
         VerificationModule::verify(program_id, accounts, &instruction_args)
     }
 }

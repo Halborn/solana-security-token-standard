@@ -11,7 +11,7 @@ pub struct VerifyArgs {
 
 impl VerifyArgs {
     /// Parse VerifyArgs from instruction data
-    pub fn parse(data: &[u8]) -> Result<Self, ProgramError> {
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         if data.is_empty() {
             return Err(ProgramError::InvalidInstructionData);
         }

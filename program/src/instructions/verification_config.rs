@@ -58,12 +58,12 @@ impl InitializeVerificationConfigArgs {
     }
 
     /// Pack the arguments into bytes using Borsh serialization
-    pub fn pack(&self) -> Vec<u8> {
+    pub fn to_bytes_inner(&self) -> Vec<u8> {
         self.try_to_vec().unwrap_or_default()
     }
 
-    /// Unpack arguments from bytes using Borsh deserialization
-    pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
+    /// Unto_bytes_inner arguments from bytes using Borsh deserialization
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         Self::try_from_slice(data).map_err(|_| ProgramError::InvalidInstructionData)
     }
 
@@ -98,12 +98,12 @@ impl UpdateVerificationConfigArgs {
     }
 
     /// Pack the arguments into bytes using Borsh serialization
-    pub fn pack(&self) -> Vec<u8> {
+    pub fn to_bytes_inner(&self) -> Vec<u8> {
         self.try_to_vec().unwrap_or_default()
     }
 
-    /// Unpack arguments from bytes using Borsh deserialization
-    pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
+    /// Unto_bytes_inner arguments from bytes using Borsh deserialization
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         Self::try_from_slice(data).map_err(|_| ProgramError::InvalidInstructionData)
     }
 
@@ -163,12 +163,12 @@ impl TrimVerificationConfigArgs {
     }
 
     /// Pack the arguments into bytes using Borsh serialization
-    pub fn pack(&self) -> Vec<u8> {
+    pub fn to_bytes_inner(&self) -> Vec<u8> {
         self.try_to_vec().unwrap_or_default()
     }
 
-    /// Unpack arguments from bytes using Borsh deserialization
-    pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
+    /// Unto_bytes_inner arguments from bytes using Borsh deserialization
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         Self::try_from_slice(data).map_err(|_| ProgramError::InvalidInstructionData)
     }
 }
@@ -185,7 +185,7 @@ mod tests {
     use crate::instruction::SecurityTokenInstruction;
 
     #[test]
-    fn test_initialize_verification_config_args_pack_unpack() {
+    fn test_initialize_verification_config_args_to_bytes_inner_try_from_bytes() {
         // Create test program addresses
         let program1 = random_pubkey();
         let program2 = random_pubkey();
@@ -198,19 +198,19 @@ mod tests {
         )
         .unwrap();
 
-        let packed = original.pack();
-        let unpacked = InitializeVerificationConfigArgs::unpack(&packed).unwrap();
+        let to_bytes_innered = original.to_bytes_inner();
+        let try_from_bytesed = InitializeVerificationConfigArgs::try_from_bytes(&to_bytes_innered).unwrap();
 
         assert_eq!(
             original.instruction_discriminator,
-            unpacked.instruction_discriminator
+            try_from_bytesed.instruction_discriminator
         );
-        assert_eq!(original.program_count(), unpacked.program_count());
+        assert_eq!(original.program_count(), try_from_bytesed.program_count());
 
         let original_addresses = original.program_addresses();
-        let unpacked_addresses = unpacked.program_addresses();
-        assert_eq!(original_addresses, unpacked_addresses);
-        assert_eq!(program_addresses, unpacked_addresses);
+        let try_from_bytesed_addresses = try_from_bytesed.program_addresses();
+        assert_eq!(original_addresses, try_from_bytesed_addresses);
+        assert_eq!(program_addresses, try_from_bytesed_addresses);
     }
 
     #[test]
