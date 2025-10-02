@@ -22,7 +22,7 @@ impl<'a> UpdateMetadataArgs<'a> {
         InitializeArgs::serialize_token_metadata(&self.metadata)
     }
 
-    /// Unto_bytes_inner arguments from bytes
+    /// Deserialize arguments from bytes
     pub fn try_from_bytes(data: &'a [u8]) -> Result<Self, ProgramError> {
         let metadata = InitializeArgs::deserialize_token_metadata(data)?;
         Ok(Self { metadata })

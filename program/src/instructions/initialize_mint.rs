@@ -38,7 +38,7 @@ impl InitializeMintArgs {
         buf
     }
 
-    /// Unto_bytes_inner mint arguments from bytes
+    /// Deserialize mint arguments from bytes
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         if data.len() < 34 {
             // minimum: 1 (decimals) + 32 (mint_authority) + 1 (freeze_authority flag)
@@ -299,7 +299,7 @@ impl<'a> InitializeArgs<'a> {
         buf
     }
 
-    /// Unto_bytes_inner arguments from bytes
+    /// Deserialize arguments from bytes
     pub fn try_from_bytes(data: &'a [u8]) -> Result<Self, ProgramError> {
         // First, try_from_bytes the mint arguments
         let ix_mint = InitializeMintArgs::try_from_bytes(data)?;
