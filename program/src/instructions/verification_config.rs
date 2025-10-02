@@ -363,8 +363,7 @@ mod tests {
         .unwrap();
 
         let inner_bytes = original.to_bytes_inner();
-        let deserialized =
-            InitializeVerificationConfigArgs::try_from_bytes(&inner_bytes).unwrap();
+        let deserialized = InitializeVerificationConfigArgs::try_from_bytes(&inner_bytes).unwrap();
 
         assert_eq!(
             original.instruction_discriminator,
