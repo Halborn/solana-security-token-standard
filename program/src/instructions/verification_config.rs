@@ -1,8 +1,4 @@
 //! Verification configuration instruction arguments and utilities
-//!
-//! This module contains structures and functions for managing verification
-//! configuration instructions in the security token program.
-
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
 

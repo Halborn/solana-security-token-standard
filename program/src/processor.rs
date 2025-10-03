@@ -10,7 +10,6 @@ use crate::{
 use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
-use pinocchio_log::log;
 
 /// Program state handler
 pub struct Processor;
@@ -48,7 +47,6 @@ impl Processor {
                     accounts,
                     instruction.discriminant(),
                 )?;
-                log!("instruction accounts len: {}", instruction_accounts.len());
                 Self::process_update_metadata(program_id, instruction_accounts, args_data)
             }
         }
