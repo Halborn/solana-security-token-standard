@@ -8,10 +8,8 @@ use security_token_client::{
     InitializeVerificationConfig, InitializeVerificationConfigArgs,
     InitializeVerificationConfigInstructionArgs, MetadataPointer, SecurityTokenError,
     TokenMetadata, UpdateMetadata, UpdateMetadataArgs, UpdateMetadataInstructionArgs, Verify,
-    VerifyArgs, VerifyInstructionArgs, SECURITY_TOKEN_ID,
+    VerifyArgs, VerifyInstructionArgs, SECURITY_TOKEN_ID, UPDATE_METADATA_DISCRIMINATOR,
 };
-// TODO: Use the client code
-use security_token_program::instruction::SecurityTokenInstruction;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey as SolanaPubkey,
@@ -22,9 +20,11 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::Keypair,
     signer::Signer,
-    system_program, sysvar,
+    sysvar,
     transaction::Transaction,
 };
+
+use solana_system_interface::program as system_program;
 
 // Simple dummy program processor that can succeed or fail based on instruction data
 fn dummy_program_processor(
@@ -101,7 +101,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         mint: mint_pubkey,
         payer: payer.pubkey(),
         token_program: spl_token_2022::ID,
-        system_program: solana_sdk::system_program::ID,
+        system_program: system_program::ID,
         rent: solana_sdk::sysvar::rent::ID,
     }
     .instruction(security_token_client::InitializeMintInstructionArgs {
@@ -130,14 +130,11 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         .map_err(|e| format!("Failed to create mint: {:?}", e))?;
     println!("Mint created successfully: {}", mint_pubkey);
 
-    // Find verification config PDA using the same logic as program
-    let instruction_discriminator = SecurityTokenInstruction::UpdateMetadata.discriminant();
-
     let (verification_config_pda, _bump) = Pubkey::find_program_address(
         &[
             b"verification_config",
             mint_pubkey.as_ref(),
-            &[instruction_discriminator],
+            &[UPDATE_METADATA_DISCRIMINATOR],
         ],
         &SECURITY_TOKEN_ID,
     );
@@ -149,11 +146,11 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         payer: payer.pubkey(),
         mint_account: mint_pubkey,
         authority: payer.pubkey(), // Using payer as authority for simplicity
-        system_program: solana_sdk::system_program::ID,
+        system_program: system_program::ID,
     }
     .instruction(InitializeVerificationConfigInstructionArgs {
         args: InitializeVerificationConfigArgs {
-            instruction_discriminator,
+            instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
             program_addresses: verification_programs,
         },
     });
@@ -194,7 +191,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         .instruction_with_remaining_accounts(
             VerifyInstructionArgs {
                 args: VerifyArgs {
-                    ix: SecurityTokenInstruction::UpdateMetadata.discriminant(),
+                    ix: UPDATE_METADATA_DISCRIMINATOR,
                 },
             },
             &verify_accounts,
@@ -515,13 +512,11 @@ async fn test_update_metadata_under_verification() {
         panic!("Transaction failed: {}", error);
     }
 
-    let instruction_discriminator = SecurityTokenInstruction::UpdateMetadata.discriminant();
-
     let (verification_config_pda, _bump) = Pubkey::find_program_address(
         &[
             b"verification_config",
             mint_keypair.pubkey().as_ref(),
-            &[instruction_discriminator],
+            &[UPDATE_METADATA_DISCRIMINATOR],
         ],
         &SECURITY_TOKEN_ID,
     );
@@ -532,11 +527,11 @@ async fn test_update_metadata_under_verification() {
         payer: context.payer.pubkey(),
         mint_account: mint_keypair.pubkey(),
         authority: context.payer.pubkey(), // Using payer as authority for simplicity
-        system_program: solana_sdk::system_program::ID,
+        system_program: system_program::ID,
     }
     .instruction(InitializeVerificationConfigInstructionArgs {
         args: InitializeVerificationConfigArgs {
-            instruction_discriminator,
+            instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
             program_addresses: verification_programs,
         },
     });
