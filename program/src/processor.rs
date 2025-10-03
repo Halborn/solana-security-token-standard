@@ -68,8 +68,9 @@ impl Processor {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // NOTE: VerificationModule::verify will internally check if verification is needed
-        VerificationModule::verify(
+        // NOTE: VerificationModule::verify will check if verification is needed and return
+        // the number of verification accounts that should be trimmed from the end
+        let verification_accounts_to_trim = VerificationModule::verify(
             program_id,
             accounts,
             &VerifyArgs {
@@ -77,7 +78,16 @@ impl Processor {
             },
         )?;
 
-        Ok(rest_accounts)
+        // Trim verification accounts from the end of rest_accounts
+        // If verification_accounts_to_trim = 0 (no verification), we return all rest_accounts
+        // If verification_accounts_to_trim > 0, we trim that many accounts from the end
+        let target_accounts_end = if verification_accounts_to_trim > rest_accounts.len() {
+            0 // Safety: if somehow we have more verification accounts than rest_accounts
+        } else {
+            rest_accounts.len() - verification_accounts_to_trim
+        };
+
+        Ok(&rest_accounts[..target_accounts_end])
     }
 
     fn process_update_metadata(
@@ -145,6 +155,8 @@ impl Processor {
         args_data: &[u8],
     ) -> ProgramResult {
         let instruction_args = VerifyArgs::try_from_bytes(args_data)?;
-        VerificationModule::verify(program_id, accounts, &instruction_args)
+        let _verification_accounts_count =
+            VerificationModule::verify(program_id, accounts, &instruction_args)?;
+        Ok(())
     }
 }

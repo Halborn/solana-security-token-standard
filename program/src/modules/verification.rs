@@ -357,7 +357,7 @@ impl VerificationModule {
         // Validate arguments
         args.validate()?;
 
-        let [mint_info, authority_info, _token_program_info, _system_program_info, ..] = accounts
+        let [mint_info, authority_info, _token_program_info, _system_program_info] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -634,14 +634,17 @@ impl VerificationModule {
     /// Client is responsible for deriving and providing the correct VerificationConfig PDA
     /// based on mint and instruction discriminator they want to verify.
     ///
-    /// Accounts from index 2+ will be compared with accounts from verification program calls
+    /// Accounts from index 3+ will be compared with accounts from verification program calls
     /// to ensure cross-set validation (verification programs should be called with subset
     /// of accounts that appear in same order).
+    ///
+    /// Returns the number of verification accounts that should be trimmed from the end
+    /// of the accounts array when passed to the target instruction.
     pub fn verify(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         args: &VerifyArgs,
-    ) -> ProgramResult {
+    ) -> Result<usize, ProgramError> {
         log!("Verifying instruction discriminant: {}", args.ix);
 
         // Expected accounts:
@@ -658,7 +661,7 @@ impl VerificationModule {
         //TODO: Should we pass?
         if verification_config_account.data_len() == 0 {
             log!("No VerificationConfig found");
-            return Ok(());
+            return Ok(0);
         }
 
         verify_owner_mutability(verification_config_account, program_id, false)?;
@@ -686,18 +689,23 @@ impl VerificationModule {
             log!("No verification programs configured - rejecting");
             return Err(ProgramError::MissingRequiredSignature);
         }
-        // Execute cross-set verification with accounts from index 2+
-        Self::execute_cross_set_verification(&config, instructions_sysvar, &comparison_accounts)?;
-        Ok(())
+        // Execute cross-set verification with accounts from index 3+ and get verification accounts to trim
+        let verification_accounts_to_trim = Self::execute_cross_set_verification(
+            &config,
+            instructions_sysvar,
+            &comparison_accounts,
+        )?;
+        Ok(verification_accounts_to_trim)
     }
 
     /// Execute cross-set account verification
     /// Checks that accounts from verification programs match current instruction accounts
+    /// Returns the number of verification accounts that should be trimmed from the end
     fn execute_cross_set_verification(
         config: &VerificationConfig,
         instructions_sysvar: &AccountInfo,
         current_account_keys: &[&Pubkey],
-    ) -> ProgramResult {
+    ) -> Result<usize, ProgramError> {
         log!(
             "Starting cross-set verification for {} programs",
             config.verification_programs.len()
@@ -782,30 +790,33 @@ impl VerificationModule {
 
         // Calculate intersection of all verification program accounts
         // Current accounts must be subset of this intersection
-        if !all_verification_accounts.is_empty() {
+        let verification_accounts_count = if !all_verification_accounts.is_empty() {
             log!(
                 "Calculating account intersection across {} verification programs",
                 all_verification_accounts.len()
             );
-            Self::verify_account_intersection_all(
+            Self::verify_account_intersection_and_count(
                 current_account_keys,
                 &all_verification_accounts,
-            )?;
-        }
+            )?
+        } else {
+            0
+        };
 
         log!(
             "Cross-set verification completed successfully for {} programs",
             verified_programs.len()
         );
-        Ok(())
+        Ok(verification_accounts_count)
     }
 
     /// Verify account intersection across ALL verification programs
     /// Current accounts must be a subset of the intersection of all verification program accounts
-    fn verify_account_intersection_all(
+    /// Returns the count of verification accounts found in current accounts (from the end)
+    fn verify_account_intersection_and_count(
         current_accounts: &[&Pubkey],
         all_verification_accounts: &[Vec<Pubkey>],
-    ) -> ProgramResult {
+    ) -> Result<usize, ProgramError> {
         log!(
             "Verifying account intersection across {} verification programs",
             all_verification_accounts.len()
@@ -813,7 +824,7 @@ impl VerificationModule {
 
         if all_verification_accounts.is_empty() {
             log!("No verification programs to check against");
-            return Ok(());
+            return Ok(0);
         }
 
         // Find intersection of all verification program accounts
@@ -830,7 +841,7 @@ impl VerificationModule {
             intersection.len()
         );
 
-        // TODO: Should we also check order?
+        // Validate all required intersection accounts are present
         for intersection_account in &intersection {
             let found = current_accounts
                 .iter()
@@ -845,13 +856,8 @@ impl VerificationModule {
                 return Err(SecurityTokenError::AccountIntersectionMismatch.into());
             }
         }
-
-        log!(
-            "Account intersection verified successfully for {} current accounts against {} intersection accounts",
-            current_accounts.len(),
-            intersection.len()
-        );
-        Ok(())
+        let verification_accounts_count = intersection.len();
+        Ok(verification_accounts_count)
     }
 
     /// Initialize verification configuration for an instruction
