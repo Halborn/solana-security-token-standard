@@ -670,7 +670,7 @@ impl VerificationModule {
             utils::find_verification_config_pda(&mint_info.key(), args.ix, program_id);
 
         if verification_config_account.key().ne(&expected_pda) {
-            return Err(SecurityTokenError::InvalidMint.into());
+            return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
         }
 
         let comparison_accounts: Vec<&Pubkey> =

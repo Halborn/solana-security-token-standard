@@ -19,9 +19,9 @@ pub enum SecurityTokenError {
     /// 3 - Account intersection mismatch
     #[error("Account intersection mismatch")]
     AccountIntersectionMismatch = 0x3,
-    /// 4 - Invalid mint account
-    #[error("Invalid mint account")]
-    InvalidMint = 0x4,
+    /// 4 - Invalid verification config PDA
+    #[error("Invalid verification config PDA")]
+    InvalidVerificationConfigPda = 0x4,
 }
 
 impl From<SecurityTokenError> for solana_program_error::ProgramError {

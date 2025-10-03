@@ -657,9 +657,9 @@ const program = programNode({
       message: 'Account intersection mismatch',
     }),
     errorNode({
-      name: 'Invalid Mint',
+      name: 'InvalidVerificationConfigPda',
       code: 4,
-      message: 'Invalid mint account',
+      message: 'Invalid verification config PDA',
     }),
   ],
 });
