@@ -19,7 +19,7 @@ pub fn assert_security_token_error(
                             "Expected error code {}, but got error code {}",
                             expected_code, error_code
                         );
-                        println!("✓ Test passed: Got expected error code {}", expected_code);
+                        println!("Test passed: Got expected error code {}", expected_code);
                     }
                     _ => panic!(
                         "Expected custom instruction error, got: {:?}",
