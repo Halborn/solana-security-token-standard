@@ -24,16 +24,6 @@ impl VerificationConfig {
         })
     }
 
-    /// Get active verification programs
-    pub fn get_active_programs(&self) -> &[Pubkey] {
-        &self.verification_programs
-    }
-
-    /// Get program count
-    pub fn program_count(&self) -> usize {
-        self.verification_programs.len()
-    }
-
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), ProgramError> {
         use pinocchio_log::log;

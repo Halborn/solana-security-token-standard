@@ -232,19 +232,9 @@ impl UpdateVerificationConfigArgs {
         })
     }
 
-    /// Get program count
-    pub fn program_count(&self) -> u8 {
-        self.program_addresses.len() as u8
-    }
-
     /// Get program addresses as slice
     pub fn program_addresses(&self) -> &[Pubkey] {
         &self.program_addresses
-    }
-
-    /// Get specific program address by index
-    pub fn get_program_address(&self, index: usize) -> Option<Pubkey> {
-        self.program_addresses.get(index).copied()
     }
 
     /// Get offset
