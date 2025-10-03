@@ -1,12 +1,16 @@
+use crate::helpers::{
+    assert_security_token_error, assert_transaction_failure, assert_transaction_success,
+};
 use borsh::BorshDeserialize;
 use kaigan::types::RemainderVec;
 use security_token_client::{
     InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
     InitializeVerificationConfig, InitializeVerificationConfigArgs,
-    InitializeVerificationConfigInstructionArgs, MetadataPointer, TokenMetadata, UpdateMetadata,
-    UpdateMetadataArgs, UpdateMetadataInstructionArgs, Verify, VerifyArgs, VerifyInstructionArgs,
-    SECURITY_TOKEN_ID,
+    InitializeVerificationConfigInstructionArgs, MetadataPointer, SecurityTokenError,
+    TokenMetadata, UpdateMetadata, UpdateMetadataArgs, UpdateMetadataInstructionArgs, Verify,
+    VerifyArgs, VerifyInstructionArgs, SECURITY_TOKEN_ID,
 };
+// TODO: Use the client code
 use security_token_program::instruction::SecurityTokenInstruction;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
@@ -209,27 +213,12 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
         let result = banks_client.process_transaction(transaction).await;
 
-        match (result, should_succeed) {
-            (Ok(_), true) => {
-                println!("Test passed: verification succeeded as expected");
-                Ok(())
-            }
-            (Err(e), false) => {
-                println!("Test passed: verification failed as expected: {:?}", e);
-                Ok(())
-            }
-            (Ok(_), false) => {
-                println!("Test failed: verification should have failed but succeeded");
-                Err("Verification should have failed".into())
-            }
-            (Err(e), true) => {
-                println!(
-                    "Test failed: verification should have succeeded but failed: {:?}",
-                    e
-                );
-                Err(format!("Verification should have succeeded: {:?}", e).into())
-            }
+        if should_succeed {
+            assert_transaction_success(result);
+        } else {
+            assert_transaction_failure(result);
         }
+        Ok(())
     }
 
     println!("Test 1: Verify without prior verification calls (should fail)");
@@ -613,10 +602,7 @@ async fn test_update_metadata_under_verification() {
         .process_transaction(tx_update_metadata)
         .await;
 
-    assert!(
-        result.is_err(),
-        "Should fail, no verification instructions executed"
-    );
+    assert_security_token_error(result, SecurityTokenError::VerificationProgramNotFound);
 
     // Case: not enough accounts provided to verify
     let account_for_verification_1 = Keypair::new();
@@ -684,10 +670,7 @@ async fn test_update_metadata_under_verification() {
         .process_transaction(tx_update_metadata)
         .await;
 
-    assert!(
-        result.is_err(),
-        "Should fail, not enough accounts provided to verify"
-    );
+    assert_security_token_error(result, SecurityTokenError::AccountIntersectionMismatch);
 
     // Success case: enough accounts provided to verify
     let update_metadata_instruction = UpdateMetadata {
@@ -740,10 +723,5 @@ async fn test_update_metadata_under_verification() {
         .process_transaction(tx_update_metadata)
         .await;
 
-    assert!(
-        result.is_ok(),
-        "Should succeed, enough accounts provided to verify"
-    );
-
-    // Additional assertions or cleanup can be done here
+    assert_transaction_success(result);
 }
