@@ -744,18 +744,16 @@ impl VerificationModule {
                                     instr_idx
                                 );
 
-                                // Extract accounts from instruction - get number of accounts manually
-                                let num_accounts = unsafe {
-                                    u16::from_le_bytes(*(instruction.raw as *const [u8; 2]))
-                                } as usize;
-
+                                // Extract accounts from instruction using pinocchio API
                                 let mut accounts = Vec::new();
-                                for account_idx in 0..num_accounts {
-                                    if let Ok(account_meta) =
-                                        instruction.get_account_meta_at(account_idx)
-                                    {
-                                        accounts.push(account_meta.key);
-                                    }
+                                let mut account_idx = 0;
+
+                                // Iterate through all accounts in the instruction
+                                while let Ok(account_meta) =
+                                    instruction.get_account_meta_at(account_idx)
+                                {
+                                    accounts.push(account_meta.key);
+                                    account_idx += 1;
                                 }
 
                                 // Store accounts for intersection calculation
