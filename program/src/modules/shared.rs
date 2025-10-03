@@ -39,7 +39,7 @@ pub fn verify_owner_mutability(
     owner: &Pubkey,
     expect_writable: bool,
 ) -> Result<(), ProgramError> {
-    if unsafe { info.owner() } != owner {
+    if !info.is_owned_by(owner) {
         log!(
             "Owner of {} does not match expected owner",
             acc_info_as_str!(info),
