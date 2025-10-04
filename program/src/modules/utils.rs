@@ -86,7 +86,7 @@ mod tests {
         true,
         "acc1 verified by all programs"
     )]
-    // Test: INVALID - acc1 not in second program 
+    // Test: INVALID - acc1 not in second program
     #[case(
         vec![accounts(&[1, 2, 3]), accounts(&[2])], 
         accounts(&[1, 2, 4]), 
@@ -149,7 +149,8 @@ mod tests {
         #[case] expected_valid: bool,
         #[case] description: &str,
     ) {
-        let result = validate_cross_set_verification(&verification_programs, &security_token_accounts);
+        let result =
+            validate_cross_set_verification(&verification_programs, &security_token_accounts);
         assert_eq!(result.is_ok(), expected_valid, "{}", description);
     }
 
@@ -160,6 +161,9 @@ mod tests {
         let security_token = accounts(&[1, 2]);
 
         let result = validate_cross_set_verification(&verification_programs, &security_token);
-        assert!(result.is_ok(), "Should be valid when no verification programs");
+        assert!(
+            result.is_ok(),
+            "Should be valid when no verification programs"
+        );
     }
 }
