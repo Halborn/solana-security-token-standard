@@ -29,6 +29,7 @@ bs58 = { workspace = true }
 
 [dev-dependencies]
 rand = "0.8.5"
+rstest = "0.18"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
