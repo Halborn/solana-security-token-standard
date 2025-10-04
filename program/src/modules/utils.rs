@@ -67,78 +67,78 @@ mod tests {
     #[rstest]
     // Test: INVALID - acc4 non-verified account between verified accounts breaks order
     #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[1, 2])], 
-        accounts(&[1, 4, 2]), 
+        vec![accounts(&[1, 2, 3]), accounts(&[1, 2])],
+        accounts(&[1, 4, 2]),
         false,
-    "acc4 breaks order - non-verified accounts must come after verified accounts"
+        "acc4 breaks order - non-verified accounts must come after verified accounts"
     )]
     // Test: VALID - verified accounts first, then non-verified accounts
     #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[1, 2])], 
-        accounts(&[1, 2, 4]), 
+        vec![accounts(&[1, 2, 3]), accounts(&[1, 2])],
+        accounts(&[1, 2, 4]),
         true,
-    "acc1,2 verified by all programs, acc4 as non-verified account at end"
+        "acc1,2 verified by all programs, acc4 as non-verified account at end"
     )]
     // Test: VALID - single verified account
     #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[1, 2])], 
-        accounts(&[1]), 
+        vec![accounts(&[1, 2, 3]), accounts(&[1, 2])],
+        accounts(&[1]),
         true,
         "acc1 verified by all programs"
     )]
     // Test: INVALID - acc1 not in second program
     #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[2])], 
-        accounts(&[1, 2, 4]), 
+        vec![accounts(&[1, 2, 3]), accounts(&[2])],
+        accounts(&[1, 2, 4]),
         false,
         "acc1 not available in second program"
     )]
     // Test: VALID - only intersection accounts used
     #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[2])], 
-        accounts(&[2]), 
+        vec![accounts(&[1, 2, 3]), accounts(&[2])],
+        accounts(&[2]),
         true,
         "acc2 verified by all programs"
     )]
     // Test: INVALID - no intersection and no verified accounts used
     #[case(
-        vec![accounts(&[1, 2]), accounts(&[3, 4])], 
-        accounts(&[5, 6]), 
+        vec![accounts(&[1, 2]), accounts(&[3, 4])],
+        accounts(&[5, 6]),
         false,
-    "no accounts verified by all programs"
+        "no accounts verified by all programs"
     )]
     // Test: INVALID - trying to use acc1 when it's not in all programs
     #[case(
-        vec![accounts(&[1, 2]), accounts(&[3, 4])], 
-        accounts(&[1, 5]), 
+        vec![accounts(&[1, 2]), accounts(&[3, 4])],
+        accounts(&[1, 5]),
         false,
         "acc1 not in intersection but used in ST instruction"
     )]
     // Test: VALID - all three programs verify acc1,2
     #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[1, 2, 5]), accounts(&[1, 2, 6])], 
-        accounts(&[1, 2]), 
+        vec![accounts(&[1, 2, 3]), accounts(&[1, 2, 5]), accounts(&[1, 2, 6])],
+        accounts(&[1, 2]),
         true,
         "acc1 and acc2 verified by all three programs"
     )]
     // Test: VALID - intersection accounts first, non-verified accounts after
     #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[1, 2, 5]), accounts(&[1, 2, 6])], 
-        accounts(&[1, 2, 7, 8, 9]), 
+        vec![accounts(&[1, 2, 3]), accounts(&[1, 2, 5]), accounts(&[1, 2, 6])],
+        accounts(&[1, 2, 7, 8, 9]),
         true,
-    "acc1,2 verified by all programs, acc7,8,9 as non-verified accounts at end"
+        "acc1,2 verified by all programs, acc7,8,9 as non-verified accounts at end"
     )]
     // Test: INVALID - verified account after system account breaks order
     #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[1, 2, 5]), accounts(&[1, 2, 6])], 
-        accounts(&[1, 7, 2, 8]), 
+        vec![accounts(&[1, 2, 3]), accounts(&[1, 2, 5]), accounts(&[1, 2, 6])],
+        accounts(&[1, 7, 2, 8]),
         false,
         "acc2 appears after account acc7 - violates order requirement"
     )]
     // Test: INVALID - accounts not presented in any verification program
     #[case(
-        vec![accounts(&[7, 8]), accounts(&[7, 8]), accounts(&[7,8])], 
-        accounts(&[1, 2]), 
+        vec![accounts(&[7, 8]), accounts(&[7, 8]), accounts(&[7, 8])],
+        accounts(&[1, 2]),
         false,
         "no accounts verified by all programs"
     )]
