@@ -36,6 +36,7 @@ use pinocchio_token_2022::{
     instructions::AuthorityType,
 };
 
+use super::utils as verification_utils;
 use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
@@ -637,14 +638,11 @@ impl VerificationModule {
     /// Accounts from index 3+ will be compared with accounts from verification program calls
     /// to ensure cross-set validation (verification programs should be called with subset
     /// of accounts that appear in same order).
-    ///
-    /// Returns the number of verification accounts that should be trimmed from the end
-    /// of the accounts array when passed to the target instruction.
     pub fn verify(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         args: &VerifyArgs,
-    ) -> Result<usize, ProgramError> {
+    ) -> ProgramResult {
         log!("Verifying instruction discriminant: {}", args.ix);
 
         // Expected accounts:
@@ -661,7 +659,7 @@ impl VerificationModule {
         //TODO: Should we pass?
         if verification_config_account.data_len() == 0 {
             log!("No VerificationConfig found");
-            return Ok(0);
+            return Ok(());
         }
 
         verify_owner_mutability(verification_config_account, program_id, false)?;
@@ -676,9 +674,12 @@ impl VerificationModule {
             return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
         }
 
-        let comparison_accounts: Vec<&Pubkey> =
-            comparison_accounts.iter().map(|acc| acc.key()).collect();
-        log!("Comparison accounts count: {}", comparison_accounts.len());
+        let security_token_accounts: Vec<Pubkey> =
+            comparison_accounts.iter().map(|acc| *acc.key()).collect();
+        log!(
+            "Comparison accounts count: {}",
+            security_token_accounts.len()
+        );
 
         let data = verification_config_account.try_borrow_data()?;
         let config = VerificationConfig::try_from_bytes(&data)
@@ -689,23 +690,23 @@ impl VerificationModule {
             log!("No verification programs configured - rejecting");
             return Err(ProgramError::MissingRequiredSignature);
         }
-        // Execute cross-set verification with accounts from index 3+ and get verification accounts to trim
-        let verification_accounts_to_trim = Self::execute_cross_set_verification(
+        // Execute cross-set verification with accounts from index 3+
+        Self::execute_cross_set_verification(
             &config,
             instructions_sysvar,
-            &comparison_accounts,
+            &security_token_accounts,
         )?;
-        Ok(verification_accounts_to_trim)
+
+        Ok(())
     }
 
     /// Execute cross-set account verification
     /// Checks that accounts from verification programs match current instruction accounts
-    /// Returns the number of verification accounts that should be trimmed from the end
     fn execute_cross_set_verification(
         config: &VerificationConfig,
         instructions_sysvar: &AccountInfo,
-        current_account_keys: &[&Pubkey],
-    ) -> Result<usize, ProgramError> {
+        current_account_keys: &[Pubkey],
+    ) -> ProgramResult {
         log!(
             "Starting cross-set verification for {} programs",
             config.verification_programs.len()
@@ -720,7 +721,7 @@ impl VerificationModule {
             current_account_keys.len()
         );
 
-        // Collect all verification program accounts to find intersection
+        // Collect all verification program accounts to validate against
         let mut all_verification_accounts: Vec<Vec<Pubkey>> = Vec::new();
         let mut verified_programs = Vec::new();
 
@@ -788,76 +789,22 @@ impl VerificationModule {
             }
         }
 
-        // Calculate intersection of all verification program accounts
-        // Current accounts must be subset of this intersection
-        let verification_accounts_count = if !all_verification_accounts.is_empty() {
+        if !all_verification_accounts.is_empty() {
             log!(
-                "Calculating account intersection across {} verification programs",
+                "Validating cross-set accounts across {} verification programs",
                 all_verification_accounts.len()
             );
-            Self::verify_account_intersection_and_count(
-                current_account_keys,
+            verification_utils::validate_cross_set_verification(
                 &all_verification_accounts,
-            )?
-        } else {
-            0
-        };
+                current_account_keys,
+            )?;
+        }
 
         log!(
             "Cross-set verification completed successfully for {} programs",
             verified_programs.len()
         );
-        Ok(verification_accounts_count)
-    }
-
-    /// Verify account intersection across ALL verification programs
-    /// Current accounts must be a subset of the intersection of all verification program accounts
-    /// Returns the count of verification accounts found in current accounts (from the end)
-    fn verify_account_intersection_and_count(
-        current_accounts: &[&Pubkey],
-        all_verification_accounts: &[Vec<Pubkey>],
-    ) -> Result<usize, ProgramError> {
-        log!(
-            "Verifying account intersection across {} verification programs",
-            all_verification_accounts.len()
-        );
-
-        if all_verification_accounts.is_empty() {
-            log!("No verification programs to check against");
-            return Ok(0);
-        }
-
-        // Find intersection of all verification program accounts
-        // Start with first program's accounts
-        let mut intersection = all_verification_accounts[0].clone();
-
-        // Calculate intersection with remaining programs
-        for verification_accounts in &all_verification_accounts[1..] {
-            intersection.retain(|account| verification_accounts.contains(account));
-        }
-
-        log!(
-            "Account intersection contains {} common accounts",
-            intersection.len()
-        );
-
-        // Validate all required intersection accounts are present
-        for intersection_account in &intersection {
-            let found = current_accounts
-                .iter()
-                .any(|current_account| **current_account == *intersection_account);
-
-            if !found {
-                let missing = bs58::encode(intersection_account).into_string();
-                log!(
-                    "ERROR: Required verification account {} not found in current instruction accounts",
-                    missing.as_str()
-                );
-                return Err(SecurityTokenError::AccountIntersectionMismatch.into());
-            }
-        }
-        let verification_accounts_count = intersection.len();
-        Ok(verification_accounts_count)
+        Ok(())
     }
 
     /// Initialize verification configuration for an instruction

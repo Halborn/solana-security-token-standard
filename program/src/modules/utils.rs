@@ -28,18 +28,22 @@ pub fn validate_cross_set_verification(
     }
 
     let mut encountered_non_verified_tail = false;
+    let mut saw_verified_account = false;
     for st_account in security_token_accounts {
         if intersection.contains(st_account) {
             if encountered_non_verified_tail {
                 return Err(SecurityTokenError::AccountIntersectionMismatch.into());
             }
-            // Already guaranteed to be present in every verification set by construction
+            saw_verified_account = true;
         } else if union_accounts.contains(st_account) {
-            // Account appears in some verification program, but not all of them
             return Err(SecurityTokenError::AccountIntersectionMismatch.into());
         } else {
             encountered_non_verified_tail = true;
         }
+    }
+
+    if !saw_verified_account {
+        return Err(SecurityTokenError::AccountIntersectionMismatch.into());
     }
 
     Ok(())
@@ -96,12 +100,12 @@ mod tests {
         true,
         "acc2 verified by all programs"
     )]
-    // Test: VALID - no intersection, only non-verified accounts
+    // Test: INVALID - no intersection and no verified accounts used
     #[case(
         vec![accounts(&[1, 2]), accounts(&[3, 4])], 
         accounts(&[5, 6]), 
-        true,
-    "no intersection - all ST accounts treated as non-verified accounts"
+        false,
+    "no accounts verified by all programs"
     )]
     // Test: INVALID - trying to use acc1 when it's not in all programs
     #[case(
@@ -130,6 +134,13 @@ mod tests {
         accounts(&[1, 7, 2, 8]), 
         false,
         "acc2 appears after account acc7 - violates order requirement"
+    )]
+    // Test: INVALID - accounts not presented in any verification program
+    #[case(
+        vec![accounts(&[7, 8]), accounts(&[7, 8]), accounts(&[7,8])], 
+        accounts(&[1, 2]), 
+        false,
+        "no accounts verified by all programs"
     )]
 
     fn test_cross_set_verification_cases(

@@ -62,15 +62,14 @@ impl Processor {
         // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
         // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
         // 3+ [any] Accounts for the target instruction and cross-set comparison with verification program calls
-        let [_mint_info, _verification_config_account, _instructions_sysvar, rest_accounts @ ..] =
+        let [_mint_info, _verification_config_account, _instructions_sysvar, instruction_accounts @ ..] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // NOTE: VerificationModule::verify will check if verification is needed and return
-        // the number of verification accounts that should be trimmed from the end
-        let verification_accounts_to_trim = VerificationModule::verify(
+        // Run verification if configured, all checks must be inside the module
+        VerificationModule::verify(
             program_id,
             accounts,
             &VerifyArgs {
@@ -78,16 +77,7 @@ impl Processor {
             },
         )?;
 
-        // Trim verification accounts from the end of rest_accounts
-        // If verification_accounts_to_trim = 0 (no verification), we return all rest_accounts
-        // If verification_accounts_to_trim > 0, we trim that many accounts from the end
-        let target_accounts_end = if verification_accounts_to_trim > rest_accounts.len() {
-            0 // Safety: if somehow we have more verification accounts than rest_accounts
-        } else {
-            rest_accounts.len() - verification_accounts_to_trim
-        };
-
-        Ok(&rest_accounts[..target_accounts_end])
+        Ok(instruction_accounts)
     }
 
     fn process_update_metadata(
@@ -155,8 +145,7 @@ impl Processor {
         args_data: &[u8],
     ) -> ProgramResult {
         let instruction_args = VerifyArgs::try_from_bytes(args_data)?;
-        let _verification_accounts_count =
-            VerificationModule::verify(program_id, accounts, &instruction_args)?;
+        VerificationModule::verify(program_id, accounts, &instruction_args)?;
         Ok(())
     }
 }
