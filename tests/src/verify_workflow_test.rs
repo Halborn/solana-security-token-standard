@@ -99,10 +99,19 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     let mint_keypair = Keypair::new();
     let mint_pubkey = mint_keypair.pubkey();
     println!("Created mint: {}", mint_keypair.pubkey());
+    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"mint.authority",
+            &mint_keypair.pubkey().to_bytes(),
+            &context.payer.pubkey().to_bytes(),
+        ],
+        &SECURITY_TOKEN_ID,
+    );
 
     let init_mint_instruction = security_token_client::InitializeMint {
         mint: mint_pubkey,
         payer: payer.pubkey(),
+        mint_authority: mint_authority_pda,
         token_program: spl_token_2022::ID,
         system_program: system_program::ID,
         rent: solana_sdk::sysvar::rent::ID,
@@ -392,10 +401,19 @@ async fn test_update_metadata_under_verification() {
     let uri = "https://example.com";
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"mint.authority",
+            &mint_keypair.pubkey().to_bytes(),
+            &context.payer.pubkey().to_bytes(),
+        ],
+        &SECURITY_TOKEN_ID,
+    );
 
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
+        mint_authority: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
         rent: sysvar::rent::ID,

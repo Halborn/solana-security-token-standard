@@ -5,7 +5,9 @@
 //! - Verification configurations and status
 //! - Corporate action rates and receipts
 
+pub mod mint_authority;
 pub mod verification;
 
 // Re-export all structures for convenience
+pub use mint_authority::*;
 pub use verification::*;

@@ -96,7 +96,7 @@ async fn test_initialize_mint_with_all_extensions() {
     println!("Mint keypair {}", mint_keypair.pubkey());
     println!("Context payer {}", context.payer.pubkey());
 
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+    let (mint_authority_pda, mint_authority_bump) = Pubkey::find_program_address(
         &[
             b"mint.authority",
             &mint_keypair.pubkey().to_bytes(),
@@ -123,6 +123,7 @@ async fn test_initialize_mint_with_all_extensions() {
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
+        mint_authority: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
         rent: sysvar::rent::ID,
@@ -182,7 +183,6 @@ async fn test_initialize_mint_with_all_extensions() {
         .await
         .unwrap();
     assert!(mint_account.is_some(), "Mint account should exist");
-
     let mint_account = mint_account.unwrap();
     assert_eq!(
         mint_account.owner, spl_token_2022_program,
@@ -191,6 +191,23 @@ async fn test_initialize_mint_with_all_extensions() {
 
     println!("Security Token Mint with ALL extensions created successfully!");
     println!("   Account size: {} bytes", mint_account.data.len());
+
+    // Verify mint authority account
+    let mint_authority_account = context
+        .banks_client
+        .get_account(mint_authority_pda)
+        .await
+        .unwrap();
+    assert!(
+        mint_authority_account.is_some(),
+        "Mint authority PDA should exist"
+    );
+    let mint_authority_account = mint_authority_account.unwrap();
+    assert_eq!(
+        mint_authority_account.owner,
+        SECURITY_TOKEN_ID,
+        "Mint authority PDA should be owned by security token program"
+    );
 
     // Parse mint data to verify all parameters (with extensions)
     use spl_token_2022::extension::{BaseStateWithExtensions, ExtensionType, StateWithExtensions};
@@ -470,10 +487,19 @@ async fn test_update_metadata() {
         &[b"verification_config", mint_keypair.pubkey().as_ref(), &[1]],
         &SECURITY_TOKEN_ID,
     );
+    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"mint.authority",
+            &mint_keypair.pubkey().to_bytes(),
+            &context.payer.pubkey().to_bytes(),
+        ],
+        &SECURITY_TOKEN_ID,
+    );
 
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
+        mint_authority: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
         rent: sysvar::rent::ID,
@@ -666,10 +692,19 @@ async fn test_initialize_mint_with_different_decimals() {
         println!("\n Testing mint initialization with {decimals} decimals");
 
         let mint_keypair = solana_sdk::signature::Keypair::new();
+        let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+            &[
+                b"mint.authority",
+                &mint_keypair.pubkey().to_bytes(),
+                &context.payer.pubkey().to_bytes(),
+            ],
+            &SECURITY_TOKEN_ID,
+        );
 
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: context.payer.pubkey(),
+            mint_authority: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent: sysvar::rent::ID,
@@ -748,10 +783,19 @@ async fn test_initialize_mint_error_cases() {
     {
         println!("\n Testing error case: mint account not a signer");
         let mint_keypair = solana_sdk::signature::Keypair::new();
+        let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+            &[
+                b"mint.authority",
+                &mint_keypair.pubkey().to_bytes(),
+                &context.payer.pubkey().to_bytes(),
+            ],
+            &SECURITY_TOKEN_ID,
+        );
 
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: context.payer.pubkey(),
+            mint_authority: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent: sysvar::rent::ID,
@@ -804,10 +848,19 @@ async fn test_initialize_mint_error_cases() {
         println!("\nTesting error case: creator not a signer");
         let mint_keypair = solana_sdk::signature::Keypair::new();
         let fake_creator = solana_sdk::signature::Keypair::new();
+        let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+            &[
+                b"mint.authority",
+                &mint_keypair.pubkey().to_bytes(),
+                &context.payer.pubkey().to_bytes(),
+            ],
+            &SECURITY_TOKEN_ID,
+        );
 
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: fake_creator.pubkey(),
+            mint_authority: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent: sysvar::rent::ID,
@@ -867,6 +920,14 @@ async fn test_verification_config() {
     let mint_keypair = solana_sdk::signature::Keypair::new();
     let context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"mint.authority",
+            &mint_keypair.pubkey().to_bytes(),
+            &context.payer.pubkey().to_bytes(),
+        ],
+        &SECURITY_TOKEN_ID,
+    );
 
     println!("Testing InitializeVerificationConfig");
     println!("Mint keypair: {}", mint_keypair.pubkey());
@@ -884,6 +945,7 @@ async fn test_verification_config() {
     let initialize_mint_ix = security_token_client::InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
+        mint_authority: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: solana_system_interface::program::ID,
         rent: sysvar::rent::ID,

@@ -343,6 +343,12 @@ const program = programNode({
           isWritable: true,
         }),
         instructionAccountNode({
+          name: 'mintAuthority',
+          docs: ['The mint authority account'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
           name: 'tokenProgram',
           docs: ['The SPL Token 2022 program ID'],
           isSigner: false,

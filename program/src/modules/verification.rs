@@ -37,6 +37,7 @@ use pinocchio_token_2022::{
 };
 
 use super::utils as verification_utils;
+use crate::constants::seeds;
 use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
@@ -85,7 +86,7 @@ impl VerificationModule {
             log!("ScaledUiAmount configuration provided by client");
         }
 
-        let [mint_info, creator_info, token_program_info, _system_program_info, rent_info] =
+        let [mint_info, creator_info, mint_authority_account, token_program_info, _system_program_info, rent_info] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -160,7 +161,7 @@ impl VerificationModule {
 
         create_account_instruction.invoke()?;
 
-        msg!("Mint account created successfully");
+        log!("Mint account created successfully");
 
         // Calculate all PDAs that will be used for extensions and mint initialization
         let (transfer_hook_pda, _bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
@@ -170,7 +171,7 @@ impl VerificationModule {
             utils::find_freeze_authority_pda(mint_info.key(), program_id);
 
         // Initialize extensions BEFORE base mint initialization
-        msg!("Extensions setup - initializing extensions BEFORE basic mint");
+        log!("Extensions setup - initializing extensions BEFORE basic mint");
 
         let permanent_delegate_initialize = InitializePermanentDelegate {
             mint: mint_info,
@@ -199,7 +200,7 @@ impl VerificationModule {
             let (metadata_authority, metadata_address) =
                 if let Some(client_metadata_pointer) = &metadata_pointer_opt {
                     // Use client-provided MetadataPointer configuration
-                    msg!("Using client-provided MetadataPointer configuration");
+                    log!("Using client-provided MetadataPointer configuration");
                     let authority = client_metadata_pointer.authority.into();
                     let address = client_metadata_pointer.metadata_address.into();
                     (authority, address)
@@ -226,7 +227,7 @@ impl VerificationModule {
 
         // Initialize ScaledUiAmount extension if provided by client
         if let Some(scaled_ui_amount_config) = &scaled_ui_amount_opt {
-            msg!("Initializing ScaledUiAmount extension with client configuration");
+            log!("Initializing ScaledUiAmount extension with client configuration");
 
             let scaled_ui_amount_initialize = ScaledUiAmountInitialize {
                 mint: mint_info,
@@ -259,7 +260,7 @@ impl VerificationModule {
         );
 
         if let Some(metadata) = &metadata_opt {
-            msg!("Preparing to initialize token metadata through SPL Token Metadata Interface");
+            log!("Preparing to initialize token metadata through SPL Token Metadata Interface");
 
             // Determine which account to use for metadata
             let metadata_account_info = if let Some(metadata_addr) = metadata_account_address {
@@ -272,10 +273,7 @@ impl VerificationModule {
                     accounts
                         .iter()
                         .find(|acc| acc.key() == &metadata_addr)
-                        .ok_or_else(|| {
-                            msg!("Metadata account {metadata_addr} not found in accounts list");
-                            ProgramError::InvalidAccountData
-                        })?
+                        .ok_or_else(|| ProgramError::InvalidAccountData)?
                         .clone()
                 }
             } else {
@@ -283,7 +281,7 @@ impl VerificationModule {
                 return Err(ProgramError::InvalidInstructionData);
             };
 
-            msg!("Initializing token metadata");
+            log!("Initializing token metadata");
             let metadata_init_instruction = CustomInitializeTokenMetadata::new(
                 &metadata_account_info,
                 creator_info,
@@ -325,15 +323,58 @@ impl VerificationModule {
                     Ok(())
                 })?;
             }
-            msg!("All metadata initialized successfully");
+            log!("All metadata initialized successfully");
         } else {
-            msg!("No metadata provided, skipping metadata initialization");
+            log!("No metadata provided, skipping metadata initialization");
         }
 
         // NOTE: Transfer mint authority to PDA, review it
         // Get mint authority PDA - this will be the mint authority for the token
-        let (mint_authority_pda, _mint_authority_bump) =
+        let (mint_authority_pda, mint_authority_bump) =
             utils::find_mint_authority_pda(mint_info.key(), creator_info.key(), program_id);
+
+        // if mint_authority_account.key() != &mint_authority_pda {
+        //     log!("Mint authority PDA mismatch");
+        //     return Err(ProgramError::InvalidSeeds);
+        // }
+
+        // if !mint_authority_account.data_is_empty() || mint_authority_account.lamports() > 0 {
+        //     log!("Mint authority PDA already initialized");
+        //     return Err(ProgramError::AccountAlreadyInitialized);
+        // }
+
+        let mint_authority_config =
+            MintAuthority::new(*mint_info.key(), *creator_info.key(), mint_authority_bump)?;
+
+        let authority_account_required_lamports = rent.minimum_balance(MintAuthority::LEN);
+        log!(
+            "Creating mint authority PDA account with {} lamports",
+            authority_account_required_lamports
+        );
+        let create_mint_authority_instruction = CreateAccount {
+            from: creator_info,                            // from (payer)
+            to: mint_authority_account,                    // to (new PDA account)
+            lamports: authority_account_required_lamports, // amount
+            space: MintAuthority::LEN as u64,              // space (serialized state size)
+            owner: program_id,                             // owner (program-owned account)
+        };
+
+        let bump_seed = [mint_authority_bump];
+        let mint_authority_seeds = [
+            Seed::from(seeds::MINT_AUTHORITY),
+            Seed::from(mint_info.key().as_ref()),
+            Seed::from(creator_info.key().as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+        let mint_authority_signer = Signer::from(&mint_authority_seeds);
+
+        create_mint_authority_instruction.invoke_signed(&[mint_authority_signer])?;
+        log!("Mint authority PDA account created successfully");
+        {
+            let mut data = mint_authority_account.try_borrow_mut_data()?;
+            let config_bytes = mint_authority_config.to_bytes_inner();
+            data[..config_bytes.len()].copy_from_slice(&config_bytes);
+        }
 
         let set_authority_instruction = SetAuthority {
             account: mint_info,
@@ -343,7 +384,7 @@ impl VerificationModule {
         };
 
         set_authority_instruction.invoke()?;
-        msg!("Security token mint initialization completed successfully");
+        log!("Security token mint initialization completed successfully");
         Ok(())
     }
 
@@ -895,7 +936,7 @@ impl VerificationModule {
         let bump_seed = [bump];
         let discriminator_seed = [discriminator];
         let seeds = [
-            Seed::from(utils::seeds::VERIFICATION_CONFIG),
+            Seed::from(seeds::VERIFICATION_CONFIG),
             Seed::from(mint_account.key().as_ref()),
             Seed::from(discriminator_seed.as_ref()),
             Seed::from(bump_seed.as_ref()),
