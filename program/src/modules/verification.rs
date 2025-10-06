@@ -650,19 +650,19 @@ impl VerificationModule {
         // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
         // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
         // 3+ [any] Accounts for cross-set comparison with verification program calls
-        let [mint_info, verification_config_account, instructions_sysvar, comparison_accounts @ ..] =
+        let [mint_info, verification_config, instructions_sysvar, instruction_accounts @ ..] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        //TODO: Should we pass?
-        if verification_config_account.data_len() == 0 {
+        // TODO: Should we pass?
+        if verification_config.data_len() == 0 {
             log!("No VerificationConfig found");
             return Ok(());
         }
 
-        verify_owner_mutability(verification_config_account, program_id, false)?;
+        verify_owner_mutability(verification_config, program_id, false)?;
 
         // TODO: this could be optimized further by removing the `solana-program` dependency
         // and using `pubkey::checked_create_program_address` from Pinocchio to verify the
@@ -670,18 +670,11 @@ impl VerificationModule {
         let (expected_pda, _bump) =
             utils::find_verification_config_pda(&mint_info.key(), args.ix, program_id);
 
-        if verification_config_account.key().ne(&expected_pda) {
+        if verification_config.key().ne(&expected_pda) {
             return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
         }
 
-        let security_token_accounts: Vec<Pubkey> =
-            comparison_accounts.iter().map(|acc| *acc.key()).collect();
-        log!(
-            "Comparison accounts count: {}",
-            security_token_accounts.len()
-        );
-
-        let data = verification_config_account.try_borrow_data()?;
+        let data = verification_config.try_borrow_data()?;
         let config = VerificationConfig::try_from_bytes(&data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
@@ -690,22 +683,23 @@ impl VerificationModule {
             log!("No verification programs configured - rejecting");
             return Err(ProgramError::MissingRequiredSignature);
         }
+
         // Execute cross-set verification with accounts from index 3+
-        Self::execute_cross_set_verification(
+        Self::execute_verification(
             &config,
             instructions_sysvar,
-            &security_token_accounts,
+            &instruction_accounts,
         )?;
 
         Ok(())
     }
 
-    /// Execute cross-set account verification
-    /// Checks that accounts from verification programs match current instruction accounts
-    fn execute_cross_set_verification(
+    /// Execute instruction and verification programms validation
+    /// Checks that required verification programms were called with proper accounts matching current instruction accounts
+    fn execute_verification(
         config: &VerificationConfig,
         instructions_sysvar: &AccountInfo,
-        current_account_keys: &[Pubkey],
+        instruction_accounts: &[AccountInfo],
     ) -> ProgramResult {
         log!(
             "Starting cross-set verification for {} programs",
@@ -718,7 +712,7 @@ impl VerificationModule {
         log!("Current instruction index: {}", current_index);
         log!(
             "Current instruction has {} accounts",
-            current_account_keys.len()
+            instruction_accounts.len()
         );
 
         // Collect all verification program accounts to validate against
@@ -789,6 +783,7 @@ impl VerificationModule {
             }
         }
 
+        let instruction_account_keys: Vec<Pubkey> = instruction_accounts.iter().map(|acc| *acc.key()).collect();
         if !all_verification_accounts.is_empty() {
             log!(
                 "Validating cross-set accounts across {} verification programs",
@@ -796,7 +791,7 @@ impl VerificationModule {
             );
             verification_utils::validate_account_verification(
                 &all_verification_accounts,
-                current_account_keys,
+                &instruction_account_keys,
             )?;
         }
 
