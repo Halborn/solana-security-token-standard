@@ -794,7 +794,7 @@ impl VerificationModule {
                 "Validating cross-set accounts across {} verification programs",
                 all_verification_accounts.len()
             );
-            verification_utils::validate_cross_set_verification(
+            verification_utils::validate_account_verification(
                 &all_verification_accounts,
                 current_account_keys,
             )?;

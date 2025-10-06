@@ -1,51 +1,27 @@
 use crate::error::SecurityTokenError;
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
-use std::collections::HashSet;
 
-/// Validates cross-set verification between verification programs and security token instruction.
-/// Returns `Ok(())` when validation passes.
-pub fn validate_cross_set_verification(
+/// Validates that the required accounts for verification are correctly passed between
+/// the verification programs and the Security Token instruction.
+///
+/// Specifically, it ensures that all accounts that require verification appear at the beginning
+/// of the account list passed to the verification program, in the **same order** as expected
+/// by the Security Token instruction.
+///
+/// Any additional accounts passed to the verification program are allowed, as long as they
+/// come **after** the accounts to be verified.
+///
+/// Returns `Ok(())` if validation succeeds; otherwise, returns an appropriate error.
+pub fn validate_account_verification(
     verification_program_accounts: &[Vec<Pubkey>],
-    security_token_accounts: &[Pubkey],
+    instruction_accounts: &[Pubkey],
 ) -> Result<(), ProgramError> {
-    if verification_program_accounts.is_empty() {
-        return Ok(()); // No verification programs - pass
-    }
-
-    let mut verification_sets = verification_program_accounts.iter();
-    let first_set = verification_sets
-        .next()
-        .expect("verification_program_accounts is not empty");
-
-    let mut intersection: HashSet<Pubkey> = first_set.iter().copied().collect();
-    let mut union_accounts: HashSet<Pubkey> = intersection.clone();
-
-    for accounts in verification_sets {
-        let current_set: HashSet<Pubkey> = accounts.iter().copied().collect();
-        union_accounts.extend(&current_set);
-        intersection.retain(|account| current_set.contains(account));
-    }
-
-    let mut encountered_non_verified_tail = false;
-    let mut saw_verified_account = false;
-    for st_account in security_token_accounts {
-        if intersection.contains(st_account) {
-            if encountered_non_verified_tail {
-                return Err(SecurityTokenError::AccountIntersectionMismatch.into());
-            }
-            saw_verified_account = true;
-        } else if union_accounts.contains(st_account) {
+    for verification_program in verification_program_accounts {
+        if verification_program.is_empty() || !verification_program.starts_with(instruction_accounts) {
             return Err(SecurityTokenError::AccountIntersectionMismatch.into());
-        } else {
-            encountered_non_verified_tail = true;
         }
     }
-
-    if !saw_verified_account {
-        return Err(SecurityTokenError::AccountIntersectionMismatch.into());
-    }
-
     Ok(())
 }
 
@@ -65,20 +41,23 @@ mod tests {
     }
 
     #[rstest]
-    // Test: INVALID - acc4 non-verified account between verified accounts breaks order
+
+    // Test: VALID - no account to verify
     #[case(
         vec![accounts(&[1, 2, 3]), accounts(&[1, 2])],
-        accounts(&[1, 4, 2]),
-        false,
-        "acc4 breaks order - non-verified accounts must come after verified accounts"
-    )]
-    // Test: VALID - verified accounts first, then non-verified accounts
-    #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[1, 2])],
-        accounts(&[1, 2, 4]),
+        accounts(&[]),
         true,
-        "acc1,2 verified by all programs, acc4 as non-verified account at end"
+        "no account to verify"
     )]
+
+    // Test: VALID - no programs to verify against
+    #[case(
+        vec![],
+        accounts(&[1, 2, 3]),
+        true,
+        "no verification programs to verify against"
+    )]
+
     // Test: VALID - single verified account
     #[case(
         vec![accounts(&[1, 2, 3]), accounts(&[1, 2])],
@@ -86,61 +65,45 @@ mod tests {
         true,
         "acc1 verified by all programs"
     )]
-    // Test: INVALID - acc1 not in second program
+
+    // Test: VALID - multiple verified accounts
     #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[2])],
-        accounts(&[1, 2, 4]),
-        false,
-        "acc1 not available in second program"
-    )]
-    // Test: VALID - only intersection accounts used
-    #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[2])],
-        accounts(&[2]),
-        true,
-        "acc2 verified by all programs"
-    )]
-    // Test: INVALID - no intersection and no verified accounts used
-    #[case(
-        vec![accounts(&[1, 2]), accounts(&[3, 4])],
-        accounts(&[5, 6]),
-        false,
-        "no accounts verified by all programs"
-    )]
-    // Test: INVALID - trying to use acc1 when it's not in all programs
-    #[case(
-        vec![accounts(&[1, 2]), accounts(&[3, 4])],
-        accounts(&[1, 5]),
-        false,
-        "acc1 not in intersection but used in ST instruction"
-    )]
-    // Test: VALID - all three programs verify acc1,2
-    #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[1, 2, 5]), accounts(&[1, 2, 6])],
+        vec![accounts(&[1, 2, 3]), accounts(&[1, 2])],
         accounts(&[1, 2]),
         true,
-        "acc1 and acc2 verified by all three programs"
+        "acc1,2 verified by all programs"
     )]
-    // Test: VALID - intersection accounts first, non-verified accounts after
+
+    // Test: VALID - multiple verified accounts with extra accounts for verification programs
     #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[1, 2, 5]), accounts(&[1, 2, 6])],
-        accounts(&[1, 2, 7, 8, 9]),
+        vec![accounts(&[1, 2, 3, 4]), accounts(&[1, 2, 5])],
+        accounts(&[1, 2]),
         true,
-        "acc1,2 verified by all programs, acc7,8,9 as non-verified accounts at end"
+        "acc1,2 verified by all programs"
     )]
-    // Test: INVALID - verified account after system account breaks order
+
+    // Test: INVALID - acc 2 is not included in all verification programs
     #[case(
-        vec![accounts(&[1, 2, 3]), accounts(&[1, 2, 5]), accounts(&[1, 2, 6])],
-        accounts(&[1, 7, 2, 8]),
-        false,
-        "acc2 appears after account acc7 - violates order requirement"
-    )]
-    // Test: INVALID - accounts not presented in any verification program
-    #[case(
-        vec![accounts(&[7, 8]), accounts(&[7, 8]), accounts(&[7, 8])],
+        vec![accounts(&[1, 2]), accounts(&[1])],
         accounts(&[1, 2]),
         false,
-        "no accounts verified by all programs"
+        "acc2 is not verified by the second program"
+    )]
+
+    // Test: INVALID - order is important, acc2 appears after acc1 in the second program
+    #[case(
+        vec![accounts(&[1, 2]), accounts(&[2, 1])],
+        accounts(&[1, 2]),
+        false,
+        "acc2 appears after acc1 in the second verification program"
+    )]
+
+    // Test: INVALID - additional account in the first verification program
+    #[case(
+        vec![accounts(&[3, 1, 2]), accounts(&[1, 2])],
+        accounts(&[1, 2]),
+        false,
+        "not verified by the first program due to additional account at the start"
     )]
 
     fn test_cross_set_verification_cases(
@@ -150,7 +113,7 @@ mod tests {
         #[case] description: &str,
     ) {
         let result =
-            validate_cross_set_verification(&verification_programs, &security_token_accounts);
+            validate_account_verification(&verification_programs, &security_token_accounts);
         assert_eq!(result.is_ok(), expected_valid, "{}", description);
     }
 
@@ -160,7 +123,7 @@ mod tests {
         let verification_programs = vec![];
         let security_token = accounts(&[1, 2]);
 
-        let result = validate_cross_set_verification(&verification_programs, &security_token);
+        let result = validate_account_verification(&verification_programs, &security_token);
         assert!(
             result.is_ok(),
             "Should be valid when no verification programs"
