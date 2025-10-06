@@ -5,8 +5,8 @@ use kaigan::types::RemainderVec;
 use security_token_client::{
     InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
     InitializeVerificationConfig, InitializeVerificationConfigArgs,
-    InitializeVerificationConfigInstructionArgs, MetadataPointer, ScaledUiAmountConfig,
-    TokenMetadata, TrimVerificationConfig, TrimVerificationConfigArgs,
+    InitializeVerificationConfigInstructionArgs, MetadataPointer, MintAuthority,
+    ScaledUiAmountConfig, TokenMetadata, TrimVerificationConfig, TrimVerificationConfigArgs,
     TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataArgs,
     UpdateMetadataInstructionArgs, UpdateVerificationConfig, UpdateVerificationConfigArgs,
     UpdateVerificationConfigInstructionArgs, VerificationConfig, SECURITY_TOKEN_ID,
@@ -123,7 +123,7 @@ async fn test_initialize_mint_with_all_extensions() {
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
-        mint_authority: mint_authority_pda,
+        mint_authority_account: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
         rent: sysvar::rent::ID,
@@ -204,9 +204,25 @@ async fn test_initialize_mint_with_all_extensions() {
     );
     let mint_authority_account = mint_authority_account.unwrap();
     assert_eq!(
-        mint_authority_account.owner,
-        SECURITY_TOKEN_ID,
+        mint_authority_account.owner, SECURITY_TOKEN_ID,
         "Mint authority PDA should be owned by security token program"
+    );
+
+    let mint_authority_state = MintAuthority::try_from_slice(&mint_authority_account.data)
+        .expect("Should deserialize MintAuthority state");
+    assert_eq!(
+        mint_authority_state.mint,
+        mint_keypair.pubkey(),
+        "MintAuthority mint should match created mint"
+    );
+    assert_eq!(
+        mint_authority_state.mint_creator,
+        context.payer.pubkey(),
+        "MintAuthority creator should match payer"
+    );
+    assert_eq!(
+        mint_authority_state.bump, mint_authority_bump,
+        "MintAuthority bump should match PDA derivation"
     );
 
     // Parse mint data to verify all parameters (with extensions)
@@ -499,7 +515,7 @@ async fn test_update_metadata() {
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
-        mint_authority: mint_authority_pda,
+        mint_authority_account: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
         rent: sysvar::rent::ID,
@@ -704,7 +720,7 @@ async fn test_initialize_mint_with_different_decimals() {
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: context.payer.pubkey(),
-            mint_authority: mint_authority_pda,
+            mint_authority_account: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent: sysvar::rent::ID,
@@ -795,7 +811,7 @@ async fn test_initialize_mint_error_cases() {
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: context.payer.pubkey(),
-            mint_authority: mint_authority_pda,
+            mint_authority_account: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent: sysvar::rent::ID,
@@ -860,7 +876,7 @@ async fn test_initialize_mint_error_cases() {
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: fake_creator.pubkey(),
-            mint_authority: mint_authority_pda,
+            mint_authority_account: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent: sysvar::rent::ID,
@@ -945,7 +961,7 @@ async fn test_verification_config() {
     let initialize_mint_ix = security_token_client::InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
-        mint_authority: mint_authority_pda,
+        mint_authority_account: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: solana_system_interface::program::ID,
         rent: sysvar::rent::ID,

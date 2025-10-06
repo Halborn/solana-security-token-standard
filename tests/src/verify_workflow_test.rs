@@ -111,7 +111,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     let init_mint_instruction = security_token_client::InitializeMint {
         mint: mint_pubkey,
         payer: payer.pubkey(),
-        mint_authority: mint_authority_pda,
+        mint_authority_account: mint_authority_pda,
         token_program: spl_token_2022::ID,
         system_program: system_program::ID,
         rent: solana_sdk::sysvar::rent::ID,
@@ -413,7 +413,7 @@ async fn test_update_metadata_under_verification() {
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
-        mint_authority: mint_authority_pda,
+        mint_authority_account: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
         rent: sysvar::rent::ID,

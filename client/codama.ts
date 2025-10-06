@@ -53,6 +53,28 @@ const program = programNode({
       ]),
     }),
 
+    definedTypeNode({
+      name: 'MintAuthority',
+      docs: ['Mint authority state stored in PDA account'],
+      type: structTypeNode([
+        structFieldTypeNode({
+          name: 'mint',
+          docs: ['SPL mint address this configuration belongs to'],
+          type: publicKeyTypeNode(),
+        }),
+        structFieldTypeNode({
+          name: 'mintCreator',
+          docs: ['Original creator used to derive the mint authority PDA'],
+          type: publicKeyTypeNode(),
+        }),
+        structFieldTypeNode({
+          name: 'bump',
+          docs: ['Bump seed used for mint authority PDA derivation'],
+          type: numberTypeNode('u8'),
+        }),
+      ]),
+    }),
+
     // InitializeMintArgs
     definedTypeNode({
       name: 'InitializeMintArgs',
@@ -343,8 +365,8 @@ const program = programNode({
           isWritable: true,
         }),
         instructionAccountNode({
-          name: 'mintAuthority',
-          docs: ['The mint authority account'],
+          name: 'mintAuthorityAccount',
+          docs: ['Mint authority PDA account owned by the program'],
           isSigner: false,
           isWritable: true,
         }),
