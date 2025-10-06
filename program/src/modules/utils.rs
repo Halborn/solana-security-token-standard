@@ -18,7 +18,9 @@ pub fn validate_account_verification(
     instruction_accounts: &[Pubkey],
 ) -> Result<(), ProgramError> {
     for verification_program in verification_program_accounts {
-        if verification_program.is_empty() || !verification_program.starts_with(instruction_accounts) {
+        if verification_program.is_empty()
+            || !verification_program.starts_with(instruction_accounts)
+        {
             return Err(SecurityTokenError::AccountIntersectionMismatch.into());
         }
     }
@@ -41,7 +43,6 @@ mod tests {
     }
 
     #[rstest]
-
     // Test: VALID - no account to verify
     #[case(
         vec![accounts(&[1, 2, 3]), accounts(&[1, 2])],
@@ -49,7 +50,6 @@ mod tests {
         true,
         "no account to verify"
     )]
-
     // Test: VALID - no programs to verify against
     #[case(
         vec![],
@@ -57,7 +57,6 @@ mod tests {
         true,
         "no verification programs to verify against"
     )]
-
     // Test: VALID - single verified account
     #[case(
         vec![accounts(&[1, 2, 3]), accounts(&[1, 2])],
@@ -65,7 +64,6 @@ mod tests {
         true,
         "acc1 verified by all programs"
     )]
-
     // Test: VALID - multiple verified accounts
     #[case(
         vec![accounts(&[1, 2, 3]), accounts(&[1, 2])],
@@ -73,7 +71,6 @@ mod tests {
         true,
         "acc1,2 verified by all programs"
     )]
-
     // Test: VALID - multiple verified accounts with extra accounts for verification programs
     #[case(
         vec![accounts(&[1, 2, 3, 4]), accounts(&[1, 2, 5])],
@@ -81,7 +78,6 @@ mod tests {
         true,
         "acc1,2 verified by all programs"
     )]
-
     // Test: INVALID - acc 2 is not included in all verification programs
     #[case(
         vec![accounts(&[1, 2]), accounts(&[1])],
@@ -89,7 +85,6 @@ mod tests {
         false,
         "acc2 is not verified by the second program"
     )]
-
     // Test: INVALID - order is important, acc2 appears after acc1 in the second program
     #[case(
         vec![accounts(&[1, 2]), accounts(&[2, 1])],
@@ -97,7 +92,6 @@ mod tests {
         false,
         "acc2 appears after acc1 in the second verification program"
     )]
-
     // Test: INVALID - additional account in the first verification program
     #[case(
         vec![accounts(&[3, 1, 2]), accounts(&[1, 2])],

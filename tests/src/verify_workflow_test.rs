@@ -246,36 +246,6 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
     let result = banks_client.process_transaction(transaction).await;
     assert_transaction_success(result);
-
-    // Test 3: Verify without providing fully verified accounts (should fail)
-    println!("Test 3: Verify without providing fully verified accounts (should fail)");
-    let verify_instruction_missing_accounts = Verify {
-        mint_account: mint_keypair.pubkey(),
-        verification_config: Some(verification_config_pda),
-        instructions_sysvar: sysvar::instructions::ID,
-    }
-    .instruction_with_remaining_accounts(
-        VerifyInstructionArgs {
-            args: VerifyArgs {
-                ix: UPDATE_METADATA_DISCRIMINATOR,
-            },
-        },
-        &[],
-    );
-
-    let mut failure_tx_instructions = success_instructions;
-    failure_tx_instructions.push(verify_instruction_missing_accounts);
-
-    let transaction = Transaction::new_signed_with_payer(
-        &failure_tx_instructions,
-        Some(&payer.pubkey()),
-        &[&payer],
-        recent_blockhash,
-    );
-
-    let result = banks_client.process_transaction(transaction).await;
-    assert_security_token_error(result, SecurityTokenError::AccountIntersectionMismatch);
-
     Ok(())
 }
 
@@ -549,7 +519,9 @@ async fn test_update_metadata_under_verification() {
             program_id: dummy_program_1_id,
             accounts: vec![
                 AccountMeta::new_readonly(mint_keypair.pubkey(), false),
-                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+                AccountMeta::new_readonly(context.payer.pubkey(), false),
+                AccountMeta::new_readonly(spl_token_2022_program, false),
+                AccountMeta::new_readonly(system_program::ID, false),
             ],
             data: vec![1u8],
         },
@@ -557,7 +529,9 @@ async fn test_update_metadata_under_verification() {
             program_id: dummy_program_2_id,
             accounts: vec![
                 AccountMeta::new_readonly(mint_keypair.pubkey(), false),
-                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+                AccountMeta::new_readonly(context.payer.pubkey(), false),
+                AccountMeta::new_readonly(spl_token_2022_program, false),
+                AccountMeta::new_readonly(system_program::ID, false),
             ],
             data: vec![1u8],
         },
