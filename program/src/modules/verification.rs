@@ -4,7 +4,7 @@
 //! according to the Security Token specification.
 
 use pinocchio::account_info::AccountInfo;
-use pinocchio::instruction::{Seed, Signer};
+use pinocchio::instruction::{self, Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
 use pinocchio::ProgramResult;
@@ -44,6 +44,7 @@ use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{verify_owner, verify_signer};
 use crate::state::VerificationConfig;
 use crate::utils;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Verification Module - handles all authorization and compliance checks
 pub struct VerificationModule;
@@ -685,7 +686,16 @@ impl VerificationModule {
         }
 
         // Execute cross-set verification with accounts from index 3+
-        Self::execute_verification(&config, instructions_sysvar, &instruction_accounts)?;
+        if config.instruction_discriminator != args.ix {
+            log!(
+                "VerificationConfig discriminator mismatch: expected {}, got {}",
+                config.instruction_discriminator,
+                args.ix
+            );
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        Self::execute_verification(&config, instructions_sysvar, &instruction_accounts, args.ix)?;
 
         Ok(())
     }
@@ -696,6 +706,7 @@ impl VerificationModule {
         config: &VerificationConfig,
         instructions_sysvar: &AccountInfo,
         instruction_accounts: &[AccountInfo],
+        target_instruction_discriminator: u8,
     ) -> ProgramResult {
         log!(
             "Starting cross-set verification for {} programs",
@@ -710,82 +721,110 @@ impl VerificationModule {
             "Current instruction has {} accounts",
             instruction_accounts.len()
         );
+        let mut collected_accounts: Vec<Option<Vec<Pubkey>>> =
+            vec![None; config.verification_programs.len()];
+        let mut remaining_indices: HashSet<usize> =
+            (0..config.verification_programs.len()).collect();
+        let mut program_index_map: HashMap<Pubkey, VecDeque<usize>> = HashMap::new();
 
-        // Collect all verification program accounts to validate against
-        let mut all_verification_accounts: Vec<Vec<Pubkey>> = Vec::new();
-        let mut verified_programs = Vec::new();
+        for (idx, program) in config.verification_programs.iter().enumerate() {
+            program_index_map
+                .entry(*program)
+                .or_default()
+                .push_back(idx);
+        }
+        let mut verified_programs: Vec<(Pubkey, usize)> = Vec::new();
 
-        for (prog_idx, required_program) in config.verification_programs.iter().enumerate() {
-            log!(
-                "Checking for verification program {}: {}",
-                prog_idx,
-                crate::key_as_str!(required_program)
-            );
+        if current_index > 0 {
+            for instr_idx in (0..current_index).rev() {
+                if remaining_indices.is_empty() {
+                    break;
+                }
 
-            let mut program_found = false;
+                match instructions.load_instruction_at(instr_idx) {
+                    Ok(instruction) => {
+                        let program_id = instruction.get_program_id();
+                        if let Some(config_idx) =
+                            program_index_map.get_mut(program_id).and_then(|indices| {
+                                while let Some(&candidate_idx) = indices.front() {
+                                    if remaining_indices.contains(&candidate_idx) {
+                                        return Some(candidate_idx);
+                                    }
+                                    indices.pop_front();
+                                }
+                                None
+                            })
+                        {
+                            let instruction_data = instruction.get_instruction_data();
 
-            // Search previous instructions for this verification program
-            if current_index > 0 {
-                for instr_idx in 0..current_index {
-                    match instructions.load_instruction_at(instr_idx) {
-                        Ok(instruction) => {
-                            let program_id = instruction.get_program_id();
+                            if instruction_data.is_empty() {
+                                log!("Skipping instruction {} - empty data", instr_idx);
+                                continue;
+                            }
+
+                            let verification_discriminator = instruction_data[0];
+
+                            if verification_discriminator != target_instruction_discriminator {
+                                log!(
+                                    "Skipping verification program {} at instruction {} due to discriminator mismatch (expected {}, got {})",
+                                    config_idx,
+                                    instr_idx,
+                                    target_instruction_discriminator,
+                                    verification_discriminator
+                                );
+                                continue;
+                            }
+
                             log!(
-                                "Instruction {} calls program {}",
-                                instr_idx,
-                                crate::key_as_str!(program_id)
+                                "Found verification program {} at instruction {}",
+                                config_idx,
+                                instr_idx
                             );
 
-                            if *program_id == *required_program {
-                                log!(
-                                    "Found verification program {} at instruction {}",
-                                    prog_idx,
-                                    instr_idx
-                                );
+                            let mut accounts = Vec::new();
+                            let mut account_idx = 0;
 
-                                // Extract accounts from instruction using pinocchio API
-                                let mut accounts = Vec::new();
-                                let mut account_idx = 0;
-
-                                // Iterate through all accounts in the instruction
-                                while let Ok(account_meta) =
-                                    instruction.get_account_meta_at(account_idx)
-                                {
-                                    accounts.push(account_meta.key);
-                                    account_idx += 1;
-                                }
-
-                                // Store accounts for intersection calculation
-                                all_verification_accounts.push(accounts);
-                                verified_programs.push((*program_id, instr_idx));
-                                program_found = true;
-                                break;
+                            while let Ok(account_meta) =
+                                instruction.get_account_meta_at(account_idx)
+                            {
+                                accounts.push(account_meta.key);
+                                account_idx += 1;
                             }
+
+                            collected_accounts[config_idx] = Some(accounts);
+                            verified_programs.push((*program_id, instr_idx));
+                            remaining_indices.remove(&config_idx);
                         }
-                        Err(_) => {
-                            log!("Could not load instruction at index {}", instr_idx);
-                            continue;
-                        }
+                    }
+                    Err(_) => {
+                        log!("Could not load instruction at index {}", instr_idx);
                     }
                 }
             }
-
-            if !program_found {
-                log!(
-                    "ERROR: Required verification program {} not found",
-                    crate::key_as_str!(required_program)
-                );
-                return Err(SecurityTokenError::VerificationProgramNotFound.into());
-            }
         }
 
-        let instruction_account_keys: Vec<Pubkey> =
-            instruction_accounts.iter().map(|acc| *acc.key()).collect();
+        if let Some(&missing_idx) = remaining_indices.iter().next() {
+            let missing_program = config.verification_programs[missing_idx];
+            log!(
+                "ERROR: Required verification program {} not found",
+                crate::key_as_str!(missing_program)
+            );
+            log!("Missing program index: {}", missing_idx);
+            return Err(SecurityTokenError::VerificationProgramNotFound.into());
+        }
+
+        let all_verification_accounts: Vec<Vec<Pubkey>> = collected_accounts
+            .into_iter()
+            .map(|entry| entry.expect("missing verification program accounted above"))
+            .collect();
+
         if !all_verification_accounts.is_empty() {
             log!(
                 "Validating cross-set accounts across {} verification programs",
                 all_verification_accounts.len()
             );
+            let instruction_account_keys: Vec<Pubkey> =
+                instruction_accounts.iter().map(|acc| *acc.key()).collect();
             verification_utils::validate_account_verification(
                 &all_verification_accounts,
                 &instruction_account_keys,

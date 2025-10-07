@@ -30,10 +30,12 @@ fn dummy_program_processor(
     _accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
+    // The first byte determines instruction id
+    // The second byte determines success (1) or failure (0)
     msg!("Dummy program called with {} bytes", instruction_data.len());
 
     // If instruction data is empty or first byte is 0, fail
-    if instruction_data.is_empty() || instruction_data[0] == 0 {
+    if instruction_data.is_empty() || instruction_data[1] == 0 {
         msg!("Dummy program: intentional failure");
         return Err(ProgramError::Custom(9999));
     }
@@ -49,6 +51,7 @@ fn dummy_program_2_processor(
     _accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
+    // The first byte determines instruction id
     msg!(
         "Dummy program 2 called with {} bytes - always succeeds",
         instruction_data.len()
@@ -163,6 +166,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         .process_transaction(config_transaction)
         .await
         .map_err(|e| format!("Failed to create VerificationConfig: {:?}", e))?;
+
     println!("VerificationConfig created for UpdateMetadata instruction");
 
     println!("Test 1: Verify without prior verification calls (should fail)");
@@ -202,7 +206,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
             ],
-            data: vec![1u8],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
         Instruction {
             program_id: dummy_program_2_id,
@@ -210,7 +214,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
             ],
-            data: vec![1u8],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
     ];
 
@@ -246,6 +250,53 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
     let result = banks_client.process_transaction(transaction).await;
     assert_transaction_success(result);
+
+    println!("Test 3: Verify instruction discriminator (should fail)");
+    let instructions = vec![
+        Instruction {
+            program_id: dummy_program_2_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![128u8, 1u8],
+        },
+        Instruction {
+            program_id: dummy_program_1_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+        },
+    ];
+
+    let verify_instruction = Verify {
+        mint_account: mint_keypair.pubkey(),
+        verification_config: Some(verification_config_pda),
+        instructions_sysvar: sysvar::instructions::ID,
+    }
+    .instruction_with_remaining_accounts(
+        VerifyInstructionArgs {
+            args: VerifyArgs {
+                ix: UPDATE_METADATA_DISCRIMINATOR,
+            },
+        },
+        &success_verify_accounts,
+    );
+
+    let mut tx_instructions = instructions.clone();
+    tx_instructions.push(verify_instruction);
+
+    let transaction = Transaction::new_signed_with_payer(
+        &tx_instructions,
+        Some(&payer.pubkey()),
+        &[&payer],
+        recent_blockhash,
+    );
+
+    let result = banks_client.process_transaction(transaction).await;
+    assert_security_token_error(result, SecurityTokenError::VerificationProgramNotFound);
     Ok(())
 }
 
@@ -428,7 +479,7 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
             ],
-            data: vec![1u8],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
         Instruction {
             program_id: dummy_program_2_id,
@@ -436,7 +487,7 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
             ],
-            data: vec![1u8],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
     ];
 
@@ -523,7 +574,7 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(spl_token_2022_program, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
-            data: vec![1u8],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
         Instruction {
             program_id: dummy_program_2_id,
@@ -533,7 +584,7 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(spl_token_2022_program, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
-            data: vec![1u8],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
     ];
 
