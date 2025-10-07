@@ -25,19 +25,17 @@ pub fn verify_signer(info: &AccountInfo, expect_writable: bool) -> Result<(), Pr
     Ok(())
 }
 
-/// Verify account's owner and account mutability.
+/// Verify account's owner.
 ///
 /// # Arguments
 /// * `info` - The account to verify.
 /// * `owner` - The expected owner of the account.
-/// * `expect_writable` - Whether the account is expected to be writable.
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
-pub fn verify_owner_mutability(
+pub fn verify_owner(
     info: &AccountInfo,
     owner: &Pubkey,
-    expect_writable: bool,
 ) -> Result<(), ProgramError> {
     if !info.is_owned_by(owner) {
         log!(
@@ -46,13 +44,5 @@ pub fn verify_owner_mutability(
         );
         return Err(ProgramError::InvalidAccountOwner);
     }
-    if expect_writable && !info.is_writable() {
-        log!(
-            "{} does not have the right write access",
-            acc_info_as_str!(info),
-        );
-        return Err(ProgramError::InvalidAccountData);
-    }
-
     Ok(())
 }

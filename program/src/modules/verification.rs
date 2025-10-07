@@ -41,7 +41,7 @@ use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
-use crate::modules::{verify_owner_mutability, verify_signer};
+use crate::modules::{verify_owner, verify_signer};
 use crate::state::VerificationConfig;
 use crate::utils;
 
@@ -662,7 +662,7 @@ impl VerificationModule {
             return Ok(());
         }
 
-        verify_owner_mutability(verification_config, program_id, false)?;
+        verify_owner(verification_config, program_id)?;
 
         // TODO: this could be optimized further by removing the `solana-program` dependency
         // and using `pubkey::checked_create_program_address` from Pinocchio to verify the
@@ -685,11 +685,7 @@ impl VerificationModule {
         }
 
         // Execute cross-set verification with accounts from index 3+
-        Self::execute_verification(
-            &config,
-            instructions_sysvar,
-            &instruction_accounts,
-        )?;
+        Self::execute_verification(&config, instructions_sysvar, &instruction_accounts)?;
 
         Ok(())
     }
@@ -783,7 +779,8 @@ impl VerificationModule {
             }
         }
 
-        let instruction_account_keys: Vec<Pubkey> = instruction_accounts.iter().map(|acc| *acc.key()).collect();
+        let instruction_account_keys: Vec<Pubkey> =
+            instruction_accounts.iter().map(|acc| *acc.key()).collect();
         if !all_verification_accounts.is_empty() {
             log!(
                 "Validating cross-set accounts across {} verification programs",
