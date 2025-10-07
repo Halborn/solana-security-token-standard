@@ -700,19 +700,14 @@ impl VerificationModule {
         Ok(())
     }
 
-    /// Execute instruction and verification programms validation
-    /// Checks that required verification programms were called with proper accounts matching current instruction accounts
+    /// Execute instruction and verification programs validation
+    /// Checks that required verification programs were called with proper accounts matching current instruction accounts
     fn execute_verification(
         config: &VerificationConfig,
         instructions_sysvar: &AccountInfo,
         instruction_accounts: &[AccountInfo],
         target_instruction_discriminator: u8,
     ) -> ProgramResult {
-        log!(
-            "Starting cross-set verification for {} programs",
-            config.verification_programs.len()
-        );
-
         // Get current instruction index
         let instructions = Instructions::try_from(instructions_sysvar)?;
         let current_index = instructions.load_current_index() as usize;
@@ -819,10 +814,6 @@ impl VerificationModule {
             .collect();
 
         if !all_verification_accounts.is_empty() {
-            log!(
-                "Validating cross-set accounts across {} verification programs",
-                all_verification_accounts.len()
-            );
             let instruction_account_keys: Vec<Pubkey> =
                 instruction_accounts.iter().map(|acc| *acc.key()).collect();
             verification_utils::validate_account_verification(
@@ -832,7 +823,7 @@ impl VerificationModule {
         }
 
         log!(
-            "Cross-set verification completed successfully for {} programs",
+            "Verification completed successfully for {} programs",
             verified_programs.len()
         );
         Ok(())
