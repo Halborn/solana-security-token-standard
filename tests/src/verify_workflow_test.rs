@@ -22,6 +22,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
+use solana_system_interface::instruction as system_instruction;
 use solana_system_interface::program as system_program;
 
 // Simple dummy program processor that can succeed or fail based on instruction data
@@ -59,6 +60,7 @@ fn dummy_program_2_processor(
     Ok(())
 }
 
+//TODO: Refactor to fixtures and rstest test cases
 /// Test verifies that our verification workflow works with any program calls
 #[tokio::test]
 async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::error::Error>> {
@@ -297,6 +299,63 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
     let result = banks_client.process_transaction(transaction).await;
     assert_security_token_error(result, SecurityTokenError::VerificationProgramNotFound);
+
+    println!("Test 4: Verify instruction with system instruction (should succeed)");
+    let instructions = vec![
+        system_instruction::transfer(&payer.pubkey(), &mint_pubkey, 1),
+        Instruction {
+            program_id: dummy_program_2_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+        },
+        system_instruction::transfer(&payer.pubkey(), &mint_pubkey, 1),
+        Instruction {
+            program_id: dummy_program_1_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+        },
+        Instruction {
+            program_id: dummy_program_1_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![125u8, 1u8],
+        },
+    ];
+
+    let verify_instruction = Verify {
+        mint_account: mint_keypair.pubkey(),
+        verification_config: Some(verification_config_pda),
+        instructions_sysvar: sysvar::instructions::ID,
+    }
+    .instruction_with_remaining_accounts(
+        VerifyInstructionArgs {
+            args: VerifyArgs {
+                ix: UPDATE_METADATA_DISCRIMINATOR,
+            },
+        },
+        &success_verify_accounts,
+    );
+
+    let mut tx_instructions = instructions.clone();
+    tx_instructions.push(verify_instruction);
+
+    let transaction = Transaction::new_signed_with_payer(
+        &tx_instructions,
+        Some(&payer.pubkey()),
+        &[&payer],
+        recent_blockhash,
+    );
+
+    let result = banks_client.process_transaction(transaction).await;
+    assert_transaction_success(result);
     Ok(())
 }
 
