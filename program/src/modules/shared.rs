@@ -33,10 +33,7 @@ pub fn verify_signer(info: &AccountInfo, expect_writable: bool) -> Result<(), Pr
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
-pub fn verify_owner(
-    info: &AccountInfo,
-    owner: &Pubkey,
-) -> Result<(), ProgramError> {
+pub fn verify_owner(info: &AccountInfo, owner: &Pubkey) -> Result<(), ProgramError> {
     if !info.is_owned_by(owner) {
         log!(
             "Owner of {} does not match expected owner",
