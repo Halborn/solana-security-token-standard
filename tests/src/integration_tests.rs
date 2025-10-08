@@ -181,9 +181,8 @@ async fn test_initialize_mint_with_all_extensions() {
         .banks_client
         .get_account(mint_keypair.pubkey())
         .await
-        .unwrap();
-    assert!(mint_account.is_some(), "Mint account should exist");
-    let mint_account = mint_account.unwrap();
+        .unwrap()
+        .expect("Mint account should exist");
     assert_eq!(
         mint_account.owner, spl_token_2022_program,
         "Mint should be owned by Token-2022 program"
@@ -197,12 +196,8 @@ async fn test_initialize_mint_with_all_extensions() {
         .banks_client
         .get_account(mint_authority_pda)
         .await
-        .unwrap();
-    assert!(
-        mint_authority_account.is_some(),
-        "Mint authority PDA should exist"
-    );
-    let mint_authority_account = mint_authority_account.unwrap();
+        .unwrap()
+        .expect("Mint authority PDA should exist");
     assert_eq!(
         mint_authority_account.owner, SECURITY_TOKEN_ID,
         "Mint authority PDA should be owned by security token program"
@@ -1067,13 +1062,12 @@ async fn test_verification_config() {
     println!("VerificationConfig created successfully");
 
     // Verify the PDA account was created correctly
-    let config_account = context.banks_client.get_account(config_pda).await.unwrap();
-    assert!(
-        config_account.is_some(),
-        "VerificationConfig PDA should exist"
-    );
-
-    let config_account = config_account.unwrap();
+    let config_account = context
+        .banks_client
+        .get_account(config_pda)
+        .await
+        .unwrap()
+        .expect("VerificationConfig PDA should exist");
     println!(
         "VerificationConfig account data length: {}",
         config_account.data.len()
