@@ -7,16 +7,13 @@ use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
-use pinocchio::ProgramResult;
-use pinocchio::{
-    msg,
-    sysvars::{
-        instructions::Instructions,
-        rent::{
-            Rent, DEFAULT_BURN_PERCENT, DEFAULT_EXEMPTION_THRESHOLD, DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-        },
+use pinocchio::sysvars::{
+    instructions::Instructions,
+    rent::{
+        Rent, DEFAULT_BURN_PERCENT, DEFAULT_EXEMPTION_THRESHOLD, DEFAULT_LAMPORTS_PER_BYTE_YEAR,
     },
 };
+use pinocchio::ProgramResult;
 use pinocchio_log::log;
 use pinocchio_system::instructions::{CreateAccount, Transfer};
 use pinocchio_token_2022::extensions::metadata_pointer::{
@@ -43,7 +40,7 @@ use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomR
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{verify_owner, verify_signer};
-use crate::state::VerificationConfig;
+use crate::state::{MintAuthority, VerificationConfig};
 use crate::utils;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -333,15 +330,15 @@ impl VerificationModule {
         let (mint_authority_pda, mint_authority_bump) =
             utils::find_mint_authority_pda(mint_info.key(), creator_info.key(), program_id);
 
-        // if mint_authority_account.key() != &mint_authority_pda {
-        //     log!("Mint authority PDA mismatch");
-        //     return Err(ProgramError::InvalidSeeds);
-        // }
+        if mint_authority_account.key() != &mint_authority_pda {
+            log!("Mint authority PDA mismatch");
+            return Err(ProgramError::InvalidSeeds);
+        }
 
-        // if !mint_authority_account.data_is_empty() || mint_authority_account.lamports() > 0 {
-        //     log!("Mint authority PDA already initialized");
-        //     return Err(ProgramError::AccountAlreadyInitialized);
-        // }
+        if !mint_authority_account.data_is_empty() || mint_authority_account.lamports() > 0 {
+            log!("Mint authority PDA already initialized");
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
 
         let mint_authority_config =
             MintAuthority::new(*mint_info.key(), *creator_info.key(), mint_authority_bump)?;
