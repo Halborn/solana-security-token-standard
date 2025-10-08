@@ -66,11 +66,15 @@ pub fn verify_initial_mint_authority(
     expect_authority_writable: bool,
 ) -> Result<(), ProgramError> {
     verify_signer(candidate_authority, false)?;
-    verify_owner_mutability(
-        mint_authority_account,
-        program_id,
-        expect_authority_writable,
-    )?;
+    verify_owner(mint_authority_account, program_id)?;
+
+    if expect_authority_writable && !mint_authority_account.is_writable() {
+        log!(
+            "Mint authority account {} is not writable",
+            acc_info_as_str!(mint_authority_account)
+        );
+        return Err(ProgramError::InvalidAccountData);
+    }
 
     let (expected_pda, expected_bump) =
         utils::find_mint_authority_pda(mint_info.key(), candidate_authority.key(), program_id);
