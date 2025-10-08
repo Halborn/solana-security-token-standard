@@ -4,7 +4,7 @@
 //! according to the Security Token specification.
 
 use pinocchio::account_info::AccountInfo;
-use pinocchio::instruction::{self, Seed, Signer};
+use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
 use pinocchio::ProgramResult;
@@ -669,7 +669,7 @@ impl VerificationModule {
         // and using `pubkey::checked_create_program_address` from Pinocchio to verify the
         // pubkey and associated bump (needed to be added as arg) is valid.
         let (expected_pda, _bump) =
-            utils::find_verification_config_pda(&mint_info.key(), args.ix, program_id);
+            utils::find_verification_config_pda(mint_info.key(), args.ix, program_id);
 
         if verification_config.key().ne(&expected_pda) {
             return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
@@ -695,7 +695,7 @@ impl VerificationModule {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        Self::execute_verification(&config, instructions_sysvar, &instruction_accounts, args.ix)?;
+        Self::execute_verification(&config, instructions_sysvar, instruction_accounts, args.ix)?;
 
         Ok(())
     }
