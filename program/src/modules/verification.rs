@@ -881,15 +881,13 @@ impl VerificationModule {
         // 0. [writable] VerificationConfig PDA (derived from instruction_id + mint)
         // 1. [writable, signer] Payer (for account creation)
         // 2. [] Mint account
-        // 3. [signer] Authority (mint authority or designated config authority)
-        // 4. [] System program
+        // 3. [] System program
 
-        let [config_account, payer, mint_account, authority, _system_program] = &accounts else {
+        let [config_account, payer, mint_account, _system_program] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         verify_signer(payer, false)?;
-        verify_signer(authority, false)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
@@ -956,8 +954,6 @@ impl VerificationModule {
         );
         log!("Config PDA address: {}", config_account.key());
         log!("Mint: {}", mint_account.key());
-        log!("Authority: {}", authority.key());
-
         Ok(())
     }
 
@@ -970,12 +966,13 @@ impl VerificationModule {
         // Expected accounts:
         // 0. [writable] VerificationConfig PDA account
         // 1. [] Mint account
-        // 2. [signer] Authority (mint authority or designated config authority)
+        // 2. [signer] Payer (for rent if resizing is needed)
         // 3. [] System program (if resizing is needed)
-        let [config_account, mint_account, authority, _system_program_info] = accounts else {
+        let [config_account, mint_account, payer, _system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_signer(authority, false)?;
+
+        verify_signer(payer, false)?;
         // TODO: Add proper authority validation
         // For now, we accept any signer as authority
         // In production, should validate against mint authority or config-specific authority
@@ -1049,7 +1046,7 @@ impl VerificationModule {
             log!("Additional rent needed: {} lamports", additional_rent);
 
             let transfer = Transfer {
-                from: authority,
+                from: payer,
                 to: config_account,
                 lamports: additional_rent,
             };
@@ -1081,15 +1078,13 @@ impl VerificationModule {
         // Expected accounts:
         // 0. [writable] VerificationConfig PDA account
         // 1. [] Mint account
-        // 2. [signer] Authority (mint authority or designated config authority)
-        // 3. [writable] Rent recipient account (to receive recovered lamports)
-        // 4. [] System program ID (optional for closing account)
+        // 2. [signer, writable] Payer (mint authority or designated config authority)
+        // 3. [] System program ID (optional for closing account)
 
-        let [config_account, mint_account, authority, rent_recipient, _system_program] = accounts
-        else {
+        let [config_account, mint_account, payer, _system_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_signer(authority, false)?;
+        verify_signer(payer, false)?;
         // TODO: Add proper authority validation
         // For now, we accept any signer as authority
         // In production, should validate against mint authority or config-specific authority
@@ -1143,7 +1138,7 @@ impl VerificationModule {
 
             // Transfer all lamports to recipient
             *config_account.try_borrow_mut_lamports()? = 0;
-            *rent_recipient.try_borrow_mut_lamports()? = rent_recipient
+            *payer.try_borrow_mut_lamports()? = payer
                 .lamports()
                 .checked_add(config_lamports)
                 .ok_or(ProgramError::InsufficientFunds)?;
@@ -1189,7 +1184,7 @@ impl VerificationModule {
                     .checked_sub(recovered_rent)
                     .ok_or(ProgramError::InsufficientFunds)?;
 
-                *rent_recipient.try_borrow_mut_lamports()? = rent_recipient
+                *payer.try_borrow_mut_lamports()? = payer
                     .lamports()
                     .checked_add(recovered_rent)
                     .ok_or(ProgramError::InsufficientFunds)?;

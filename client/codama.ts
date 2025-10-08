@@ -502,14 +502,6 @@ const program = programNode({
           isWritable: false,
         }),
         instructionAccountNode({
-          name: 'authority',
-          docs: [
-            'The authority account (mint authority or designated config authority)',
-          ],
-          isSigner: true,
-          isWritable: false,
-        }),
-        instructionAccountNode({
           name: 'systemProgram',
           docs: ['The system program ID'],
           isSigner: false,
@@ -549,10 +541,10 @@ const program = programNode({
           isWritable: false,
         }),
         instructionAccountNode({
-          name: 'authority',
-          docs: ['The authority account (mint authority)'],
+          name: 'payer',
+          docs: ['The payer account covering rent increases'],
           isSigner: true,
-          isWritable: false,
+          isWritable: true,
         }),
         instructionAccountNode({
           name: 'systemProgram',
@@ -594,15 +586,9 @@ const program = programNode({
           isWritable: false,
         }),
         instructionAccountNode({
-          name: 'authority',
-          docs: ['The authority account (mint authority)'],
+          name: 'payer',
+          docs: ['The payer account (mint authority or designated manager)'],
           isSigner: true,
-          isWritable: false,
-        }),
-        instructionAccountNode({
-          name: 'rentRecipient',
-          docs: ['The rent recipient account (to receive recovered lamports)'],
-          isSigner: false,
           isWritable: true,
         }),
         instructionAccountNode({

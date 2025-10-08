@@ -1038,7 +1038,6 @@ async fn test_verification_config() {
         config_account: config_pda,
         payer: context.payer.pubkey(),
         mint_account: mint_keypair.pubkey(),
-        authority: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(InitializeVerificationConfigInstructionArgs {
@@ -1122,7 +1121,7 @@ async fn test_verification_config() {
     let update_config_ix = UpdateVerificationConfig {
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
-        authority: context.payer.pubkey(),
+        payer: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(UpdateVerificationConfigInstructionArgs {
@@ -1193,11 +1192,9 @@ async fn test_verification_config() {
 
     println!("\nTesting TrimVerificationConfig");
 
-    // Create a rent recipient account (we'll use payer as recipient)
-    let rent_recipient = context.payer.pubkey();
     let original_recipient_balance = context
         .banks_client
-        .get_account(rent_recipient)
+        .get_account(context.payer.pubkey())
         .await
         .unwrap()
         .unwrap()
@@ -1210,8 +1207,7 @@ async fn test_verification_config() {
     let trim_config_ix = TrimVerificationConfig {
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
-        authority: context.payer.pubkey(),
-        rent_recipient: rent_recipient,
+        payer: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(TrimVerificationConfigInstructionArgs {
@@ -1278,7 +1274,7 @@ async fn test_verification_config() {
     // Verify that some rent was recovered
     let new_recipient_balance = context
         .banks_client
-        .get_account(rent_recipient)
+        .get_account(context.payer.pubkey())
         .await
         .unwrap()
         .unwrap()
@@ -1300,8 +1296,7 @@ async fn test_verification_config() {
     let close_config_ix = TrimVerificationConfig {
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
-        authority: context.payer.pubkey(),
-        rent_recipient: rent_recipient,
+        payer: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(TrimVerificationConfigInstructionArgs {
@@ -1352,7 +1347,7 @@ async fn test_verification_config() {
     // Verify all lamports were transferred to recipient
     let final_recipient_balance = context
         .banks_client
-        .get_account(rent_recipient)
+        .get_account(context.payer.pubkey())
         .await
         .unwrap()
         .unwrap()

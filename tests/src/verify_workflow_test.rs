@@ -156,7 +156,6 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         config_account: verification_config_pda,
         payer: payer.pubkey(),
         mint_account: mint_pubkey,
-        authority: payer.pubkey(), // Using payer as authority for simplicity
         system_program: system_program::ID,
     }
     .instruction(InitializeVerificationConfigInstructionArgs {
@@ -472,7 +471,6 @@ async fn test_update_metadata_under_verification() {
         config_account: verification_config_pda,
         payer: context.payer.pubkey(),
         mint_account: mint_keypair.pubkey(),
-        authority: context.payer.pubkey(), // Using payer as authority for simplicity
         system_program: system_program::ID,
     }
     .instruction(InitializeVerificationConfigInstructionArgs {

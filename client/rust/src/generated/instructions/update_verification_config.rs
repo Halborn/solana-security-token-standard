@@ -24,11 +24,11 @@ pub struct UpdateVerificationConfig {
     
               
           pub mint_account: solana_pubkey::Pubkey,
-                /// The authority account (mint authority)
+                /// The payer account covering rent increases
 
     
               
-          pub authority: solana_pubkey::Pubkey,
+          pub payer: solana_pubkey::Pubkey,
                 /// The system program ID
 
     
@@ -52,8 +52,8 @@ impl UpdateVerificationConfig {
             self.mint_account,
             false
           ));
-                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.authority,
+                                          accounts.push(solana_instruction::AccountMeta::new(
+            self.payer,
             true
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -106,13 +106,13 @@ impl Default for UpdateVerificationConfigInstructionData {
 ///
                 ///   0. `[writable]` config_account
           ///   1. `[]` mint_account
-                ///   2. `[signer]` authority
+                      ///   2. `[writable, signer]` payer
           ///   3. `[]` system_program
 #[derive(Clone, Debug, Default)]
 pub struct UpdateVerificationConfigBuilder {
             config_account: Option<solana_pubkey::Pubkey>,
                 mint_account: Option<solana_pubkey::Pubkey>,
-                authority: Option<solana_pubkey::Pubkey>,
+                payer: Option<solana_pubkey::Pubkey>,
                 system_program: Option<solana_pubkey::Pubkey>,
                         args: Option<UpdateVerificationConfigArgs>,
         __remaining_accounts: Vec<solana_instruction::AccountMeta>,
@@ -134,10 +134,10 @@ impl UpdateVerificationConfigBuilder {
                         self.mint_account = Some(mint_account);
                     self
     }
-            /// The authority account (mint authority)
+            /// The payer account covering rent increases
 #[inline(always)]
-    pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
-                        self.authority = Some(authority);
+    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
+                        self.payer = Some(payer);
                     self
     }
             /// The system program ID
@@ -168,7 +168,7 @@ impl UpdateVerificationConfigBuilder {
     let accounts = UpdateVerificationConfig {
                               config_account: self.config_account.expect("config_account is not set"),
                                         mint_account: self.mint_account.expect("mint_account is not set"),
-                                        authority: self.authority.expect("authority is not set"),
+                                        payer: self.payer.expect("payer is not set"),
                                         system_program: self.system_program.expect("system_program is not set"),
                       };
           let args = UpdateVerificationConfigInstructionArgs {
@@ -191,11 +191,11 @@ impl UpdateVerificationConfigBuilder {
       
                     
               pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-                        /// The authority account (mint authority)
+                        /// The payer account covering rent increases
 
       
                     
-              pub authority: &'b solana_account_info::AccountInfo<'a>,
+              pub payer: &'b solana_account_info::AccountInfo<'a>,
                         /// The system program ID
 
       
@@ -217,11 +217,11 @@ pub struct UpdateVerificationConfigCpi<'a, 'b> {
     
               
           pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-                /// The authority account (mint authority)
+                /// The payer account covering rent increases
 
     
               
-          pub authority: &'b solana_account_info::AccountInfo<'a>,
+          pub payer: &'b solana_account_info::AccountInfo<'a>,
                 /// The system program ID
 
     
@@ -241,7 +241,7 @@ impl<'a, 'b> UpdateVerificationConfigCpi<'a, 'b> {
       __program: program,
               config_account: accounts.config_account,
               mint_account: accounts.mint_account,
-              authority: accounts.authority,
+              payer: accounts.payer,
               system_program: accounts.system_program,
                     __args: args,
           }
@@ -275,8 +275,8 @@ impl<'a, 'b> UpdateVerificationConfigCpi<'a, 'b> {
             *self.mint_account.key,
             false
           ));
-                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.authority.key,
+                                          accounts.push(solana_instruction::AccountMeta::new(
+            *self.payer.key,
             true
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -303,7 +303,7 @@ impl<'a, 'b> UpdateVerificationConfigCpi<'a, 'b> {
     account_infos.push(self.__program.clone());
                   account_infos.push(self.config_account.clone());
                         account_infos.push(self.mint_account.clone());
-                        account_infos.push(self.authority.clone());
+                        account_infos.push(self.payer.clone());
                         account_infos.push(self.system_program.clone());
               remaining_accounts.iter().for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
 
@@ -321,7 +321,7 @@ impl<'a, 'b> UpdateVerificationConfigCpi<'a, 'b> {
 ///
                 ///   0. `[writable]` config_account
           ///   1. `[]` mint_account
-                ///   2. `[signer]` authority
+                      ///   2. `[writable, signer]` payer
           ///   3. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct UpdateVerificationConfigCpiBuilder<'a, 'b> {
@@ -334,7 +334,7 @@ impl<'a, 'b> UpdateVerificationConfigCpiBuilder<'a, 'b> {
       __program: program,
               config_account: None,
               mint_account: None,
-              authority: None,
+              payer: None,
               system_program: None,
                                             args: None,
                     __remaining_accounts: Vec::new(),
@@ -353,10 +353,10 @@ impl<'a, 'b> UpdateVerificationConfigCpiBuilder<'a, 'b> {
                         self.instruction.mint_account = Some(mint_account);
                     self
     }
-      /// The authority account (mint authority)
+      /// The payer account covering rent increases
 #[inline(always)]
-    pub fn authority(&mut self, authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-                        self.instruction.authority = Some(authority);
+    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+                        self.instruction.payer = Some(payer);
                     self
     }
       /// The system program ID
@@ -402,7 +402,7 @@ impl<'a, 'b> UpdateVerificationConfigCpiBuilder<'a, 'b> {
                   
           mint_account: self.instruction.mint_account.expect("mint_account is not set"),
                   
-          authority: self.instruction.authority.expect("authority is not set"),
+          payer: self.instruction.payer.expect("payer is not set"),
                   
           system_program: self.instruction.system_program.expect("system_program is not set"),
                           __args: args,
@@ -416,7 +416,7 @@ struct UpdateVerificationConfigCpiBuilderInstruction<'a, 'b> {
   __program: &'b solana_account_info::AccountInfo<'a>,
             config_account: Option<&'b solana_account_info::AccountInfo<'a>>,
                 mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-                authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+                payer: Option<&'b solana_account_info::AccountInfo<'a>>,
                 system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
                         args: Option<UpdateVerificationConfigArgs>,
         /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
