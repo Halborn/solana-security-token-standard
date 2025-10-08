@@ -30,7 +30,6 @@ impl MintAuthority {
 
     /// Validate the configuration data
     pub fn validate(&self) -> Result<(), ProgramError> {
-
         if self.mint == Pubkey::default() {
             return Err(ProgramError::InvalidAccountData);
         }
