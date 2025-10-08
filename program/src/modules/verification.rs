@@ -657,7 +657,7 @@ impl VerificationModule {
         };
 
         // TODO: Should we pass?
-        if verification_config.data_len() == 0 {
+        if verification_config.data_is_empty() {
             log!("No VerificationConfig found");
             return Ok(());
         }
