@@ -61,7 +61,7 @@ impl Processor {
         // 0. [readonly] Mint account - to derive VerificationConfig PDA
         // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
         // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
-        // 3+ [any] Accounts for the target instruction and cross-set comparison with verification program calls
+        // 3+ [any] Accounts for the target instruction and comparison with verification program calls
         let [_mint_info, _verification_config_account, _instructions_sysvar, instruction_accounts @ ..] =
             accounts
         else {

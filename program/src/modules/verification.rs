@@ -636,9 +636,8 @@ impl VerificationModule {
     /// Client is responsible for deriving and providing the correct VerificationConfig PDA
     /// based on mint and instruction discriminator they want to verify.
     ///
-    /// Accounts from index 3+ will be compared with accounts from verification program calls
-    /// to ensure cross-set validation (verification programs should be called with subset
-    /// of accounts that appear in same order).
+    /// Accounts from index 3+ will be compared with accounts from verification program calls.
+    /// Verification programs should be called with at least a full set of accounts in the exact order.
     pub fn verify(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -650,7 +649,7 @@ impl VerificationModule {
         // 0. [readonly] Mint account - to derive VerificationConfig PDA
         // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
         // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
-        // 3+ [any] Accounts for cross-set comparison with verification program calls
+        // 3+ [any] Accounts for the target instruction and comparison with verification program calls
         let [mint_info, verification_config, instructions_sysvar, instruction_accounts @ ..] =
             accounts
         else {
@@ -665,9 +664,8 @@ impl VerificationModule {
 
         verify_owner(verification_config, program_id)?;
 
-        // TODO: this could be optimized further by removing the `solana-program` dependency
-        // and using `pubkey::checked_create_program_address` from Pinocchio to verify the
-        // pubkey and associated bump (needed to be added as arg) is valid.
+        // TODO: this could be optimized further by using `create_program_address` to verify the
+        // pubkey and associated bump (needed to be stored in the account itself) is valid.
         let (expected_pda, _bump) =
             utils::find_verification_config_pda(mint_info.key(), args.ix, program_id);
 
@@ -685,7 +683,7 @@ impl VerificationModule {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Execute cross-set verification with accounts from index 3+
+        // Verify config matches expected instruction
         if config.instruction_discriminator != args.ix {
             log!(
                 "VerificationConfig discriminator mismatch: expected {}, got {}",
