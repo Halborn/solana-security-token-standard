@@ -30,17 +30,12 @@ impl MintAuthority {
 
     /// Validate the configuration data
     pub fn validate(&self) -> Result<(), ProgramError> {
-        use pinocchio_log::log;
 
-        let zero_pubkey = [0u8; PUBKEY_BYTES];
-
-        if self.mint.as_ref() == &zero_pubkey {
-            log!("MintConfig validation failed: mint is zeroed");
+        if self.mint == Pubkey::default() {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        if self.mint_creator.as_ref() == &zero_pubkey {
-            log!("MintConfig validation failed: mint creator is zeroed");
+        if self.mint_creator == Pubkey::default() {
             return Err(ProgramError::InvalidAccountData);
         }
 

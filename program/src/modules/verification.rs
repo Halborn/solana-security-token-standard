@@ -273,7 +273,7 @@ impl VerificationModule {
                     accounts
                         .iter()
                         .find(|acc| acc.key() == &metadata_addr)
-                        .ok_or_else(|| ProgramError::InvalidAccountData)?
+                        .ok_or(ProgramError::InvalidAccountData)?
                         .clone()
                 }
             } else {
