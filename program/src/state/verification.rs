@@ -1,11 +1,10 @@
 //! Verification-related state structures
 
-use borsh::{BorshDeserialize, BorshSerialize};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 
 /// Verification configuration for instructions
-#[derive(Default, Clone, Debug, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Default, Clone, Debug, PartialEq)]
 pub struct VerificationConfig {
     /// Instruction discriminator this config applies to
     pub instruction_discriminator: u8,
@@ -23,16 +22,6 @@ impl VerificationConfig {
             instruction_discriminator,
             verification_programs: verification_program_addresses.to_vec(),
         })
-    }
-
-    /// Get active verification programs
-    pub fn get_active_programs(&self) -> &[Pubkey] {
-        &self.verification_programs
-    }
-
-    /// Get program count
-    pub fn program_count(&self) -> usize {
-        self.verification_programs.len()
     }
 
     /// Validate the configuration
@@ -61,5 +50,70 @@ impl VerificationConfig {
     /// Calculate the actual size needed for serialization
     pub fn serialized_size(&self) -> usize {
         1 + 4 + (self.verification_programs.len() * PUBKEY_BYTES) // discriminator + vec_len + programs
+    }
+
+    /// Serialize to bytes using manual serialization (following SAS pattern)
+    pub fn to_bytes_inner(&self) -> Vec<u8> {
+        let mut data = Vec::new();
+
+        // Write instruction discriminator (1 byte)
+        data.push(self.instruction_discriminator);
+
+        // Write program count (4 bytes)
+        data.extend(&(self.verification_programs.len() as u32).to_le_bytes());
+
+        // Write each program address (32 bytes each)
+        for program in &self.verification_programs {
+            data.extend_from_slice(program.as_ref());
+        }
+
+        data
+    }
+
+    /// Deserialize from bytes using manual deserialization (following SAS pattern)
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
+        if data.len() < 5 {
+            // Minimum: 1 byte discriminator + 4 bytes count
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mut offset = 0;
+
+        // Read instruction discriminator (1 byte)
+        let instruction_discriminator = data[offset];
+        offset += 1;
+
+        // Read program count (4 bytes)
+        let program_count = u32::from_le_bytes(
+            data[offset..offset + 4]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidAccountData)?,
+        ) as usize;
+        offset += 4;
+
+        // Validate we have enough data for all programs
+        if data.len() < offset + (program_count * 32) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Read program addresses (32 bytes each)
+        let mut verification_programs = Vec::with_capacity(program_count);
+        for _ in 0..program_count {
+            let program_bytes: [u8; 32] = data[offset..offset + 32]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidAccountData)?;
+            verification_programs.push(Pubkey::from(program_bytes));
+            offset += 32;
+        }
+
+        let config = Self {
+            instruction_discriminator,
+            verification_programs,
+        };
+
+        // Validate the configuration
+        config.validate()?;
+
+        Ok(config)
     }
 }

@@ -18,12 +18,12 @@ impl<'a> UpdateMetadataArgs<'a> {
     }
 
     /// Pack the arguments into bytes
-    pub fn pack(&self) -> Vec<u8> {
+    pub fn to_bytes_inner(&self) -> Vec<u8> {
         InitializeArgs::serialize_token_metadata(&self.metadata)
     }
 
-    /// Unpack arguments from bytes
-    pub fn unpack(data: &'a [u8]) -> Result<Self, ProgramError> {
+    /// Deserialize arguments from bytes
+    pub fn try_from_bytes(data: &'a [u8]) -> Result<Self, ProgramError> {
         let metadata = InitializeArgs::deserialize_token_metadata(data)?;
         Ok(Self { metadata })
     }
@@ -54,8 +54,8 @@ mod tests {
     }
 
     #[test]
-    fn test_update_metadata_args_pack_unpack() {
-        // For now, we'll test just the pack/unpack mechanism without full metadata construction
+    fn test_update_metadata_args_to_bytes_inner_try_from_bytes() {
+        // For now, we'll test just the to_bytes_inner/try_from_bytes mechanism without full metadata construction
         // since TokenMetadata requires proper lifetime management with &str and &[u8] fields
 
         let original = UpdateMetadataArgs::new(TokenMetadata {
@@ -74,17 +74,17 @@ mod tests {
         // Test validation
         assert!(original.validate().is_ok());
 
-        let packed = original.pack();
-        let unpacked = UpdateMetadataArgs::unpack(&packed).unwrap();
+        let inner_bytes = original.to_bytes_inner();
+        let deserialized = UpdateMetadataArgs::try_from_bytes(&inner_bytes).unwrap();
 
         assert_eq!(
             original.metadata.update_authority,
-            unpacked.metadata.update_authority
+            deserialized.metadata.update_authority
         );
-        assert_eq!(original.metadata.mint, unpacked.metadata.mint);
-        assert_eq!(original.metadata.name, unpacked.metadata.name);
-        assert_eq!(original.metadata.symbol, unpacked.metadata.symbol);
-        assert_eq!(original.metadata.uri, unpacked.metadata.uri);
+        assert_eq!(original.metadata.mint, deserialized.metadata.mint);
+        assert_eq!(original.metadata.name, deserialized.metadata.name);
+        assert_eq!(original.metadata.symbol, deserialized.metadata.symbol);
+        assert_eq!(original.metadata.uri, deserialized.metadata.uri);
 
         // Test validation failure with empty name
         let bad_metadata = TokenMetadata {

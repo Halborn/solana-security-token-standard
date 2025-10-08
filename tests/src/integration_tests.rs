@@ -9,9 +9,8 @@ use security_token_client::{
     TokenMetadata, TrimVerificationConfig, TrimVerificationConfigArgs,
     TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataArgs,
     UpdateMetadataInstructionArgs, UpdateVerificationConfig, UpdateVerificationConfigArgs,
-    UpdateVerificationConfigInstructionArgs, SECURITY_TOKEN_ID,
+    UpdateVerificationConfigInstructionArgs, VerificationConfig, SECURITY_TOKEN_ID,
 };
-
 use solana_program_test::ProgramTest;
 use solana_sdk::sysvar;
 use solana_sdk::{pubkey::Pubkey, signature::Signer};
@@ -467,6 +466,11 @@ async fn test_update_metadata() {
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
+    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+        &[b"verification_config", mint_keypair.pubkey().as_ref(), &[1]],
+        &SECURITY_TOKEN_ID,
+    );
+
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
@@ -534,7 +538,10 @@ async fn test_update_metadata() {
     let encoded = encode_additional_metadata(&updated_additional_metadata);
 
     let update_metadata_instruction = UpdateMetadata {
+        verification_config: Some(verification_config_pda),
+        instructions_sysvar: sysvar::instructions::ID,
         mint: mint_keypair.pubkey(),
+        mint_for_update: mint_keypair.pubkey(),
         mint_authority: context.payer.pubkey(),
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
@@ -1001,10 +1008,6 @@ async fn test_verification_config() {
         "Config PDA should be owned by security token program"
     );
 
-    // Deserialize and verify the stored VerificationConfig
-    use borsh::BorshDeserialize;
-    use security_token_program::state::VerificationConfig;
-
     let stored_config = VerificationConfig::try_from_slice(&config_account.data)
         .expect("Should be able to deserialize VerificationConfig");
 
@@ -1021,8 +1024,7 @@ async fn test_verification_config() {
 
     for (i, expected_program) in verification_programs.iter().enumerate() {
         assert_eq!(
-            stored_config.verification_programs[i],
-            expected_program.to_bytes(),
+            stored_config.verification_programs[i], *expected_program,
             "Program at index {} should match",
             i
         );
@@ -1091,8 +1093,7 @@ async fn test_verification_config() {
 
     // The original program at index 0 should remain
     assert_eq!(
-        updated_config.verification_programs[0],
-        verification_programs[0].to_bytes(),
+        updated_config.verification_programs[0], verification_programs[0],
         "Original program at index 0 should remain unchanged"
     );
 
@@ -1100,8 +1101,7 @@ async fn test_verification_config() {
     for (i, expected_program) in new_verification_programs.iter().enumerate() {
         let config_index = offset as usize + i;
         assert_eq!(
-            updated_config.verification_programs[config_index],
-            expected_program.to_bytes(),
+            updated_config.verification_programs[config_index], *expected_program,
             "Updated program at index {} should match",
             config_index
         );
@@ -1189,13 +1189,11 @@ async fn test_verification_config() {
 
     // Verify that remaining programs are correct (first 2 programs should remain)
     assert_eq!(
-        trimmed_config.verification_programs[0],
-        verification_programs[0].to_bytes(),
+        trimmed_config.verification_programs[0], verification_programs[0],
         "First program should remain unchanged"
     );
     assert_eq!(
-        trimmed_config.verification_programs[1],
-        new_verification_programs[0].to_bytes(),
+        trimmed_config.verification_programs[1], new_verification_programs[0],
         "Second program should be the first updated program"
     );
 

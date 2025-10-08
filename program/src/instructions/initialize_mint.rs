@@ -18,7 +18,7 @@ pub struct InitializeMintArgs {
 
 impl InitializeMintArgs {
     /// Pack the mint arguments into bytes using the same format as SPL Token 2022
-    pub fn pack(&self) -> Vec<u8> {
+    pub fn to_bytes_inner(&self) -> Vec<u8> {
         let mut buf = Vec::new();
 
         // Pack decimals (1 byte)
@@ -38,8 +38,8 @@ impl InitializeMintArgs {
         buf
     }
 
-    /// Unpack mint arguments from bytes
-    pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
+    /// Deserialize mint arguments from bytes
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         if data.len() < 34 {
             // minimum: 1 (decimals) + 32 (mint_authority) + 1 (freeze_authority flag)
             return Err(ProgramError::InvalidInstructionData);
@@ -254,11 +254,11 @@ impl<'a> InitializeArgs<'a> {
     }
 
     /// Pack the arguments into bytes
-    pub fn pack(&self) -> Vec<u8> {
+    pub fn to_bytes_inner(&self) -> Vec<u8> {
         let mut buf = Vec::new();
 
         // Pack basic mint arguments first
-        buf.extend_from_slice(&self.ix_mint.pack());
+        buf.extend_from_slice(&self.ix_mint.to_bytes_inner());
 
         // Pack metadata pointer presence flag and data if present
         if let Some(metadata_pointer) = &self.ix_metadata_pointer {
@@ -299,10 +299,10 @@ impl<'a> InitializeArgs<'a> {
         buf
     }
 
-    /// Unpack arguments from bytes
-    pub fn unpack(data: &'a [u8]) -> Result<Self, ProgramError> {
-        // First, unpack the mint arguments
-        let ix_mint = InitializeMintArgs::unpack(data)?;
+    /// Deserialize arguments from bytes
+    pub fn try_from_bytes(data: &'a [u8]) -> Result<Self, ProgramError> {
+        // First, try_from_bytes the mint arguments
+        let ix_mint = InitializeMintArgs::try_from_bytes(data)?;
 
         // Determine the offset after mint args
         let mut offset = if ix_mint.freeze_authority.is_some() {
@@ -471,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn test_initialize_mint_args_pack_unpack() {
+    fn test_initialize_mint_args_to_bytes_inner_try_from_bytes() {
         let mint_authority = random_pubkey();
         let freeze_authority = Some(random_pubkey());
 
@@ -481,12 +481,12 @@ mod tests {
             freeze_authority,
         };
 
-        let packed = original.pack();
-        let unpacked = InitializeMintArgs::unpack(&packed).unwrap();
+        let inner_bytes = original.to_bytes_inner();
+        let deserialized = InitializeMintArgs::try_from_bytes(&inner_bytes).unwrap();
 
-        assert_eq!(original.decimals, unpacked.decimals);
-        assert_eq!(original.mint_authority, unpacked.mint_authority);
-        assert_eq!(original.freeze_authority, unpacked.freeze_authority);
+        assert_eq!(original.decimals, deserialized.decimals);
+        assert_eq!(original.mint_authority, deserialized.mint_authority);
+        assert_eq!(original.freeze_authority, deserialized.freeze_authority);
     }
 
     #[test]
@@ -536,49 +536,49 @@ mod tests {
             Some(scaled_ui_amount),
         );
 
-        let packed = original.pack();
-        let unpacked = InitializeArgs::unpack(&packed).unwrap();
+        let inner_bytes = original.to_bytes_inner();
+        let deserialized = InitializeArgs::try_from_bytes(&inner_bytes).unwrap();
 
-        assert_eq!(original.ix_mint.decimals, unpacked.ix_mint.decimals);
+        assert_eq!(original.ix_mint.decimals, deserialized.ix_mint.decimals);
         assert_eq!(
             original.ix_mint.mint_authority,
-            unpacked.ix_mint.mint_authority
+            deserialized.ix_mint.mint_authority
         );
         assert_eq!(
             original.ix_mint.freeze_authority,
-            unpacked.ix_mint.freeze_authority
+            deserialized.ix_mint.freeze_authority
         );
 
         // Verify that MetadataPointer is correctly restored
-        let unpacked_metadata_pointer = unpacked.ix_metadata_pointer.unwrap();
+        let deserialized_metadata_pointer = deserialized.ix_metadata_pointer.unwrap();
         assert_eq!(
             metadata_pointer.authority,
-            unpacked_metadata_pointer.authority
+            deserialized_metadata_pointer.authority
         );
         assert_eq!(
             metadata_pointer.metadata_address,
-            unpacked_metadata_pointer.metadata_address
+            deserialized_metadata_pointer.metadata_address
         );
 
         // Verify Metadata
-        let unpacked_metadata = unpacked.ix_metadata.unwrap();
-        assert_eq!(metadata.name, unpacked_metadata.name);
-        assert_eq!(metadata.symbol, unpacked_metadata.symbol);
-        assert_eq!(metadata.uri, unpacked_metadata.uri);
+        let deserialized_metadata = deserialized.ix_metadata.unwrap();
+        assert_eq!(metadata.name, deserialized_metadata.name);
+        assert_eq!(metadata.symbol, deserialized_metadata.symbol);
+        assert_eq!(metadata.uri, deserialized_metadata.uri);
         assert_eq!(
             metadata.additional_metadata,
-            unpacked_metadata.additional_metadata
+            deserialized_metadata.additional_metadata
         );
 
         // Verify ScaledUiAmount
-        let unpacked_scaled_ui_amount = unpacked.ix_scaled_ui_amount.unwrap();
+        let deserialized_scaled_ui_amount = deserialized.ix_scaled_ui_amount.unwrap();
         assert_eq!(
             scaled_ui_amount.authority,
-            unpacked_scaled_ui_amount.authority
+            deserialized_scaled_ui_amount.authority
         );
         assert_eq!(
             scaled_ui_amount.multiplier,
-            unpacked_scaled_ui_amount.multiplier
+            deserialized_scaled_ui_amount.multiplier
         );
     }
 
@@ -597,22 +597,22 @@ mod tests {
             None, // no scaled UI amount
         );
 
-        let packed = original.pack();
-        let unpacked = InitializeArgs::unpack(&packed).unwrap();
+        let inner_bytes = original.to_bytes_inner();
+        let deserialized = InitializeArgs::try_from_bytes(&inner_bytes).unwrap();
 
-        assert_eq!(original.ix_mint.decimals, unpacked.ix_mint.decimals);
+        assert_eq!(original.ix_mint.decimals, deserialized.ix_mint.decimals);
         assert_eq!(
             original.ix_mint.mint_authority,
-            unpacked.ix_mint.mint_authority
+            deserialized.ix_mint.mint_authority
         );
         assert_eq!(
             original.ix_mint.freeze_authority,
-            unpacked.ix_mint.freeze_authority
+            deserialized.ix_mint.freeze_authority
         );
 
-        assert!(unpacked.ix_metadata_pointer.is_none());
-        assert!(unpacked.ix_metadata.is_none());
-        assert!(unpacked.ix_scaled_ui_amount.is_none());
+        assert!(deserialized.ix_metadata_pointer.is_none());
+        assert!(deserialized.ix_metadata.is_none());
+        assert!(deserialized.ix_scaled_ui_amount.is_none());
     }
 
     #[test]

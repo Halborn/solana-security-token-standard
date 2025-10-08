@@ -17,8 +17,6 @@ pinocchio-pubkey = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev 
 pinocchio-system = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
 pinocchio-token-2022 = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
 pinocchio-log = "0.5.0"
-
-bytemuck = { version = "1.18.0", features = ["derive"] }
 borsh = "0.10.4"
 bs58 = "0.4"
 

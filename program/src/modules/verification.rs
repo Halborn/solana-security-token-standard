@@ -10,8 +10,11 @@ use pinocchio::pubkey::Pubkey;
 use pinocchio::ProgramResult;
 use pinocchio::{
     msg,
-    sysvars::rent::{
-        Rent, DEFAULT_BURN_PERCENT, DEFAULT_EXEMPTION_THRESHOLD, DEFAULT_LAMPORTS_PER_BYTE_YEAR,
+    sysvars::{
+        instructions::Instructions,
+        rent::{
+            Rent, DEFAULT_BURN_PERCENT, DEFAULT_EXEMPTION_THRESHOLD, DEFAULT_LAMPORTS_PER_BYTE_YEAR,
+        },
     },
 };
 use pinocchio_log::log;
@@ -33,14 +36,15 @@ use pinocchio_token_2022::{
     instructions::AuthorityType,
 };
 
-use crate::instruction::SecurityTokenInstruction;
+use super::utils as verification_utils;
+use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
-use crate::instructions::{InitializeArgs, UpdateMetadataArgs};
-use crate::modules::verify_signer;
+use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
+use crate::modules::{verify_owner, verify_signer};
 use crate::state::VerificationConfig;
 use crate::utils;
-use borsh::{BorshDeserialize, BorshSerialize};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Verification Module - handles all authorization and compliance checks
 pub struct VerificationModule;
@@ -627,21 +631,199 @@ impl VerificationModule {
         Ok(())
     }
 
-    /// Verify authorization for Security Token instructions
+    /// Verify specific operation against configured verification programs
     ///
-    /// Supports two modes:
-    /// - Instruction Introspection Mode: reads prior instructions in transaction
-    /// - CPI Mode: executes CPIs to verification programs
-    pub fn verify_authorization(
-        _accounts: &[AccountInfo],
-        _instruction: &SecurityTokenInstruction,
+    /// Client is responsible for deriving and providing the correct VerificationConfig PDA
+    /// based on mint and instruction discriminator they want to verify.
+    ///
+    /// Accounts from index 3+ will be compared with accounts from verification program calls.
+    /// Verification programs should be called with at least a full set of accounts in the exact order.
+    pub fn verify(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args: &VerifyArgs,
     ) -> ProgramResult {
-        // TODO: Load VerificationConfig account if exists
-        // TODO: Check if custom verification workflow is configured
-        // TODO: If configured, execute verification flow
-        // TODO: If not configured, use standard authorization (creator signature)
+        log!("Verifying instruction discriminant: {}", args.ix);
 
-        // Placeholder implementation
+        // Expected accounts:
+        // 0. [readonly] Mint account - to derive VerificationConfig PDA
+        // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
+        // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
+        // 3+ [any] Accounts for the target instruction and comparison with verification program calls
+        let [mint_info, verification_config, instructions_sysvar, instruction_accounts @ ..] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        // TODO: Should we pass?
+        if verification_config.data_is_empty() {
+            log!("No VerificationConfig found");
+            return Ok(());
+        }
+
+        verify_owner(verification_config, program_id)?;
+
+        // TODO: this could be optimized further by using `create_program_address` to verify the
+        // pubkey and associated bump (needed to be stored in the account itself) is valid.
+        let (expected_pda, _bump) =
+            utils::find_verification_config_pda(mint_info.key(), args.ix, program_id);
+
+        if verification_config.key().ne(&expected_pda) {
+            return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
+        }
+
+        let data = verification_config.try_borrow_data()?;
+        let config = VerificationConfig::try_from_bytes(&data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        // TODO: Should we reject?
+        if config.verification_programs.is_empty() {
+            log!("No verification programs configured - rejecting");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Verify config matches expected instruction
+        if config.instruction_discriminator != args.ix {
+            log!(
+                "VerificationConfig discriminator mismatch: expected {}, got {}",
+                config.instruction_discriminator,
+                args.ix
+            );
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        Self::execute_verification(&config, instructions_sysvar, instruction_accounts, args.ix)?;
+
+        Ok(())
+    }
+
+    /// Execute instruction and verification programs validation
+    /// Checks that required verification programs were called with proper accounts matching current instruction accounts
+    fn execute_verification(
+        config: &VerificationConfig,
+        instructions_sysvar: &AccountInfo,
+        instruction_accounts: &[AccountInfo],
+        target_instruction_discriminator: u8,
+    ) -> ProgramResult {
+        // Get current instruction index
+        let instructions = Instructions::try_from(instructions_sysvar)?;
+        let current_index = instructions.load_current_index() as usize;
+        log!("Current instruction index: {}", current_index);
+        log!(
+            "Current instruction has {} accounts",
+            instruction_accounts.len()
+        );
+        let mut collected_accounts: Vec<Option<Vec<Pubkey>>> =
+            vec![None; config.verification_programs.len()];
+        let mut remaining_indices: HashSet<usize> =
+            (0..config.verification_programs.len()).collect();
+        let mut program_index_map: HashMap<Pubkey, VecDeque<usize>> = HashMap::new();
+
+        for (idx, program) in config.verification_programs.iter().enumerate() {
+            program_index_map
+                .entry(*program)
+                .or_default()
+                .push_back(idx);
+        }
+        let mut verified_programs: Vec<(Pubkey, usize)> = Vec::new();
+
+        if current_index > 0 {
+            for instr_idx in (0..current_index).rev() {
+                if remaining_indices.is_empty() {
+                    break;
+                }
+
+                match instructions.load_instruction_at(instr_idx) {
+                    Ok(instruction) => {
+                        let program_id = instruction.get_program_id();
+                        if let Some(config_idx) =
+                            program_index_map.get_mut(program_id).and_then(|indices| {
+                                while let Some(&candidate_idx) = indices.front() {
+                                    if remaining_indices.contains(&candidate_idx) {
+                                        return Some(candidate_idx);
+                                    }
+                                    indices.pop_front();
+                                }
+                                None
+                            })
+                        {
+                            let instruction_data = instruction.get_instruction_data();
+
+                            if instruction_data.is_empty() {
+                                log!("Skipping instruction {} - empty data", instr_idx);
+                                continue;
+                            }
+
+                            let verification_discriminator = instruction_data[0];
+
+                            if verification_discriminator != target_instruction_discriminator {
+                                log!(
+                                    "Skipping verification program {} at instruction {} due to discriminator mismatch (expected {}, got {})",
+                                    config_idx,
+                                    instr_idx,
+                                    target_instruction_discriminator,
+                                    verification_discriminator
+                                );
+                                continue;
+                            }
+
+                            log!(
+                                "Found verification program {} at instruction {}",
+                                config_idx,
+                                instr_idx
+                            );
+
+                            let mut accounts = Vec::new();
+                            let mut account_idx = 0;
+
+                            while let Ok(account_meta) =
+                                instruction.get_account_meta_at(account_idx)
+                            {
+                                accounts.push(account_meta.key);
+                                account_idx += 1;
+                            }
+
+                            collected_accounts[config_idx] = Some(accounts);
+                            verified_programs.push((*program_id, instr_idx));
+                            remaining_indices.remove(&config_idx);
+                        }
+                    }
+                    Err(_) => {
+                        log!("Could not load instruction at index {}", instr_idx);
+                    }
+                }
+            }
+        }
+
+        if let Some(&missing_idx) = remaining_indices.iter().next() {
+            let missing_program = config.verification_programs[missing_idx];
+            log!(
+                "ERROR: Required verification program {} not found",
+                crate::key_as_str!(missing_program)
+            );
+            log!("Missing program index: {}", missing_idx);
+            return Err(SecurityTokenError::VerificationProgramNotFound.into());
+        }
+
+        let all_verification_accounts: Vec<Vec<Pubkey>> = collected_accounts
+            .into_iter()
+            .map(|entry| entry.expect("missing verification program accounted above"))
+            .collect();
+
+        if !all_verification_accounts.is_empty() {
+            let instruction_account_keys: Vec<Pubkey> =
+                instruction_accounts.iter().map(|acc| *acc.key()).collect();
+            verification_utils::validate_account_verification(
+                &all_verification_accounts,
+                &instruction_account_keys,
+            )?;
+        }
+
+        log!(
+            "Verification completed successfully for {} programs",
+            verified_programs.len()
+        );
         Ok(())
     }
 
@@ -722,11 +904,9 @@ impl VerificationModule {
 
         create_account_instruction.invoke_signed(&[signer])?;
 
-        // Write data to the account using Borsh serialization
+        // Write data to the account using manual serialization
         let mut data = config_account.try_borrow_mut_data()?;
-        let config_bytes = config
-            .try_to_vec()
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let config_bytes = config.to_bytes_inner();
         data[..config_bytes.len()].copy_from_slice(&config_bytes);
 
         log!(
@@ -781,7 +961,7 @@ impl VerificationModule {
         // Load existing config
         let mut existing_config = {
             let data = config_account.try_borrow_data()?;
-            VerificationConfig::try_from_slice(&data)
+            VerificationConfig::try_from_bytes(&data)
                 .map_err(|_| ProgramError::InvalidAccountData)?
         };
 
@@ -836,9 +1016,7 @@ impl VerificationModule {
             config_account.realloc(new_size, false)?;
         }
 
-        let config_bytes = existing_config
-            .try_to_vec()
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let config_bytes = existing_config.to_bytes_inner();
 
         {
             let mut data = config_account.try_borrow_mut_data()?;
@@ -897,7 +1075,7 @@ impl VerificationModule {
         // Load existing config
         let mut existing_config = {
             let data = config_account.try_borrow_data()?;
-            VerificationConfig::try_from_slice(&data)
+            VerificationConfig::try_from_bytes(&data)
                 .map_err(|_| ProgramError::InvalidAccountData)?
         };
 
@@ -980,9 +1158,7 @@ impl VerificationModule {
             }
 
             // Write the trimmed config back to the account
-            let config_bytes = existing_config
-                .try_to_vec()
-                .map_err(|_| ProgramError::InvalidAccountData)?;
+            let config_bytes = existing_config.to_bytes_inner();
 
             {
                 let mut data = config_account.try_borrow_mut_data()?;
@@ -1010,10 +1186,4 @@ impl VerificationModule {
 
         Ok(())
     }
-}
-
-/// Verify specific operation against configured verification programs
-pub fn verify(_accounts: &[AccountInfo], _instruction: &SecurityTokenInstruction) -> ProgramResult {
-    // Main verification entry point
-    VerificationModule::verify_authorization(_accounts, _instruction)
 }

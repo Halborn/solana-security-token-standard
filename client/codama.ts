@@ -30,6 +30,29 @@ const program = programNode({
   publicKey: 'Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH',
   version: '0.1.0',
   definedTypes: [
+    // VerificationConfig - Account type for storing verification configuration
+    definedTypeNode({
+      name: 'VerificationConfig',
+      docs: [
+        'Verification configuration for instructions stored as account data',
+      ],
+      type: structTypeNode([
+        structFieldTypeNode({
+          name: 'instructionDiscriminator',
+          docs: ['Instruction discriminator this config applies to'],
+          type: numberTypeNode('u8'),
+        }),
+        structFieldTypeNode({
+          name: 'verificationPrograms',
+          docs: ['Required verification programs as raw bytes (32 bytes each)'],
+          type: arrayTypeNode(
+            publicKeyTypeNode(),
+            prefixedCountNode(numberTypeNode('u32'))
+          ),
+        }),
+      ]),
+    }),
+
     // InitializeMintArgs
     definedTypeNode({
       name: 'InitializeMintArgs',
@@ -240,19 +263,19 @@ const program = programNode({
           type: numberTypeNode('u8'),
         }),
         structFieldTypeNode({
+          name: 'offset',
+          docs: [
+            'Offset at which to start replacement/insertion (0-based index)',
+          ],
+          type: numberTypeNode('u8'),
+        }),
+        structFieldTypeNode({
           name: 'programAddresses',
           docs: ['Array of new verification program addresses to add/replace'],
           type: arrayTypeNode(
             publicKeyTypeNode(),
             prefixedCountNode(numberTypeNode('u32'))
           ),
-        }),
-        structFieldTypeNode({
-          name: 'offset',
-          docs: [
-            'Offset at which to start replacement/insertion (0-based index)',
-          ],
-          type: numberTypeNode('u8'),
         }),
       ]),
     }),
@@ -278,6 +301,19 @@ const program = programNode({
           name: 'close',
           docs: ['Whether to close the account completely'],
           type: booleanTypeNode(),
+        }),
+      ]),
+    }),
+
+    // VerifyArgs
+    definedTypeNode({
+      name: 'VerifyArgs',
+      docs: ['Arguments for Verify instruction'],
+      type: structTypeNode([
+        structFieldTypeNode({
+          name: 'ix',
+          docs: ['The Security Token instruction discriminant to verify'],
+          type: numberTypeNode('u8'),
         }),
       ]),
     }),
@@ -347,13 +383,38 @@ const program = programNode({
       accounts: [
         instructionAccountNode({
           name: 'mint',
-          docs: ['The mint account'],
+          docs: ['The mint account (position 0 - required for verification)'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: [
+            'The VerificationConfig PDA (position 1 - may not exist but position reserved)',
+          ],
+          isSigner: false,
+          isWritable: false,
+          isOptional: true,
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: [
+            'The Instructions sysvar (position 2 - required for Instruction Introspection)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'mintForUpdate',
+          docs: [
+            'The mint account again (position 3 - required for update_metadata function)',
+          ],
           isSigner: false,
           isWritable: true,
         }),
         instructionAccountNode({
           name: 'mintAuthority',
-          docs: ['The mint authority account'],
+          docs: ['The mint authority account (position 4)'],
           isSigner: true,
           isWritable: false,
         }),
@@ -536,107 +597,69 @@ const program = programNode({
         }),
       ],
     }),
+
+    // Verify (discriminant = 5)
+    instructionNode({
+      name: 'verify',
+      discriminators: [fieldDiscriminatorNode('discriminator', 5)],
+      docs: [
+        'Verify that a specific instruction type can be executed according to configured verification programs',
+      ],
+      accounts: [
+        instructionAccountNode({
+          name: 'mintAccount',
+          docs: ['The mint account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: ['The verification config PDA for this instruction type'],
+          isSigner: false,
+          isWritable: false,
+          isOptional: true, // Optional since not all instructions may have verification config
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: ['The Solana Instructions sysvar account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(5),
+          defaultValueStrategy: 'omitted',
+        }),
+        instructionArgumentNode({
+          name: 'args',
+          type: definedTypeLinkNode('VerifyArgs'),
+        }),
+      ],
+    }),
   ],
   errors: [
     errorNode({
-      name: 'InvalidInstruction',
-      code: 0,
-      message: 'Invalid instruction',
+      name: 'VerificationProgramNotFound',
+      code: 1,
+      message: 'Verification program not found',
     }),
-    errorNode({ name: 'NotRentExempt', code: 1, message: 'Not rent exempt' }),
-    errorNode({ name: 'ExpectedMint', code: 2, message: 'Expected mint' }),
     errorNode({
-      name: 'ExpectedTokenAccount',
+      name: 'NotEnoughAccountsForVerification',
+      code: 2,
+      message: 'Not enough accounts for verification',
+    }),
+    errorNode({
+      name: 'AccountIntersectionMismatch',
       code: 3,
-      message: 'Expected token account',
+      message: 'Account intersection mismatch',
     }),
     errorNode({
-      name: 'ExpectedMintAuthority',
+      name: 'InvalidVerificationConfigPda',
       code: 4,
-      message: 'Expected mint authority',
-    }),
-    errorNode({
-      name: 'InvalidMintAuthority',
-      code: 5,
-      message: 'Invalid mint authority',
-    }),
-    errorNode({
-      name: 'InvalidTokenOwner',
-      code: 6,
-      message: 'Invalid token owner',
-    }),
-    errorNode({
-      name: 'VerificationFailed',
-      code: 7,
-      message: 'Verification failed',
-    }),
-    errorNode({
-      name: 'TransferRestricted',
-      code: 8,
-      message: 'Transfer restricted',
-    }),
-    errorNode({ name: 'AccountFrozen', code: 9, message: 'Account frozen' }),
-    errorNode({ name: 'TokenPaused', code: 10, message: 'Token paused' }),
-    errorNode({
-      name: 'InsufficientCompliance',
-      code: 11,
-      message: 'Insufficient compliance',
-    }),
-    errorNode({
-      name: 'InvalidVerificationConfig',
-      code: 12,
-      message: 'Invalid verification config',
-    }),
-    errorNode({
-      name: 'MissingVerificationSignature',
-      code: 13,
-      message: 'Missing verification signature',
-    }),
-    errorNode({
-      name: 'CorporateActionNotFound',
-      code: 14,
-      message: 'Corporate action not found',
-    }),
-    errorNode({
-      name: 'InvalidRateConfiguration',
-      code: 15,
-      message: 'Invalid rate configuration',
-    }),
-    errorNode({
-      name: 'ReceiptAlreadyExists',
-      code: 16,
-      message: 'Receipt already exists',
-    }),
-    errorNode({
-      name: 'InvalidMerkleProof',
-      code: 17,
-      message: 'Invalid merkle proof',
-    }),
-    errorNode({
-      name: 'DistributionAlreadyClaimed',
-      code: 18,
-      message: 'Distribution already claimed',
-    }),
-    errorNode({
-      name: 'InsufficientBalance',
-      code: 19,
-      message: 'Insufficient balance',
-    }),
-    errorNode({ name: 'MathOverflow', code: 20, message: 'Math overflow' }),
-    errorNode({
-      name: 'InvalidAccountData',
-      code: 21,
-      message: 'Invalid account data',
-    }),
-    errorNode({
-      name: 'AccountNotInitialized',
-      code: 22,
-      message: 'Account not initialized',
-    }),
-    errorNode({
-      name: 'AccountAlreadyInitialized',
-      code: 23,
-      message: 'Account already initialized',
+      message: 'Invalid verification config PDA',
     }),
   ],
 });

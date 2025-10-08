@@ -14,10 +14,14 @@ pub enum SecurityTokenInstruction {
     InitializeMint = 0,
     /// Update the metadata of an existing security token mint
     /// Accounts expected:
-    /// 0. `[writable]` The mint account
-    /// 1. `[signer]` The mint authority account
-    /// 2. `[]` The SPL Token 2022 program ID
-    /// 3. `[]` The system program ID - NOTE: Add lamports if needed
+    /// 0. `[]` The mint account
+    /// 1. `[]` The verification config PDA account
+    /// 2. `[]` Instructions sysvar (for introspection mode)
+    /// 3. `[writable]` The mint account
+    /// 4. `[signer]` The mint authority account
+    /// 5. `[]` The SPL Token 2022 program ID
+    /// 6. `[]` The system program ID - NOTE: Add lamports if needed
+    /// 7. `[]` the remaining accounts for the verification purposes
     UpdateMetadata = 1,
     /// Initialize verification configuration for an instruction
     /// Accounts expected:
@@ -42,6 +46,13 @@ pub enum SecurityTokenInstruction {
     /// 3. `[writable]` The rent recipient account (to receive recovered lamports)
     /// 4. `[]` The system program ID (optional for closing account)
     TrimVerificationConfig = 4,
+    /// Verify a security token instruction using configured verification programs
+    /// Accounts expected:
+    /// 0. `[]` The mint account
+    /// 1. `[]` The verification config PDA account
+    /// 2. `[]` Instructions sysvar (for introspection mode)
+    /// 3. Remaining accounts depend on the instruction being verified and CPI mode requirements
+    Verify = 5,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -54,6 +65,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             2 => Ok(SecurityTokenInstruction::InitializeVerificationConfig),
             3 => Ok(SecurityTokenInstruction::UpdateVerificationConfig),
             4 => Ok(SecurityTokenInstruction::TrimVerificationConfig),
+            5 => Ok(SecurityTokenInstruction::Verify),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -76,12 +88,11 @@ impl SecurityTokenInstruction {
 
     /// Get the discriminant byte for this instruction
     pub fn discriminant(&self) -> u8 {
-        match self {
-            SecurityTokenInstruction::InitializeMint => 0,
-            SecurityTokenInstruction::UpdateMetadata => 1,
-            SecurityTokenInstruction::InitializeVerificationConfig => 2,
-            SecurityTokenInstruction::UpdateVerificationConfig => 3,
-            SecurityTokenInstruction::TrimVerificationConfig => 4,
-        }
+        self.clone() as u8
+    }
+
+    /// Create instruction from discriminant byte
+    pub fn from_discriminant(discriminant: u8) -> Option<Self> {
+        Self::try_from(discriminant).ok()
     }
 }

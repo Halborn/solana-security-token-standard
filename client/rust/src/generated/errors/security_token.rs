@@ -10,78 +10,18 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
 pub enum SecurityTokenError {
-    /// 0 - Invalid instruction
-    #[error("Invalid instruction")]
-    InvalidInstruction = 0x0,
-    /// 1 - Not rent exempt
-    #[error("Not rent exempt")]
-    NotRentExempt = 0x1,
-    /// 2 - Expected mint
-    #[error("Expected mint")]
-    ExpectedMint = 0x2,
-    /// 3 - Expected token account
-    #[error("Expected token account")]
-    ExpectedTokenAccount = 0x3,
-    /// 4 - Expected mint authority
-    #[error("Expected mint authority")]
-    ExpectedMintAuthority = 0x4,
-    /// 5 - Invalid mint authority
-    #[error("Invalid mint authority")]
-    InvalidMintAuthority = 0x5,
-    /// 6 - Invalid token owner
-    #[error("Invalid token owner")]
-    InvalidTokenOwner = 0x6,
-    /// 7 - Verification failed
-    #[error("Verification failed")]
-    VerificationFailed = 0x7,
-    /// 8 - Transfer restricted
-    #[error("Transfer restricted")]
-    TransferRestricted = 0x8,
-    /// 9 - Account frozen
-    #[error("Account frozen")]
-    AccountFrozen = 0x9,
-    /// 10 - Token paused
-    #[error("Token paused")]
-    TokenPaused = 0xA,
-    /// 11 - Insufficient compliance
-    #[error("Insufficient compliance")]
-    InsufficientCompliance = 0xB,
-    /// 12 - Invalid verification config
-    #[error("Invalid verification config")]
-    InvalidVerificationConfig = 0xC,
-    /// 13 - Missing verification signature
-    #[error("Missing verification signature")]
-    MissingVerificationSignature = 0xD,
-    /// 14 - Corporate action not found
-    #[error("Corporate action not found")]
-    CorporateActionNotFound = 0xE,
-    /// 15 - Invalid rate configuration
-    #[error("Invalid rate configuration")]
-    InvalidRateConfiguration = 0xF,
-    /// 16 - Receipt already exists
-    #[error("Receipt already exists")]
-    ReceiptAlreadyExists = 0x10,
-    /// 17 - Invalid merkle proof
-    #[error("Invalid merkle proof")]
-    InvalidMerkleProof = 0x11,
-    /// 18 - Distribution already claimed
-    #[error("Distribution already claimed")]
-    DistributionAlreadyClaimed = 0x12,
-    /// 19 - Insufficient balance
-    #[error("Insufficient balance")]
-    InsufficientBalance = 0x13,
-    /// 20 - Math overflow
-    #[error("Math overflow")]
-    MathOverflow = 0x14,
-    /// 21 - Invalid account data
-    #[error("Invalid account data")]
-    InvalidAccountData = 0x15,
-    /// 22 - Account not initialized
-    #[error("Account not initialized")]
-    AccountNotInitialized = 0x16,
-    /// 23 - Account already initialized
-    #[error("Account already initialized")]
-    AccountAlreadyInitialized = 0x17,
+    /// 1 - Verification program not found
+    #[error("Verification program not found")]
+    VerificationProgramNotFound = 0x1,
+    /// 2 - Not enough accounts for verification
+    #[error("Not enough accounts for verification")]
+    NotEnoughAccountsForVerification = 0x2,
+    /// 3 - Account intersection mismatch
+    #[error("Account intersection mismatch")]
+    AccountIntersectionMismatch = 0x3,
+    /// 4 - Invalid verification config PDA
+    #[error("Invalid verification config PDA")]
+    InvalidVerificationConfigPda = 0x4,
 }
 
 impl From<SecurityTokenError> for solana_program_error::ProgramError {
