@@ -696,7 +696,7 @@ impl VerificationModule {
 
         // TODO: Should we pass?
         if verification_config.data_is_empty() {
-            log!("No VerificationConfig found");
+            log!("No verification programs required - passing");
             return Ok(());
         }
 

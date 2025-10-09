@@ -5,7 +5,7 @@ use crate::{
         InitializeVerificationConfigInstructionArgs, UpdateMetadataArgs,
         UpdateVerificationConfigInstructionArgs, VerifyArgs,
     },
-    modules::verification::VerificationModule,
+    modules::{verification::VerificationModule, OperationsModule},
 };
 use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
@@ -48,6 +48,14 @@ impl Processor {
                     instruction.discriminant(),
                 )?;
                 Self::process_update_metadata(program_id, instruction_accounts, args_data)
+            }
+            SecurityTokenInstruction::Mint => {
+                let instruction_accounts = Self::verify_instruction_if_needed(
+                    program_id,
+                    accounts,
+                    instruction.discriminant(),
+                )?;
+                Self::process_mint(program_id, instruction_accounts, args_data)
             }
         }
     }
@@ -146,6 +154,21 @@ impl Processor {
     ) -> ProgramResult {
         let instruction_args = VerifyArgs::try_from_bytes(args_data)?;
         VerificationModule::verify(program_id, accounts, &instruction_args)?;
+        Ok(())
+    }
+
+    fn process_mint(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        // TODO: Change to MintArgs structure?
+        let amount = args_data
+            .get(..8)
+            .and_then(|slice| slice.try_into().ok())
+            .map(u64::from_le_bytes)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        OperationsModule::execute_mint(program_id, accounts, amount)?;
         Ok(())
     }
 }

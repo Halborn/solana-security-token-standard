@@ -3,17 +3,67 @@
 //! Executes token operations after successful verification.
 //! All operations are wrappers around SPL Token 2022 instructions.
 
-use pinocchio::account_info::AccountInfo;
+use crate::constants::seeds;
+use crate::modules::verify_system_program;
+use crate::modules::{verify_initial_mint_authority, verify_token22_program};
+use pinocchio::instruction::{Seed, Signer};
+use pinocchio::program_error::ProgramError;
 use pinocchio::ProgramResult;
-
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio_log::log;
+use pinocchio_token_2022::instructions::MintToChecked;
+use pinocchio_token_2022::state::Mint;
 /// Operations Module - executes token operations
 pub struct OperationsModule;
 
 impl OperationsModule {
     /// Mint tokens to an account
     /// Wrapper for SPL Token MintToChecked instruction
-    pub fn execute_mint(_accounts: &[AccountInfo], _amount: u64) -> ProgramResult {
-        // TODO: Execute SPL Token2022 mint CPI with Mint authority PDA
+    pub fn execute_mint(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+    ) -> ProgramResult {
+        let [creator_signer, mint_info, mint_authority, destination_account_info, system_program, token_program] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+        verify_system_program(system_program)?;
+        verify_token22_program(token_program)?;
+        let mint_authority_state = verify_initial_mint_authority(
+            program_id,
+            mint_info,
+            mint_authority,
+            creator_signer,
+            true,
+        )?;
+
+        log!("All checks passed, proceeding to mint {} tokens", amount);
+
+        let mint_account = Mint::from_account_info(mint_info)?;
+        let decimals = mint_account.decimals();
+        drop(mint_account);
+
+        let instruction = MintToChecked {
+            mint: &mint_info,
+            account: &destination_account_info,
+            mint_authority: &mint_authority,
+            amount,
+            decimals,
+        };
+
+        let bump_seed = [mint_authority_state.bump];
+        let seeds = [
+            Seed::from(seeds::MINT_AUTHORITY),
+            Seed::from(mint_authority_state.mint.as_ref()),
+            Seed::from(mint_authority_state.mint_creator.as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+
+        let mint_authority_signer = Signer::from(&seeds);
+
+        instruction.invoke_signed(&[mint_authority_signer])?;
         Ok(())
     }
 

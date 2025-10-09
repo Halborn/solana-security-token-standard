@@ -64,7 +64,7 @@ pub fn verify_mint_authority(
     mint_authority: &AccountInfo,
     candidate_authority: &AccountInfo,
     expect_authority_writable: bool,
-) -> Result<(), ProgramError> {
+) -> Result<MintAuthority, ProgramError> {
     verify_signer(candidate_authority, false)?;
     verify_owner(mint_authority, program_id)?;
 
@@ -100,6 +100,44 @@ pub fn verify_mint_authority(
 
     if mint_authority_state.bump != expected_bump {
         return Err(ProgramError::InvalidAccountData);
+    }
+
+    Ok(mint_authority_state)
+}
+
+/// Verify account as system program, returning an error if it is not.
+///
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_system_program(info: &AccountInfo) -> Result<(), ProgramError> {
+    if info.key().ne(&pinocchio_system::ID) {
+        log!(
+            "Account {} is not the system program",
+            acc_info_as_str!(info)
+        );
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
+}
+
+/// Verify account as Token 2022 program, returning an error if it is not.
+///
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_token22_program(info: &AccountInfo) -> Result<(), ProgramError> {
+    if info.key().ne(&pinocchio_token_2022::ID) {
+        log!(
+            "Account {} is not the Token 2022 program",
+            acc_info_as_str!(info)
+        );
+        return Err(ProgramError::IncorrectProgramId);
     }
 
     Ok(())

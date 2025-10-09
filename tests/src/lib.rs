@@ -8,3 +8,6 @@ pub mod verify_workflow_test;
 
 #[cfg(test)]
 pub mod helpers;
+
+#[cfg(test)]
+pub mod operations;

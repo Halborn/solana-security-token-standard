@@ -53,6 +53,15 @@ pub enum SecurityTokenInstruction {
     /// 2. `[]` Instructions sysvar (for introspection mode)
     /// 3. Remaining accounts depend on the instruction being verified and CPI mode requirements
     Verify = 5,
+    /// Mint new tokens after verification succeeds
+    /// Accounts expected:
+    /// 0. `[signer]` Original mint creator account that participated in deriving the mint authority PDA
+    /// 1. `[writable]` SPL Token mint account
+    /// 2. `[writable]` Mint authority PDA account (owned by this program)
+    /// 3. `[writable]` Destination token account to receive newly minted tokens
+    /// 4. `[]` System program account
+    /// 5. `[]` SPL Token 2022 program account
+    Mint = 6,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -66,6 +75,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             3 => Ok(SecurityTokenInstruction::UpdateVerificationConfig),
             4 => Ok(SecurityTokenInstruction::TrimVerificationConfig),
             5 => Ok(SecurityTokenInstruction::Verify),
+            6 => Ok(SecurityTokenInstruction::Mint),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
