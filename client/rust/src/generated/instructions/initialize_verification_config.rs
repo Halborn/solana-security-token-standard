@@ -29,11 +29,6 @@ pub struct InitializeVerificationConfig {
     
               
           pub mint_account: solana_pubkey::Pubkey,
-                /// The authority account (mint authority or designated config authority)
-
-    
-              
-          pub authority: solana_pubkey::Pubkey,
                 /// The system program ID
 
     
@@ -48,7 +43,7 @@ impl InitializeVerificationConfig {
   #[allow(clippy::arithmetic_side_effects)]
   #[allow(clippy::vec_init_then_push)]
   pub fn instruction_with_remaining_accounts(&self, args: InitializeVerificationConfigInstructionArgs, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
-    let mut accounts = Vec::with_capacity(5+ remaining_accounts.len());
+    let mut accounts = Vec::with_capacity(4+ remaining_accounts.len());
                             accounts.push(solana_instruction::AccountMeta::new(
             self.config_account,
             false
@@ -60,10 +55,6 @@ impl InitializeVerificationConfig {
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint_account,
             false
-          ));
-                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.authority,
-            true
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.system_program,
@@ -116,14 +107,12 @@ impl Default for InitializeVerificationConfigInstructionData {
                 ///   0. `[writable]` config_account
                       ///   1. `[writable, signer]` payer
           ///   2. `[]` mint_account
-                ///   3. `[signer]` authority
-          ///   4. `[]` system_program
+          ///   3. `[]` system_program
 #[derive(Clone, Debug, Default)]
 pub struct InitializeVerificationConfigBuilder {
             config_account: Option<solana_pubkey::Pubkey>,
                 payer: Option<solana_pubkey::Pubkey>,
                 mint_account: Option<solana_pubkey::Pubkey>,
-                authority: Option<solana_pubkey::Pubkey>,
                 system_program: Option<solana_pubkey::Pubkey>,
                         args: Option<InitializeVerificationConfigArgs>,
         __remaining_accounts: Vec<solana_instruction::AccountMeta>,
@@ -149,12 +138,6 @@ impl InitializeVerificationConfigBuilder {
 #[inline(always)]
     pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
                         self.mint_account = Some(mint_account);
-                    self
-    }
-            /// The authority account (mint authority or designated config authority)
-#[inline(always)]
-    pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
-                        self.authority = Some(authority);
                     self
     }
             /// The system program ID
@@ -186,7 +169,6 @@ impl InitializeVerificationConfigBuilder {
                               config_account: self.config_account.expect("config_account is not set"),
                                         payer: self.payer.expect("payer is not set"),
                                         mint_account: self.mint_account.expect("mint_account is not set"),
-                                        authority: self.authority.expect("authority is not set"),
                                         system_program: self.system_program.expect("system_program is not set"),
                       };
           let args = InitializeVerificationConfigInstructionArgs {
@@ -214,11 +196,6 @@ impl InitializeVerificationConfigBuilder {
       
                     
               pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-                        /// The authority account (mint authority or designated config authority)
-
-      
-                    
-              pub authority: &'b solana_account_info::AccountInfo<'a>,
                         /// The system program ID
 
       
@@ -245,11 +222,6 @@ pub struct InitializeVerificationConfigCpi<'a, 'b> {
     
               
           pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-                /// The authority account (mint authority or designated config authority)
-
-    
-              
-          pub authority: &'b solana_account_info::AccountInfo<'a>,
                 /// The system program ID
 
     
@@ -270,7 +242,6 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
               config_account: accounts.config_account,
               payer: accounts.payer,
               mint_account: accounts.mint_account,
-              authority: accounts.authority,
               system_program: accounts.system_program,
                     __args: args,
           }
@@ -295,7 +266,7 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
     signers_seeds: &[&[&[u8]]],
     remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
   ) -> solana_program_error::ProgramResult {
-    let mut accounts = Vec::with_capacity(5+ remaining_accounts.len());
+    let mut accounts = Vec::with_capacity(4+ remaining_accounts.len());
                             accounts.push(solana_instruction::AccountMeta::new(
             *self.config_account.key,
             false
@@ -307,10 +278,6 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint_account.key,
             false
-          ));
-                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.authority.key,
-            true
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.system_program.key,
@@ -332,12 +299,11 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
       accounts,
       data,
     };
-    let mut account_infos = Vec::with_capacity(6 + remaining_accounts.len());
+    let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
     account_infos.push(self.__program.clone());
                   account_infos.push(self.config_account.clone());
                         account_infos.push(self.payer.clone());
                         account_infos.push(self.mint_account.clone());
-                        account_infos.push(self.authority.clone());
                         account_infos.push(self.system_program.clone());
               remaining_accounts.iter().for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
 
@@ -356,8 +322,7 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
                 ///   0. `[writable]` config_account
                       ///   1. `[writable, signer]` payer
           ///   2. `[]` mint_account
-                ///   3. `[signer]` authority
-          ///   4. `[]` system_program
+          ///   3. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct InitializeVerificationConfigCpiBuilder<'a, 'b> {
   instruction: Box<InitializeVerificationConfigCpiBuilderInstruction<'a, 'b>>,
@@ -370,7 +335,6 @@ impl<'a, 'b> InitializeVerificationConfigCpiBuilder<'a, 'b> {
               config_account: None,
               payer: None,
               mint_account: None,
-              authority: None,
               system_program: None,
                                             args: None,
                     __remaining_accounts: Vec::new(),
@@ -393,12 +357,6 @@ impl<'a, 'b> InitializeVerificationConfigCpiBuilder<'a, 'b> {
 #[inline(always)]
     pub fn mint_account(&mut self, mint_account: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
                         self.instruction.mint_account = Some(mint_account);
-                    self
-    }
-      /// The authority account (mint authority or designated config authority)
-#[inline(always)]
-    pub fn authority(&mut self, authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-                        self.instruction.authority = Some(authority);
                     self
     }
       /// The system program ID
@@ -446,8 +404,6 @@ impl<'a, 'b> InitializeVerificationConfigCpiBuilder<'a, 'b> {
                   
           mint_account: self.instruction.mint_account.expect("mint_account is not set"),
                   
-          authority: self.instruction.authority.expect("authority is not set"),
-                  
           system_program: self.instruction.system_program.expect("system_program is not set"),
                           __args: args,
             };
@@ -461,7 +417,6 @@ struct InitializeVerificationConfigCpiBuilderInstruction<'a, 'b> {
             config_account: Option<&'b solana_account_info::AccountInfo<'a>>,
                 payer: Option<&'b solana_account_info::AccountInfo<'a>>,
                 mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-                authority: Option<&'b solana_account_info::AccountInfo<'a>>,
                 system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
                         args: Option<InitializeVerificationConfigArgs>,
         /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

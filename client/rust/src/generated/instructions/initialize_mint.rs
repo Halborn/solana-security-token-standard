@@ -24,6 +24,11 @@ pub struct InitializeMint {
     
               
           pub payer: solana_pubkey::Pubkey,
+                /// Mint authority PDA account owned by the program
+
+    
+              
+          pub mint_authority_account: solana_pubkey::Pubkey,
                 /// The SPL Token 2022 program ID
 
     
@@ -48,7 +53,7 @@ impl InitializeMint {
   #[allow(clippy::arithmetic_side_effects)]
   #[allow(clippy::vec_init_then_push)]
   pub fn instruction_with_remaining_accounts(&self, args: InitializeMintInstructionArgs, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
-    let mut accounts = Vec::with_capacity(5+ remaining_accounts.len());
+    let mut accounts = Vec::with_capacity(6+ remaining_accounts.len());
                             accounts.push(solana_instruction::AccountMeta::new(
             self.mint,
             true
@@ -56,6 +61,10 @@ impl InitializeMint {
                                           accounts.push(solana_instruction::AccountMeta::new(
             self.payer,
             true
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new(
+            self.mint_authority_account,
+            false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.token_program,
@@ -115,13 +124,15 @@ impl Default for InitializeMintInstructionData {
 ///
                       ///   0. `[writable, signer]` mint
                       ///   1. `[writable, signer]` payer
-          ///   2. `[]` token_program
-          ///   3. `[]` system_program
-          ///   4. `[]` rent
+                ///   2. `[writable]` mint_authority_account
+          ///   3. `[]` token_program
+          ///   4. `[]` system_program
+          ///   5. `[]` rent
 #[derive(Clone, Debug, Default)]
 pub struct InitializeMintBuilder {
             mint: Option<solana_pubkey::Pubkey>,
                 payer: Option<solana_pubkey::Pubkey>,
+                mint_authority_account: Option<solana_pubkey::Pubkey>,
                 token_program: Option<solana_pubkey::Pubkey>,
                 system_program: Option<solana_pubkey::Pubkey>,
                 rent: Option<solana_pubkey::Pubkey>,
@@ -143,6 +154,12 @@ impl InitializeMintBuilder {
 #[inline(always)]
     pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
                         self.payer = Some(payer);
+                    self
+    }
+            /// Mint authority PDA account owned by the program
+#[inline(always)]
+    pub fn mint_authority_account(&mut self, mint_authority_account: solana_pubkey::Pubkey) -> &mut Self {
+                        self.mint_authority_account = Some(mint_authority_account);
                     self
     }
             /// The SPL Token 2022 program ID
@@ -185,6 +202,7 @@ impl InitializeMintBuilder {
     let accounts = InitializeMint {
                               mint: self.mint.expect("mint is not set"),
                                         payer: self.payer.expect("payer is not set"),
+                                        mint_authority_account: self.mint_authority_account.expect("mint_authority_account is not set"),
                                         token_program: self.token_program.expect("token_program is not set"),
                                         system_program: self.system_program.expect("system_program is not set"),
                                         rent: self.rent.expect("rent is not set"),
@@ -209,6 +227,11 @@ impl InitializeMintBuilder {
       
                     
               pub payer: &'b solana_account_info::AccountInfo<'a>,
+                        /// Mint authority PDA account owned by the program
+
+      
+                    
+              pub mint_authority_account: &'b solana_account_info::AccountInfo<'a>,
                         /// The SPL Token 2022 program ID
 
       
@@ -240,6 +263,11 @@ pub struct InitializeMintCpi<'a, 'b> {
     
               
           pub payer: &'b solana_account_info::AccountInfo<'a>,
+                /// Mint authority PDA account owned by the program
+
+    
+              
+          pub mint_authority_account: &'b solana_account_info::AccountInfo<'a>,
                 /// The SPL Token 2022 program ID
 
     
@@ -269,6 +297,7 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
       __program: program,
               mint: accounts.mint,
               payer: accounts.payer,
+              mint_authority_account: accounts.mint_authority_account,
               token_program: accounts.token_program,
               system_program: accounts.system_program,
               rent: accounts.rent,
@@ -295,7 +324,7 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
     signers_seeds: &[&[&[u8]]],
     remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
   ) -> solana_program_error::ProgramResult {
-    let mut accounts = Vec::with_capacity(5+ remaining_accounts.len());
+    let mut accounts = Vec::with_capacity(6+ remaining_accounts.len());
                             accounts.push(solana_instruction::AccountMeta::new(
             *self.mint.key,
             true
@@ -303,6 +332,10 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
                                           accounts.push(solana_instruction::AccountMeta::new(
             *self.payer.key,
             true
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new(
+            *self.mint_authority_account.key,
+            false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.token_program.key,
@@ -332,10 +365,11 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
       accounts,
       data,
     };
-    let mut account_infos = Vec::with_capacity(6 + remaining_accounts.len());
+    let mut account_infos = Vec::with_capacity(7 + remaining_accounts.len());
     account_infos.push(self.__program.clone());
                   account_infos.push(self.mint.clone());
                         account_infos.push(self.payer.clone());
+                        account_infos.push(self.mint_authority_account.clone());
                         account_infos.push(self.token_program.clone());
                         account_infos.push(self.system_program.clone());
                         account_infos.push(self.rent.clone());
@@ -355,9 +389,10 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
 ///
                       ///   0. `[writable, signer]` mint
                       ///   1. `[writable, signer]` payer
-          ///   2. `[]` token_program
-          ///   3. `[]` system_program
-          ///   4. `[]` rent
+                ///   2. `[writable]` mint_authority_account
+          ///   3. `[]` token_program
+          ///   4. `[]` system_program
+          ///   5. `[]` rent
 #[derive(Clone, Debug)]
 pub struct InitializeMintCpiBuilder<'a, 'b> {
   instruction: Box<InitializeMintCpiBuilderInstruction<'a, 'b>>,
@@ -369,6 +404,7 @@ impl<'a, 'b> InitializeMintCpiBuilder<'a, 'b> {
       __program: program,
               mint: None,
               payer: None,
+              mint_authority_account: None,
               token_program: None,
               system_program: None,
               rent: None,
@@ -387,6 +423,12 @@ impl<'a, 'b> InitializeMintCpiBuilder<'a, 'b> {
 #[inline(always)]
     pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
                         self.instruction.payer = Some(payer);
+                    self
+    }
+      /// Mint authority PDA account owned by the program
+#[inline(always)]
+    pub fn mint_authority_account(&mut self, mint_authority_account: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+                        self.instruction.mint_authority_account = Some(mint_authority_account);
                     self
     }
       /// The SPL Token 2022 program ID
@@ -444,6 +486,8 @@ impl<'a, 'b> InitializeMintCpiBuilder<'a, 'b> {
                   
           payer: self.instruction.payer.expect("payer is not set"),
                   
+          mint_authority_account: self.instruction.mint_authority_account.expect("mint_authority_account is not set"),
+                  
           token_program: self.instruction.token_program.expect("token_program is not set"),
                   
           system_program: self.instruction.system_program.expect("system_program is not set"),
@@ -460,6 +504,7 @@ struct InitializeMintCpiBuilderInstruction<'a, 'b> {
   __program: &'b solana_account_info::AccountInfo<'a>,
             mint: Option<&'b solana_account_info::AccountInfo<'a>>,
                 payer: Option<&'b solana_account_info::AccountInfo<'a>>,
+                mint_authority_account: Option<&'b solana_account_info::AccountInfo<'a>>,
                 token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
                 system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
                 rent: Option<&'b solana_account_info::AccountInfo<'a>>,

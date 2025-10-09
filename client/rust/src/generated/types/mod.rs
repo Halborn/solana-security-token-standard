@@ -9,6 +9,7 @@
   pub(crate) mod r#initialize_mint_args;
   pub(crate) mod r#initialize_verification_config_args;
   pub(crate) mod r#metadata_pointer;
+  pub(crate) mod r#mint_authority;
   pub(crate) mod r#scaled_ui_amount_config;
   pub(crate) mod r#token_metadata;
   pub(crate) mod r#trim_verification_config_args;
@@ -21,6 +22,7 @@
   pub use self::r#initialize_mint_args::*;
   pub use self::r#initialize_verification_config_args::*;
   pub use self::r#metadata_pointer::*;
+  pub use self::r#mint_authority::*;
   pub use self::r#scaled_ui_amount_config::*;
   pub use self::r#token_metadata::*;
   pub use self::r#trim_verification_config_args::*;

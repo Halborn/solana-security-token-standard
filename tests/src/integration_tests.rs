@@ -5,8 +5,8 @@ use kaigan::types::RemainderVec;
 use security_token_client::{
     InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
     InitializeVerificationConfig, InitializeVerificationConfigArgs,
-    InitializeVerificationConfigInstructionArgs, MetadataPointer, ScaledUiAmountConfig,
-    TokenMetadata, TrimVerificationConfig, TrimVerificationConfigArgs,
+    InitializeVerificationConfigInstructionArgs, MetadataPointer, MintAuthority,
+    ScaledUiAmountConfig, TokenMetadata, TrimVerificationConfig, TrimVerificationConfigArgs,
     TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataArgs,
     UpdateMetadataInstructionArgs, UpdateVerificationConfig, UpdateVerificationConfigArgs,
     UpdateVerificationConfigInstructionArgs, VerificationConfig, SECURITY_TOKEN_ID,
@@ -96,7 +96,7 @@ async fn test_initialize_mint_with_all_extensions() {
     println!("Mint keypair {}", mint_keypair.pubkey());
     println!("Context payer {}", context.payer.pubkey());
 
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+    let (mint_authority_pda, mint_authority_bump) = Pubkey::find_program_address(
         &[
             b"mint.authority",
             &mint_keypair.pubkey().to_bytes(),
@@ -123,6 +123,7 @@ async fn test_initialize_mint_with_all_extensions() {
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
+        mint_authority_account: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
         rent: sysvar::rent::ID,
@@ -180,10 +181,8 @@ async fn test_initialize_mint_with_all_extensions() {
         .banks_client
         .get_account(mint_keypair.pubkey())
         .await
-        .unwrap();
-    assert!(mint_account.is_some(), "Mint account should exist");
-
-    let mint_account = mint_account.unwrap();
+        .unwrap()
+        .expect("Mint account should exist");
     assert_eq!(
         mint_account.owner, spl_token_2022_program,
         "Mint should be owned by Token-2022 program"
@@ -191,6 +190,35 @@ async fn test_initialize_mint_with_all_extensions() {
 
     println!("Security Token Mint with ALL extensions created successfully!");
     println!("   Account size: {} bytes", mint_account.data.len());
+
+    // Verify mint authority account
+    let mint_authority_account = context
+        .banks_client
+        .get_account(mint_authority_pda)
+        .await
+        .unwrap()
+        .expect("Mint authority PDA should exist");
+    assert_eq!(
+        mint_authority_account.owner, SECURITY_TOKEN_ID,
+        "Mint authority PDA should be owned by security token program"
+    );
+
+    let mint_authority_state = MintAuthority::try_from_slice(&mint_authority_account.data)
+        .expect("Should deserialize MintAuthority state");
+    assert_eq!(
+        mint_authority_state.mint,
+        mint_keypair.pubkey(),
+        "MintAuthority mint should match created mint"
+    );
+    assert_eq!(
+        mint_authority_state.mint_creator,
+        context.payer.pubkey(),
+        "MintAuthority creator should match payer"
+    );
+    assert_eq!(
+        mint_authority_state.bump, mint_authority_bump,
+        "MintAuthority bump should match PDA derivation"
+    );
 
     // Parse mint data to verify all parameters (with extensions)
     use spl_token_2022::extension::{BaseStateWithExtensions, ExtensionType, StateWithExtensions};
@@ -470,10 +498,19 @@ async fn test_update_metadata() {
         &[b"verification_config", mint_keypair.pubkey().as_ref(), &[1]],
         &SECURITY_TOKEN_ID,
     );
+    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"mint.authority",
+            &mint_keypair.pubkey().to_bytes(),
+            &context.payer.pubkey().to_bytes(),
+        ],
+        &SECURITY_TOKEN_ID,
+    );
 
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
+        mint_authority_account: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
         rent: sysvar::rent::ID,
@@ -666,10 +703,19 @@ async fn test_initialize_mint_with_different_decimals() {
         println!("\n Testing mint initialization with {decimals} decimals");
 
         let mint_keypair = solana_sdk::signature::Keypair::new();
+        let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+            &[
+                b"mint.authority",
+                &mint_keypair.pubkey().to_bytes(),
+                &context.payer.pubkey().to_bytes(),
+            ],
+            &SECURITY_TOKEN_ID,
+        );
 
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: context.payer.pubkey(),
+            mint_authority_account: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent: sysvar::rent::ID,
@@ -748,10 +794,19 @@ async fn test_initialize_mint_error_cases() {
     {
         println!("\n Testing error case: mint account not a signer");
         let mint_keypair = solana_sdk::signature::Keypair::new();
+        let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+            &[
+                b"mint.authority",
+                &mint_keypair.pubkey().to_bytes(),
+                &context.payer.pubkey().to_bytes(),
+            ],
+            &SECURITY_TOKEN_ID,
+        );
 
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: context.payer.pubkey(),
+            mint_authority_account: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent: sysvar::rent::ID,
@@ -804,10 +859,19 @@ async fn test_initialize_mint_error_cases() {
         println!("\nTesting error case: creator not a signer");
         let mint_keypair = solana_sdk::signature::Keypair::new();
         let fake_creator = solana_sdk::signature::Keypair::new();
+        let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+            &[
+                b"mint.authority",
+                &mint_keypair.pubkey().to_bytes(),
+                &context.payer.pubkey().to_bytes(),
+            ],
+            &SECURITY_TOKEN_ID,
+        );
 
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: fake_creator.pubkey(),
+            mint_authority_account: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent: sysvar::rent::ID,
@@ -867,6 +931,14 @@ async fn test_verification_config() {
     let mint_keypair = solana_sdk::signature::Keypair::new();
     let context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"mint.authority",
+            &mint_keypair.pubkey().to_bytes(),
+            &context.payer.pubkey().to_bytes(),
+        ],
+        &SECURITY_TOKEN_ID,
+    );
 
     println!("Testing InitializeVerificationConfig");
     println!("Mint keypair: {}", mint_keypair.pubkey());
@@ -884,6 +956,7 @@ async fn test_verification_config() {
     let initialize_mint_ix = security_token_client::InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
+        mint_authority_account: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: solana_system_interface::program::ID,
         rent: sysvar::rent::ID,
@@ -960,7 +1033,6 @@ async fn test_verification_config() {
         config_account: config_pda,
         payer: context.payer.pubkey(),
         mint_account: mint_keypair.pubkey(),
-        authority: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(InitializeVerificationConfigInstructionArgs {
@@ -990,13 +1062,12 @@ async fn test_verification_config() {
     println!("VerificationConfig created successfully");
 
     // Verify the PDA account was created correctly
-    let config_account = context.banks_client.get_account(config_pda).await.unwrap();
-    assert!(
-        config_account.is_some(),
-        "VerificationConfig PDA should exist"
-    );
-
-    let config_account = config_account.unwrap();
+    let config_account = context
+        .banks_client
+        .get_account(config_pda)
+        .await
+        .unwrap()
+        .expect("VerificationConfig PDA should exist");
     println!(
         "VerificationConfig account data length: {}",
         config_account.data.len()
@@ -1044,7 +1115,7 @@ async fn test_verification_config() {
     let update_config_ix = UpdateVerificationConfig {
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
-        authority: context.payer.pubkey(),
+        payer: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(UpdateVerificationConfigInstructionArgs {
@@ -1115,11 +1186,9 @@ async fn test_verification_config() {
 
     println!("\nTesting TrimVerificationConfig");
 
-    // Create a rent recipient account (we'll use payer as recipient)
-    let rent_recipient = context.payer.pubkey();
     let original_recipient_balance = context
         .banks_client
-        .get_account(rent_recipient)
+        .get_account(context.payer.pubkey())
         .await
         .unwrap()
         .unwrap()
@@ -1132,8 +1201,7 @@ async fn test_verification_config() {
     let trim_config_ix = TrimVerificationConfig {
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
-        authority: context.payer.pubkey(),
-        rent_recipient: rent_recipient,
+        payer: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(TrimVerificationConfigInstructionArgs {
@@ -1200,7 +1268,7 @@ async fn test_verification_config() {
     // Verify that some rent was recovered
     let new_recipient_balance = context
         .banks_client
-        .get_account(rent_recipient)
+        .get_account(context.payer.pubkey())
         .await
         .unwrap()
         .unwrap()
@@ -1222,8 +1290,7 @@ async fn test_verification_config() {
     let close_config_ix = TrimVerificationConfig {
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
-        authority: context.payer.pubkey(),
-        rent_recipient: rent_recipient,
+        payer: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(TrimVerificationConfigInstructionArgs {
@@ -1274,7 +1341,7 @@ async fn test_verification_config() {
     // Verify all lamports were transferred to recipient
     let final_recipient_balance = context
         .banks_client
-        .get_account(rent_recipient)
+        .get_account(context.payer.pubkey())
         .await
         .unwrap()
         .unwrap()
