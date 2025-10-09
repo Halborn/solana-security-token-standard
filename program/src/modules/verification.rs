@@ -164,8 +164,6 @@ impl VerificationModule {
         let (transfer_hook_pda, _bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
         let (permanent_delegate_pda, _bump) =
             utils::find_permanent_delegate_pda(mint_info.key(), program_id);
-        // let (freeze_authority_pda, _bump) =
-        //     utils::find_freeze_authority_pda(mint_info.key(), program_id);
         let (pause_authority_pda, _bump) =
             utils::find_pause_authority_pda(mint_info.key(), program_id);
 

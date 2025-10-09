@@ -73,6 +73,14 @@ impl Processor {
                 )?;
                 Self::process_pause(program_id, instruction_accounts)
             }
+            SecurityTokenInstruction::Resume => {
+                let instruction_accounts = Self::verify_instruction_if_needed(
+                    program_id,
+                    accounts,
+                    instruction.discriminant(),
+                )?;
+                Self::process_resume(program_id, instruction_accounts)
+            }
         }
     }
 
@@ -178,7 +186,7 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        // TODO: Change to MintArgs structure?
+        // NOTE: Change to MintArgs structure?
         let amount = args_data
             .get(..8)
             .and_then(|slice| slice.try_into().ok())
@@ -193,7 +201,7 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        // TODO: Change to BurnArgs structure?
+        // NOTE: Change to BurnArgs structure?
         let amount = args_data
             .get(..8)
             .and_then(|slice| slice.try_into().ok())
@@ -205,6 +213,11 @@ impl Processor {
 
     fn process_pause(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         OperationsModule::execute_pause(program_id, accounts)?;
+        Ok(())
+    }
+
+    fn process_resume(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        OperationsModule::execute_resume(program_id, accounts)?;
         Ok(())
     }
 }

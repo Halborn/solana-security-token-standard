@@ -326,4 +326,37 @@ async fn test_pause_unpause_operations() {
         .get_extension::<PausableConfig>()
         .expect("Pausable extension should exist");
     assert_eq!(pausable.paused, PodBool(1));
+
+    let resume_ix = security_token_client::Resume {
+        mint: mint_keypair.pubkey(),
+        creator: context.payer.pubkey(),
+        mint_info: mint_keypair.pubkey(),
+        mint_authority: mint_authority_pda,
+        pause_authority: pause_authority_pda,
+        token_program: spl_token_2022_program,
+        verification_config: verification_config_pda,
+        instructions_sysvar: sysvar::instructions::ID,
+    }
+    .instruction();
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let resume_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[resume_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(resume_transaction)
+        .await;
+    assert_transaction_success(result);
+
+    let mint_state: StateWithExtensionsOwned<TokenMint> =
+        get_mint_state(&mut context.banks_client, mint_keypair.pubkey()).await;
+    let pausable = mint_state
+        .get_extension::<PausableConfig>()
+        .expect("Pausable extension should exist");
+    assert_eq!(pausable.paused, PodBool(0));
 }
