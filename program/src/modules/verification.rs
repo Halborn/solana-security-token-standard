@@ -164,8 +164,10 @@ impl VerificationModule {
         let (transfer_hook_pda, _bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
         let (permanent_delegate_pda, _bump) =
             utils::find_permanent_delegate_pda(mint_info.key(), program_id);
-        let (freeze_authority_pda, _bump) =
-            utils::find_freeze_authority_pda(mint_info.key(), program_id);
+        // let (freeze_authority_pda, _bump) =
+        //     utils::find_freeze_authority_pda(mint_info.key(), program_id);
+        let (pause_authority_pda, _bump) =
+            utils::find_pause_authority_pda(mint_info.key(), program_id);
 
         // Initialize extensions BEFORE base mint initialization
         log!("Extensions setup - initializing extensions BEFORE basic mint");
@@ -187,7 +189,7 @@ impl VerificationModule {
 
         let pausable_initialize = InitializePausable {
             mint: mint_info,
-            authority: freeze_authority_pda,
+            authority: pause_authority_pda,
         };
 
         pausable_initialize.invoke()?;

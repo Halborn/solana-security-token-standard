@@ -4,15 +4,19 @@
 //! All operations are wrappers around SPL Token 2022 instructions.
 
 use crate::constants::seeds;
-use crate::modules::{verify_initial_mint_authority, verify_token22_program};
+use crate::instructions::CustomPause;
+use crate::modules::{verify_initial_mint_authority, verify_signer, verify_token22_program};
 use crate::modules::{verify_owner, verify_system_program};
+use crate::utils::find_pause_authority_pda;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::ProgramResult;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use pinocchio_log::log;
+// use pinocchio_token_2022::extensions::pausable::Pause;
 use pinocchio_token_2022::instructions::{BurnChecked, MintToChecked};
 use pinocchio_token_2022::state::{Mint, TokenAccount};
+
 /// Operations Module - executes token operations
 pub struct OperationsModule;
 
@@ -120,8 +124,40 @@ impl OperationsModule {
 
     /// Pause all activity within a mint
     /// Wrapper for SPL Token Pause instruction
-    pub fn execute_pause(_accounts: &[AccountInfo]) -> ProgramResult {
-        // TODO: Execute SPL Token2022 pause CPI with pause authority PDA
+    pub fn execute_pause(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let [creator_signer, mint_info, mint_authority, pause_authority, token_program] = accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+        verify_token22_program(token_program)?;
+        verify_signer(creator_signer, false)?;
+        let mint_authority_state = verify_initial_mint_authority(
+            program_id,
+            mint_info,
+            mint_authority,
+            creator_signer,
+            false,
+        )?;
+        let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
+        if pause_authority.key() != &pause_authority_pda {
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        log!("All checks passed, proceeding to pause minting");
+        let pause_instruction = CustomPause {
+            mint: mint_info,
+            pause_authority,
+        };
+        let bump_seed = [bump];
+        let seeds = [
+            Seed::from(seeds::PAUSE_AUTHORITY),
+            Seed::from(mint_authority_state.mint.as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+
+        let pause_authority_signer = Signer::from(&seeds);
+        pause_instruction.invoke_signed(&[pause_authority_signer])?;
+
         Ok(())
     }
 

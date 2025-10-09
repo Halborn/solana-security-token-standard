@@ -65,6 +65,14 @@ impl Processor {
                 )?;
                 Self::process_burn(program_id, instruction_accounts, args_data)
             }
+            SecurityTokenInstruction::Pause => {
+                let instruction_accounts = Self::verify_instruction_if_needed(
+                    program_id,
+                    accounts,
+                    instruction.discriminant(),
+                )?;
+                Self::process_pause(program_id, instruction_accounts)
+            }
         }
     }
 
@@ -192,6 +200,11 @@ impl Processor {
             .map(u64::from_le_bytes)
             .ok_or(ProgramError::InvalidInstructionData)?;
         OperationsModule::execute_burn(program_id, accounts, amount)?;
+        Ok(())
+    }
+
+    fn process_pause(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        OperationsModule::execute_pause(program_id, accounts)?;
         Ok(())
     }
 }

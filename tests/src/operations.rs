@@ -1,8 +1,13 @@
-use security_token_client::{BURN_DISCRIMINATOR, MINT_DISCRIMINATOR, SECURITY_TOKEN_ID};
+use security_token_client::{
+    BURN_DISCRIMINATOR, MINT_DISCRIMINATOR, PAUSE_DISCRIMINATOR, SECURITY_TOKEN_ID,
+};
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
 use solana_sdk::signature::Signer;
 use solana_sdk::{signature::Keypair, sysvar};
+use spl_pod::primitives::PodBool;
+use spl_token_2022::extension::pausable::PausableConfig;
+use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, Mint as TokenMint};
 
@@ -36,8 +41,9 @@ async fn get_token_account_state(
         .expect("token account state should deserialize")
 }
 
+//TODO: Don't forget about fixtures initialization mint at least
 #[tokio::test]
-async fn test_basic_operations() {
+async fn test_mint_burn_operations() {
     std::env::set_var("SBF_OUT_DIR", "../target/deploy");
 
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
@@ -214,4 +220,110 @@ async fn test_basic_operations() {
     let token_account_after_burn =
         get_token_account_state(&mut context.banks_client, destination_account).await;
     assert_eq!(token_account_after_burn.base.amount, 500_000);
+}
+
+#[tokio::test]
+async fn test_pause_unpause_operations() {
+    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
+
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    pt.prefer_bpf(true);
+
+    let mint_keypair = Keypair::new();
+
+    let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"mint.authority",
+            &mint_keypair.pubkey().to_bytes(),
+            &context.payer.pubkey().to_bytes(),
+        ],
+        &SECURITY_TOKEN_ID,
+    );
+
+    let spl_token_2022_program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        .parse::<Pubkey>()
+        .unwrap();
+    let initialize_mint_ix = security_token_client::InitializeMint {
+        mint: mint_keypair.pubkey(),
+        payer: context.payer.pubkey(),
+        mint_authority_account: mint_authority_pda,
+        token_program: spl_token_2022_program,
+        system_program: solana_system_interface::program::ID,
+        rent: sysvar::rent::ID,
+    }
+    .instruction(security_token_client::InitializeMintInstructionArgs {
+        args: security_token_client::InitializeArgs {
+            ix_mint: security_token_client::InitializeMintArgs {
+                decimals: 6,
+                mint_authority: context.payer.pubkey(),
+                freeze_authority: None,
+            },
+            ix_metadata_pointer: None,
+            ix_metadata: None,
+            ix_scaled_ui_amount: None,
+        },
+    });
+
+    let initialize_mint_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[initialize_mint_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &mint_keypair],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(initialize_mint_transaction)
+        .await;
+    assert_transaction_success(result);
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+
+    let (pause_authority_pda, _bump) = Pubkey::find_program_address(
+        &[b"mint.pause_authority", &mint_keypair.pubkey().to_bytes()],
+        &SECURITY_TOKEN_ID,
+    );
+
+    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"verification_config",
+            mint_keypair.pubkey().as_ref(),
+            &[PAUSE_DISCRIMINATOR],
+        ],
+        &SECURITY_TOKEN_ID,
+    );
+
+    let pause_ix = security_token_client::Pause {
+        mint: mint_keypair.pubkey(),
+        creator: context.payer.pubkey(),
+        mint_info: mint_keypair.pubkey(),
+        mint_authority: mint_authority_pda,
+        verification_config: verification_config_pda,
+        pause_authority: pause_authority_pda,
+        token_program: spl_token_2022_program,
+        instructions_sysvar: sysvar::instructions::ID,
+    }
+    .instruction();
+
+    let pause_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[pause_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(pause_transaction)
+        .await;
+    assert_transaction_success(result);
+
+    let mint_state: StateWithExtensionsOwned<TokenMint> =
+        get_mint_state(&mut context.banks_client, mint_keypair.pubkey()).await;
+    let pausable = mint_state
+        .get_extension::<PausableConfig>()
+        .expect("Pausable extension should exist");
+    assert_eq!(pausable.paused, PodBool(1));
 }
