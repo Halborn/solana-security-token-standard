@@ -55,23 +55,23 @@ pub fn verify_owner(info: &AccountInfo, owner: &Pubkey) -> Result<(), ProgramErr
 /// # Arguments
 /// * `program_id` - Current program id (used for PDA derivation and owner checks).
 /// * `mint_info` - SPL mint account associated with the security token.
-/// * `mint_authority_account` - PDA account storing `MintAuthority` state.
+/// * `mint_authority` - PDA account storing `MintAuthority` state.
 /// * `candidate_authority` - Account claiming to be the original mint authority (must sign).
 /// * `expect_authority_writable` - Whether the mint authority PDA is expected to be writable.
-pub fn verify_initial_mint_authority(
+pub fn verify_mint_authority(
     program_id: &Pubkey,
     mint_info: &AccountInfo,
-    mint_authority_account: &AccountInfo,
+    mint_authority: &AccountInfo,
     candidate_authority: &AccountInfo,
     expect_authority_writable: bool,
 ) -> Result<(), ProgramError> {
     verify_signer(candidate_authority, false)?;
-    verify_owner(mint_authority_account, program_id)?;
+    verify_owner(mint_authority, program_id)?;
 
-    if expect_authority_writable && !mint_authority_account.is_writable() {
+    if expect_authority_writable && !mint_authority.is_writable() {
         log!(
             "Mint authority account {} is not writable",
-            acc_info_as_str!(mint_authority_account)
+            acc_info_as_str!(mint_authority)
         );
         return Err(ProgramError::Immutable);
     }
@@ -79,11 +79,11 @@ pub fn verify_initial_mint_authority(
     let (expected_pda, expected_bump) =
         utils::find_mint_authority_pda(mint_info.key(), candidate_authority.key(), program_id);
 
-    if mint_authority_account.key() != &expected_pda {
+    if mint_authority.key() != &expected_pda {
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let data = mint_authority_account.try_borrow_data()?;
+    let data = mint_authority.try_borrow_data()?;
     if data.len() < MintAuthority::LEN {
         return Err(ProgramError::InvalidAccountData);
     }
