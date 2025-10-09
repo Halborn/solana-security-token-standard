@@ -55,13 +55,28 @@ pub enum SecurityTokenInstruction {
     Verify = 5,
     /// Mint new tokens after verification succeeds
     /// Accounts expected:
-    /// 0. `[signer]` Original mint creator account that participated in deriving the mint authority PDA
-    /// 1. `[writable]` SPL Token mint account
-    /// 2. `[writable]` Mint authority PDA account (owned by this program)
-    /// 3. `[writable]` Destination token account to receive newly minted tokens
-    /// 4. `[]` System program account
-    /// 5. `[]` SPL Token 2022 program account
+    /// 0. `[]` The mint account (used for verification config PDA derivation)
+    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
+    /// 2. `[]` Instructions sysvar for introspection-based verification
+    /// 3. `[signer]` Original mint creator account that matches the mint authority PDA seeds
+    /// 4. `[writable]` SPL Token mint account
+    /// 5. `[writable]` Mint authority PDA account (owned by this program)
+    /// 6. `[writable]` Destination token account to receive newly minted tokens
+    /// 7. `[]` System program account
+    /// 8. `[]` SPL Token 2022 program account
     Mint = 6,
+    /// Burn tokens from a holder account after verification succeeds
+    /// Accounts expected:
+    /// 0. `[]` The mint account (used for verification config PDA derivation)
+    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
+    /// 2. `[]` Instructions sysvar for introspection-based verification
+    /// 3. `[signer]` Original mint creator account that matches the mint authority PDA seeds
+    /// 4. `[writable]` SPL Token mint account
+    /// 5. `[writable]` Mint authority PDA account (owned by this program)
+    /// 6. `[writable]` Token account holding the balance to burn
+    /// 7. `[]` System program account
+    /// 8. `[]` SPL Token 2022 program account
+    Burn = 7,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -76,6 +91,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             4 => Ok(SecurityTokenInstruction::TrimVerificationConfig),
             5 => Ok(SecurityTokenInstruction::Verify),
             6 => Ok(SecurityTokenInstruction::Mint),
+            7 => Ok(SecurityTokenInstruction::Burn),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

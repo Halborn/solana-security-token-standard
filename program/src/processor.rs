@@ -57,6 +57,14 @@ impl Processor {
                 )?;
                 Self::process_mint(program_id, instruction_accounts, args_data)
             }
+            SecurityTokenInstruction::Burn => {
+                let instruction_accounts = Self::verify_instruction_if_needed(
+                    program_id,
+                    accounts,
+                    instruction.discriminant(),
+                )?;
+                Self::process_burn(program_id, instruction_accounts, args_data)
+            }
         }
     }
 
@@ -169,6 +177,21 @@ impl Processor {
             .map(u64::from_le_bytes)
             .ok_or(ProgramError::InvalidInstructionData)?;
         OperationsModule::execute_mint(program_id, accounts, amount)?;
+        Ok(())
+    }
+
+    fn process_burn(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        // TODO: Change to BurnArgs structure?
+        let amount = args_data
+            .get(..8)
+            .and_then(|slice| slice.try_into().ok())
+            .map(u64::from_le_bytes)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        OperationsModule::execute_burn(program_id, accounts, amount)?;
         Ok(())
     }
 }

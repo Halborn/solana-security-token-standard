@@ -4,15 +4,15 @@
 //! All operations are wrappers around SPL Token 2022 instructions.
 
 use crate::constants::seeds;
-use crate::modules::verify_system_program;
 use crate::modules::{verify_initial_mint_authority, verify_token22_program};
+use crate::modules::{verify_owner, verify_system_program};
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::ProgramResult;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use pinocchio_log::log;
-use pinocchio_token_2022::instructions::MintToChecked;
-use pinocchio_token_2022::state::Mint;
+use pinocchio_token_2022::instructions::{BurnChecked, MintToChecked};
+use pinocchio_token_2022::state::{Mint, TokenAccount};
 /// Operations Module - executes token operations
 pub struct OperationsModule;
 
@@ -69,8 +69,52 @@ impl OperationsModule {
 
     /// Burn tokens from an account  
     /// Wrapper for SPL Token BurnChecked instruction
-    pub fn execute_burn(_accounts: &[AccountInfo], _amount: u64) -> ProgramResult {
-        // TODO: Execute SPL Token2022 burn CPI with Mint authority PDA
+    pub fn execute_burn(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+    ) -> ProgramResult {
+        let [creator_signer, mint_info, mint_authority, token_account, system_program, token_program] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_system_program(system_program)?;
+        verify_token22_program(token_program)?;
+        let _mint_authority_state = verify_initial_mint_authority(
+            program_id,
+            mint_info,
+            mint_authority,
+            creator_signer,
+            true,
+        )?;
+        verify_owner(token_account, token_program.key())?;
+        {
+            let token_account_state = TokenAccount::from_account_info(token_account)?;
+            if token_account_state.mint() != mint_info.key() {
+                return Err(ProgramError::InvalidAccountData);
+            }
+
+            if token_account_state.owner() != creator_signer.key() {
+                return Err(ProgramError::InvalidAccountOwner);
+            }
+        }
+
+        log!("All checks passed, proceeding to burn {} tokens", amount);
+
+        let mint_account = Mint::from_account_info(mint_info)?;
+        let decimals = mint_account.decimals();
+        drop(mint_account);
+
+        let instruction = BurnChecked {
+            mint: &mint_info,
+            account: &token_account,
+            authority: &creator_signer,
+            amount,
+            decimals,
+        };
+        instruction.invoke()?;
         Ok(())
     }
 

@@ -741,6 +741,90 @@ const program = programNode({
         }),
       ],
     }),
+
+    // Burn (discriminant = 7)
+    instructionNode({
+      name: 'burn',
+      discriminators: [fieldDiscriminatorNode('discriminator', 7)],
+      docs: ['Burn tokens from a holder account after verification succeeds'],
+      accounts: [
+        instructionAccountNode({
+          name: 'mint',
+          docs: ['The mint account (position 0 - required for verification)'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: [
+            'The VerificationConfig PDA (position 1 - may not exist but position reserved)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: [
+            'The Instructions sysvar (position 2 - required for Instruction Introspection)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'creator',
+          docs: [
+            'Original mint creator account that must sign and matches the mint authority PDA seeds',
+          ],
+          isSigner: true,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'mintInfo',
+          docs: ['SPL Token mint account'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'mintAuthority',
+          docs: [
+            'Mint authority PDA account owned by the Security Token program',
+          ],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'tokenAccount',
+          docs: ['Token account holding the balance to be burned'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'systemProgram',
+          docs: ['System program account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'tokenProgram',
+          docs: ['SPL Token 2022 program account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(7),
+          defaultValueStrategy: 'omitted',
+        }),
+        instructionArgumentNode({
+          name: 'amount',
+          docs: ['Amount of tokens to burn'],
+          type: numberTypeNode('u64'),
+        }),
+      ],
+    }),
   ],
   errors: [
     errorNode({

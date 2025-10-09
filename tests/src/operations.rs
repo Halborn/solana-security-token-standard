@@ -1,4 +1,4 @@
-use security_token_client::{MINT_DISCRIMINATOR, SECURITY_TOKEN_ID};
+use security_token_client::{BURN_DISCRIMINATOR, MINT_DISCRIMINATOR, SECURITY_TOKEN_ID};
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
 use solana_sdk::signature::Signer;
@@ -7,6 +7,34 @@ use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, Mint as TokenMint};
 
 use crate::helpers::assert_transaction_success;
+
+async fn get_mint_state(
+    banks_client: &mut solana_program_test::BanksClient,
+    mint: Pubkey,
+) -> StateWithExtensionsOwned<TokenMint> {
+    let account = banks_client
+        .get_account(mint)
+        .await
+        .expect("mint account fetch")
+        .expect("mint account must exist");
+
+    StateWithExtensionsOwned::<TokenMint>::unpack(account.data)
+        .expect("mint state should deserialize")
+}
+
+async fn get_token_account_state(
+    banks_client: &mut solana_program_test::BanksClient,
+    token_account: Pubkey,
+) -> StateWithExtensionsOwned<TokenAccount> {
+    let account = banks_client
+        .get_account(token_account)
+        .await
+        .expect("token account fetch")
+        .expect("token account must exist");
+
+    StateWithExtensionsOwned::<TokenAccount>::unpack(account.data)
+        .expect("token account state should deserialize")
+}
 
 #[tokio::test]
 async fn test_basic_operations() {
@@ -17,7 +45,7 @@ async fn test_basic_operations() {
 
     let mint_keypair = Keypair::new();
 
-    let context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
+    let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let (mint_authority_pda, _bump) = Pubkey::find_program_address(
         &[
@@ -105,15 +133,7 @@ async fn test_basic_operations() {
         &SECURITY_TOKEN_ID,
     );
 
-    let mint_account_before = context
-        .banks_client
-        .get_account(mint_keypair.pubkey())
-        .await
-        .expect("mint account fetch before mint")
-        .expect("mint account must exist");
-    let mint_state_before =
-        StateWithExtensionsOwned::<TokenMint>::unpack(mint_account_before.data.clone())
-            .expect("mint state should deserialize before mint");
+    let mint_state_before = get_mint_state(&mut context.banks_client, mint_keypair.pubkey()).await;
     assert_eq!(mint_state_before.base.supply, 0);
 
     let mint_ix = security_token_client::Mint {
@@ -144,25 +164,54 @@ async fn test_basic_operations() {
         .await;
     assert_transaction_success(result);
 
-    let mint_account_after = context
-        .banks_client
-        .get_account(mint_keypair.pubkey())
-        .await
-        .expect("mint account fetch after mint")
-        .expect("mint account missing after mint");
-    let mint_state_after =
-        StateWithExtensionsOwned::<TokenMint>::unpack(mint_account_after.data.clone())
-            .expect("mint state should deserialize");
+    let mint_state_after = get_mint_state(&mut context.banks_client, mint_keypair.pubkey()).await;
     assert_eq!(mint_state_after.base.supply, 1_000_000);
 
-    let destination_account_state = context
-        .banks_client
-        .get_account(destination_account)
-        .await
-        .expect("destination account fetch")
-        .expect("destination ATA should exist");
     let token_account_after =
-        StateWithExtensionsOwned::<TokenAccount>::unpack(destination_account_state.data.clone())
-            .expect("token account should deserialize");
+        get_token_account_state(&mut context.banks_client, destination_account).await;
     assert_eq!(token_account_after.base.amount, 1_000_000);
+
+    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"verification_config",
+            mint_keypair.pubkey().as_ref(),
+            &[BURN_DISCRIMINATOR],
+        ],
+        &SECURITY_TOKEN_ID,
+    );
+
+    let burn_ix = security_token_client::Burn {
+        mint: mint_keypair.pubkey(),
+        verification_config: verification_config_pda,
+        instructions_sysvar: sysvar::instructions::ID,
+        creator: context.payer.pubkey(),
+        mint_info: mint_keypair.pubkey(),
+        mint_authority: mint_authority_pda,
+        token_account: destination_account,
+        system_program: solana_system_interface::program::ID,
+        token_program: spl_token_2022_program,
+    }
+    .instruction(security_token_client::BurnInstructionArgs { amount: 500_000 });
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+
+    let burn_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[burn_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+    let result = context
+        .banks_client
+        .process_transaction(burn_transaction)
+        .await;
+    assert_transaction_success(result);
+
+    let mint_state_after_burn =
+        get_mint_state(&mut context.banks_client, mint_keypair.pubkey()).await;
+    assert_eq!(mint_state_after_burn.base.supply, 500_000);
+
+    let token_account_after_burn =
+        get_token_account_state(&mut context.banks_client, destination_account).await;
+    assert_eq!(token_account_after_burn.base.amount, 500_000);
 }
