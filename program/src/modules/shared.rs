@@ -19,7 +19,7 @@ pub fn verify_signer(info: &AccountInfo, expect_writable: bool) -> Result<(), Pr
     }
     if expect_writable && !info.is_writable() {
         log!("Signer {} is not writable", acc_info_as_str!(info));
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ProgramError::Immutable);
     }
 
     Ok(())
@@ -73,7 +73,7 @@ pub fn verify_initial_mint_authority(
             "Mint authority account {} is not writable",
             acc_info_as_str!(mint_authority_account)
         );
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ProgramError::Immutable);
     }
 
     let (expected_pda, expected_bump) =
