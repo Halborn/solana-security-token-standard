@@ -9,7 +9,6 @@ use pinocchio_token_2022::extensions::{metadata::TokenMetadata, ExtensionType};
 
 use crate::constants::seeds;
 
-
 /// Find PDA for verification config
 pub fn find_verification_config_pda(
     mint: &Pubkey,

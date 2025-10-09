@@ -5,7 +5,7 @@
 
 use crate::constants::seeds;
 use crate::instructions::{CustomPause, CustomResume};
-use crate::modules::{verify_initial_mint_authority, verify_signer, verify_token22_program};
+use crate::modules::{verify_mint_authority, verify_signer, verify_token22_program};
 use crate::modules::{verify_owner, verify_system_program};
 use crate::utils::find_pause_authority_pda;
 use pinocchio::instruction::{Seed, Signer};
@@ -34,13 +34,8 @@ impl OperationsModule {
         };
         verify_system_program(system_program)?;
         verify_token22_program(token_program)?;
-        let mint_authority_state = verify_initial_mint_authority(
-            program_id,
-            mint_info,
-            mint_authority,
-            creator_signer,
-            true,
-        )?;
+        let mint_authority_state =
+            verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, true)?;
 
         log!("All checks passed, proceeding to mint {} tokens", amount);
 
@@ -49,9 +44,9 @@ impl OperationsModule {
         drop(mint_account);
 
         let instruction = MintToChecked {
-            mint: &mint_info,
-            account: &destination_account_info,
-            mint_authority: &mint_authority,
+            mint: mint_info,
+            account: destination_account_info,
+            mint_authority: mint_authority,
             amount,
             decimals,
         };
@@ -85,13 +80,8 @@ impl OperationsModule {
 
         verify_system_program(system_program)?;
         verify_token22_program(token_program)?;
-        let _mint_authority_state = verify_initial_mint_authority(
-            program_id,
-            mint_info,
-            mint_authority,
-            creator_signer,
-            true,
-        )?;
+        let _mint_authority_state =
+            verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, true)?;
         verify_owner(token_account, token_program.key())?;
         {
             let token_account_state = TokenAccount::from_account_info(token_account)?;
@@ -111,9 +101,9 @@ impl OperationsModule {
         drop(mint_account);
 
         let instruction = BurnChecked {
-            mint: &mint_info,
-            account: &token_account,
-            authority: &creator_signer,
+            mint: mint_info,
+            account: token_account,
+            authority: creator_signer,
             amount,
             decimals,
         };
@@ -130,13 +120,7 @@ impl OperationsModule {
         };
         verify_token22_program(token_program)?;
         verify_signer(creator_signer, false)?;
-        let mint_authority_state = verify_initial_mint_authority(
-            program_id,
-            mint_info,
-            mint_authority,
-            creator_signer,
-            false,
-        )?;
+        verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, false)?;
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
             return Err(ProgramError::InvalidSeeds);
@@ -170,13 +154,7 @@ impl OperationsModule {
         // TODO: Almost the same, might be splitted
         verify_token22_program(token_program)?;
         verify_signer(creator_signer, false)?;
-        let mint_authority_state = verify_initial_mint_authority(
-            program_id,
-            mint_info,
-            mint_authority,
-            creator_signer,
-            false,
-        )?;
+        verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, false)?;
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
             return Err(ProgramError::InvalidSeeds);
@@ -190,7 +168,7 @@ impl OperationsModule {
         let bump_seed = [bump];
         let seeds = [
             Seed::from(seeds::PAUSE_AUTHORITY),
-            Seed::from(mint_authority_state.mint.as_ref()),
+            Seed::from(mint_info.key().as_ref()),
             Seed::from(bump_seed.as_ref()),
         ];
 
