@@ -1,5 +1,6 @@
 use security_token_client::{
-    BURN_DISCRIMINATOR, MINT_DISCRIMINATOR, PAUSE_DISCRIMINATOR, SECURITY_TOKEN_ID,
+    BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR, MINT_DISCRIMINATOR, PAUSE_DISCRIMINATOR,
+    SECURITY_TOKEN_ID,
 };
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
@@ -9,7 +10,7 @@ use spl_pod::primitives::PodBool;
 use spl_token_2022::extension::pausable::PausableConfig;
 use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
-use spl_token_2022::state::{Account as TokenAccount, Mint as TokenMint};
+use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
 
 use crate::helpers::assert_transaction_success;
 
@@ -43,7 +44,7 @@ async fn get_token_account_state(
 
 //TODO: Don't forget about fixtures initialization mint at least
 #[tokio::test]
-async fn test_mint_burn_operations() {
+async fn test_basic_t22_operations() {
     std::env::set_var("SBF_OUT_DIR", "../target/deploy");
 
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
@@ -59,6 +60,11 @@ async fn test_mint_burn_operations() {
             &mint_keypair.pubkey().to_bytes(),
             &context.payer.pubkey().to_bytes(),
         ],
+        &SECURITY_TOKEN_ID,
+    );
+
+    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
+        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
         &SECURITY_TOKEN_ID,
     );
 
@@ -86,7 +92,7 @@ async fn test_mint_burn_operations() {
             ix_mint: security_token_client::InitializeMintArgs {
                 decimals: 6,
                 mint_authority: context.payer.pubkey(),
-                freeze_authority: None,
+                freeze_authority: Some(freeze_authority_pda),
             },
             ix_metadata_pointer: None,
             ix_metadata: None,
@@ -218,10 +224,48 @@ async fn test_mint_burn_operations() {
     let token_account_after_burn =
         get_token_account_state(&mut context.banks_client, destination_account).await;
     assert_eq!(token_account_after_burn.base.amount, 500_000);
+
+    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"verification_config",
+            mint_keypair.pubkey().as_ref(),
+            &[FREEZE_DISCRIMINATOR],
+        ],
+        &SECURITY_TOKEN_ID,
+    );
+
+    let freeze_ix = security_token_client::Freeze {
+        mint: mint_keypair.pubkey(),
+        creator: context.payer.pubkey(),
+        mint_info: mint_keypair.pubkey(),
+        mint_authority: mint_authority_pda,
+        verification_config: verification_config_pda,
+        freeze_authority: freeze_authority_pda,
+        token_account: destination_account,
+        token_program: spl_token_2022_program,
+        instructions_sysvar: sysvar::instructions::ID,
+    }
+    .instruction();
+
+    let freeze_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[freeze_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+    let result = context
+        .banks_client
+        .process_transaction(freeze_transaction)
+        .await;
+    assert_transaction_success(result);
+
+    let frozen_account =
+        get_token_account_state(&mut context.banks_client, destination_account).await;
+    assert_eq!(frozen_account.base.state, AccountState::Frozen);
 }
 
 #[tokio::test]
-async fn test_pause_unpause_operations() {
+async fn test_t22_extension_operations() {
     std::env::set_var("SBF_OUT_DIR", "../target/deploy");
 
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);

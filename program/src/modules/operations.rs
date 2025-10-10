@@ -6,13 +6,13 @@
 use crate::constants::seeds;
 use crate::instructions::{CustomPause, CustomResume};
 use crate::modules::{verify_mint_authority, verify_owner, verify_signer, verify_token22_program};
-use crate::utils::find_pause_authority_pda;
+use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda};
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::ProgramResult;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use pinocchio_log::log;
-use pinocchio_token_2022::instructions::{BurnChecked, MintToChecked};
+use pinocchio_token_2022::instructions::{BurnChecked, FreezeAccount, MintToChecked};
 use pinocchio_token_2022::state::{Mint, TokenAccount};
 
 /// Operations Module - executes token operations
@@ -176,8 +176,35 @@ impl OperationsModule {
 
     /// Freeze a token account
     /// Wrapper for SPL Token FreezeAccount instruction
-    pub fn execute_freeze_account(_accounts: &[AccountInfo]) -> ProgramResult {
-        // TODO: Execute SPL Token2022 freeze CPI with freeze authority PDA
+    pub fn execute_freeze_account(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let [creator_signer, mint_info, mint_authority, freeze_authority, token_account, token_program] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+        verify_token22_program(token_program)?;
+        verify_signer(creator_signer, false)?;
+        verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, false)?;
+        let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
+        if freeze_authority.key() != &freeze_authority_pda {
+            return Err(ProgramError::InvalidSeeds);
+        }
+        // NOTE: No need to check token account owner, t22 does it
+        log!("All checks passed, proceeding to freeze");
+        let freeze_instruction = FreezeAccount {
+            account: token_account,
+            mint: mint_info,
+            freeze_authority,
+        };
+        let bump_seed = [bump];
+        let seeds = [
+            Seed::from(seeds::FREEZE_AUTHORITY),
+            Seed::from(mint_info.key().as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+
+        let freeze_authority_signer = Signer::from(&seeds);
+        freeze_instruction.invoke_signed(&[freeze_authority_signer])?;
         Ok(())
     }
 
