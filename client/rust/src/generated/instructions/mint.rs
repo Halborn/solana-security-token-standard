@@ -48,11 +48,6 @@ pub struct Mint {
     
               
           pub destination_account: solana_pubkey::Pubkey,
-                /// System program account
-
-    
-              
-          pub system_program: solana_pubkey::Pubkey,
                 /// SPL Token 2022 program account
 
     
@@ -67,7 +62,7 @@ impl Mint {
   #[allow(clippy::arithmetic_side_effects)]
   #[allow(clippy::vec_init_then_push)]
   pub fn instruction_with_remaining_accounts(&self, args: MintInstructionArgs, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
-    let mut accounts = Vec::with_capacity(9+ remaining_accounts.len());
+    let mut accounts = Vec::with_capacity(8+ remaining_accounts.len());
                             accounts.push(solana_instruction::AccountMeta::new(
             self.mint,
             false
@@ -94,10 +89,6 @@ impl Mint {
           ));
                                           accounts.push(solana_instruction::AccountMeta::new(
             self.destination_account,
-            false
-          ));
-                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.system_program,
             false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -155,8 +146,7 @@ impl Default for MintInstructionData {
                 ///   4. `[writable]` mint_info
                 ///   5. `[writable]` mint_authority
                 ///   6. `[writable]` destination_account
-          ///   7. `[]` system_program
-          ///   8. `[]` token_program
+          ///   7. `[]` token_program
 #[derive(Clone, Debug, Default)]
 pub struct MintBuilder {
             mint: Option<solana_pubkey::Pubkey>,
@@ -166,7 +156,6 @@ pub struct MintBuilder {
                 mint_info: Option<solana_pubkey::Pubkey>,
                 mint_authority: Option<solana_pubkey::Pubkey>,
                 destination_account: Option<solana_pubkey::Pubkey>,
-                system_program: Option<solana_pubkey::Pubkey>,
                 token_program: Option<solana_pubkey::Pubkey>,
                         amount: Option<u64>,
         __remaining_accounts: Vec<solana_instruction::AccountMeta>,
@@ -218,12 +207,6 @@ impl MintBuilder {
                         self.destination_account = Some(destination_account);
                     self
     }
-            /// System program account
-#[inline(always)]
-    pub fn system_program(&mut self, system_program: solana_pubkey::Pubkey) -> &mut Self {
-                        self.system_program = Some(system_program);
-                    self
-    }
             /// SPL Token 2022 program account
 #[inline(always)]
     pub fn token_program(&mut self, token_program: solana_pubkey::Pubkey) -> &mut Self {
@@ -257,7 +240,6 @@ impl MintBuilder {
                                         mint_info: self.mint_info.expect("mint_info is not set"),
                                         mint_authority: self.mint_authority.expect("mint_authority is not set"),
                                         destination_account: self.destination_account.expect("destination_account is not set"),
-                                        system_program: self.system_program.expect("system_program is not set"),
                                         token_program: self.token_program.expect("token_program is not set"),
                       };
           let args = MintInstructionArgs {
@@ -305,11 +287,6 @@ impl MintBuilder {
       
                     
               pub destination_account: &'b solana_account_info::AccountInfo<'a>,
-                        /// System program account
-
-      
-                    
-              pub system_program: &'b solana_account_info::AccountInfo<'a>,
                         /// SPL Token 2022 program account
 
       
@@ -356,11 +333,6 @@ pub struct MintCpi<'a, 'b> {
     
               
           pub destination_account: &'b solana_account_info::AccountInfo<'a>,
-                /// System program account
-
-    
-              
-          pub system_program: &'b solana_account_info::AccountInfo<'a>,
                 /// SPL Token 2022 program account
 
     
@@ -385,7 +357,6 @@ impl<'a, 'b> MintCpi<'a, 'b> {
               mint_info: accounts.mint_info,
               mint_authority: accounts.mint_authority,
               destination_account: accounts.destination_account,
-              system_program: accounts.system_program,
               token_program: accounts.token_program,
                     __args: args,
           }
@@ -410,7 +381,7 @@ impl<'a, 'b> MintCpi<'a, 'b> {
     signers_seeds: &[&[&[u8]]],
     remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
   ) -> solana_program_error::ProgramResult {
-    let mut accounts = Vec::with_capacity(9+ remaining_accounts.len());
+    let mut accounts = Vec::with_capacity(8+ remaining_accounts.len());
                             accounts.push(solana_instruction::AccountMeta::new(
             *self.mint.key,
             false
@@ -440,10 +411,6 @@ impl<'a, 'b> MintCpi<'a, 'b> {
             false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.system_program.key,
-            false
-          ));
-                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.token_program.key,
             false
           ));
@@ -463,7 +430,7 @@ impl<'a, 'b> MintCpi<'a, 'b> {
       accounts,
       data,
     };
-    let mut account_infos = Vec::with_capacity(10 + remaining_accounts.len());
+    let mut account_infos = Vec::with_capacity(9 + remaining_accounts.len());
     account_infos.push(self.__program.clone());
                   account_infos.push(self.mint.clone());
                         account_infos.push(self.verification_config.clone());
@@ -472,7 +439,6 @@ impl<'a, 'b> MintCpi<'a, 'b> {
                         account_infos.push(self.mint_info.clone());
                         account_infos.push(self.mint_authority.clone());
                         account_infos.push(self.destination_account.clone());
-                        account_infos.push(self.system_program.clone());
                         account_infos.push(self.token_program.clone());
               remaining_accounts.iter().for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
 
@@ -495,8 +461,7 @@ impl<'a, 'b> MintCpi<'a, 'b> {
                 ///   4. `[writable]` mint_info
                 ///   5. `[writable]` mint_authority
                 ///   6. `[writable]` destination_account
-          ///   7. `[]` system_program
-          ///   8. `[]` token_program
+          ///   7. `[]` token_program
 #[derive(Clone, Debug)]
 pub struct MintCpiBuilder<'a, 'b> {
   instruction: Box<MintCpiBuilderInstruction<'a, 'b>>,
@@ -513,7 +478,6 @@ impl<'a, 'b> MintCpiBuilder<'a, 'b> {
               mint_info: None,
               mint_authority: None,
               destination_account: None,
-              system_program: None,
               token_program: None,
                                             amount: None,
                     __remaining_accounts: Vec::new(),
@@ -560,12 +524,6 @@ impl<'a, 'b> MintCpiBuilder<'a, 'b> {
 #[inline(always)]
     pub fn destination_account(&mut self, destination_account: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
                         self.instruction.destination_account = Some(destination_account);
-                    self
-    }
-      /// System program account
-#[inline(always)]
-    pub fn system_program(&mut self, system_program: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-                        self.instruction.system_program = Some(system_program);
                     self
     }
       /// SPL Token 2022 program account
@@ -621,8 +579,6 @@ impl<'a, 'b> MintCpiBuilder<'a, 'b> {
                   
           destination_account: self.instruction.destination_account.expect("destination_account is not set"),
                   
-          system_program: self.instruction.system_program.expect("system_program is not set"),
-                  
           token_program: self.instruction.token_program.expect("token_program is not set"),
                           __args: args,
             };
@@ -640,7 +596,6 @@ struct MintCpiBuilderInstruction<'a, 'b> {
                 mint_info: Option<&'b solana_account_info::AccountInfo<'a>>,
                 mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
                 destination_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-                system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
                 token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
                         amount: Option<u64>,
         /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

@@ -5,8 +5,7 @@
 
 use crate::constants::seeds;
 use crate::instructions::{CustomPause, CustomResume};
-use crate::modules::{verify_mint_authority, verify_signer, verify_token22_program};
-use crate::modules::{verify_owner, verify_system_program};
+use crate::modules::{verify_mint_authority, verify_owner, verify_signer, verify_token22_program};
 use crate::utils::find_pause_authority_pda;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
@@ -27,12 +26,11 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
-        let [creator_signer, mint_info, mint_authority, destination_account_info, system_program, token_program] =
+        let [creator_signer, mint_info, mint_authority, destination_account_info, token_program] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_system_program(system_program)?;
         verify_token22_program(token_program)?;
         let mint_authority_state =
             verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, true)?;
@@ -72,13 +70,11 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
-        let [creator_signer, mint_info, mint_authority, token_account, system_program, token_program] =
-            accounts
+        let [creator_signer, mint_info, mint_authority, token_account, token_program] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_system_program(system_program)?;
         verify_token22_program(token_program)?;
         let _mint_authority_state =
             verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, true)?;

@@ -715,12 +715,6 @@ const program = programNode({
           isWritable: true,
         }),
         instructionAccountNode({
-          name: 'systemProgram',
-          docs: ['System program account'],
-          isSigner: false,
-          isWritable: false,
-        }),
-        instructionAccountNode({
           name: 'tokenProgram',
           docs: ['SPL Token 2022 program account'],
           isSigner: false,
@@ -797,12 +791,6 @@ const program = programNode({
           docs: ['Token account holding the balance to be burned'],
           isSigner: false,
           isWritable: true,
-        }),
-        instructionAccountNode({
-          name: 'systemProgram',
-          docs: ['System program account'],
-          isSigner: false,
-          isWritable: false,
         }),
         instructionAccountNode({
           name: 'tokenProgram',

@@ -150,7 +150,6 @@ async fn test_mint_burn_operations() {
         mint_info: mint_keypair.pubkey(),
         mint_authority: mint_authority_pda,
         destination_account,
-        system_program: solana_system_interface::program::ID,
         token_program: spl_token_2022_program,
     }
     .instruction(security_token_client::MintInstructionArgs { amount: 1_000_000 });
@@ -194,7 +193,6 @@ async fn test_mint_burn_operations() {
         mint_info: mint_keypair.pubkey(),
         mint_authority: mint_authority_pda,
         token_account: destination_account,
-        system_program: solana_system_interface::program::ID,
         token_program: spl_token_2022_program,
     }
     .instruction(security_token_client::BurnInstructionArgs { amount: 500_000 });
