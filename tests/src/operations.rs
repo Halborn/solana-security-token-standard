@@ -12,7 +12,7 @@ use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
 
-use crate::helpers::assert_transaction_success;
+use crate::helpers::{assert_transaction_failure, assert_transaction_success};
 
 async fn get_mint_state(
     banks_client: &mut solana_program_test::BanksClient,
@@ -299,6 +299,93 @@ async fn test_basic_t22_operations() {
     let thawed_account =
         get_token_account_state(&mut context.banks_client, destination_account).await;
     assert_eq!(thawed_account.base.state, AccountState::Initialized);
+
+    let close_ix = security_token_client::Close {
+        mint: mint_keypair.pubkey(),
+        creator: context.payer.pubkey(),
+        mint_info: mint_keypair.pubkey(),
+        mint_authority: mint_authority_pda,
+        verification_config: verification_config_pda,
+        token_account: destination_account,
+        token_program: spl_token_2022_program,
+        instructions_sysvar: sysvar::instructions::ID,
+    }
+    .instruction();
+
+    let close_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[close_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(close_transaction)
+        .await;
+    // Non zero account balance, cannot close
+    assert_transaction_failure(result);
+
+    let burn_ix = security_token_client::Burn {
+        mint: mint_keypair.pubkey(),
+        verification_config: verification_config_pda,
+        instructions_sysvar: sysvar::instructions::ID,
+        creator: context.payer.pubkey(),
+        mint_info: mint_keypair.pubkey(),
+        mint_authority: mint_authority_pda,
+        token_account: destination_account,
+        token_program: spl_token_2022_program,
+    }
+    .instruction(security_token_client::BurnInstructionArgs { amount: 500_000 });
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+
+    let burn_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[burn_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+    let result = context
+        .banks_client
+        .process_transaction(burn_transaction)
+        .await;
+    assert_transaction_success(result);
+
+    let close_ix = security_token_client::Close {
+        mint: mint_keypair.pubkey(),
+        creator: context.payer.pubkey(),
+        mint_info: mint_keypair.pubkey(),
+        mint_authority: mint_authority_pda,
+        verification_config: verification_config_pda,
+        token_account: destination_account,
+        token_program: spl_token_2022_program,
+        instructions_sysvar: sysvar::instructions::ID,
+    }
+    .instruction();
+
+    let close_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[close_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(close_transaction)
+        .await;
+    assert_transaction_success(result);
+
+    let closed_account = context
+        .banks_client
+        .get_account(destination_account)
+        .await
+        .expect("fetch closed token account");
+    assert!(
+        closed_account.is_none(),
+        "associated token account should be closed after successful close operation"
+    );
 }
 
 #[tokio::test]

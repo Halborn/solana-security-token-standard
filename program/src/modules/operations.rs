@@ -9,10 +9,11 @@ use crate::modules::{verify_mint_authority, verify_owner, verify_signer, verify_
 use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda};
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
-use pinocchio::ProgramResult;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
 use pinocchio_log::log;
-use pinocchio_token_2022::instructions::{BurnChecked, FreezeAccount, MintToChecked, ThawAccount};
+use pinocchio_token_2022::instructions::{
+    BurnChecked, CloseAccount, FreezeAccount, MintToChecked, ThawAccount,
+};
 use pinocchio_token_2022::state::{Mint, TokenAccount};
 
 /// Operations Module - executes token operations
@@ -44,7 +45,7 @@ impl OperationsModule {
         let instruction = MintToChecked {
             mint: mint_info,
             account: destination_account_info,
-            mint_authority: mint_authority,
+            mint_authority,
             amount,
             decimals,
         };
@@ -244,8 +245,40 @@ impl OperationsModule {
 
     /// Close a token account
     /// Wrapper for SPL Token CloseAccount instruction
-    pub fn execute_close_account(_accounts: &[AccountInfo]) -> ProgramResult {
-        // TODO: Execute SPL Token2022 close CPI
+    pub fn execute_close_account(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let [creator_signer, mint_info, mint_authority, token_account, token_program] = accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+        verify_token22_program(token_program)?;
+        verify_signer(creator_signer, false)?;
+        let mint_authority_state =
+            verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, false)?;
+        verify_owner(token_account, token_program.key())?;
+
+        let token_account_state = TokenAccount::from_account_info(token_account)?;
+        if token_account_state.mint() != mint_info.key() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        drop(token_account_state);
+
+        log!("All checks passed, proceeding to close account");
+        let close_instruction = CloseAccount {
+            account: token_account,
+            destination: creator_signer,
+            authority: creator_signer,
+        };
+
+        let bump_seed = [mint_authority_state.bump];
+        let seeds = [
+            Seed::from(seeds::MINT_AUTHORITY),
+            Seed::from(mint_authority_state.mint.as_ref()),
+            Seed::from(mint_authority_state.mint_creator.as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+
+        let mint_authority_signer = Signer::from(&seeds);
+        close_instruction.invoke_signed(&[mint_authority_signer])?;
         Ok(())
     }
 
