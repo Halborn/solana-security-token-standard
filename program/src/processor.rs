@@ -89,6 +89,14 @@ impl Processor {
                 )?;
                 Self::process_freeze(program_id, instruction_accounts)
             }
+            SecurityTokenInstruction::Thaw => {
+                let instruction_accounts = Self::verify_instruction_if_needed(
+                    program_id,
+                    accounts,
+                    instruction.discriminant(),
+                )?;
+                Self::process_thaw(program_id, instruction_accounts)
+            }
         }
     }
 
@@ -231,6 +239,11 @@ impl Processor {
 
     fn process_freeze(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         OperationsModule::execute_freeze_account(program_id, accounts)?;
+        Ok(())
+    }
+
+    fn process_thaw(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        OperationsModule::execute_thaw_account(program_id, accounts)?;
         Ok(())
     }
 }

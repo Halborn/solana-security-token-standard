@@ -12,6 +12,7 @@
   pub(crate) mod r#mint;
   pub(crate) mod r#pause;
   pub(crate) mod r#resume;
+  pub(crate) mod r#thaw;
   pub(crate) mod r#trim_verification_config;
   pub(crate) mod r#update_metadata;
   pub(crate) mod r#update_verification_config;
@@ -24,6 +25,7 @@
   pub use self::r#mint::*;
   pub use self::r#pause::*;
   pub use self::r#resume::*;
+  pub use self::r#thaw::*;
   pub use self::r#trim_verification_config::*;
   pub use self::r#update_metadata::*;
   pub use self::r#update_verification_config::*;

@@ -1,6 +1,6 @@
 use security_token_client::{
     BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR, MINT_DISCRIMINATOR, PAUSE_DISCRIMINATOR,
-    SECURITY_TOKEN_ID,
+    SECURITY_TOKEN_ID, THAW_DISCRIMINATOR,
 };
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
@@ -262,6 +262,43 @@ async fn test_basic_t22_operations() {
     let frozen_account =
         get_token_account_state(&mut context.banks_client, destination_account).await;
     assert_eq!(frozen_account.base.state, AccountState::Frozen);
+
+    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"verification_config",
+            mint_keypair.pubkey().as_ref(),
+            &[THAW_DISCRIMINATOR],
+        ],
+        &SECURITY_TOKEN_ID,
+    );
+
+    let thaw_ix = security_token_client::Thaw {
+        mint: mint_keypair.pubkey(),
+        creator: context.payer.pubkey(),
+        mint_info: mint_keypair.pubkey(),
+        mint_authority: mint_authority_pda,
+        verification_config: verification_config_pda,
+        freeze_authority: freeze_authority_pda,
+        token_account: destination_account,
+        token_program: spl_token_2022_program,
+        instructions_sysvar: sysvar::instructions::ID,
+    }
+    .instruction();
+
+    let thaw_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[thaw_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+    let result = context
+        .banks_client
+        .process_transaction(thaw_transaction)
+        .await;
+    assert_transaction_success(result);
+    let thawed_account =
+        get_token_account_state(&mut context.banks_client, destination_account).await;
+    assert_eq!(thawed_account.base.state, AccountState::Initialized);
 }
 
 #[tokio::test]

@@ -1038,6 +1038,87 @@ const program = programNode({
         }),
       ],
     }),
+
+    // Thaw (discriminant = 11)
+    instructionNode({
+      name: 'thaw',
+      discriminators: [fieldDiscriminatorNode('discriminator', 11)],
+      docs: [
+        'Thaw a previously frozen token account after verification succeeds',
+      ],
+      accounts: [
+        instructionAccountNode({
+          name: 'mint',
+          docs: ['The mint account (position 0 - required for verification)'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: [
+            'The VerificationConfig PDA (position 1 - required for thaw verification)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: [
+            'The Instructions sysvar (position 2 - required for Instruction Introspection)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'creator',
+          docs: [
+            'Original mint creator account that must sign and matches the mint authority PDA seeds',
+          ],
+          isSigner: true,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'mintInfo',
+          docs: ['SPL Token mint account'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'mintAuthority',
+          docs: [
+            'Mint authority PDA account owned by the Security Token program',
+          ],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'freezeAuthority',
+          docs: ['Freeze authority PDA account derived for the mint'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'tokenAccount',
+          docs: ['Token account that will be thawed'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'tokenProgram',
+          docs: ['SPL Token 2022 program account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(11),
+          defaultValueStrategy: 'omitted',
+        }),
+      ],
+    }),
   ],
   errors: [
     errorNode({

@@ -113,6 +113,18 @@ pub enum SecurityTokenInstruction {
     /// 7. `[writable]` Token account that will be frozen
     /// 8. `[]` SPL Token 2022 program account
     Freeze = 10,
+    /// Thaw a frozen token account after verification succeeds
+    /// Accounts expected:
+    /// 0. `[]` The mint account (used for verification config PDA derivation)
+    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
+    /// 2. `[]` Instructions sysvar for introspection-based verification
+    /// 3. `[signer]` Original mint creator account that matches the mint authority PDA seeds
+    /// 4. `[writable]` SPL Token mint account
+    /// 5. `[writable]` Mint authority PDA account (owned by this program)
+    /// 6. `[]` Freeze authority PDA account derived for the mint (signs via PDA seeds)
+    /// 7. `[writable]` Token account that will be frozen
+    /// 8. `[]` SPL Token 2022 program account
+    Thaw = 11,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -131,6 +143,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             8 => Ok(SecurityTokenInstruction::Pause),
             9 => Ok(SecurityTokenInstruction::Resume),
             10 => Ok(SecurityTokenInstruction::Freeze),
+            11 => Ok(SecurityTokenInstruction::Thaw),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

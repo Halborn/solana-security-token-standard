@@ -12,7 +12,7 @@ use pinocchio::program_error::ProgramError;
 use pinocchio::ProgramResult;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use pinocchio_log::log;
-use pinocchio_token_2022::instructions::{BurnChecked, FreezeAccount, MintToChecked};
+use pinocchio_token_2022::instructions::{BurnChecked, FreezeAccount, MintToChecked, ThawAccount};
 use pinocchio_token_2022::state::{Mint, TokenAccount};
 
 /// Operations Module - executes token operations
@@ -210,8 +210,35 @@ impl OperationsModule {
 
     /// Thaw a token account
     /// Wrapper for SPL Token ThawAccount instruction
-    pub fn execute_thaw_account(_accounts: &[AccountInfo]) -> ProgramResult {
-        // TODO: Execute SPL Token2022 thaw CPI with freeze authority PDA
+    pub fn execute_thaw_account(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let [creator_signer, mint_info, mint_authority, freeze_authority, token_account, token_program] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+        verify_token22_program(token_program)?;
+        verify_signer(creator_signer, false)?;
+        verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, false)?;
+        let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
+        if freeze_authority.key() != &freeze_authority_pda {
+            return Err(ProgramError::InvalidSeeds);
+        }
+        // NOTE: No need to check token account owner, t22 does it
+        log!("All checks passed, proceeding to thaw");
+        let thaw_instruction = ThawAccount {
+            account: token_account,
+            mint: mint_info,
+            freeze_authority,
+        };
+        let bump_seed = [bump];
+        let seeds = [
+            Seed::from(seeds::FREEZE_AUTHORITY),
+            Seed::from(mint_info.key().as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+
+        let thaw_authority_signer = Signer::from(&seeds);
+        thaw_instruction.invoke_signed(&[thaw_authority_signer])?;
         Ok(())
     }
 
