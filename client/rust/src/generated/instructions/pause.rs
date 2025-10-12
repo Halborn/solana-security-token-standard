@@ -28,21 +28,11 @@ pub struct Pause {
     
               
           pub instructions_sysvar: solana_pubkey::Pubkey,
-                /// Original mint creator account that must sign and matches the mint authority PDA seeds
-
-    
-              
-          pub creator: solana_pubkey::Pubkey,
                 /// SPL Token mint account
 
     
               
           pub mint_info: solana_pubkey::Pubkey,
-                /// Mint authority PDA account owned by the Security Token program
-
-    
-              
-          pub mint_authority: solana_pubkey::Pubkey,
                 /// Pause authority PDA account derived for the mint
 
     
@@ -62,8 +52,8 @@ impl Pause {
   #[allow(clippy::arithmetic_side_effects)]
   #[allow(clippy::vec_init_then_push)]
   pub fn instruction_with_remaining_accounts(&self, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
-    let mut accounts = Vec::with_capacity(8+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+    let mut accounts = Vec::with_capacity(6+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint,
             false
           ));
@@ -75,16 +65,8 @@ impl Pause {
             self.instructions_sysvar,
             false
           ));
-                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.creator,
-            true
-          ));
                                           accounts.push(solana_instruction::AccountMeta::new(
             self.mint_info,
-            false
-          ));
-                                          accounts.push(solana_instruction::AccountMeta::new(
-            self.mint_authority,
             false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -132,22 +114,18 @@ impl Default for PauseInstructionData {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` mint
+          ///   0. `[]` mint
           ///   1. `[]` verification_config
           ///   2. `[]` instructions_sysvar
-                ///   3. `[signer]` creator
-                ///   4. `[writable]` mint_info
-                ///   5. `[writable]` mint_authority
-          ///   6. `[]` pause_authority
-          ///   7. `[]` token_program
+                ///   3. `[writable]` mint_info
+          ///   4. `[]` pause_authority
+          ///   5. `[]` token_program
 #[derive(Clone, Debug, Default)]
 pub struct PauseBuilder {
             mint: Option<solana_pubkey::Pubkey>,
                 verification_config: Option<solana_pubkey::Pubkey>,
                 instructions_sysvar: Option<solana_pubkey::Pubkey>,
-                creator: Option<solana_pubkey::Pubkey>,
                 mint_info: Option<solana_pubkey::Pubkey>,
-                mint_authority: Option<solana_pubkey::Pubkey>,
                 pause_authority: Option<solana_pubkey::Pubkey>,
                 token_program: Option<solana_pubkey::Pubkey>,
                 __remaining_accounts: Vec<solana_instruction::AccountMeta>,
@@ -175,22 +153,10 @@ impl PauseBuilder {
                         self.instructions_sysvar = Some(instructions_sysvar);
                     self
     }
-            /// Original mint creator account that must sign and matches the mint authority PDA seeds
-#[inline(always)]
-    pub fn creator(&mut self, creator: solana_pubkey::Pubkey) -> &mut Self {
-                        self.creator = Some(creator);
-                    self
-    }
             /// SPL Token mint account
 #[inline(always)]
     pub fn mint_info(&mut self, mint_info: solana_pubkey::Pubkey) -> &mut Self {
                         self.mint_info = Some(mint_info);
-                    self
-    }
-            /// Mint authority PDA account owned by the Security Token program
-#[inline(always)]
-    pub fn mint_authority(&mut self, mint_authority: solana_pubkey::Pubkey) -> &mut Self {
-                        self.mint_authority = Some(mint_authority);
                     self
     }
             /// Pause authority PDA account derived for the mint
@@ -223,9 +189,7 @@ impl PauseBuilder {
                               mint: self.mint.expect("mint is not set"),
                                         verification_config: self.verification_config.expect("verification_config is not set"),
                                         instructions_sysvar: self.instructions_sysvar.expect("instructions_sysvar is not set"),
-                                        creator: self.creator.expect("creator is not set"),
                                         mint_info: self.mint_info.expect("mint_info is not set"),
-                                        mint_authority: self.mint_authority.expect("mint_authority is not set"),
                                         pause_authority: self.pause_authority.expect("pause_authority is not set"),
                                         token_program: self.token_program.expect("token_program is not set"),
                       };
@@ -251,21 +215,11 @@ impl PauseBuilder {
       
                     
               pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
-                        /// Original mint creator account that must sign and matches the mint authority PDA seeds
-
-      
-                    
-              pub creator: &'b solana_account_info::AccountInfo<'a>,
                         /// SPL Token mint account
 
       
                     
               pub mint_info: &'b solana_account_info::AccountInfo<'a>,
-                        /// Mint authority PDA account owned by the Security Token program
-
-      
-                    
-              pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
                         /// Pause authority PDA account derived for the mint
 
       
@@ -297,21 +251,11 @@ pub struct PauseCpi<'a, 'b> {
     
               
           pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
-                /// Original mint creator account that must sign and matches the mint authority PDA seeds
-
-    
-              
-          pub creator: &'b solana_account_info::AccountInfo<'a>,
                 /// SPL Token mint account
 
     
               
           pub mint_info: &'b solana_account_info::AccountInfo<'a>,
-                /// Mint authority PDA account owned by the Security Token program
-
-    
-              
-          pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
                 /// Pause authority PDA account derived for the mint
 
     
@@ -334,9 +278,7 @@ impl<'a, 'b> PauseCpi<'a, 'b> {
               mint: accounts.mint,
               verification_config: accounts.verification_config,
               instructions_sysvar: accounts.instructions_sysvar,
-              creator: accounts.creator,
               mint_info: accounts.mint_info,
-              mint_authority: accounts.mint_authority,
               pause_authority: accounts.pause_authority,
               token_program: accounts.token_program,
                 }
@@ -361,8 +303,8 @@ impl<'a, 'b> PauseCpi<'a, 'b> {
     signers_seeds: &[&[&[u8]]],
     remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
   ) -> solana_program_error::ProgramResult {
-    let mut accounts = Vec::with_capacity(8+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+    let mut accounts = Vec::with_capacity(6+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint.key,
             false
           ));
@@ -374,16 +316,8 @@ impl<'a, 'b> PauseCpi<'a, 'b> {
             *self.instructions_sysvar.key,
             false
           ));
-                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.creator.key,
-            true
-          ));
                                           accounts.push(solana_instruction::AccountMeta::new(
             *self.mint_info.key,
-            false
-          ));
-                                          accounts.push(solana_instruction::AccountMeta::new(
-            *self.mint_authority.key,
             false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -408,14 +342,12 @@ impl<'a, 'b> PauseCpi<'a, 'b> {
       accounts,
       data,
     };
-    let mut account_infos = Vec::with_capacity(9 + remaining_accounts.len());
+    let mut account_infos = Vec::with_capacity(7 + remaining_accounts.len());
     account_infos.push(self.__program.clone());
                   account_infos.push(self.mint.clone());
                         account_infos.push(self.verification_config.clone());
                         account_infos.push(self.instructions_sysvar.clone());
-                        account_infos.push(self.creator.clone());
                         account_infos.push(self.mint_info.clone());
-                        account_infos.push(self.mint_authority.clone());
                         account_infos.push(self.pause_authority.clone());
                         account_infos.push(self.token_program.clone());
               remaining_accounts.iter().for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -432,14 +364,12 @@ impl<'a, 'b> PauseCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` mint
+          ///   0. `[]` mint
           ///   1. `[]` verification_config
           ///   2. `[]` instructions_sysvar
-                ///   3. `[signer]` creator
-                ///   4. `[writable]` mint_info
-                ///   5. `[writable]` mint_authority
-          ///   6. `[]` pause_authority
-          ///   7. `[]` token_program
+                ///   3. `[writable]` mint_info
+          ///   4. `[]` pause_authority
+          ///   5. `[]` token_program
 #[derive(Clone, Debug)]
 pub struct PauseCpiBuilder<'a, 'b> {
   instruction: Box<PauseCpiBuilderInstruction<'a, 'b>>,
@@ -452,9 +382,7 @@ impl<'a, 'b> PauseCpiBuilder<'a, 'b> {
               mint: None,
               verification_config: None,
               instructions_sysvar: None,
-              creator: None,
               mint_info: None,
-              mint_authority: None,
               pause_authority: None,
               token_program: None,
                                 __remaining_accounts: Vec::new(),
@@ -479,22 +407,10 @@ impl<'a, 'b> PauseCpiBuilder<'a, 'b> {
                         self.instruction.instructions_sysvar = Some(instructions_sysvar);
                     self
     }
-      /// Original mint creator account that must sign and matches the mint authority PDA seeds
-#[inline(always)]
-    pub fn creator(&mut self, creator: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-                        self.instruction.creator = Some(creator);
-                    self
-    }
       /// SPL Token mint account
 #[inline(always)]
     pub fn mint_info(&mut self, mint_info: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
                         self.instruction.mint_info = Some(mint_info);
-                    self
-    }
-      /// Mint authority PDA account owned by the Security Token program
-#[inline(always)]
-    pub fn mint_authority(&mut self, mint_authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-                        self.instruction.mint_authority = Some(mint_authority);
                     self
     }
       /// Pause authority PDA account derived for the mint
@@ -540,11 +456,7 @@ impl<'a, 'b> PauseCpiBuilder<'a, 'b> {
                   
           instructions_sysvar: self.instruction.instructions_sysvar.expect("instructions_sysvar is not set"),
                   
-          creator: self.instruction.creator.expect("creator is not set"),
-                  
           mint_info: self.instruction.mint_info.expect("mint_info is not set"),
-                  
-          mint_authority: self.instruction.mint_authority.expect("mint_authority is not set"),
                   
           pause_authority: self.instruction.pause_authority.expect("pause_authority is not set"),
                   
@@ -560,9 +472,7 @@ struct PauseCpiBuilderInstruction<'a, 'b> {
             mint: Option<&'b solana_account_info::AccountInfo<'a>>,
                 verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
                 instructions_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
-                creator: Option<&'b solana_account_info::AccountInfo<'a>>,
                 mint_info: Option<&'b solana_account_info::AccountInfo<'a>>,
-                mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
                 pause_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
                 token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
                 /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

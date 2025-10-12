@@ -111,13 +111,10 @@ impl OperationsModule {
     /// Pause all activity within a mint
     /// Wrapper for SPL Token Pause instruction
     pub fn execute_pause(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-        let [creator_signer, mint_info, mint_authority, pause_authority, token_program] = accounts
-        else {
+        let [mint_info, pause_authority, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
-        verify_signer(creator_signer, false)?;
-        verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, false)?;
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
             return Err(ProgramError::InvalidSeeds);
@@ -144,19 +141,15 @@ impl OperationsModule {
     /// Resume all activity within a mint
     /// Wrapper for SPL Token Resume instruction
     pub fn execute_resume(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-        let [creator_signer, mint_info, mint_authority, pause_authority, token_program] = accounts
-        else {
+        let [mint_info, pause_authority, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         // TODO: Almost the same, might be splitted
         verify_token22_program(token_program)?;
-        verify_signer(creator_signer, false)?;
-        verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, false)?;
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
             return Err(ProgramError::InvalidSeeds);
         }
-
         log!("All checks passed, proceeding to resume");
         let resume_instruction = CustomResume {
             mint: mint_info,
@@ -178,14 +171,10 @@ impl OperationsModule {
     /// Freeze a token account
     /// Wrapper for SPL Token FreezeAccount instruction
     pub fn execute_freeze_account(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-        let [creator_signer, mint_info, mint_authority, freeze_authority, token_account, token_program] =
-            accounts
-        else {
+        let [mint_info, freeze_authority, token_account, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
-        verify_signer(creator_signer, false)?;
-        verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, false)?;
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
             return Err(ProgramError::InvalidSeeds);
@@ -212,19 +201,14 @@ impl OperationsModule {
     /// Thaw a token account
     /// Wrapper for SPL Token ThawAccount instruction
     pub fn execute_thaw_account(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-        let [creator_signer, mint_info, mint_authority, freeze_authority, token_account, token_program] =
-            accounts
-        else {
+        let [mint_info, freeze_authority, token_account, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
-        verify_signer(creator_signer, false)?;
-        verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, false)?;
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
             return Err(ProgramError::InvalidSeeds);
         }
-        // NOTE: No need to check token account owner, t22 does it
         log!("All checks passed, proceeding to thaw");
         let thaw_instruction = ThawAccount {
             account: token_account,

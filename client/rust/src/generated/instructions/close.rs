@@ -63,7 +63,7 @@ impl Close {
   #[allow(clippy::vec_init_then_push)]
   pub fn instruction_with_remaining_accounts(&self, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
     let mut accounts = Vec::with_capacity(8+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint,
             false
           ));
@@ -132,7 +132,7 @@ impl Default for CloseInstructionData {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` mint
+          ///   0. `[]` mint
           ///   1. `[]` verification_config
           ///   2. `[]` instructions_sysvar
                 ///   3. `[signer]` creator
@@ -362,7 +362,7 @@ impl<'a, 'b> CloseCpi<'a, 'b> {
     remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
   ) -> solana_program_error::ProgramResult {
     let mut accounts = Vec::with_capacity(8+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint.key,
             false
           ));
@@ -432,7 +432,7 @@ impl<'a, 'b> CloseCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` mint
+          ///   0. `[]` mint
           ///   1. `[]` verification_config
           ///   2. `[]` instructions_sysvar
                 ///   3. `[signer]` creator

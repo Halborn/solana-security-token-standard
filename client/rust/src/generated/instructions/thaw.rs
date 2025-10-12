@@ -28,21 +28,11 @@ pub struct Thaw {
     
               
           pub instructions_sysvar: solana_pubkey::Pubkey,
-                /// Original mint creator account that must sign and matches the mint authority PDA seeds
-
-    
-              
-          pub creator: solana_pubkey::Pubkey,
                 /// SPL Token mint account
 
     
               
           pub mint_info: solana_pubkey::Pubkey,
-                /// Mint authority PDA account owned by the Security Token program
-
-    
-              
-          pub mint_authority: solana_pubkey::Pubkey,
                 /// Freeze authority PDA account derived for the mint
 
     
@@ -67,8 +57,8 @@ impl Thaw {
   #[allow(clippy::arithmetic_side_effects)]
   #[allow(clippy::vec_init_then_push)]
   pub fn instruction_with_remaining_accounts(&self, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
-    let mut accounts = Vec::with_capacity(9+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+    let mut accounts = Vec::with_capacity(7+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint,
             false
           ));
@@ -80,16 +70,8 @@ impl Thaw {
             self.instructions_sysvar,
             false
           ));
-                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.creator,
-            true
-          ));
                                           accounts.push(solana_instruction::AccountMeta::new(
             self.mint_info,
-            false
-          ));
-                                          accounts.push(solana_instruction::AccountMeta::new(
-            self.mint_authority,
             false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -141,23 +123,19 @@ impl Default for ThawInstructionData {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` mint
+          ///   0. `[]` mint
           ///   1. `[]` verification_config
           ///   2. `[]` instructions_sysvar
-                ///   3. `[signer]` creator
-                ///   4. `[writable]` mint_info
-                ///   5. `[writable]` mint_authority
-          ///   6. `[]` freeze_authority
-                ///   7. `[writable]` token_account
-          ///   8. `[]` token_program
+                ///   3. `[writable]` mint_info
+          ///   4. `[]` freeze_authority
+                ///   5. `[writable]` token_account
+          ///   6. `[]` token_program
 #[derive(Clone, Debug, Default)]
 pub struct ThawBuilder {
             mint: Option<solana_pubkey::Pubkey>,
                 verification_config: Option<solana_pubkey::Pubkey>,
                 instructions_sysvar: Option<solana_pubkey::Pubkey>,
-                creator: Option<solana_pubkey::Pubkey>,
                 mint_info: Option<solana_pubkey::Pubkey>,
-                mint_authority: Option<solana_pubkey::Pubkey>,
                 freeze_authority: Option<solana_pubkey::Pubkey>,
                 token_account: Option<solana_pubkey::Pubkey>,
                 token_program: Option<solana_pubkey::Pubkey>,
@@ -186,22 +164,10 @@ impl ThawBuilder {
                         self.instructions_sysvar = Some(instructions_sysvar);
                     self
     }
-            /// Original mint creator account that must sign and matches the mint authority PDA seeds
-#[inline(always)]
-    pub fn creator(&mut self, creator: solana_pubkey::Pubkey) -> &mut Self {
-                        self.creator = Some(creator);
-                    self
-    }
             /// SPL Token mint account
 #[inline(always)]
     pub fn mint_info(&mut self, mint_info: solana_pubkey::Pubkey) -> &mut Self {
                         self.mint_info = Some(mint_info);
-                    self
-    }
-            /// Mint authority PDA account owned by the Security Token program
-#[inline(always)]
-    pub fn mint_authority(&mut self, mint_authority: solana_pubkey::Pubkey) -> &mut Self {
-                        self.mint_authority = Some(mint_authority);
                     self
     }
             /// Freeze authority PDA account derived for the mint
@@ -240,9 +206,7 @@ impl ThawBuilder {
                               mint: self.mint.expect("mint is not set"),
                                         verification_config: self.verification_config.expect("verification_config is not set"),
                                         instructions_sysvar: self.instructions_sysvar.expect("instructions_sysvar is not set"),
-                                        creator: self.creator.expect("creator is not set"),
                                         mint_info: self.mint_info.expect("mint_info is not set"),
-                                        mint_authority: self.mint_authority.expect("mint_authority is not set"),
                                         freeze_authority: self.freeze_authority.expect("freeze_authority is not set"),
                                         token_account: self.token_account.expect("token_account is not set"),
                                         token_program: self.token_program.expect("token_program is not set"),
@@ -269,21 +233,11 @@ impl ThawBuilder {
       
                     
               pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
-                        /// Original mint creator account that must sign and matches the mint authority PDA seeds
-
-      
-                    
-              pub creator: &'b solana_account_info::AccountInfo<'a>,
                         /// SPL Token mint account
 
       
                     
               pub mint_info: &'b solana_account_info::AccountInfo<'a>,
-                        /// Mint authority PDA account owned by the Security Token program
-
-      
-                    
-              pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
                         /// Freeze authority PDA account derived for the mint
 
       
@@ -320,21 +274,11 @@ pub struct ThawCpi<'a, 'b> {
     
               
           pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
-                /// Original mint creator account that must sign and matches the mint authority PDA seeds
-
-    
-              
-          pub creator: &'b solana_account_info::AccountInfo<'a>,
                 /// SPL Token mint account
 
     
               
           pub mint_info: &'b solana_account_info::AccountInfo<'a>,
-                /// Mint authority PDA account owned by the Security Token program
-
-    
-              
-          pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
                 /// Freeze authority PDA account derived for the mint
 
     
@@ -362,9 +306,7 @@ impl<'a, 'b> ThawCpi<'a, 'b> {
               mint: accounts.mint,
               verification_config: accounts.verification_config,
               instructions_sysvar: accounts.instructions_sysvar,
-              creator: accounts.creator,
               mint_info: accounts.mint_info,
-              mint_authority: accounts.mint_authority,
               freeze_authority: accounts.freeze_authority,
               token_account: accounts.token_account,
               token_program: accounts.token_program,
@@ -390,8 +332,8 @@ impl<'a, 'b> ThawCpi<'a, 'b> {
     signers_seeds: &[&[&[u8]]],
     remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
   ) -> solana_program_error::ProgramResult {
-    let mut accounts = Vec::with_capacity(9+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+    let mut accounts = Vec::with_capacity(7+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint.key,
             false
           ));
@@ -403,16 +345,8 @@ impl<'a, 'b> ThawCpi<'a, 'b> {
             *self.instructions_sysvar.key,
             false
           ));
-                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.creator.key,
-            true
-          ));
                                           accounts.push(solana_instruction::AccountMeta::new(
             *self.mint_info.key,
-            false
-          ));
-                                          accounts.push(solana_instruction::AccountMeta::new(
-            *self.mint_authority.key,
             false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -441,14 +375,12 @@ impl<'a, 'b> ThawCpi<'a, 'b> {
       accounts,
       data,
     };
-    let mut account_infos = Vec::with_capacity(10 + remaining_accounts.len());
+    let mut account_infos = Vec::with_capacity(8 + remaining_accounts.len());
     account_infos.push(self.__program.clone());
                   account_infos.push(self.mint.clone());
                         account_infos.push(self.verification_config.clone());
                         account_infos.push(self.instructions_sysvar.clone());
-                        account_infos.push(self.creator.clone());
                         account_infos.push(self.mint_info.clone());
-                        account_infos.push(self.mint_authority.clone());
                         account_infos.push(self.freeze_authority.clone());
                         account_infos.push(self.token_account.clone());
                         account_infos.push(self.token_program.clone());
@@ -466,15 +398,13 @@ impl<'a, 'b> ThawCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` mint
+          ///   0. `[]` mint
           ///   1. `[]` verification_config
           ///   2. `[]` instructions_sysvar
-                ///   3. `[signer]` creator
-                ///   4. `[writable]` mint_info
-                ///   5. `[writable]` mint_authority
-          ///   6. `[]` freeze_authority
-                ///   7. `[writable]` token_account
-          ///   8. `[]` token_program
+                ///   3. `[writable]` mint_info
+          ///   4. `[]` freeze_authority
+                ///   5. `[writable]` token_account
+          ///   6. `[]` token_program
 #[derive(Clone, Debug)]
 pub struct ThawCpiBuilder<'a, 'b> {
   instruction: Box<ThawCpiBuilderInstruction<'a, 'b>>,
@@ -487,9 +417,7 @@ impl<'a, 'b> ThawCpiBuilder<'a, 'b> {
               mint: None,
               verification_config: None,
               instructions_sysvar: None,
-              creator: None,
               mint_info: None,
-              mint_authority: None,
               freeze_authority: None,
               token_account: None,
               token_program: None,
@@ -515,22 +443,10 @@ impl<'a, 'b> ThawCpiBuilder<'a, 'b> {
                         self.instruction.instructions_sysvar = Some(instructions_sysvar);
                     self
     }
-      /// Original mint creator account that must sign and matches the mint authority PDA seeds
-#[inline(always)]
-    pub fn creator(&mut self, creator: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-                        self.instruction.creator = Some(creator);
-                    self
-    }
       /// SPL Token mint account
 #[inline(always)]
     pub fn mint_info(&mut self, mint_info: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
                         self.instruction.mint_info = Some(mint_info);
-                    self
-    }
-      /// Mint authority PDA account owned by the Security Token program
-#[inline(always)]
-    pub fn mint_authority(&mut self, mint_authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-                        self.instruction.mint_authority = Some(mint_authority);
                     self
     }
       /// Freeze authority PDA account derived for the mint
@@ -582,11 +498,7 @@ impl<'a, 'b> ThawCpiBuilder<'a, 'b> {
                   
           instructions_sysvar: self.instruction.instructions_sysvar.expect("instructions_sysvar is not set"),
                   
-          creator: self.instruction.creator.expect("creator is not set"),
-                  
           mint_info: self.instruction.mint_info.expect("mint_info is not set"),
-                  
-          mint_authority: self.instruction.mint_authority.expect("mint_authority is not set"),
                   
           freeze_authority: self.instruction.freeze_authority.expect("freeze_authority is not set"),
                   
@@ -604,9 +516,7 @@ struct ThawCpiBuilderInstruction<'a, 'b> {
             mint: Option<&'b solana_account_info::AccountInfo<'a>>,
                 verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
                 instructions_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
-                creator: Option<&'b solana_account_info::AccountInfo<'a>>,
                 mint_info: Option<&'b solana_account_info::AccountInfo<'a>>,
-                mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
                 freeze_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
                 token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
                 token_program: Option<&'b solana_account_info::AccountInfo<'a>>,

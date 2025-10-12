@@ -236,9 +236,7 @@ async fn test_basic_t22_operations() {
 
     let freeze_ix = security_token_client::Freeze {
         mint: mint_keypair.pubkey(),
-        creator: context.payer.pubkey(),
         mint_info: mint_keypair.pubkey(),
-        mint_authority: mint_authority_pda,
         verification_config: verification_config_pda,
         freeze_authority: freeze_authority_pda,
         token_account: destination_account,
@@ -274,9 +272,7 @@ async fn test_basic_t22_operations() {
 
     let thaw_ix = security_token_client::Thaw {
         mint: mint_keypair.pubkey(),
-        creator: context.payer.pubkey(),
         mint_info: mint_keypair.pubkey(),
-        mint_authority: mint_authority_pda,
         verification_config: verification_config_pda,
         freeze_authority: freeze_authority_pda,
         token_account: destination_account,
@@ -463,9 +459,7 @@ async fn test_t22_extension_operations() {
 
     let pause_ix = security_token_client::Pause {
         mint: mint_keypair.pubkey(),
-        creator: context.payer.pubkey(),
         mint_info: mint_keypair.pubkey(),
-        mint_authority: mint_authority_pda,
         verification_config: verification_config_pda,
         pause_authority: pause_authority_pda,
         token_program: spl_token_2022_program,
@@ -495,9 +489,7 @@ async fn test_t22_extension_operations() {
 
     let resume_ix = security_token_client::Resume {
         mint: mint_keypair.pubkey(),
-        creator: context.payer.pubkey(),
         mint_info: mint_keypair.pubkey(),
-        mint_authority: mint_authority_pda,
         pause_authority: pause_authority_pda,
         token_program: spl_token_2022_program,
         verification_config: verification_config_pda,

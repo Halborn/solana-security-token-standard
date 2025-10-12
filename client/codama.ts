@@ -413,7 +413,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfig',
@@ -666,7 +666,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfig',
@@ -746,7 +746,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfig',
@@ -824,7 +824,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfig',
@@ -843,24 +843,8 @@ const program = programNode({
           isWritable: false,
         }),
         instructionAccountNode({
-          name: 'creator',
-          docs: [
-            'Original mint creator account that must sign and matches the mint authority PDA seeds',
-          ],
-          isSigner: true,
-          isWritable: false,
-        }),
-        instructionAccountNode({
           name: 'mintInfo',
           docs: ['SPL Token mint account'],
-          isSigner: false,
-          isWritable: true,
-        }),
-        instructionAccountNode({
-          name: 'mintAuthority',
-          docs: [
-            'Mint authority PDA account owned by the Security Token program',
-          ],
           isSigner: false,
           isWritable: true,
         }),
@@ -897,7 +881,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfig',
@@ -916,24 +900,8 @@ const program = programNode({
           isWritable: false,
         }),
         instructionAccountNode({
-          name: 'creator',
-          docs: [
-            'Original mint creator account that must sign and matches the mint authority PDA seeds',
-          ],
-          isSigner: true,
-          isWritable: false,
-        }),
-        instructionAccountNode({
           name: 'mintInfo',
           docs: ['SPL Token mint account'],
-          isSigner: false,
-          isWritable: true,
-        }),
-        instructionAccountNode({
-          name: 'mintAuthority',
-          docs: [
-            'Mint authority PDA account owned by the Security Token program',
-          ],
           isSigner: false,
           isWritable: true,
         }),
@@ -970,7 +938,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfig',
@@ -989,24 +957,8 @@ const program = programNode({
           isWritable: false,
         }),
         instructionAccountNode({
-          name: 'creator',
-          docs: [
-            'Original mint creator account that must sign and matches the mint authority PDA seeds',
-          ],
-          isSigner: true,
-          isWritable: false,
-        }),
-        instructionAccountNode({
           name: 'mintInfo',
           docs: ['SPL Token mint account'],
-          isSigner: false,
-          isWritable: true,
-        }),
-        instructionAccountNode({
-          name: 'mintAuthority',
-          docs: [
-            'Mint authority PDA account owned by the Security Token program',
-          ],
           isSigner: false,
           isWritable: true,
         }),
@@ -1051,7 +1003,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfig',
@@ -1070,24 +1022,8 @@ const program = programNode({
           isWritable: false,
         }),
         instructionAccountNode({
-          name: 'creator',
-          docs: [
-            'Original mint creator account that must sign and matches the mint authority PDA seeds',
-          ],
-          isSigner: true,
-          isWritable: false,
-        }),
-        instructionAccountNode({
           name: 'mintInfo',
           docs: ['SPL Token mint account'],
-          isSigner: false,
-          isWritable: true,
-        }),
-        instructionAccountNode({
-          name: 'mintAuthority',
-          docs: [
-            'Mint authority PDA account owned by the Security Token program',
-          ],
           isSigner: false,
           isWritable: true,
         }),
@@ -1132,7 +1068,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfig',

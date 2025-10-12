@@ -82,48 +82,38 @@ pub enum SecurityTokenInstruction {
     /// 0. `[]` The mint account (used for verification config PDA derivation)
     /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
     /// 2. `[]` Instructions sysvar for introspection-based verification
-    /// 3. `[signer]` Original mint creator account that matches the mint authority PDA seeds
-    /// 4. `[writable]` SPL Token mint account
-    /// 5. `[writable]` Mint authority PDA account (owned by this program)
-    /// 6. `[]` Pause authority PDA account derived for the mint
-    /// 7. `[]` System program account
-    /// 8. `[]` SPL Token 2022 program account
+    /// 3. `[writable]` SPL Token mint account (the mint to pause)
+    /// 4. `[]` Pause authority PDA account derived for the mint
+    /// 5. `[]` SPL Token 2022 program account
     Pause = 8,
     /// Resume all token activity after verification succeeds
     /// Accounts expected:
     /// 0. `[]` The mint account (used for verification config PDA derivation)
     /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
     /// 2. `[]` Instructions sysvar for introspection-based verification
-    /// 3. `[signer]` Original mint creator account that matches the mint authority PDA seeds
-    /// 4. `[writable]` SPL Token mint account
-    /// 5. `[writable]` Mint authority PDA account (owned by this program)
-    /// 6. `[]` Pause authority PDA account derived for the mint
-    /// 7. `[]` System program account
-    /// 8. `[]` SPL Token 2022 program account
+    /// 3. `[writable]` SPL Token mint account (the mint to resume)
+    /// 4. `[]` Pause authority PDA account derived for the mint
+    /// 5. `[]` SPL Token 2022 program account
     Resume = 9,
     /// Freeze a token account after verification succeeds
     /// Accounts expected:
     /// 0. `[]` The mint account (used for verification config PDA derivation)
     /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
     /// 2. `[]` Instructions sysvar for introspection-based verification
-    /// 3. `[signer]` Original mint creator account that matches the mint authority PDA seeds
-    /// 4. `[writable]` SPL Token mint account
-    /// 5. `[writable]` Mint authority PDA account (owned by this program)
-    /// 6. `[]` Freeze authority PDA account derived for the mint (signs via PDA seeds)
-    /// 7. `[writable]` Token account that will be frozen
-    /// 8. `[]` SPL Token 2022 program account
+    /// 3. `[writable]` SPL Token mint account
+    /// 4. `[]` Freeze authority PDA account derived for the mint (signs via PDA seeds)
+    /// 5. `[writable]` Token account that will be frozen
+    /// 6. `[]` SPL Token 2022 program account
     Freeze = 10,
     /// Thaw a frozen token account after verification succeeds
     /// Accounts expected:
     /// 0. `[]` The mint account (used for verification config PDA derivation)
     /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
     /// 2. `[]` Instructions sysvar for introspection-based verification
-    /// 3. `[signer]` Original mint creator account that matches the mint authority PDA seeds
-    /// 4. `[writable]` SPL Token mint account
-    /// 5. `[writable]` Mint authority PDA account (owned by this program)
-    /// 6. `[]` Freeze authority PDA account derived for the mint (signs via PDA seeds)
-    /// 7. `[writable]` Token account that will be frozen
-    /// 8. `[]` SPL Token 2022 program account
+    /// 3. `[writable]` SPL Token mint account
+    /// 4. `[]` Freeze authority PDA account derived for the mint (signs via PDA seeds)
+    /// 5. `[writable]` Token account that will be thawed
+    /// 6. `[]` SPL Token 2022 program account
     Thaw = 11,
     /// Close a token account and reclaim its rent after verification succeeds
     /// Accounts expected:
