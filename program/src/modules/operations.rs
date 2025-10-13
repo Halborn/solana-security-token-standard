@@ -78,6 +78,8 @@ impl OperationsModule {
         };
 
         verify_token22_program(token_program)?;
+        verify_owner(token_account, token_program.key())?;
+
         let (permanent_delegate_pda, bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
         if permanent_delegate_authority.key() != &permanent_delegate_pda {
@@ -144,7 +146,6 @@ impl OperationsModule {
         let [mint_info, pause_authority, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        // TODO: Almost the same, might be splitted
         verify_token22_program(token_program)?;
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
@@ -175,11 +176,12 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+        verify_owner(token_account, token_program.key())?;
+
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
             return Err(ProgramError::InvalidSeeds);
         }
-        // NOTE: No need to check token account owner, t22 does it
         log!("All checks passed, proceeding to freeze");
         let freeze_instruction = FreezeAccount {
             account: token_account,
@@ -205,6 +207,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+        verify_owner(token_account, token_program.key())?;
+
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
             return Err(ProgramError::InvalidSeeds);
