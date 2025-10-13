@@ -8,8 +8,8 @@ use solana_sdk::signature::Signer;
 use solana_sdk::{signature::Keypair, sysvar};
 use spl_pod::primitives::PodBool;
 use spl_token_2022::extension::pausable::PausableConfig;
-use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
+use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
 
 use crate::helpers::{assert_transaction_failure, assert_transaction_success};
@@ -191,13 +191,17 @@ async fn test_basic_t22_operations() {
         &SECURITY_TOKEN_ID,
     );
 
+    let (permanent_delegate_pda, _bump) = Pubkey::find_program_address(
+        &[b"mint.permanent_delegate", mint_keypair.pubkey().as_ref()],
+        &SECURITY_TOKEN_ID,
+    );
+
     let burn_ix = security_token_client::Burn {
         mint: mint_keypair.pubkey(),
         verification_config: verification_config_pda,
         instructions_sysvar: sysvar::instructions::ID,
-        creator: context.payer.pubkey(),
+        permanent_delegate: permanent_delegate_pda,
         mint_info: mint_keypair.pubkey(),
-        mint_authority: mint_authority_pda,
         token_account: destination_account,
         token_program: spl_token_2022_program,
     }
@@ -326,9 +330,8 @@ async fn test_basic_t22_operations() {
         mint: mint_keypair.pubkey(),
         verification_config: verification_config_pda,
         instructions_sysvar: sysvar::instructions::ID,
-        creator: context.payer.pubkey(),
         mint_info: mint_keypair.pubkey(),
-        mint_authority: mint_authority_pda,
+        permanent_delegate: permanent_delegate_pda,
         token_account: destination_account,
         token_program: spl_token_2022_program,
     }

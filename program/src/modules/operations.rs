@@ -33,6 +33,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+        verify_signer(creator_signer, false)?;
         let mint_authority_state =
             verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, true)?;
 
@@ -71,24 +72,16 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
-        let [creator_signer, mint_info, mint_authority, token_account, token_program] = accounts
+        let [mint_info, permanent_delegate_authority, token_account, token_program] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         verify_token22_program(token_program)?;
-        let _mint_authority_state =
-            verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, true)?;
-        verify_owner(token_account, token_program.key())?;
-        {
-            let token_account_state = TokenAccount::from_account_info(token_account)?;
-            if token_account_state.mint() != mint_info.key() {
-                return Err(ProgramError::InvalidAccountData);
-            }
-
-            if token_account_state.owner() != creator_signer.key() {
-                return Err(ProgramError::InvalidAccountOwner);
-            }
+        let (permanent_delegate_pda, bump) =
+            crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
+        if permanent_delegate_authority.key() != &permanent_delegate_pda {
+            return Err(ProgramError::InvalidSeeds);
         }
 
         log!("All checks passed, proceeding to burn {} tokens", amount);
@@ -100,11 +93,18 @@ impl OperationsModule {
         let instruction = BurnChecked {
             mint: mint_info,
             account: token_account,
-            authority: creator_signer,
+            authority: permanent_delegate_authority,
             amount,
             decimals,
         };
-        instruction.invoke()?;
+        let bump_seed = [bump];
+        let seeds = [
+            Seed::from(seeds::PERMANENT_DELEGATE),
+            Seed::from(mint_info.key().as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+        let permanent_delegate_signer = Signer::from(&seeds);
+        instruction.invoke_signed(&[permanent_delegate_signer])?;
         Ok(())
     }
 
