@@ -92,6 +92,16 @@ impl VerificationModule {
         verify_signer(creator_info, false)?;
         verify_signer(mint_info, false)?;
 
+        if freeze_authority_opt.is_some() {
+            let (freeze_authority_pda, _bump) =
+                utils::find_freeze_authority_pda(mint_info.key(), program_id);
+
+            if freeze_authority_opt != Some(freeze_authority_pda) {
+                log!("Freeze authority PDA mismatch");
+                return Err(ProgramError::InvalidSeeds);
+            }
+        }
+
         let mut extensions_buf: [ExtensionType; 5] = [ExtensionType::Pausable; 5];
         let mut ext_count: usize = 0;
         let required_extensions: &[ExtensionType] = &[

@@ -121,7 +121,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
             ix_mint: security_token_client::InitializeMintArgs {
                 decimals: 6,
                 mint_authority: payer.pubkey(),
-                freeze_authority: Some(payer.pubkey()),
+                freeze_authority: None,
             },
             ix_metadata_pointer: None,
             ix_metadata: None,
