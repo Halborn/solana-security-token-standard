@@ -944,9 +944,6 @@ impl VerificationModule {
         let mut data = config_account.try_borrow_mut_data()?;
         let config_bytes = config.to_bytes();
         data[..config_bytes.len()].copy_from_slice(&config_bytes);
-        for byte in data[config_bytes.len()..].iter_mut() {
-            *byte = 0;
-        }
 
         log!(
             "VerificationConfig PDA created for {} programs",
@@ -1059,9 +1056,6 @@ impl VerificationModule {
         {
             let mut data = config_account.try_borrow_mut_data()?;
             data[..config_bytes.len()].copy_from_slice(&config_bytes);
-            for byte in data[config_bytes.len()..].iter_mut() {
-                *byte = 0;
-            }
         }
 
         log!(
@@ -1202,9 +1196,6 @@ impl VerificationModule {
             {
                 let mut data = config_account.try_borrow_mut_data()?;
                 data[..config_bytes.len()].copy_from_slice(&config_bytes);
-                for byte in data[config_bytes.len()..].iter_mut() {
-                    *byte = 0;
-                }
             } // data borrow is released here
 
             log!(
