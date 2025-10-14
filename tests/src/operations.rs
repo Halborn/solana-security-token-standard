@@ -12,7 +12,7 @@ use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
 
-use crate::helpers::{assert_transaction_failure, assert_transaction_success};
+use crate::helpers::assert_transaction_success;
 
 async fn get_mint_state(
     banks_client: &mut solana_program_test::BanksClient,

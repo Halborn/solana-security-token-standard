@@ -64,7 +64,7 @@ pub fn verify_mint_authority(
     mint_authority: &AccountInfo,
     candidate_authority: &AccountInfo,
     expect_authority_writable: bool,
-) -> Result<MintAuthority, ProgramError> {
+) -> Result<(), ProgramError> {
     verify_signer(candidate_authority, false)?;
     verify_owner(mint_authority, program_id)?;
 
@@ -83,12 +83,7 @@ pub fn verify_mint_authority(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let data = mint_authority.try_borrow_data()?;
-    if data.len() < MintAuthority::LEN {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    let mint_authority_state = MintAuthority::try_from_bytes(&data)?;
+    let mint_authority_state = MintAuthority::from_account_info(mint_authority)?;
 
     if mint_authority_state.mint != *mint_info.key() {
         return Err(ProgramError::InvalidAccountData);
@@ -102,7 +97,7 @@ pub fn verify_mint_authority(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    Ok(mint_authority_state)
+    Ok(())
 }
 
 /// Verify account as system program, returning an error if it is not.
