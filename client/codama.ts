@@ -684,11 +684,11 @@ const program = programNode({
           isSigner: false,
           isWritable: false,
         }),
-          instructionAccountNode({
+        instructionAccountNode({
           name: 'creator',
           docs: [
             'Original mint creator account that must sign and matches the mint authority PDA seeds',
-],
+          ],
           isSigner: true,
           isWritable: false,
         }),
@@ -952,7 +952,7 @@ const program = programNode({
           name: 'mintInfo',
           docs: ['SPL Token mint account'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'freezeAuthority',
@@ -1017,7 +1017,7 @@ const program = programNode({
           name: 'mintInfo',
           docs: ['SPL Token mint account'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'freezeAuthority',
