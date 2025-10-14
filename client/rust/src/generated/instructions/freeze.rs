@@ -70,7 +70,7 @@ impl Freeze {
             self.instructions_sysvar,
             false
           ));
-                                          accounts.push(solana_instruction::AccountMeta::new(
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint_info,
             false
           ));
@@ -126,7 +126,7 @@ impl Default for FreezeInstructionData {
           ///   0. `[]` mint
           ///   1. `[]` verification_config
           ///   2. `[]` instructions_sysvar
-                ///   3. `[writable]` mint_info
+          ///   3. `[]` mint_info
           ///   4. `[]` freeze_authority
                 ///   5. `[writable]` token_account
           ///   6. `[]` token_program
@@ -345,7 +345,7 @@ impl<'a, 'b> FreezeCpi<'a, 'b> {
             *self.instructions_sysvar.key,
             false
           ));
-                                          accounts.push(solana_instruction::AccountMeta::new(
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint_info.key,
             false
           ));
@@ -401,7 +401,7 @@ impl<'a, 'b> FreezeCpi<'a, 'b> {
           ///   0. `[]` mint
           ///   1. `[]` verification_config
           ///   2. `[]` instructions_sysvar
-                ///   3. `[writable]` mint_info
+          ///   3. `[]` mint_info
           ///   4. `[]` freeze_authority
                 ///   5. `[writable]` token_account
           ///   6. `[]` token_program
