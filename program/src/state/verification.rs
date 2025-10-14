@@ -39,7 +39,7 @@ impl AccountSerialize for VerificationConfig {
 }
 
 impl AccountDeserialize for VerificationConfig {
-    fn from_bytes_without_discriminator(data: &[u8]) -> Result<Self, ProgramError> {
+    fn try_from_bytes_inner(data: &[u8]) -> Result<Self, ProgramError> {
         if data.len() < 5 {
             // Minimum: 1 byte discriminator + 4 bytes count
             return Err(ProgramError::InvalidAccountData);

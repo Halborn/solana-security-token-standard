@@ -34,7 +34,7 @@ impl AccountSerialize for MintAuthority {
 }
 
 impl AccountDeserialize for MintAuthority {
-    fn from_bytes_without_discriminator(data: &[u8]) -> Result<Self, ProgramError> {
+    fn try_from_bytes_inner(data: &[u8]) -> Result<Self, ProgramError> {
         if data.len() < Self::LEN - 1 {
             return Err(ProgramError::InvalidAccountData);
         }

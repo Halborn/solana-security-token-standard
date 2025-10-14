@@ -29,13 +29,13 @@ pub trait AccountSerialize: Discriminator {
 }
 
 pub trait AccountDeserialize: Discriminator + Sized {
-    fn from_bytes_without_discriminator(data: &[u8]) -> Result<Self, ProgramError>;
+    fn try_from_bytes_inner(data: &[u8]) -> Result<Self, ProgramError>;
 
     fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         let (disc, rest) = data.split_first().ok_or(ProgramError::InvalidAccountData)?;
         if *disc != Self::DISCRIMINATOR {
             return Err(ProgramError::InvalidAccountData);
         }
-        Self::from_bytes_without_discriminator(rest)
+        Self::try_from_bytes_inner(rest)
     }
 }
