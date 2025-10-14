@@ -40,7 +40,7 @@ use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomR
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{verify_owner, verify_signer};
-use crate::state::{MintAuthority, VerificationConfig};
+use crate::state::{AccountDeserialize, AccountSerialize, MintAuthority, VerificationConfig};
 use crate::utils;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -369,7 +369,7 @@ impl VerificationModule {
         log!("Mint authority PDA account created successfully");
         {
             let mut data = mint_authority_account.try_borrow_mut_data()?;
-            let config_bytes = mint_authority_config.to_bytes_inner();
+            let config_bytes = mint_authority_config.to_bytes();
             data[..config_bytes.len()].copy_from_slice(&config_bytes);
         }
 
@@ -942,7 +942,7 @@ impl VerificationModule {
 
         // Write data to the account using manual serialization
         let mut data = config_account.try_borrow_mut_data()?;
-        let config_bytes = config.to_bytes_inner();
+        let config_bytes = config.to_bytes();
         data[..config_bytes.len()].copy_from_slice(&config_bytes);
 
         log!(
@@ -1051,7 +1051,7 @@ impl VerificationModule {
             config_account.realloc(new_size, false)?;
         }
 
-        let config_bytes = existing_config.to_bytes_inner();
+        let config_bytes = existing_config.to_bytes();
 
         {
             let mut data = config_account.try_borrow_mut_data()?;
@@ -1191,7 +1191,7 @@ impl VerificationModule {
             }
 
             // Write the trimmed config back to the account
-            let config_bytes = existing_config.to_bytes_inner();
+            let config_bytes = existing_config.to_bytes();
 
             {
                 let mut data = config_account.try_borrow_mut_data()?;

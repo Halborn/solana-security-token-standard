@@ -1,7 +1,8 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use pinocchio_log::log;
 
-use crate::{acc_info_as_str, state::MintAuthority, utils};
+use crate::state::{AccountDeserialize, MintAuthority};
+use crate::{acc_info_as_str, utils};
 
 /// Verify account as a signer, returning an error if it is not or if it is not writable while
 /// expected to be.

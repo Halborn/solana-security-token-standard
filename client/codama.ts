@@ -38,6 +38,13 @@ const program = programNode({
       ],
       type: structTypeNode([
         structFieldTypeNode({
+          name: 'accountDiscriminator',
+          docs: ['Account type discriminator byte (must be set to 1).'],
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(1),
+          defaultValueStrategy: 'omitted',
+        }),
+        structFieldTypeNode({
           name: 'instructionDiscriminator',
           docs: ['Instruction discriminator this config applies to'],
           type: numberTypeNode('u8'),
@@ -57,6 +64,13 @@ const program = programNode({
       name: 'MintAuthority',
       docs: ['Mint authority state stored in PDA account'],
       type: structTypeNode([
+        structFieldTypeNode({
+          name: 'accountDiscriminator',
+          docs: ['Account type discriminator byte (must be set to 0).'],
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(0),
+          defaultValueStrategy: 'omitted',
+        }),
         structFieldTypeNode({
           name: 'mint',
           docs: ['SPL mint address this configuration belongs to'],

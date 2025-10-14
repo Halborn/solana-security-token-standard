@@ -2,6 +2,10 @@
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 
+use crate::state::{
+    AccountDeserialize, AccountSerialize, Discriminator, SecurityTokenDiscriminators,
+};
+
 /// Configuration data stored per mint
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MintAuthority {
@@ -13,37 +17,13 @@ pub struct MintAuthority {
     pub bump: u8,
 }
 
-impl MintAuthority {
-    /// Serialized size of the account data (mint + creator + bump)
-    pub const LEN: usize = (2 * PUBKEY_BYTES) + 1;
+impl Discriminator for MintAuthority {
+    const DISCRIMINATOR: u8 = SecurityTokenDiscriminators::MintAuthorityDiscriminator as u8;
+}
 
-    /// Create a new MintAuthority
-    pub fn new(mint: Pubkey, mint_creator: Pubkey, bump: u8) -> Result<Self, ProgramError> {
-        let config = Self {
-            mint,
-            mint_creator,
-            bump,
-        };
-        config.validate()?;
-        Ok(config)
-    }
-
-    /// Validate the configuration data
-    pub fn validate(&self) -> Result<(), ProgramError> {
-        if self.mint == Pubkey::default() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        if self.mint_creator == Pubkey::default() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        Ok(())
-    }
-
-    /// Serialize the config into a byte vector
-    pub fn to_bytes_inner(&self) -> Vec<u8> {
-        let mut data = Vec::with_capacity(Self::LEN);
+impl AccountSerialize for MintAuthority {
+    fn to_bytes_inner(&self) -> Vec<u8> {
+        let mut data = Vec::with_capacity(Self::LEN - 1);
 
         data.extend_from_slice(self.mint.as_ref());
         data.extend_from_slice(self.mint_creator.as_ref());
@@ -51,10 +31,11 @@ impl MintAuthority {
 
         data
     }
+}
 
-    /// Deserialize config from raw bytes
-    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::LEN {
+impl AccountDeserialize for MintAuthority {
+    fn try_from_bytes_inner(data: &[u8]) -> Result<Self, ProgramError> {
+        if data.len() < Self::LEN - 1 {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -79,5 +60,34 @@ impl MintAuthority {
         config.validate()?;
 
         Ok(config)
+    }
+}
+
+impl MintAuthority {
+    /// Serialized size of the account data (discriminator + mint + creator + bump)
+    pub const LEN: usize = 1 + (2 * PUBKEY_BYTES) + 1;
+
+    /// Create a new MintAuthority
+    pub fn new(mint: Pubkey, mint_creator: Pubkey, bump: u8) -> Result<Self, ProgramError> {
+        let config = Self {
+            mint,
+            mint_creator,
+            bump,
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Validate the configuration data
+    pub fn validate(&self) -> Result<(), ProgramError> {
+        if self.mint == Pubkey::default() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        if self.mint_creator == Pubkey::default() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        Ok(())
     }
 }

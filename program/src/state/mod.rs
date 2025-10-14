@@ -2,12 +2,14 @@
 //!
 //! Contains all account structures and data types used by the Security Token program:
 //! - Mint and token account configurations
-//! - Verification configurations and status
-//! - Corporate action rates and receipts
+//! - Verification configurations
+//! - Discriminator configurations
 
+pub mod discriminator;
 pub mod mint_authority;
 pub mod verification;
 
 // Re-export all structures for convenience
+pub use discriminator::*;
 pub use mint_authority::*;
 pub use verification::*;
