@@ -231,45 +231,6 @@ impl OperationsModule {
         Ok(())
     }
 
-    /// Close a token account
-    /// Wrapper for SPL Token CloseAccount instruction
-    pub fn execute_close_account(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-        let [creator_signer, mint_info, mint_authority, token_account, token_program] = accounts
-        else {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        };
-        verify_token22_program(token_program)?;
-        verify_signer(creator_signer, false)?;
-        let mint_authority_state =
-            verify_mint_authority(program_id, mint_info, mint_authority, creator_signer, false)?;
-        verify_owner(token_account, token_program.key())?;
-
-        let token_account_state = TokenAccount::from_account_info(token_account)?;
-        if token_account_state.mint() != mint_info.key() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        drop(token_account_state);
-
-        log!("All checks passed, proceeding to close account");
-        let close_instruction = CloseAccount {
-            account: token_account,
-            destination: creator_signer,
-            authority: creator_signer,
-        };
-
-        let bump_seed = [mint_authority_state.bump];
-        let seeds = [
-            Seed::from(seeds::MINT_AUTHORITY),
-            Seed::from(mint_authority_state.mint.as_ref()),
-            Seed::from(mint_authority_state.mint_creator.as_ref()),
-            Seed::from(bump_seed.as_ref()),
-        ];
-
-        let mint_authority_signer = Signer::from(&seeds);
-        close_instruction.invoke_signed(&[mint_authority_signer])?;
-        Ok(())
-    }
-
     /// Transfer tokens between accounts
     /// Wrapper for SPL Token TransferChecked instruction
     pub fn execute_transfer(_accounts: &[AccountInfo], _amount: u64) -> ProgramResult {

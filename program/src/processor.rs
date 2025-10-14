@@ -97,14 +97,6 @@ impl Processor {
                 )?;
                 Self::process_thaw(program_id, instruction_accounts)
             }
-            SecurityTokenInstruction::Close => {
-                let instruction_accounts = Self::verify_instruction_if_needed(
-                    program_id,
-                    accounts,
-                    instruction.discriminant(),
-                )?;
-                Self::process_close(program_id, instruction_accounts)
-            }
         }
     }
 
@@ -252,11 +244,6 @@ impl Processor {
 
     fn process_thaw(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         OperationsModule::execute_thaw_account(program_id, accounts)?;
-        Ok(())
-    }
-
-    fn process_close(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-        OperationsModule::execute_close_account(program_id, accounts)?;
         Ok(())
     }
 }
