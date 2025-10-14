@@ -369,7 +369,7 @@ impl VerificationModule {
         log!("Mint authority PDA account created successfully");
         {
             let mut data = mint_authority_account.try_borrow_mut_data()?;
-            let config_bytes = mint_authority_config.to_bytes_inner();
+            let config_bytes = mint_authority_config.to_bytes();
             data[..config_bytes.len()].copy_from_slice(&config_bytes);
         }
 
@@ -942,8 +942,11 @@ impl VerificationModule {
 
         // Write data to the account using manual serialization
         let mut data = config_account.try_borrow_mut_data()?;
-        let config_bytes = config.to_bytes_inner();
+        let config_bytes = config.to_bytes();
         data[..config_bytes.len()].copy_from_slice(&config_bytes);
+        for byte in data[config_bytes.len()..].iter_mut() {
+            *byte = 0;
+        }
 
         log!(
             "VerificationConfig PDA created for {} programs",
@@ -1051,11 +1054,14 @@ impl VerificationModule {
             config_account.realloc(new_size, false)?;
         }
 
-        let config_bytes = existing_config.to_bytes_inner();
+        let config_bytes = existing_config.to_bytes();
 
         {
             let mut data = config_account.try_borrow_mut_data()?;
             data[..config_bytes.len()].copy_from_slice(&config_bytes);
+            for byte in data[config_bytes.len()..].iter_mut() {
+                *byte = 0;
+            }
         }
 
         log!(
@@ -1191,11 +1197,14 @@ impl VerificationModule {
             }
 
             // Write the trimmed config back to the account
-            let config_bytes = existing_config.to_bytes_inner();
+            let config_bytes = existing_config.to_bytes();
 
             {
                 let mut data = config_account.try_borrow_mut_data()?;
                 data[..config_bytes.len()].copy_from_slice(&config_bytes);
+                for byte in data[config_bytes.len()..].iter_mut() {
+                    *byte = 0;
+                }
             } // data borrow is released here
 
             log!(
