@@ -90,24 +90,4 @@ impl MintAuthority {
 
         Ok(())
     }
-
-    /// Serialize the config body without the discriminator byte.
-    pub fn to_bytes_inner(&self) -> Vec<u8> {
-        <Self as AccountSerialize>::to_bytes_inner(self)
-    }
-
-    /// Serialize the config into a byte vector (including discriminator)
-    pub fn to_bytes(&self) -> Vec<u8> {
-        <Self as AccountSerialize>::to_bytes(self)
-    }
-
-    /// Deserialize config from raw bytes without the discriminator byte.
-    pub fn from_bytes_without_discriminator(data: &[u8]) -> Result<Self, ProgramError> {
-        <Self as AccountDeserialize>::from_bytes_without_discriminator(data)
-    }
-
-    /// Deserialize config from raw bytes (including discriminator)
-    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        <Self as AccountDeserialize>::try_from_bytes(data)
-    }
 }

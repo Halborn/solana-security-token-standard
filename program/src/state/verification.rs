@@ -128,24 +128,4 @@ impl VerificationConfig {
             + 4 // vector length prefix
             + (self.verification_programs.len() * PUBKEY_BYTES)
     }
-
-    /// Serialize to bytes using manual serialization (following SAS pattern)
-    pub fn to_bytes_inner(&self) -> Vec<u8> {
-        <Self as AccountSerialize>::to_bytes_inner(self)
-    }
-
-    /// Serialize to bytes including the discriminator prefix
-    pub fn to_bytes(&self) -> Vec<u8> {
-        <Self as AccountSerialize>::to_bytes(self)
-    }
-
-    /// Deserialize from bytes using manual deserialization (following SAS pattern)
-    pub fn from_bytes_without_discriminator(data: &[u8]) -> Result<Self, ProgramError> {
-        <Self as AccountDeserialize>::from_bytes_without_discriminator(data)
-    }
-
-    /// Deserialize from bytes including the discriminator prefix
-    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        <Self as AccountDeserialize>::try_from_bytes(data)
-    }
 }

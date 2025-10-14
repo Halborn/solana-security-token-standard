@@ -40,7 +40,7 @@ use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomR
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{verify_owner, verify_signer};
-use crate::state::{MintAuthority, VerificationConfig};
+use crate::state::{MintAuthority, VerificationConfig, AccountDeserialize, AccountSerialize};
 use crate::utils;
 use std::collections::{HashMap, HashSet, VecDeque};
 
