@@ -697,7 +697,9 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         let config_data = verification_config_or_mint_authority.try_borrow_data()?;
-        let state_discriminator = config_data.get(0).ok_or(ProgramError::InvalidAccountData)?;
+        let state_discriminator = config_data
+            .first()
+            .ok_or(ProgramError::InvalidAccountData)?;
         let disc = SecurityTokenDiscriminators::try_from(*state_discriminator)?;
         match disc {
             SecurityTokenDiscriminators::VerificationConfigDiscriminator => {
@@ -739,7 +741,7 @@ impl VerificationModule {
         if verification_config.data_is_empty() {
             return Err(ProgramError::UninitializedAccount);
         }
-        
+
         verify_owner(verification_config, program_id)?;
 
         let (expected_pda, _bump) =
