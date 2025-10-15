@@ -42,7 +42,7 @@ pub enum SecurityTokenInstruction {
     /// 3. `[signer]` The authority account (mint authority)
     /// 4. `[]` The system program ID
     InitializeVerificationConfig = 2,
-    /// Initialize verification configuration for an instruction
+    /// Update verification configuration for an instruction
     /// Accounts expected:
     /// * Authorization through verification programs
     /// 0. `[]` The mint account
@@ -61,7 +61,7 @@ pub enum SecurityTokenInstruction {
     /// 3. `[signer]` The authority account (mint authority)
     /// 4. `[]` The system program ID
     UpdateVerificationConfig = 3,
-    /// Initialize verification configuration for an instruction
+    /// Trim verification configuration for an instruction
     /// Accounts expected:
     /// * Authorization through verification programs
     /// 0. `[]` The mint account
