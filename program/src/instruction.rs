@@ -29,12 +29,12 @@ pub enum SecurityTokenInstruction {
     /// 0. `[]` The mint account
     /// 1. `[]` The verification config PDA account
     /// 2. `[]` Instructions sysvar (for introspection mode)
-    /// 
+    ///
     /// * Authorization through mint authority
     /// 0. `[]` The mint account
     /// 1. `[]` The mint authority PDA account
     /// 2. `[signer]` The mint creator account
-    /// 
+    ///
     /// * Instruction accounts:
     /// 0. `[writable]` The VerificationConfig PDA account
     /// 1. `[writable, signer]` The payer account  
@@ -42,20 +42,43 @@ pub enum SecurityTokenInstruction {
     /// 3. `[signer]` The authority account (mint authority)
     /// 4. `[]` The system program ID
     InitializeVerificationConfig = 2,
-    /// Update verification configuration for an instruction
+    /// Initialize verification configuration for an instruction
     /// Accounts expected:
+    /// * Authorization through verification programs
+    /// 0. `[]` The mint account
+    /// 1. `[]` The verification config PDA account
+    /// 2. `[]` Instructions sysvar (for introspection mode)
+    ///
+    /// * Authorization through mint authority
+    /// 0. `[]` The mint account
+    /// 1. `[]` The mint authority PDA account
+    /// 2. `[signer]` The mint creator account
+    ///
+    /// * Instruction accounts:
     /// 0. `[writable]` The VerificationConfig PDA account
-    /// 1. `[]` The mint account
-    /// 2. `[signer]` The authority account (mint authority)
-    /// 3. `[]` The system program ID
+    /// 1. `[writable, signer]` The payer account  
+    /// 2. `[]` The mint account
+    /// 3. `[signer]` The authority account (mint authority)
+    /// 4. `[]` The system program ID
     UpdateVerificationConfig = 3,
-    /// Trim verification configuration to recover rent
+    /// Initialize verification configuration for an instruction
     /// Accounts expected:
+    /// * Authorization through verification programs
+    /// 0. `[]` The mint account
+    /// 1. `[]` The verification config PDA account
+    /// 2. `[]` Instructions sysvar (for introspection mode)
+    ///
+    /// * Authorization through mint authority
+    /// 0. `[]` The mint account
+    /// 1. `[]` The mint authority PDA account
+    /// 2. `[signer]` The mint creator account
+    ///
+    /// * Instruction accounts:
     /// 0. `[writable]` The VerificationConfig PDA account
-    /// 1. `[]` The mint account
-    /// 2. `[signer]` The authority account (mint authority)
-    /// 3. `[writable]` The rent recipient account (to receive recovered lamports)
-    /// 4. `[]` The system program ID (optional for closing account)
+    /// 1. `[writable, signer]` The payer account  
+    /// 2. `[]` The mint account
+    /// 3. `[signer]` The authority account (mint authority)
+    /// 4. `[]` The system program ID
     TrimVerificationConfig = 4,
     /// Verify a security token instruction using configured verification programs
     /// Accounts expected:
