@@ -499,7 +499,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfigOrMintAuthority',
@@ -568,7 +568,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfigOrMintAuthority',
@@ -635,7 +635,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfigOrMintAuthority',

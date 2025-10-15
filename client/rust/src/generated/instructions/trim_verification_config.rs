@@ -59,7 +59,7 @@ impl TrimVerificationConfig {
   #[allow(clippy::vec_init_then_push)]
   pub fn instruction_with_remaining_accounts(&self, args: TrimVerificationConfigInstructionArgs, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
     let mut accounts = Vec::with_capacity(7+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint,
             false
           ));
@@ -131,7 +131,7 @@ impl Default for TrimVerificationConfigInstructionData {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` mint
+          ///   0. `[]` mint
           ///   1. `[]` verification_config_or_mint_authority
                 ///   2. `[signer]` sysvar_or_creator
                 ///   3. `[writable]` config_account
@@ -354,7 +354,7 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
     remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
   ) -> solana_program_error::ProgramResult {
     let mut accounts = Vec::with_capacity(7+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint.key,
             false
           ));
@@ -421,7 +421,7 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` mint
+          ///   0. `[]` mint
           ///   1. `[]` verification_config_or_mint_authority
                 ///   2. `[signer]` sysvar_or_creator
                 ///   3. `[writable]` config_account
