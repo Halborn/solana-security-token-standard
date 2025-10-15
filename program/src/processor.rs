@@ -1,4 +1,5 @@
 use crate::{
+    constants::VERIFICATION_ACCOUNTS_OFFSET,
     instruction::SecurityTokenInstruction,
     instructions::{
         verification_config::TrimVerificationConfigInstructionArgs, InitializeArgs,
@@ -38,7 +39,6 @@ impl Processor {
 
     /// Runs the verification process for the given instruction
     /// Explicit cuts the verification overhead if needed
-    /// NOTE: The same as above
     fn verify<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
@@ -49,11 +49,11 @@ impl Processor {
             VerificationProfile::None => Ok(accounts),
             VerificationProfile::VerificationPrograms => {
                 VerificationModule::verify_by_programs(program_id, accounts, ix_discriminator)?;
-                Ok(&accounts[3..])
+                Ok(&accounts[VERIFICATION_ACCOUNTS_OFFSET..])
             }
             VerificationProfile::VerificationProgramsOrMintAuthority => {
                 VerificationModule::verify_by_strategy(program_id, accounts, ix_discriminator)?;
-                Ok(&accounts[3..])
+                Ok(&accounts[VERIFICATION_ACCOUNTS_OFFSET..])
             }
         }
     }
@@ -76,14 +76,12 @@ impl Processor {
         )?;
 
         match instruction {
-            // Instructions that do not require verification process
             SecurityTokenInstruction::InitializeMint => {
                 Self::process_initialize_mint(program_id, instruction_accounts, args_data)
             }
             SecurityTokenInstruction::Verify => {
                 Self::process_verify(program_id, instruction_accounts, args_data)
             }
-            // Instructions requires verification through programs and mint authority
             SecurityTokenInstruction::InitializeVerificationConfig => {
                 Self::process_initialize_verification_config(
                     program_id,
@@ -101,7 +99,6 @@ impl Processor {
             SecurityTokenInstruction::TrimVerificationConfig => {
                 Self::process_trim_verification_config(program_id, instruction_accounts, args_data)
             }
-            // Instructions require verification through programs
             SecurityTokenInstruction::UpdateMetadata => {
                 Self::process_update_metadata(program_id, instruction_accounts, args_data)
             }

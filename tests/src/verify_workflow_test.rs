@@ -456,9 +456,7 @@ async fn test_update_metadata_under_verification() {
 
     let result = context.banks_client.process_transaction(transaction).await;
 
-    if let Err(error) = &result {
-        panic!("Transaction failed: {}", error);
-    }
+    assert_transaction_success(result);
 
     let (verification_config_pda, _bump) = Pubkey::find_program_address(
         &[
@@ -498,9 +496,7 @@ async fn test_update_metadata_under_verification() {
         .process_transaction(config_transaction)
         .await;
 
-    if let Err(error) = &result {
-        panic!("Transaction failed: {}", error);
-    }
+    assert_transaction_success(result);
 
     let updated_name = "Updated Security Token";
     let updated_symbol = "UHST";
