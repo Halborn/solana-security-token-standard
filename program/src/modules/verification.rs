@@ -750,6 +750,9 @@ impl VerificationModule {
         verify_signer(candidate_authority, false)?;
         verify_owner(mint_authority, program_id)?;
 
+        // TODO: Check t22 is missing
+        // Add then https://github.com/hoodieshq/security-token/pull/53 will be merged
+
         let (expected_pda, expected_bump) =
             utils::find_mint_authority_pda(mint_info.key(), candidate_authority.key(), program_id);
 
@@ -800,6 +803,9 @@ impl VerificationModule {
         if verification_config.data_is_empty() {
             return Err(ProgramError::UninitializedAccount);
         }
+
+        // TODO: Check t22 is missing
+        // Add then https://github.com/hoodieshq/security-token/pull/53 will be merged
 
         verify_owner(verification_config, program_id)?;
 
