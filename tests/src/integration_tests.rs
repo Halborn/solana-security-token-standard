@@ -1030,6 +1030,9 @@ async fn test_verification_config() {
 
     // Create InitializeVerificationConfig instruction using generated client code
     let initialize_config_ix = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
         config_account: config_pda,
         payer: context.payer.pubkey(),
         mint_account: mint_keypair.pubkey(),

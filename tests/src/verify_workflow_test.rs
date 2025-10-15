@@ -153,6 +153,9 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let init_config_instruction = InitializeVerificationConfig {
+        mint: mint_pubkey,
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (payer.pubkey(), true),
         config_account: verification_config_pda,
         payer: payer.pubkey(),
         mint_account: mint_pubkey,
@@ -468,6 +471,9 @@ async fn test_update_metadata_under_verification() {
 
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let init_config_instruction = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
         config_account: verification_config_pda,
         payer: context.payer.pubkey(),
         mint_account: mint_keypair.pubkey(),

@@ -37,10 +37,13 @@ use super::utils as verification_utils;
 use crate::constants::seeds;
 use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
-use crate::instructions::verification_config::TrimVerificationConfigArgs;
+use crate::instructions::verification_config::{self, TrimVerificationConfigArgs};
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
-use crate::modules::{verify_owner, verify_signer};
-use crate::state::{AccountDeserialize, AccountSerialize, MintAuthority, VerificationConfig};
+use crate::modules::{verify_mint_authority, verify_owner, verify_signer};
+use crate::state::{
+    mint_authority, AccountDeserialize, AccountSerialize, MintAuthority,
+    SecurityTokenDiscriminators, VerificationConfig,
+};
 use crate::utils;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -669,20 +672,58 @@ impl VerificationModule {
         Ok(())
     }
 
-    /// Verify specific operation against configured verification programs
-    ///
-    /// Client is responsible for deriving and providing the correct VerificationConfig PDA
-    /// based on mint and instruction discriminator they want to verify.
-    ///
-    /// Accounts from index 3+ will be compared with accounts from verification program calls.
-    /// Verification programs should be called with at least a full set of accounts in the exact order.
-    pub fn verify(
+    /// Authorize specific operation either through configured verification programs or mint authority
+    /// Decides which method to use based on the PDA account provided in accounts[1]
+    pub fn authorize_by_strategy(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        args: &VerifyArgs,
+        ix_discriminator: u8,
     ) -> ProgramResult {
-        log!("Verifying instruction discriminant: {}", args.ix);
+        // Accounts expected:
+        // * Authorization through verification programs
+        // 0. `[]` The mint account
+        // 1. `[]` The verification config PDA account
+        // 2. `[]` Instructions sysvar (for introspection mode)
+        //
+        // * Authorization through mint authority
+        // 0. `[]` The mint account
+        // 1. `[]` The mint authority PDA account
+        // 2. `[signer]` The mint creator account
+        //
+        // 3+ [any] Accounts for the target instruction and comparison with verification program calls
+        let [mint_info, verification_config_or_mint_authority, instructions_sysvar_or_signer, instruction_accounts @ ..] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+        let config_data = verification_config_or_mint_authority.try_borrow_data()?;
+        let state_discriminator = config_data.get(0).ok_or(ProgramError::InvalidAccountData)?;
+        let disc = SecurityTokenDiscriminators::try_from(*state_discriminator)?;
+        match disc {
+            SecurityTokenDiscriminators::VerificationConfigDiscriminator => {
+                Self::authorize_by_programs(program_id, accounts, ix_discriminator)?;
+            }
+            SecurityTokenDiscriminators::MintAuthorityDiscriminator => {
+                let mint_authority_account = verification_config_or_mint_authority;
+                let mint_creator_info = instructions_sysvar_or_signer;
+                verify_mint_authority(
+                    program_id,
+                    mint_info,
+                    mint_authority_account,
+                    mint_creator_info,
+                    true,
+                )?;
+            }
+        }
+        Ok(())
+    }
 
+    /// Authorize specific operation against configured verification programs
+    pub fn authorize_by_programs(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        ix_discriminator: u8,
+    ) -> ProgramResult {
         // Expected accounts:
         // 0. [readonly] Mint account - to derive VerificationConfig PDA
         // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
@@ -694,45 +735,55 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // TODO: Should we pass?
-        if verification_config.data_is_empty() {
-            log!("No VerificationConfig found");
-            return Ok(());
-        }
-
         verify_owner(verification_config, program_id)?;
 
-        // TODO: this could be optimized further by using `create_program_address` to verify the
-        // pubkey and associated bump (needed to be stored in the account itself) is valid.
+        // The data_is_empty verification config doesn't exist
+        if verification_config.data_is_empty() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
         let (expected_pda, _bump) =
-            utils::find_verification_config_pda(mint_info.key(), args.ix, program_id);
+            utils::find_verification_config_pda(mint_info.key(), ix_discriminator, program_id);
 
         if verification_config.key().ne(&expected_pda) {
             return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
         }
-
-        let data = verification_config.try_borrow_data()?;
-        let config = VerificationConfig::try_from_bytes(&data)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        // TODO: Should we reject?
-        if config.verification_programs.is_empty() {
-            log!("No verification programs configured - rejecting");
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        // Verify config matches expected instruction
-        if config.instruction_discriminator != args.ix {
-            log!(
-                "VerificationConfig discriminator mismatch: expected {}, got {}",
-                config.instruction_discriminator,
-                args.ix
-            );
+        let config_data = VerificationConfig::from_account_info(verification_config)?;
+        if config_data.instruction_discriminator != ix_discriminator {
             return Err(ProgramError::InvalidInstructionData);
         }
+        if config_data.verification_programs.is_empty() {
+            // If no verification programs configured, allow
+            return Ok(());
+        }
+        Self::execute_verification(
+            &config_data,
+            instructions_sysvar,
+            instruction_accounts,
+            ix_discriminator,
+        )?;
 
-        Self::execute_verification(&config, instructions_sysvar, instruction_accounts, args.ix)?;
+        Ok(())
+    }
 
+    /// Verify specific operation against configured verification programs
+    ///
+    /// Client is responsible for deriving and providing the correct VerificationConfig PDA
+    /// based on mint and instruction discriminator they want to verify.
+    ///
+    /// Accounts from index 3+ will be compared with accounts from verification program calls.
+    /// Verification programs should be called with at least a full set of accounts in the exact order.
+    pub fn verify_instruction(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args: &VerifyArgs,
+    ) -> ProgramResult {
+        // Expected accounts:
+        // 0. [readonly] Mint account - to derive VerificationConfig PDA
+        // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
+        // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
+        // 3+ [any] Accounts for the target instruction and comparison with verification program calls
+        Self::authorize_by_programs(program_id, accounts, args.ix)?;
         Ok(())
     }
 

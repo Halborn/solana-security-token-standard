@@ -496,6 +496,28 @@ const program = programNode({
       ],
       accounts: [
         instructionAccountNode({
+          name: 'mint',
+          docs: ['The mint account (position 0 - required for verification)'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfigOrMintAuthority',
+          docs: [
+            'The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'sysvarOrCreator',
+          docs: [
+            'The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)',
+          ],
+          isSigner: "either",
+          isWritable: false,
+        }),
+        instructionAccountNode({
           name: 'configAccount',
           docs: [
             'The VerificationConfig PDA (derived from instruction_id + mint)',

@@ -25,6 +25,17 @@ pub enum SecurityTokenInstruction {
     UpdateMetadata = 1,
     /// Initialize verification configuration for an instruction
     /// Accounts expected:
+    /// * Authorization through verification programs
+    /// 0. `[]` The mint account
+    /// 1. `[]` The verification config PDA account
+    /// 2. `[]` Instructions sysvar (for introspection mode)
+    /// 
+    /// * Authorization through mint authority
+    /// 0. `[]` The mint account
+    /// 1. `[]` The mint authority PDA account
+    /// 2. `[signer]` The mint creator account
+    /// 
+    /// * Instruction accounts:
     /// 0. `[writable]` The VerificationConfig PDA account
     /// 1. `[writable, signer]` The payer account  
     /// 2. `[]` The mint account

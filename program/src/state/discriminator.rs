@@ -14,6 +14,18 @@ pub enum SecurityTokenDiscriminators {
     VerificationConfigDiscriminator = 1,
 }
 
+impl TryFrom<u8> for SecurityTokenDiscriminators {
+    type Error = ProgramError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(SecurityTokenDiscriminators::MintAuthorityDiscriminator),
+            1 => Ok(SecurityTokenDiscriminators::VerificationConfigDiscriminator),
+            _ => Err(ProgramError::InvalidInstructionData),
+        }
+    }
+}
+
 pub trait AccountSerialize: Discriminator {
     fn to_bytes(&self) -> Vec<u8> {
         let mut data = Vec::new();

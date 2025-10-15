@@ -52,6 +52,7 @@ impl Processor {
         }
     }
 
+  
     fn verify_instruction_if_needed<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
@@ -69,7 +70,9 @@ impl Processor {
         };
 
         // Run verification if configured, all checks must be inside the module
-        VerificationModule::verify(
+
+        // TODO: Change to verify
+        VerificationModule::verify_instruction(
             program_id,
             accounts,
             &VerifyArgs {
@@ -145,7 +148,7 @@ impl Processor {
         args_data: &[u8],
     ) -> ProgramResult {
         let instruction_args = VerifyArgs::try_from_bytes(args_data)?;
-        VerificationModule::verify(program_id, accounts, &instruction_args)?;
+        VerificationModule::verify_instruction(program_id, accounts, &instruction_args)?;
         Ok(())
     }
 }
