@@ -13,6 +13,8 @@ use borsh::BorshDeserialize;
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VerificationConfig {
+/// Account type discriminator byte (must be set to 1).
+pub account_discriminator: u8,
 /// Instruction discriminator this config applies to
 pub instruction_discriminator: u8,
 /// Required verification programs as raw bytes (32 bytes each)

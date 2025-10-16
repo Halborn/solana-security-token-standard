@@ -13,6 +13,8 @@ use borsh::BorshDeserialize;
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MintAuthority {
+/// Account type discriminator byte (must be set to 0).
+pub account_discriminator: u8,
 /// SPL mint address this configuration belongs to
 #[cfg_attr(feature = "serde", serde(with = "serde_with::As::<serde_with::DisplayFromStr>"))]
 pub mint: Pubkey,

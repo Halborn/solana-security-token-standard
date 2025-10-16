@@ -1,5 +1,8 @@
 //! Verification-related state structures
 
+use crate::state::{
+    AccountDeserialize, AccountSerialize, Discriminator, SecurityTokenDiscriminators,
+};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 
@@ -12,48 +15,12 @@ pub struct VerificationConfig {
     pub verification_programs: Vec<Pubkey>,
 }
 
-impl VerificationConfig {
-    /// Create new VerificationConfig
-    pub fn new(
-        instruction_discriminator: u8,
-        verification_program_addresses: &[Pubkey],
-    ) -> Result<Self, ProgramError> {
-        Ok(Self {
-            instruction_discriminator,
-            verification_programs: verification_program_addresses.to_vec(),
-        })
-    }
+impl Discriminator for VerificationConfig {
+    const DISCRIMINATOR: u8 = SecurityTokenDiscriminators::VerificationConfigDiscriminator as u8;
+}
 
-    /// Validate the configuration
-    pub fn validate(&self) -> Result<(), ProgramError> {
-        use pinocchio_log::log;
-
-        // Create zero pubkey for comparison (actual zeros, not Pubkey::default)
-        let zero_pubkey = [0u8; PUBKEY_BYTES];
-
-        // Validate that all programs are non-zero (valid pubkeys)
-        log!(
-            "Validating {} verification programs",
-            self.verification_programs.len()
-        );
-        for (i, program) in self.verification_programs.iter().enumerate() {
-            if *program == zero_pubkey {
-                log!("Found invalid (zero) pubkey at index {}", i);
-                return Err(ProgramError::InvalidAccountData);
-            }
-        }
-        log!("All programs validated successfully");
-
-        Ok(())
-    }
-
-    /// Calculate the actual size needed for serialization
-    pub fn serialized_size(&self) -> usize {
-        1 + 4 + (self.verification_programs.len() * PUBKEY_BYTES) // discriminator + vec_len + programs
-    }
-
-    /// Serialize to bytes using manual serialization (following SAS pattern)
-    pub fn to_bytes_inner(&self) -> Vec<u8> {
+impl AccountSerialize for VerificationConfig {
+    fn to_bytes_inner(&self) -> Vec<u8> {
         let mut data = Vec::new();
 
         // Write instruction discriminator (1 byte)
@@ -69,9 +36,10 @@ impl VerificationConfig {
 
         data
     }
+}
 
-    /// Deserialize from bytes using manual deserialization (following SAS pattern)
-    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
+impl AccountDeserialize for VerificationConfig {
+    fn try_from_bytes_inner(data: &[u8]) -> Result<Self, ProgramError> {
         if data.len() < 5 {
             // Minimum: 1 byte discriminator + 4 bytes count
             return Err(ProgramError::InvalidAccountData);
@@ -115,5 +83,49 @@ impl VerificationConfig {
         config.validate()?;
 
         Ok(config)
+    }
+}
+
+impl VerificationConfig {
+    /// Create new VerificationConfig
+    pub fn new(
+        instruction_discriminator: u8,
+        verification_program_addresses: &[Pubkey],
+    ) -> Result<Self, ProgramError> {
+        Ok(Self {
+            instruction_discriminator,
+            verification_programs: verification_program_addresses.to_vec(),
+        })
+    }
+
+    /// Validate the configuration
+    pub fn validate(&self) -> Result<(), ProgramError> {
+        use pinocchio_log::log;
+
+        // Create zero pubkey for comparison (actual zeros, not Pubkey::default)
+        let zero_pubkey = [0u8; PUBKEY_BYTES];
+
+        // Validate that all programs are non-zero (valid pubkeys)
+        log!(
+            "Validating {} verification programs",
+            self.verification_programs.len()
+        );
+        for (i, program) in self.verification_programs.iter().enumerate() {
+            if *program == zero_pubkey {
+                log!("Found invalid (zero) pubkey at index {}", i);
+                return Err(ProgramError::InvalidAccountData);
+            }
+        }
+        log!("All programs validated successfully");
+
+        Ok(())
+    }
+
+    /// Calculate the actual size needed for serialization
+    pub fn serialized_size(&self) -> usize {
+        1 // account discriminator
+            + 1 // instruction discriminator
+            + 4 // vector length prefix
+            + (self.verification_programs.len() * PUBKEY_BYTES)
     }
 }
