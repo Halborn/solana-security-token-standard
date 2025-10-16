@@ -757,9 +757,7 @@ impl VerificationModule {
     ) -> Result<(), ProgramError> {
         verify_signer(candidate_authority, false)?;
         verify_owner(mint_authority, program_id)?;
-
-        // TODO: Check t22 is missing
-        // Add then https://github.com/hoodieshq/security-token/pull/53 will be merged
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
         let (expected_pda, expected_bump) =
             utils::find_mint_authority_pda(mint_info.key(), candidate_authority.key(), program_id);
@@ -814,6 +812,7 @@ impl VerificationModule {
 
         verify_instructions_sysvar(instructions_sysvar)?;
         verify_owner(verification_config, program_id)?;
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
         let (expected_pda, _bump) =
             utils::find_verification_config_pda(mint_info.key(), ix_discriminator, program_id);
