@@ -16,4 +16,4 @@ pub mod seeds {
     pub const VERIFICATION_CONFIG: &[u8] = b"verification_config";
 }
 
-pub const VERIFICATION_ACCOUNTS_OFFSET: usize = 3;
+pub const INSTRUCTION_ACCOUNTS_OFFSET: usize = 3;

@@ -430,20 +430,19 @@ const program = programNode({
           isWritable: false,
         }),
         instructionAccountNode({
-          name: 'verificationConfig',
+          name: 'verificationConfigOrMintAuthority',
           docs: [
-            'The VerificationConfig PDA (position 1 - may not exist but position reserved)',
+            'The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)',
           ],
           isSigner: false,
           isWritable: false,
-          isOptional: true,
         }),
         instructionAccountNode({
-          name: 'instructionsSysvar',
+          name: 'sysvarOrCreator',
           docs: [
-            'The Instructions sysvar (position 2 - required for Instruction Introspection)',
+            'The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)',
           ],
-          isSigner: false,
+          isSigner: 'either',
           isWritable: false,
         }),
         instructionAccountNode({
@@ -514,7 +513,7 @@ const program = programNode({
           docs: [
             'The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)',
           ],
-          isSigner: "either",
+          isSigner: 'either',
           isWritable: false,
         }),
         instructionAccountNode({
@@ -564,7 +563,7 @@ const program = programNode({
       discriminators: [fieldDiscriminatorNode('discriminator', 3)],
       docs: ['Update verification configuration for an instruction'],
       accounts: [
-         instructionAccountNode({
+        instructionAccountNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
@@ -583,7 +582,7 @@ const program = programNode({
           docs: [
             'The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)',
           ],
-          isSigner: "either",
+          isSigner: 'either',
           isWritable: false,
         }),
         instructionAccountNode({
@@ -631,7 +630,7 @@ const program = programNode({
       discriminators: [fieldDiscriminatorNode('discriminator', 4)],
       docs: ['Trim verification configuration to recover rent'],
       accounts: [
-         instructionAccountNode({
+        instructionAccountNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
@@ -650,7 +649,7 @@ const program = programNode({
           docs: [
             'The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)',
           ],
-          isSigner: "either",
+          isSigner: 'either',
           isWritable: false,
         }),
         instructionAccountNode({

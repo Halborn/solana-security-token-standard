@@ -513,8 +513,8 @@ async fn test_update_metadata_under_verification() {
     let updated_uri = "https://example.com/tokens";
 
     let update_metadata_instruction = UpdateMetadata {
-        verification_config: Some(verification_config_pda),
-        instructions_sysvar: sysvar::instructions::ID,
+        verification_config_or_mint_authority: verification_config_pda,
+        sysvar_or_creator: (sysvar::instructions::ID, false),
         mint: mint_keypair.pubkey(),
         mint_for_update: mint_keypair.pubkey(),
         mint_authority: context.payer.pubkey(),
@@ -579,8 +579,8 @@ async fn test_update_metadata_under_verification() {
     ];
 
     let update_metadata_instruction = UpdateMetadata {
-        verification_config: Some(verification_config_pda),
-        instructions_sysvar: sysvar::instructions::ID,
+        verification_config_or_mint_authority: verification_config_pda,
+        sysvar_or_creator: (sysvar::instructions::ID, false),
         mint: mint_keypair.pubkey(),
         mint_for_update: mint_keypair.pubkey(),
         mint_authority: context.payer.pubkey(),
@@ -625,8 +625,8 @@ async fn test_update_metadata_under_verification() {
 
     // Success case: enough accounts provided to verify
     let update_metadata_instruction = UpdateMetadata {
-        verification_config: Some(verification_config_pda),
-        instructions_sysvar: sysvar::instructions::ID,
+        verification_config_or_mint_authority: verification_config_pda,
+        sysvar_or_creator: (sysvar::instructions::ID, false),
         mint: mint_keypair.pubkey(),
         mint_for_update: mint_keypair.pubkey(),
         mint_authority: context.payer.pubkey(),

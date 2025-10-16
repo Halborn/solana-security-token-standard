@@ -1,4 +1,4 @@
-use crate::{acc_info_as_str, key_as_str};
+use crate::acc_info_as_str;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use pinocchio_log::log;
 

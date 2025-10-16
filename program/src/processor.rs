@@ -1,5 +1,5 @@
 use crate::{
-    constants::VERIFICATION_ACCOUNTS_OFFSET,
+    constants::INSTRUCTION_ACCOUNTS_OFFSET,
     instruction::SecurityTokenInstruction,
     instructions::{
         verification_config::TrimVerificationConfigInstructionArgs, InitializeArgs,
@@ -33,7 +33,9 @@ impl Processor {
             SecurityTokenInstruction::TrimVerificationConfig => {
                 VerificationProfile::VerificationProgramsOrMintAuthority
             }
-            SecurityTokenInstruction::UpdateMetadata => VerificationProfile::VerificationPrograms,
+            SecurityTokenInstruction::UpdateMetadata => {
+                VerificationProfile::VerificationProgramsOrMintAuthority
+            }
             SecurityTokenInstruction::Burn => VerificationProfile::VerificationPrograms,
             SecurityTokenInstruction::Mint => VerificationProfile::VerificationPrograms,
             SecurityTokenInstruction::Pause => VerificationProfile::VerificationPrograms,
@@ -55,11 +57,11 @@ impl Processor {
             VerificationProfile::None => Ok(accounts),
             VerificationProfile::VerificationPrograms => {
                 VerificationModule::verify_by_programs(program_id, accounts, ix_discriminator)?;
-                Ok(&accounts[VERIFICATION_ACCOUNTS_OFFSET..])
+                Ok(&accounts[INSTRUCTION_ACCOUNTS_OFFSET..])
             }
             VerificationProfile::VerificationProgramsOrMintAuthority => {
                 VerificationModule::verify_by_strategy(program_id, accounts, ix_discriminator)?;
-                Ok(&accounts[VERIFICATION_ACCOUNTS_OFFSET..])
+                Ok(&accounts[INSTRUCTION_ACCOUNTS_OFFSET..])
             }
         }
     }

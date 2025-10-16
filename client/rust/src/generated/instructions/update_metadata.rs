@@ -19,16 +19,16 @@ pub struct UpdateMetadata {
     
               
           pub mint: solana_pubkey::Pubkey,
-                /// The VerificationConfig PDA (position 1 - may not exist but position reserved)
+                /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
 
     
               
-          pub verification_config: Option<solana_pubkey::Pubkey>,
-                /// The Instructions sysvar (position 2 - required for Instruction Introspection)
+          pub verification_config_or_mint_authority: solana_pubkey::Pubkey,
+                /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
 
     
               
-          pub instructions_sysvar: solana_pubkey::Pubkey,
+          pub sysvar_or_creator: (solana_pubkey::Pubkey, bool),
                 /// The mint account again (position 3 - required for update_metadata function)
 
     
@@ -63,20 +63,13 @@ impl UpdateMetadata {
             self.mint,
             false
           ));
-                                                      if let Some(verification_config) = self.verification_config {
-              accounts.push(solana_instruction::AccountMeta::new_readonly(
-                verification_config,
-                false,
-              ));
-            } else {
-              accounts.push(solana_instruction::AccountMeta::new_readonly(
-                crate::SECURITY_TOKEN_ID,
-                false,
-              ));
-            }
-                                                    accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.instructions_sysvar,
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.verification_config_or_mint_authority,
             false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.sysvar_or_creator.0,
+            self.sysvar_or_creator.1,
           ));
                                           accounts.push(solana_instruction::AccountMeta::new(
             self.mint_for_update,
@@ -139,8 +132,8 @@ impl Default for UpdateMetadataInstructionData {
 /// ### Accounts:
 ///
           ///   0. `[]` mint
-                ///   1. `[optional]` verification_config
-          ///   2. `[]` instructions_sysvar
+          ///   1. `[]` verification_config_or_mint_authority
+                ///   2. `[signer]` sysvar_or_creator
                 ///   3. `[writable]` mint_for_update
                 ///   4. `[signer]` mint_authority
           ///   5. `[]` token_program
@@ -148,8 +141,8 @@ impl Default for UpdateMetadataInstructionData {
 #[derive(Clone, Debug, Default)]
 pub struct UpdateMetadataBuilder {
             mint: Option<solana_pubkey::Pubkey>,
-                verification_config: Option<solana_pubkey::Pubkey>,
-                instructions_sysvar: Option<solana_pubkey::Pubkey>,
+                verification_config_or_mint_authority: Option<solana_pubkey::Pubkey>,
+                sysvar_or_creator: Option<(solana_pubkey::Pubkey, bool)>,
                 mint_for_update: Option<solana_pubkey::Pubkey>,
                 mint_authority: Option<solana_pubkey::Pubkey>,
                 token_program: Option<solana_pubkey::Pubkey>,
@@ -168,17 +161,16 @@ impl UpdateMetadataBuilder {
                         self.mint = Some(mint);
                     self
     }
-            /// `[optional account]`
-/// The VerificationConfig PDA (position 1 - may not exist but position reserved)
+            /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
 #[inline(always)]
-    pub fn verification_config(&mut self, verification_config: Option<solana_pubkey::Pubkey>) -> &mut Self {
-                        self.verification_config = verification_config;
+    pub fn verification_config_or_mint_authority(&mut self, verification_config_or_mint_authority: solana_pubkey::Pubkey) -> &mut Self {
+                        self.verification_config_or_mint_authority = Some(verification_config_or_mint_authority);
                     self
     }
-            /// The Instructions sysvar (position 2 - required for Instruction Introspection)
+            /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
 #[inline(always)]
-    pub fn instructions_sysvar(&mut self, instructions_sysvar: solana_pubkey::Pubkey) -> &mut Self {
-                        self.instructions_sysvar = Some(instructions_sysvar);
+    pub fn sysvar_or_creator(&mut self, sysvar_or_creator: solana_pubkey::Pubkey, as_signer: bool) -> &mut Self {
+                        self.sysvar_or_creator = Some((sysvar_or_creator, as_signer));
                     self
     }
             /// The mint account again (position 3 - required for update_metadata function)
@@ -226,8 +218,8 @@ impl UpdateMetadataBuilder {
   pub fn instruction(&self) -> solana_instruction::Instruction {
     let accounts = UpdateMetadata {
                               mint: self.mint.expect("mint is not set"),
-                                        verification_config: self.verification_config,
-                                        instructions_sysvar: self.instructions_sysvar.expect("instructions_sysvar is not set"),
+                                        verification_config_or_mint_authority: self.verification_config_or_mint_authority.expect("verification_config_or_mint_authority is not set"),
+                                        sysvar_or_creator: self.sysvar_or_creator.expect("sysvar_or_creator is not set"),
                                         mint_for_update: self.mint_for_update.expect("mint_for_update is not set"),
                                         mint_authority: self.mint_authority.expect("mint_authority is not set"),
                                         token_program: self.token_program.expect("token_program is not set"),
@@ -248,16 +240,16 @@ impl UpdateMetadataBuilder {
       
                     
               pub mint: &'b solana_account_info::AccountInfo<'a>,
-                        /// The VerificationConfig PDA (position 1 - may not exist but position reserved)
+                        /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
 
       
                     
-              pub verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
-                        /// The Instructions sysvar (position 2 - required for Instruction Introspection)
+              pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
+                        /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
 
       
                     
-              pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
+              pub sysvar_or_creator: (&'b solana_account_info::AccountInfo<'a>, bool),
                         /// The mint account again (position 3 - required for update_metadata function)
 
       
@@ -289,16 +281,16 @@ pub struct UpdateMetadataCpi<'a, 'b> {
     
               
           pub mint: &'b solana_account_info::AccountInfo<'a>,
-                /// The VerificationConfig PDA (position 1 - may not exist but position reserved)
+                /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
 
     
               
-          pub verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
-                /// The Instructions sysvar (position 2 - required for Instruction Introspection)
+          pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
+                /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
 
     
               
-          pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
+          pub sysvar_or_creator: (&'b solana_account_info::AccountInfo<'a>, bool),
                 /// The mint account again (position 3 - required for update_metadata function)
 
     
@@ -332,8 +324,8 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
     Self {
       __program: program,
               mint: accounts.mint,
-              verification_config: accounts.verification_config,
-              instructions_sysvar: accounts.instructions_sysvar,
+              verification_config_or_mint_authority: accounts.verification_config_or_mint_authority,
+              sysvar_or_creator: accounts.sysvar_or_creator,
               mint_for_update: accounts.mint_for_update,
               mint_authority: accounts.mint_authority,
               token_program: accounts.token_program,
@@ -366,20 +358,13 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
             *self.mint.key,
             false
           ));
-                                          if let Some(verification_config) = self.verification_config {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
-              *verification_config.key,
-              false,
-            ));
-          } else {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
-              crate::SECURITY_TOKEN_ID,
-              false,
-            ));
-          }
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.instructions_sysvar.key,
+            *self.verification_config_or_mint_authority.key,
             false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.sysvar_or_creator.0.key,
+            self.sysvar_or_creator.1,
           ));
                                           accounts.push(solana_instruction::AccountMeta::new(
             *self.mint_for_update.key,
@@ -416,10 +401,8 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
     let mut account_infos = Vec::with_capacity(8 + remaining_accounts.len());
     account_infos.push(self.__program.clone());
                   account_infos.push(self.mint.clone());
-                        if let Some(verification_config) = self.verification_config {
-          account_infos.push(verification_config.clone());
-        }
-                        account_infos.push(self.instructions_sysvar.clone());
+                        account_infos.push(self.verification_config_or_mint_authority.clone());
+                        account_infos.push(self.sysvar_or_creator.0.clone());
                         account_infos.push(self.mint_for_update.clone());
                         account_infos.push(self.mint_authority.clone());
                         account_infos.push(self.token_program.clone());
@@ -439,8 +422,8 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
 /// ### Accounts:
 ///
           ///   0. `[]` mint
-                ///   1. `[optional]` verification_config
-          ///   2. `[]` instructions_sysvar
+          ///   1. `[]` verification_config_or_mint_authority
+                ///   2. `[signer]` sysvar_or_creator
                 ///   3. `[writable]` mint_for_update
                 ///   4. `[signer]` mint_authority
           ///   5. `[]` token_program
@@ -455,8 +438,8 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
     let instruction = Box::new(UpdateMetadataCpiBuilderInstruction {
       __program: program,
               mint: None,
-              verification_config: None,
-              instructions_sysvar: None,
+              verification_config_or_mint_authority: None,
+              sysvar_or_creator: None,
               mint_for_update: None,
               mint_authority: None,
               token_program: None,
@@ -472,17 +455,16 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
                         self.instruction.mint = Some(mint);
                     self
     }
-      /// `[optional account]`
-/// The VerificationConfig PDA (position 1 - may not exist but position reserved)
+      /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
 #[inline(always)]
-    pub fn verification_config(&mut self, verification_config: Option<&'b solana_account_info::AccountInfo<'a>>) -> &mut Self {
-                        self.instruction.verification_config = verification_config;
+    pub fn verification_config_or_mint_authority(&mut self, verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+                        self.instruction.verification_config_or_mint_authority = Some(verification_config_or_mint_authority);
                     self
     }
-      /// The Instructions sysvar (position 2 - required for Instruction Introspection)
+      /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
 #[inline(always)]
-    pub fn instructions_sysvar(&mut self, instructions_sysvar: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-                        self.instruction.instructions_sysvar = Some(instructions_sysvar);
+    pub fn sysvar_or_creator(&mut self, sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>, as_signer: bool) -> &mut Self {
+                        self.instruction.sysvar_or_creator = Some((sysvar_or_creator, as_signer));
                     self
     }
       /// The mint account again (position 3 - required for update_metadata function)
@@ -544,9 +526,9 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
                   
           mint: self.instruction.mint.expect("mint is not set"),
                   
-          verification_config: self.instruction.verification_config,
+          verification_config_or_mint_authority: self.instruction.verification_config_or_mint_authority.expect("verification_config_or_mint_authority is not set"),
                   
-          instructions_sysvar: self.instruction.instructions_sysvar.expect("instructions_sysvar is not set"),
+          sysvar_or_creator: self.instruction.sysvar_or_creator.expect("sysvar_or_creator is not set"),
                   
           mint_for_update: self.instruction.mint_for_update.expect("mint_for_update is not set"),
                   
@@ -565,8 +547,8 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
 struct UpdateMetadataCpiBuilderInstruction<'a, 'b> {
   __program: &'b solana_account_info::AccountInfo<'a>,
             mint: Option<&'b solana_account_info::AccountInfo<'a>>,
-                verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
-                instructions_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
+                verification_config_or_mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+                sysvar_or_creator: Option<(&'b solana_account_info::AccountInfo<'a>, bool)>,
                 mint_for_update: Option<&'b solana_account_info::AccountInfo<'a>>,
                 mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
                 token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
