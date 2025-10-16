@@ -94,8 +94,8 @@ const program = programNode({
         }),
         structFieldTypeNode({
           name: 'freezeAuthority',
-          docs: ['Optional freeze authority public key'],
-          type: optionTypeNode(publicKeyTypeNode()),
+          docs: ['Freeze authority public key'],
+          type: publicKeyTypeNode(),
         }),
       ]),
     }),

@@ -18,8 +18,9 @@ pub decimals: u8,
 /// Mint authority public key
 #[cfg_attr(feature = "serde", serde(with = "serde_with::As::<serde_with::DisplayFromStr>"))]
 pub mint_authority: Pubkey,
-/// Optional freeze authority public key
-pub freeze_authority: Option<Pubkey>,
+/// Freeze authority public key
+#[cfg_attr(feature = "serde", serde(with = "serde_with::As::<serde_with::DisplayFromStr>"))]
+pub freeze_authority: Pubkey,
 }
 
 

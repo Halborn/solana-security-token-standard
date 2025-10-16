@@ -92,7 +92,7 @@ async fn test_basic_t22_operations() {
             ix_mint: security_token_client::InitializeMintArgs {
                 decimals: 6,
                 mint_authority: context.payer.pubkey(),
-                freeze_authority: Some(freeze_authority_pda),
+                freeze_authority: freeze_authority_pda,
             },
             ix_metadata_pointer: None,
             ix_metadata: None,
@@ -321,6 +321,11 @@ async fn test_t22_extension_operations() {
         &SECURITY_TOKEN_ID,
     );
 
+    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
+        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
+        &SECURITY_TOKEN_ID,
+    );
+
     let spl_token_2022_program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         .parse::<Pubkey>()
         .unwrap();
@@ -337,7 +342,7 @@ async fn test_t22_extension_operations() {
             ix_mint: security_token_client::InitializeMintArgs {
                 decimals: 6,
                 mint_authority: context.payer.pubkey(),
-                freeze_authority: None,
+                freeze_authority: freeze_authority_pda,
             },
             ix_metadata_pointer: None,
             ix_metadata: None,
