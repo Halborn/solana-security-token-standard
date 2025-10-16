@@ -14,9 +14,16 @@ pub enum SecurityTokenInstruction {
     InitializeMint = 0,
     /// Update the metadata of an existing security token mint
     /// Accounts expected:
+    /// * Authorization through verification programs
     /// 0. `[]` The mint account
     /// 1. `[]` The verification config PDA account
     /// 2. `[]` Instructions sysvar (for introspection mode)
+    ///
+    /// * Authorization through mint authority
+    /// 0. `[]` The mint account
+    /// 1. `[]` The mint authority PDA account
+    /// 2. `[signer]` The mint creator account
+    ///
     /// 3. `[writable]` The mint account
     /// 4. `[signer]` The mint authority account
     /// 5. `[]` The SPL Token 2022 program ID
@@ -25,26 +32,60 @@ pub enum SecurityTokenInstruction {
     UpdateMetadata = 1,
     /// Initialize verification configuration for an instruction
     /// Accounts expected:
-    /// 0. `[writable]` The VerificationConfig PDA account
-    /// 1. `[writable, signer]` The payer account  
-    /// 2. `[]` The mint account
-    /// 3. `[signer]` The authority account (mint authority)
-    /// 4. `[]` The system program ID
+    /// * Authorization through verification programs
+    /// 0. `[]` The mint account
+    /// 1. `[]` The verification config PDA account
+    /// 2. `[]` Instructions sysvar (for introspection mode)
+    ///
+    /// * Authorization through mint authority
+    /// 0. `[]` The mint account
+    /// 1. `[]` The mint authority PDA account
+    /// 2. `[signer]` The mint creator account
+    ///
+    /// * Instruction accounts:
+    /// 3. `[writable]` The VerificationConfig PDA account
+    /// 4. `[writable, signer]` The payer account  
+    /// 5. `[]` The mint account
+    /// 6. `[signer]` The authority account (mint authority)
+    /// 7. `[]` The system program ID
     InitializeVerificationConfig = 2,
     /// Update verification configuration for an instruction
     /// Accounts expected:
-    /// 0. `[writable]` The VerificationConfig PDA account
-    /// 1. `[]` The mint account
-    /// 2. `[signer]` The authority account (mint authority)
-    /// 3. `[]` The system program ID
+    /// * Authorization through verification programs
+    /// 0. `[]` The mint account
+    /// 1. `[]` The verification config PDA account
+    /// 2. `[]` Instructions sysvar (for introspection mode)
+    ///
+    /// * Authorization through mint authority
+    /// 0. `[]` The mint account
+    /// 1. `[]` The mint authority PDA account
+    /// 2. `[signer]` The mint creator account
+    ///
+    /// * Instruction accounts:
+    /// 3. `[writable]` The VerificationConfig PDA account
+    /// 4. `[writable, signer]` The payer account  
+    /// 5. `[]` The mint account
+    /// 6. `[signer]` The authority account (mint authority)
+    /// 7. `[]` The system program ID
     UpdateVerificationConfig = 3,
-    /// Trim verification configuration to recover rent
+    /// Trim verification configuration for an instruction
     /// Accounts expected:
-    /// 0. `[writable]` The VerificationConfig PDA account
-    /// 1. `[]` The mint account
-    /// 2. `[signer]` The authority account (mint authority)
-    /// 3. `[writable]` The rent recipient account (to receive recovered lamports)
-    /// 4. `[]` The system program ID (optional for closing account)
+    /// * Authorization through verification programs
+    /// 0. `[]` The mint account
+    /// 1. `[]` The verification config PDA account
+    /// 2. `[]` Instructions sysvar (for introspection mode)
+    ///
+    /// * Authorization through mint authority
+    /// 0. `[]` The mint account
+    /// 1. `[]` The mint authority PDA account
+    /// 2. `[signer]` The mint creator account
+    ///
+    /// * Instruction accounts:
+    /// 3. `[writable]` The VerificationConfig PDA account
+    /// 4. `[writable]` The recipient account  
+    /// 5. `[]` The mint account
+    /// 6. `[signer]` The authority account (mint authority)
+    /// 7. `[]` The system program ID
     TrimVerificationConfig = 4,
     /// Verify a security token instruction using configured verification programs
     /// Accounts expected:

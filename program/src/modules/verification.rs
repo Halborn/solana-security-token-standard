@@ -39,8 +39,11 @@ use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
-use crate::modules::{verify_owner, verify_signer};
-use crate::state::{AccountDeserialize, AccountSerialize, MintAuthority, VerificationConfig};
+use crate::modules::{verify_instructions_sysvar, verify_owner, verify_signer};
+use crate::state::{
+    AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
+    VerificationConfig,
+};
 use crate::utils;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -684,13 +687,113 @@ impl VerificationModule {
     ///
     /// Accounts from index 3+ will be compared with accounts from verification program calls.
     /// Verification programs should be called with at least a full set of accounts in the exact order.
-    pub fn verify(
+    pub fn verify_instruction(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         args: &VerifyArgs,
     ) -> ProgramResult {
-        log!("Verifying instruction discriminant: {}", args.ix);
+        // Expected accounts:
+        // 0. [readonly] Mint account - to derive VerificationConfig PDA
+        // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
+        // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
+        // 3+ [any] Accounts for the target instruction and comparison with verification program calls
+        Self::verify_by_programs(program_id, accounts, args.ix)?;
+        Ok(())
+    }
 
+    /// Verify specific operation either through configured verification programs or mint authority
+    /// Decides which method to use based on the PDA account provided in accounts[1]
+    pub fn verify_by_strategy(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        ix_discriminator: u8,
+    ) -> ProgramResult {
+        // Accounts expected:
+        // * Authorization through verification programs
+        // 0. `[]` The mint account
+        // 1. `[]` The verification config PDA account
+        // 2. `[]` Instructions sysvar (for introspection mode)
+        //
+        // * Authorization through mint authority
+        // 0. `[]` The mint account
+        // 1. `[]` The mint authority PDA account
+        // 2. `[signer]` The mint creator account
+        //
+        // 3+ [any] Accounts for the target instruction and comparison with verification program calls
+        let [mint_info, verification_config_or_mint_authority, instructions_sysvar_or_signer, _instruction_accounts @ ..] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+        let config_data = verification_config_or_mint_authority.try_borrow_data()?;
+        let state_discriminator = config_data
+            .first()
+            .ok_or(ProgramError::InvalidAccountData)?;
+        let disc = SecurityTokenDiscriminators::try_from(*state_discriminator)?;
+        match disc {
+            SecurityTokenDiscriminators::VerificationConfigDiscriminator => {
+                Self::verify_by_programs(program_id, accounts, ix_discriminator)?;
+            }
+            SecurityTokenDiscriminators::MintAuthorityDiscriminator => {
+                let mint_authority_account = verification_config_or_mint_authority;
+                let mint_creator_info = instructions_sysvar_or_signer;
+                Self::verify_by_mint_authority(
+                    program_id,
+                    mint_info,
+                    mint_authority_account,
+                    mint_creator_info,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Verify that the provided signer corresponds to the original mint authority PDA.
+    pub fn verify_by_mint_authority(
+        program_id: &Pubkey,
+        mint_info: &AccountInfo,
+        mint_authority: &AccountInfo,
+        candidate_authority: &AccountInfo,
+    ) -> Result<(), ProgramError> {
+        verify_signer(candidate_authority, false)?;
+        verify_owner(mint_authority, program_id)?;
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
+
+        let (expected_pda, expected_bump) =
+            utils::find_mint_authority_pda(mint_info.key(), candidate_authority.key(), program_id);
+
+        if mint_authority.key() != &expected_pda {
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        let data = mint_authority.try_borrow_data()?;
+        if data.len() < MintAuthority::LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mint_authority_state = MintAuthority::try_from_bytes(&data)?;
+
+        if mint_authority_state.mint != *mint_info.key() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        if mint_authority_state.mint_creator != *candidate_authority.key() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        if mint_authority_state.bump != expected_bump {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        Ok(())
+    }
+
+    /// Verify specific operation against configured verification programs
+    pub fn verify_by_programs(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        ix_discriminator: u8,
+    ) -> ProgramResult {
         // Expected accounts:
         // 0. [readonly] Mint account - to derive VerificationConfig PDA
         // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
@@ -702,44 +805,35 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // TODO: Should we pass?
+        // The data_is_empty verification config doesn't exist
         if verification_config.data_is_empty() {
-            log!("No verification programs required - passing");
-            return Ok(());
+            return Err(ProgramError::UninitializedAccount);
         }
 
+        verify_instructions_sysvar(instructions_sysvar)?;
         verify_owner(verification_config, program_id)?;
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
-        // TODO: this could be optimized further by using `create_program_address` to verify the
-        // pubkey and associated bump (needed to be stored in the account itself) is valid.
         let (expected_pda, _bump) =
-            utils::find_verification_config_pda(mint_info.key(), args.ix, program_id);
+            utils::find_verification_config_pda(mint_info.key(), ix_discriminator, program_id);
 
         if verification_config.key().ne(&expected_pda) {
             return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
         }
-
-        let data = verification_config.try_borrow_data()?;
-        let config = VerificationConfig::try_from_bytes(&data)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        // TODO: Should we reject?
-        if config.verification_programs.is_empty() {
-            log!("No verification programs configured - rejecting");
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        // Verify config matches expected instruction
-        if config.instruction_discriminator != args.ix {
-            log!(
-                "VerificationConfig discriminator mismatch: expected {}, got {}",
-                config.instruction_discriminator,
-                args.ix
-            );
+        let config_data = VerificationConfig::from_account_info(verification_config)?;
+        if config_data.instruction_discriminator != ix_discriminator {
             return Err(ProgramError::InvalidInstructionData);
         }
-
-        Self::execute_verification(&config, instructions_sysvar, instruction_accounts, args.ix)?;
+        if config_data.verification_programs.is_empty() {
+            // If no verification programs configured, allow
+            return Ok(());
+        }
+        Self::execute_verification(
+            &config_data,
+            instructions_sysvar,
+            instruction_accounts,
+            ix_discriminator,
+        )?;
 
         Ok(())
     }
@@ -1086,13 +1180,9 @@ impl VerificationModule {
         // 2. [signer, writable] Payer (mint authority or designated config authority)
         // 3. [] System program ID (optional for closing account)
 
-        let [config_account, mint_account, payer, _system_program] = accounts else {
+        let [config_account, mint_account, recipient, _system_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_signer(payer, false)?;
-        // TODO: Add proper authority validation
-        // For now, we accept any signer as authority
-        // In production, should validate against mint authority or config-specific authority
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
@@ -1143,7 +1233,7 @@ impl VerificationModule {
 
             // Transfer all lamports to recipient
             *config_account.try_borrow_mut_lamports()? = 0;
-            *payer.try_borrow_mut_lamports()? = payer
+            *recipient.try_borrow_mut_lamports()? = recipient
                 .lamports()
                 .checked_add(config_lamports)
                 .ok_or(ProgramError::InsufficientFunds)?;
@@ -1189,7 +1279,7 @@ impl VerificationModule {
                     .checked_sub(recovered_rent)
                     .ok_or(ProgramError::InsufficientFunds)?;
 
-                *payer.try_borrow_mut_lamports()? = payer
+                *recipient.try_borrow_mut_lamports()? = recipient
                     .lamports()
                     .checked_add(recovered_rent)
                     .ok_or(ProgramError::InsufficientFunds)?;

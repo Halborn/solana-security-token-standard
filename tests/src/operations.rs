@@ -1,6 +1,8 @@
 use security_token_client::{
-    BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR, MINT_DISCRIMINATOR, PAUSE_DISCRIMINATOR,
-    SECURITY_TOKEN_ID, THAW_DISCRIMINATOR,
+    InitializeVerificationConfig, InitializeVerificationConfigArgs,
+    InitializeVerificationConfigInstructionArgs, BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR,
+    MINT_DISCRIMINATOR, PAUSE_DISCRIMINATOR, RESUME_DISCRIMINATOR, SECURITY_TOKEN_ID,
+    THAW_DISCRIMINATOR,
 };
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
@@ -145,6 +147,36 @@ async fn test_basic_t22_operations() {
         &SECURITY_TOKEN_ID,
     );
 
+    let init_config_instruction = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
+        config_account: verification_config_pda,
+        payer: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(InitializeVerificationConfigInstructionArgs {
+        args: InitializeVerificationConfigArgs {
+            instruction_discriminator: MINT_DISCRIMINATOR,
+            program_addresses: vec![],
+        },
+    });
+
+    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[init_config_instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(config_transaction)
+        .await;
+
+    assert_transaction_success(result);
+
     let mint_state_before = get_mint_state(&mut context.banks_client, mint_keypair.pubkey()).await;
     assert_eq!(mint_state_before.base.supply, 0);
 
@@ -196,6 +228,36 @@ async fn test_basic_t22_operations() {
         &SECURITY_TOKEN_ID,
     );
 
+    let init_config_instruction = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
+        config_account: verification_config_pda,
+        payer: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(InitializeVerificationConfigInstructionArgs {
+        args: InitializeVerificationConfigArgs {
+            instruction_discriminator: BURN_DISCRIMINATOR,
+            program_addresses: vec![],
+        },
+    });
+
+    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[init_config_instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(config_transaction)
+        .await;
+
+    assert_transaction_success(result);
+
     let burn_ix = security_token_client::Burn {
         mint: mint_keypair.pubkey(),
         verification_config: verification_config_pda,
@@ -238,6 +300,36 @@ async fn test_basic_t22_operations() {
         &SECURITY_TOKEN_ID,
     );
 
+    let init_config_instruction = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
+        config_account: verification_config_pda,
+        payer: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(InitializeVerificationConfigInstructionArgs {
+        args: InitializeVerificationConfigArgs {
+            instruction_discriminator: FREEZE_DISCRIMINATOR,
+            program_addresses: vec![],
+        },
+    });
+
+    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[init_config_instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(config_transaction)
+        .await;
+
+    assert_transaction_success(result);
+
     let freeze_ix = security_token_client::Freeze {
         mint: mint_keypair.pubkey(),
         mint_info: mint_keypair.pubkey(),
@@ -273,6 +365,36 @@ async fn test_basic_t22_operations() {
         ],
         &SECURITY_TOKEN_ID,
     );
+
+    let init_config_instruction = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
+        config_account: verification_config_pda,
+        payer: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(InitializeVerificationConfigInstructionArgs {
+        args: InitializeVerificationConfigArgs {
+            instruction_discriminator: THAW_DISCRIMINATOR,
+            program_addresses: vec![],
+        },
+    });
+
+    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[init_config_instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(config_transaction)
+        .await;
+
+    assert_transaction_success(result);
 
     let thaw_ix = security_token_client::Thaw {
         mint: mint_keypair.pubkey(),
@@ -379,6 +501,66 @@ async fn test_t22_extension_operations() {
         &SECURITY_TOKEN_ID,
     );
 
+    let init_config_instruction = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
+        config_account: verification_config_pda,
+        payer: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(InitializeVerificationConfigInstructionArgs {
+        args: InitializeVerificationConfigArgs {
+            instruction_discriminator: PAUSE_DISCRIMINATOR,
+            program_addresses: vec![],
+        },
+    });
+
+    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[init_config_instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(config_transaction)
+        .await;
+
+    assert_transaction_success(result);
+
+    let init_config_instruction = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
+        config_account: verification_config_pda,
+        payer: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(InitializeVerificationConfigInstructionArgs {
+        args: InitializeVerificationConfigArgs {
+            instruction_discriminator: PAUSE_DISCRIMINATOR,
+            program_addresses: vec![],
+        },
+    });
+
+    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[init_config_instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(config_transaction)
+        .await;
+
+    assert_transaction_success(result);
+
     let pause_ix = security_token_client::Pause {
         mint: mint_keypair.pubkey(),
         mint_info: mint_keypair.pubkey(),
@@ -408,6 +590,45 @@ async fn test_t22_extension_operations() {
         .get_extension::<PausableConfig>()
         .expect("Pausable extension should exist");
     assert_eq!(pausable.paused, PodBool(1));
+
+    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"verification_config",
+            mint_keypair.pubkey().as_ref(),
+            &[RESUME_DISCRIMINATOR],
+        ],
+        &SECURITY_TOKEN_ID,
+    );
+
+    let init_config_instruction = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
+        config_account: verification_config_pda,
+        payer: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        system_program: solana_system_interface::program::ID,
+    }
+    .instruction(InitializeVerificationConfigInstructionArgs {
+        args: InitializeVerificationConfigArgs {
+            instruction_discriminator: RESUME_DISCRIMINATOR,
+            program_addresses: vec![],
+        },
+    });
+
+    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[init_config_instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(config_transaction)
+        .await;
+
+    assert_transaction_success(result);
 
     let resume_ix = security_token_client::Resume {
         mint: mint_keypair.pubkey(),

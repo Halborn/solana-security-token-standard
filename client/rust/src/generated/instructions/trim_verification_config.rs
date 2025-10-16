@@ -14,7 +14,22 @@ pub const TRIM_VERIFICATION_CONFIG_DISCRIMINATOR: u8 = 4;
 /// Accounts.
 #[derive(Debug)]
 pub struct TrimVerificationConfig {
-            /// The VerificationConfig PDA account
+            /// The mint account (position 0 - required for verification)
+
+    
+              
+          pub mint: solana_pubkey::Pubkey,
+                /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
+
+    
+              
+          pub verification_config_or_mint_authority: solana_pubkey::Pubkey,
+                /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
+
+    
+              
+          pub sysvar_or_creator: (solana_pubkey::Pubkey, bool),
+                /// The VerificationConfig PDA account
 
     
               
@@ -24,11 +39,11 @@ pub struct TrimVerificationConfig {
     
               
           pub mint_account: solana_pubkey::Pubkey,
-                /// The payer account (mint authority or designated manager)
+                /// The recipient account for recovered rent
 
     
               
-          pub payer: solana_pubkey::Pubkey,
+          pub recipient: solana_pubkey::Pubkey,
                 /// The system program ID (optional for closing account)
 
     
@@ -43,8 +58,20 @@ impl TrimVerificationConfig {
   #[allow(clippy::arithmetic_side_effects)]
   #[allow(clippy::vec_init_then_push)]
   pub fn instruction_with_remaining_accounts(&self, args: TrimVerificationConfigInstructionArgs, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
-    let mut accounts = Vec::with_capacity(4+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+    let mut accounts = Vec::with_capacity(7+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.mint,
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.verification_config_or_mint_authority,
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.sysvar_or_creator.0,
+            self.sysvar_or_creator.1,
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new(
             self.config_account,
             false
           ));
@@ -53,8 +80,8 @@ impl TrimVerificationConfig {
             false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new(
-            self.payer,
-            true
+            self.recipient,
+            false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.system_program,
@@ -104,15 +131,21 @@ impl Default for TrimVerificationConfigInstructionData {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` config_account
-          ///   1. `[]` mint_account
-                      ///   2. `[writable, signer]` payer
-          ///   3. `[]` system_program
+          ///   0. `[]` mint
+          ///   1. `[]` verification_config_or_mint_authority
+                ///   2. `[signer]` sysvar_or_creator
+                ///   3. `[writable]` config_account
+          ///   4. `[]` mint_account
+                ///   5. `[writable]` recipient
+          ///   6. `[]` system_program
 #[derive(Clone, Debug, Default)]
 pub struct TrimVerificationConfigBuilder {
-            config_account: Option<solana_pubkey::Pubkey>,
+            mint: Option<solana_pubkey::Pubkey>,
+                verification_config_or_mint_authority: Option<solana_pubkey::Pubkey>,
+                sysvar_or_creator: Option<(solana_pubkey::Pubkey, bool)>,
+                config_account: Option<solana_pubkey::Pubkey>,
                 mint_account: Option<solana_pubkey::Pubkey>,
-                payer: Option<solana_pubkey::Pubkey>,
+                recipient: Option<solana_pubkey::Pubkey>,
                 system_program: Option<solana_pubkey::Pubkey>,
                         args: Option<TrimVerificationConfigArgs>,
         __remaining_accounts: Vec<solana_instruction::AccountMeta>,
@@ -122,6 +155,24 @@ impl TrimVerificationConfigBuilder {
   pub fn new() -> Self {
     Self::default()
   }
+            /// The mint account (position 0 - required for verification)
+#[inline(always)]
+    pub fn mint(&mut self, mint: solana_pubkey::Pubkey) -> &mut Self {
+                        self.mint = Some(mint);
+                    self
+    }
+            /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
+#[inline(always)]
+    pub fn verification_config_or_mint_authority(&mut self, verification_config_or_mint_authority: solana_pubkey::Pubkey) -> &mut Self {
+                        self.verification_config_or_mint_authority = Some(verification_config_or_mint_authority);
+                    self
+    }
+            /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
+#[inline(always)]
+    pub fn sysvar_or_creator(&mut self, sysvar_or_creator: solana_pubkey::Pubkey, as_signer: bool) -> &mut Self {
+                        self.sysvar_or_creator = Some((sysvar_or_creator, as_signer));
+                    self
+    }
             /// The VerificationConfig PDA account
 #[inline(always)]
     pub fn config_account(&mut self, config_account: solana_pubkey::Pubkey) -> &mut Self {
@@ -134,10 +185,10 @@ impl TrimVerificationConfigBuilder {
                         self.mint_account = Some(mint_account);
                     self
     }
-            /// The payer account (mint authority or designated manager)
+            /// The recipient account for recovered rent
 #[inline(always)]
-    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
-                        self.payer = Some(payer);
+    pub fn recipient(&mut self, recipient: solana_pubkey::Pubkey) -> &mut Self {
+                        self.recipient = Some(recipient);
                     self
     }
             /// The system program ID (optional for closing account)
@@ -166,9 +217,12 @@ impl TrimVerificationConfigBuilder {
   #[allow(clippy::clone_on_copy)]
   pub fn instruction(&self) -> solana_instruction::Instruction {
     let accounts = TrimVerificationConfig {
-                              config_account: self.config_account.expect("config_account is not set"),
+                              mint: self.mint.expect("mint is not set"),
+                                        verification_config_or_mint_authority: self.verification_config_or_mint_authority.expect("verification_config_or_mint_authority is not set"),
+                                        sysvar_or_creator: self.sysvar_or_creator.expect("sysvar_or_creator is not set"),
+                                        config_account: self.config_account.expect("config_account is not set"),
                                         mint_account: self.mint_account.expect("mint_account is not set"),
-                                        payer: self.payer.expect("payer is not set"),
+                                        recipient: self.recipient.expect("recipient is not set"),
                                         system_program: self.system_program.expect("system_program is not set"),
                       };
           let args = TrimVerificationConfigInstructionArgs {
@@ -181,7 +235,22 @@ impl TrimVerificationConfigBuilder {
 
   /// `trim_verification_config` CPI accounts.
   pub struct TrimVerificationConfigCpiAccounts<'a, 'b> {
-                  /// The VerificationConfig PDA account
+                  /// The mint account (position 0 - required for verification)
+
+      
+                    
+              pub mint: &'b solana_account_info::AccountInfo<'a>,
+                        /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
+
+      
+                    
+              pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
+                        /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
+
+      
+                    
+              pub sysvar_or_creator: (&'b solana_account_info::AccountInfo<'a>, bool),
+                        /// The VerificationConfig PDA account
 
       
                     
@@ -191,11 +260,11 @@ impl TrimVerificationConfigBuilder {
       
                     
               pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-                        /// The payer account (mint authority or designated manager)
+                        /// The recipient account for recovered rent
 
       
                     
-              pub payer: &'b solana_account_info::AccountInfo<'a>,
+              pub recipient: &'b solana_account_info::AccountInfo<'a>,
                         /// The system program ID (optional for closing account)
 
       
@@ -207,7 +276,22 @@ impl TrimVerificationConfigBuilder {
 pub struct TrimVerificationConfigCpi<'a, 'b> {
   /// The program to invoke.
   pub __program: &'b solana_account_info::AccountInfo<'a>,
-            /// The VerificationConfig PDA account
+            /// The mint account (position 0 - required for verification)
+
+    
+              
+          pub mint: &'b solana_account_info::AccountInfo<'a>,
+                /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
+
+    
+              
+          pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
+                /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
+
+    
+              
+          pub sysvar_or_creator: (&'b solana_account_info::AccountInfo<'a>, bool),
+                /// The VerificationConfig PDA account
 
     
               
@@ -217,11 +301,11 @@ pub struct TrimVerificationConfigCpi<'a, 'b> {
     
               
           pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-                /// The payer account (mint authority or designated manager)
+                /// The recipient account for recovered rent
 
     
               
-          pub payer: &'b solana_account_info::AccountInfo<'a>,
+          pub recipient: &'b solana_account_info::AccountInfo<'a>,
                 /// The system program ID (optional for closing account)
 
     
@@ -239,9 +323,12 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
       ) -> Self {
     Self {
       __program: program,
+              mint: accounts.mint,
+              verification_config_or_mint_authority: accounts.verification_config_or_mint_authority,
+              sysvar_or_creator: accounts.sysvar_or_creator,
               config_account: accounts.config_account,
               mint_account: accounts.mint_account,
-              payer: accounts.payer,
+              recipient: accounts.recipient,
               system_program: accounts.system_program,
                     __args: args,
           }
@@ -266,8 +353,20 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
     signers_seeds: &[&[&[u8]]],
     remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
   ) -> solana_program_error::ProgramResult {
-    let mut accounts = Vec::with_capacity(4+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+    let mut accounts = Vec::with_capacity(7+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.mint.key,
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.verification_config_or_mint_authority.key,
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.sysvar_or_creator.0.key,
+            self.sysvar_or_creator.1,
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new(
             *self.config_account.key,
             false
           ));
@@ -276,8 +375,8 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
             false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new(
-            *self.payer.key,
-            true
+            *self.recipient.key,
+            false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.system_program.key,
@@ -299,11 +398,14 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
       accounts,
       data,
     };
-    let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
+    let mut account_infos = Vec::with_capacity(8 + remaining_accounts.len());
     account_infos.push(self.__program.clone());
-                  account_infos.push(self.config_account.clone());
+                  account_infos.push(self.mint.clone());
+                        account_infos.push(self.verification_config_or_mint_authority.clone());
+                        account_infos.push(self.sysvar_or_creator.0.clone());
+                        account_infos.push(self.config_account.clone());
                         account_infos.push(self.mint_account.clone());
-                        account_infos.push(self.payer.clone());
+                        account_infos.push(self.recipient.clone());
                         account_infos.push(self.system_program.clone());
               remaining_accounts.iter().for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
 
@@ -319,10 +421,13 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` config_account
-          ///   1. `[]` mint_account
-                      ///   2. `[writable, signer]` payer
-          ///   3. `[]` system_program
+          ///   0. `[]` mint
+          ///   1. `[]` verification_config_or_mint_authority
+                ///   2. `[signer]` sysvar_or_creator
+                ///   3. `[writable]` config_account
+          ///   4. `[]` mint_account
+                ///   5. `[writable]` recipient
+          ///   6. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct TrimVerificationConfigCpiBuilder<'a, 'b> {
   instruction: Box<TrimVerificationConfigCpiBuilderInstruction<'a, 'b>>,
@@ -332,15 +437,36 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
   pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
     let instruction = Box::new(TrimVerificationConfigCpiBuilderInstruction {
       __program: program,
+              mint: None,
+              verification_config_or_mint_authority: None,
+              sysvar_or_creator: None,
               config_account: None,
               mint_account: None,
-              payer: None,
+              recipient: None,
               system_program: None,
                                             args: None,
                     __remaining_accounts: Vec::new(),
     });
     Self { instruction }
   }
+      /// The mint account (position 0 - required for verification)
+#[inline(always)]
+    pub fn mint(&mut self, mint: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+                        self.instruction.mint = Some(mint);
+                    self
+    }
+      /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
+#[inline(always)]
+    pub fn verification_config_or_mint_authority(&mut self, verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+                        self.instruction.verification_config_or_mint_authority = Some(verification_config_or_mint_authority);
+                    self
+    }
+      /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
+#[inline(always)]
+    pub fn sysvar_or_creator(&mut self, sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>, as_signer: bool) -> &mut Self {
+                        self.instruction.sysvar_or_creator = Some((sysvar_or_creator, as_signer));
+                    self
+    }
       /// The VerificationConfig PDA account
 #[inline(always)]
     pub fn config_account(&mut self, config_account: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
@@ -353,10 +479,10 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
                         self.instruction.mint_account = Some(mint_account);
                     self
     }
-      /// The payer account (mint authority or designated manager)
+      /// The recipient account for recovered rent
 #[inline(always)]
-    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-                        self.instruction.payer = Some(payer);
+    pub fn recipient(&mut self, recipient: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+                        self.instruction.recipient = Some(recipient);
                     self
     }
       /// The system program ID (optional for closing account)
@@ -398,11 +524,17 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
         let instruction = TrimVerificationConfigCpi {
         __program: self.instruction.__program,
                   
+          mint: self.instruction.mint.expect("mint is not set"),
+                  
+          verification_config_or_mint_authority: self.instruction.verification_config_or_mint_authority.expect("verification_config_or_mint_authority is not set"),
+                  
+          sysvar_or_creator: self.instruction.sysvar_or_creator.expect("sysvar_or_creator is not set"),
+                  
           config_account: self.instruction.config_account.expect("config_account is not set"),
                   
           mint_account: self.instruction.mint_account.expect("mint_account is not set"),
                   
-          payer: self.instruction.payer.expect("payer is not set"),
+          recipient: self.instruction.recipient.expect("recipient is not set"),
                   
           system_program: self.instruction.system_program.expect("system_program is not set"),
                           __args: args,
@@ -414,9 +546,12 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
 #[derive(Clone, Debug)]
 struct TrimVerificationConfigCpiBuilderInstruction<'a, 'b> {
   __program: &'b solana_account_info::AccountInfo<'a>,
-            config_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+            mint: Option<&'b solana_account_info::AccountInfo<'a>>,
+                verification_config_or_mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+                sysvar_or_creator: Option<(&'b solana_account_info::AccountInfo<'a>, bool)>,
+                config_account: Option<&'b solana_account_info::AccountInfo<'a>>,
                 mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-                payer: Option<&'b solana_account_info::AccountInfo<'a>>,
+                recipient: Option<&'b solana_account_info::AccountInfo<'a>>,
                 system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
                         args: Option<TrimVerificationConfigArgs>,
         /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

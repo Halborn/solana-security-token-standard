@@ -3,8 +3,8 @@
 use crate::state::{
     AccountDeserialize, AccountSerialize, Discriminator, SecurityTokenDiscriminators,
 };
-use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 /// Verification configuration for instructions
 #[derive(Default, Clone, Debug, PartialEq)]
@@ -127,5 +127,12 @@ impl VerificationConfig {
             + 1 // instruction discriminator
             + 4 // vector length prefix
             + (self.verification_programs.len() * PUBKEY_BYTES)
+    }
+
+    pub fn from_account_info(account: &AccountInfo) -> Result<Self, ProgramError> {
+        let data = account.try_borrow_data()?;
+        let config = VerificationConfig::try_from_bytes(&data)?;
+        drop(data);
+        Ok(config)
     }
 }

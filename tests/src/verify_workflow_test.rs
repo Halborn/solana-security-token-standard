@@ -158,6 +158,9 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let init_config_instruction = InitializeVerificationConfig {
+        mint: mint_pubkey,
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (payer.pubkey(), true),
         config_account: verification_config_pda,
         payer: payer.pubkey(),
         mint_account: mint_pubkey,
@@ -463,9 +466,7 @@ async fn test_update_metadata_under_verification() {
 
     let result = context.banks_client.process_transaction(transaction).await;
 
-    if let Err(error) = &result {
-        panic!("Transaction failed: {}", error);
-    }
+    assert_transaction_success(result);
 
     let (verification_config_pda, _bump) = Pubkey::find_program_address(
         &[
@@ -478,6 +479,9 @@ async fn test_update_metadata_under_verification() {
 
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let init_config_instruction = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
         config_account: verification_config_pda,
         payer: context.payer.pubkey(),
         mint_account: mint_keypair.pubkey(),
@@ -502,17 +506,15 @@ async fn test_update_metadata_under_verification() {
         .process_transaction(config_transaction)
         .await;
 
-    if let Err(error) = &result {
-        panic!("Transaction failed: {}", error);
-    }
+    assert_transaction_success(result);
 
     let updated_name = "Updated Security Token";
     let updated_symbol = "UHST";
     let updated_uri = "https://example.com/tokens";
 
     let update_metadata_instruction = UpdateMetadata {
-        verification_config: Some(verification_config_pda),
-        instructions_sysvar: sysvar::instructions::ID,
+        verification_config_or_mint_authority: verification_config_pda,
+        sysvar_or_creator: (sysvar::instructions::ID, false),
         mint: mint_keypair.pubkey(),
         mint_for_update: mint_keypair.pubkey(),
         mint_authority: context.payer.pubkey(),
@@ -577,8 +579,8 @@ async fn test_update_metadata_under_verification() {
     ];
 
     let update_metadata_instruction = UpdateMetadata {
-        verification_config: Some(verification_config_pda),
-        instructions_sysvar: sysvar::instructions::ID,
+        verification_config_or_mint_authority: verification_config_pda,
+        sysvar_or_creator: (sysvar::instructions::ID, false),
         mint: mint_keypair.pubkey(),
         mint_for_update: mint_keypair.pubkey(),
         mint_authority: context.payer.pubkey(),
@@ -623,8 +625,8 @@ async fn test_update_metadata_under_verification() {
 
     // Success case: enough accounts provided to verify
     let update_metadata_instruction = UpdateMetadata {
-        verification_config: Some(verification_config_pda),
-        instructions_sysvar: sysvar::instructions::ID,
+        verification_config_or_mint_authority: verification_config_pda,
+        sysvar_or_creator: (sysvar::instructions::ID, false),
         mint: mint_keypair.pubkey(),
         mint_for_update: mint_keypair.pubkey(),
         mint_authority: context.payer.pubkey(),

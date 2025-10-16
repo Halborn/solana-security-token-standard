@@ -14,7 +14,22 @@ pub const INITIALIZE_VERIFICATION_CONFIG_DISCRIMINATOR: u8 = 2;
 /// Accounts.
 #[derive(Debug)]
 pub struct InitializeVerificationConfig {
-            /// The VerificationConfig PDA (derived from instruction_id + mint)
+            /// The mint account (position 0 - required for verification)
+
+    
+              
+          pub mint: solana_pubkey::Pubkey,
+                /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
+
+    
+              
+          pub verification_config_or_mint_authority: solana_pubkey::Pubkey,
+                /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
+
+    
+              
+          pub sysvar_or_creator: (solana_pubkey::Pubkey, bool),
+                /// The VerificationConfig PDA (derived from instruction_id + mint)
 
     
               
@@ -43,8 +58,20 @@ impl InitializeVerificationConfig {
   #[allow(clippy::arithmetic_side_effects)]
   #[allow(clippy::vec_init_then_push)]
   pub fn instruction_with_remaining_accounts(&self, args: InitializeVerificationConfigInstructionArgs, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
-    let mut accounts = Vec::with_capacity(4+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+    let mut accounts = Vec::with_capacity(7+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.mint,
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.verification_config_or_mint_authority,
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.sysvar_or_creator.0,
+            self.sysvar_or_creator.1,
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new(
             self.config_account,
             false
           ));
@@ -104,13 +131,19 @@ impl Default for InitializeVerificationConfigInstructionData {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` config_account
-                      ///   1. `[writable, signer]` payer
-          ///   2. `[]` mint_account
-          ///   3. `[]` system_program
+          ///   0. `[]` mint
+          ///   1. `[]` verification_config_or_mint_authority
+                ///   2. `[signer]` sysvar_or_creator
+                ///   3. `[writable]` config_account
+                      ///   4. `[writable, signer]` payer
+          ///   5. `[]` mint_account
+          ///   6. `[]` system_program
 #[derive(Clone, Debug, Default)]
 pub struct InitializeVerificationConfigBuilder {
-            config_account: Option<solana_pubkey::Pubkey>,
+            mint: Option<solana_pubkey::Pubkey>,
+                verification_config_or_mint_authority: Option<solana_pubkey::Pubkey>,
+                sysvar_or_creator: Option<(solana_pubkey::Pubkey, bool)>,
+                config_account: Option<solana_pubkey::Pubkey>,
                 payer: Option<solana_pubkey::Pubkey>,
                 mint_account: Option<solana_pubkey::Pubkey>,
                 system_program: Option<solana_pubkey::Pubkey>,
@@ -122,6 +155,24 @@ impl InitializeVerificationConfigBuilder {
   pub fn new() -> Self {
     Self::default()
   }
+            /// The mint account (position 0 - required for verification)
+#[inline(always)]
+    pub fn mint(&mut self, mint: solana_pubkey::Pubkey) -> &mut Self {
+                        self.mint = Some(mint);
+                    self
+    }
+            /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
+#[inline(always)]
+    pub fn verification_config_or_mint_authority(&mut self, verification_config_or_mint_authority: solana_pubkey::Pubkey) -> &mut Self {
+                        self.verification_config_or_mint_authority = Some(verification_config_or_mint_authority);
+                    self
+    }
+            /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
+#[inline(always)]
+    pub fn sysvar_or_creator(&mut self, sysvar_or_creator: solana_pubkey::Pubkey, as_signer: bool) -> &mut Self {
+                        self.sysvar_or_creator = Some((sysvar_or_creator, as_signer));
+                    self
+    }
             /// The VerificationConfig PDA (derived from instruction_id + mint)
 #[inline(always)]
     pub fn config_account(&mut self, config_account: solana_pubkey::Pubkey) -> &mut Self {
@@ -166,7 +217,10 @@ impl InitializeVerificationConfigBuilder {
   #[allow(clippy::clone_on_copy)]
   pub fn instruction(&self) -> solana_instruction::Instruction {
     let accounts = InitializeVerificationConfig {
-                              config_account: self.config_account.expect("config_account is not set"),
+                              mint: self.mint.expect("mint is not set"),
+                                        verification_config_or_mint_authority: self.verification_config_or_mint_authority.expect("verification_config_or_mint_authority is not set"),
+                                        sysvar_or_creator: self.sysvar_or_creator.expect("sysvar_or_creator is not set"),
+                                        config_account: self.config_account.expect("config_account is not set"),
                                         payer: self.payer.expect("payer is not set"),
                                         mint_account: self.mint_account.expect("mint_account is not set"),
                                         system_program: self.system_program.expect("system_program is not set"),
@@ -181,7 +235,22 @@ impl InitializeVerificationConfigBuilder {
 
   /// `initialize_verification_config` CPI accounts.
   pub struct InitializeVerificationConfigCpiAccounts<'a, 'b> {
-                  /// The VerificationConfig PDA (derived from instruction_id + mint)
+                  /// The mint account (position 0 - required for verification)
+
+      
+                    
+              pub mint: &'b solana_account_info::AccountInfo<'a>,
+                        /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
+
+      
+                    
+              pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
+                        /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
+
+      
+                    
+              pub sysvar_or_creator: (&'b solana_account_info::AccountInfo<'a>, bool),
+                        /// The VerificationConfig PDA (derived from instruction_id + mint)
 
       
                     
@@ -207,7 +276,22 @@ impl InitializeVerificationConfigBuilder {
 pub struct InitializeVerificationConfigCpi<'a, 'b> {
   /// The program to invoke.
   pub __program: &'b solana_account_info::AccountInfo<'a>,
-            /// The VerificationConfig PDA (derived from instruction_id + mint)
+            /// The mint account (position 0 - required for verification)
+
+    
+              
+          pub mint: &'b solana_account_info::AccountInfo<'a>,
+                /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
+
+    
+              
+          pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
+                /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
+
+    
+              
+          pub sysvar_or_creator: (&'b solana_account_info::AccountInfo<'a>, bool),
+                /// The VerificationConfig PDA (derived from instruction_id + mint)
 
     
               
@@ -239,6 +323,9 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
       ) -> Self {
     Self {
       __program: program,
+              mint: accounts.mint,
+              verification_config_or_mint_authority: accounts.verification_config_or_mint_authority,
+              sysvar_or_creator: accounts.sysvar_or_creator,
               config_account: accounts.config_account,
               payer: accounts.payer,
               mint_account: accounts.mint_account,
@@ -266,8 +353,20 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
     signers_seeds: &[&[&[u8]]],
     remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
   ) -> solana_program_error::ProgramResult {
-    let mut accounts = Vec::with_capacity(4+ remaining_accounts.len());
-                            accounts.push(solana_instruction::AccountMeta::new(
+    let mut accounts = Vec::with_capacity(7+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.mint.key,
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.verification_config_or_mint_authority.key,
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.sysvar_or_creator.0.key,
+            self.sysvar_or_creator.1,
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new(
             *self.config_account.key,
             false
           ));
@@ -299,9 +398,12 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
       accounts,
       data,
     };
-    let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
+    let mut account_infos = Vec::with_capacity(8 + remaining_accounts.len());
     account_infos.push(self.__program.clone());
-                  account_infos.push(self.config_account.clone());
+                  account_infos.push(self.mint.clone());
+                        account_infos.push(self.verification_config_or_mint_authority.clone());
+                        account_infos.push(self.sysvar_or_creator.0.clone());
+                        account_infos.push(self.config_account.clone());
                         account_infos.push(self.payer.clone());
                         account_infos.push(self.mint_account.clone());
                         account_infos.push(self.system_program.clone());
@@ -319,10 +421,13 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-                ///   0. `[writable]` config_account
-                      ///   1. `[writable, signer]` payer
-          ///   2. `[]` mint_account
-          ///   3. `[]` system_program
+          ///   0. `[]` mint
+          ///   1. `[]` verification_config_or_mint_authority
+                ///   2. `[signer]` sysvar_or_creator
+                ///   3. `[writable]` config_account
+                      ///   4. `[writable, signer]` payer
+          ///   5. `[]` mint_account
+          ///   6. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct InitializeVerificationConfigCpiBuilder<'a, 'b> {
   instruction: Box<InitializeVerificationConfigCpiBuilderInstruction<'a, 'b>>,
@@ -332,6 +437,9 @@ impl<'a, 'b> InitializeVerificationConfigCpiBuilder<'a, 'b> {
   pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
     let instruction = Box::new(InitializeVerificationConfigCpiBuilderInstruction {
       __program: program,
+              mint: None,
+              verification_config_or_mint_authority: None,
+              sysvar_or_creator: None,
               config_account: None,
               payer: None,
               mint_account: None,
@@ -341,6 +449,24 @@ impl<'a, 'b> InitializeVerificationConfigCpiBuilder<'a, 'b> {
     });
     Self { instruction }
   }
+      /// The mint account (position 0 - required for verification)
+#[inline(always)]
+    pub fn mint(&mut self, mint: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+                        self.instruction.mint = Some(mint);
+                    self
+    }
+      /// The VerificationConfig PDA or the MintAuthority PDA (position 1 - required for verification)
+#[inline(always)]
+    pub fn verification_config_or_mint_authority(&mut self, verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+                        self.instruction.verification_config_or_mint_authority = Some(verification_config_or_mint_authority);
+                    self
+    }
+      /// The Instructions sysvar or Creator signer(position 2 - required for Instruction Introspection)
+#[inline(always)]
+    pub fn sysvar_or_creator(&mut self, sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>, as_signer: bool) -> &mut Self {
+                        self.instruction.sysvar_or_creator = Some((sysvar_or_creator, as_signer));
+                    self
+    }
       /// The VerificationConfig PDA (derived from instruction_id + mint)
 #[inline(always)]
     pub fn config_account(&mut self, config_account: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
@@ -398,6 +524,12 @@ impl<'a, 'b> InitializeVerificationConfigCpiBuilder<'a, 'b> {
         let instruction = InitializeVerificationConfigCpi {
         __program: self.instruction.__program,
                   
+          mint: self.instruction.mint.expect("mint is not set"),
+                  
+          verification_config_or_mint_authority: self.instruction.verification_config_or_mint_authority.expect("verification_config_or_mint_authority is not set"),
+                  
+          sysvar_or_creator: self.instruction.sysvar_or_creator.expect("sysvar_or_creator is not set"),
+                  
           config_account: self.instruction.config_account.expect("config_account is not set"),
                   
           payer: self.instruction.payer.expect("payer is not set"),
@@ -414,7 +546,10 @@ impl<'a, 'b> InitializeVerificationConfigCpiBuilder<'a, 'b> {
 #[derive(Clone, Debug)]
 struct InitializeVerificationConfigCpiBuilderInstruction<'a, 'b> {
   __program: &'b solana_account_info::AccountInfo<'a>,
-            config_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+            mint: Option<&'b solana_account_info::AccountInfo<'a>>,
+                verification_config_or_mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+                sysvar_or_creator: Option<(&'b solana_account_info::AccountInfo<'a>, bool)>,
+                config_account: Option<&'b solana_account_info::AccountInfo<'a>>,
                 payer: Option<&'b solana_account_info::AccountInfo<'a>>,
                 mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
                 system_program: Option<&'b solana_account_info::AccountInfo<'a>>,

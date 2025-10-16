@@ -10,6 +10,7 @@ use security_token_client::{
     TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataArgs,
     UpdateMetadataInstructionArgs, UpdateVerificationConfig, UpdateVerificationConfigArgs,
     UpdateVerificationConfigInstructionArgs, VerificationConfig, SECURITY_TOKEN_ID,
+    UPDATE_METADATA_DISCRIMINATOR,
 };
 use solana_program_test::ProgramTest;
 use solana_sdk::sysvar;
@@ -18,6 +19,8 @@ use solana_system_interface::program as system_program;
 use spl_token_2022::extension::{
     permanent_delegate::PermanentDelegate, transfer_hook::TransferHook,
 };
+
+use crate::helpers::assert_transaction_success;
 
 fn encode_additional_metadata(pairs: &[(String, String)]) -> Vec<u8> {
     let mut buf = Vec::new();
@@ -500,7 +503,11 @@ async fn test_update_metadata() {
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
     let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[b"verification_config", mint_keypair.pubkey().as_ref(), &[1]],
+        &[
+            b"verification_config",
+            mint_keypair.pubkey().as_ref(),
+            &[UPDATE_METADATA_DISCRIMINATOR],
+        ],
         &SECURITY_TOKEN_ID,
     );
     let (mint_authority_pda, _bump) = Pubkey::find_program_address(
@@ -561,10 +568,38 @@ async fn test_update_metadata() {
 
     let result = context.banks_client.process_transaction(transaction).await;
 
-    if let Err(error) = &result {
-        println!("Transaction failed: {}", error);
-        panic!("Transaction failed: {}", error);
+    assert_transaction_success(result);
+
+    let initialize_config_ix = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
+        config_account: verification_config_pda,
+        payer: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        system_program: solana_system_interface::program::ID,
     }
+    .instruction(InitializeVerificationConfigInstructionArgs {
+        args: InitializeVerificationConfigArgs {
+            instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
+            program_addresses: vec![],
+        },
+    });
+
+    // Create and process verification config transaction
+    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[initialize_config_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let config_result = context
+        .banks_client
+        .process_transaction(config_transaction)
+        .await;
+
+    assert_transaction_success(config_result);
 
     let updated_name = "Updated Security Token";
     let updated_symbol = "UHST";
@@ -585,8 +620,8 @@ async fn test_update_metadata() {
     let encoded = encode_additional_metadata(&updated_additional_metadata);
 
     let update_metadata_instruction = UpdateMetadata {
-        verification_config: Some(verification_config_pda),
-        instructions_sysvar: sysvar::instructions::ID,
+        verification_config_or_mint_authority: verification_config_pda,
+        sysvar_or_creator: (sysvar::instructions::ID, false),
         mint: mint_keypair.pubkey(),
         mint_for_update: mint_keypair.pubkey(),
         mint_authority: context.payer.pubkey(),
@@ -625,10 +660,7 @@ async fn test_update_metadata() {
         .process_transaction(tx_update_metadata)
         .await;
 
-    if let Err(error) = &result {
-        println!("Transaction failed: {}", error);
-        panic!("Transaction failed: {}", error);
-    }
+    assert_transaction_success(result);
 
     // Verify metadata was updated correctly
     let mint_account = context
@@ -1059,6 +1091,9 @@ async fn test_verification_config() {
 
     // Create InitializeVerificationConfig instruction using generated client code
     let initialize_config_ix = InitializeVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
         config_account: config_pda,
         payer: context.payer.pubkey(),
         mint_account: mint_keypair.pubkey(),
@@ -1142,6 +1177,9 @@ async fn test_verification_config() {
 
     // Create UpdateVerificationConfig instruction
     let update_config_ix = UpdateVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
@@ -1228,9 +1266,12 @@ async fn test_verification_config() {
     let close = false;
 
     let trim_config_ix = TrimVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
-        payer: context.payer.pubkey(),
+        recipient: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(TrimVerificationConfigInstructionArgs {
@@ -1317,9 +1358,12 @@ async fn test_verification_config() {
     println!("\nTesting TrimVerificationConfig with close=true");
 
     let close_config_ix = TrimVerificationConfig {
+        mint: mint_keypair.pubkey(),
+        verification_config_or_mint_authority: mint_authority_pda,
+        sysvar_or_creator: (context.payer.pubkey(), true),
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
-        payer: context.payer.pubkey(),
+        recipient: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(TrimVerificationConfigInstructionArgs {
