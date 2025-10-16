@@ -1271,7 +1271,7 @@ async fn test_verification_config() {
         sysvar_or_creator: (context.payer.pubkey(), true),
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
-        payer: context.payer.pubkey(),
+        recipient: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(TrimVerificationConfigInstructionArgs {
@@ -1363,7 +1363,7 @@ async fn test_verification_config() {
         sysvar_or_creator: (context.payer.pubkey(), true),
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
-        payer: context.payer.pubkey(),
+        recipient: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(TrimVerificationConfigInstructionArgs {

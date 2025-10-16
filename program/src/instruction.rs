@@ -82,7 +82,7 @@ pub enum SecurityTokenInstruction {
     ///
     /// * Instruction accounts:
     /// 3. `[writable]` The VerificationConfig PDA account
-    /// 4. `[writable, signer]` The payer account  
+    /// 4. `[writable]` The recipient account  
     /// 5. `[]` The mint account
     /// 6. `[signer]` The authority account (mint authority)
     /// 7. `[]` The system program ID

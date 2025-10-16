@@ -39,11 +39,11 @@ pub struct TrimVerificationConfig {
     
               
           pub mint_account: solana_pubkey::Pubkey,
-                /// The payer account (mint authority or designated manager)
+                /// The recipient account for recovered rent
 
     
               
-          pub payer: solana_pubkey::Pubkey,
+          pub recipient: solana_pubkey::Pubkey,
                 /// The system program ID (optional for closing account)
 
     
@@ -80,8 +80,8 @@ impl TrimVerificationConfig {
             false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new(
-            self.payer,
-            true
+            self.recipient,
+            false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.system_program,
@@ -136,7 +136,7 @@ impl Default for TrimVerificationConfigInstructionData {
                 ///   2. `[signer]` sysvar_or_creator
                 ///   3. `[writable]` config_account
           ///   4. `[]` mint_account
-                      ///   5. `[writable, signer]` payer
+                ///   5. `[writable]` recipient
           ///   6. `[]` system_program
 #[derive(Clone, Debug, Default)]
 pub struct TrimVerificationConfigBuilder {
@@ -145,7 +145,7 @@ pub struct TrimVerificationConfigBuilder {
                 sysvar_or_creator: Option<(solana_pubkey::Pubkey, bool)>,
                 config_account: Option<solana_pubkey::Pubkey>,
                 mint_account: Option<solana_pubkey::Pubkey>,
-                payer: Option<solana_pubkey::Pubkey>,
+                recipient: Option<solana_pubkey::Pubkey>,
                 system_program: Option<solana_pubkey::Pubkey>,
                         args: Option<TrimVerificationConfigArgs>,
         __remaining_accounts: Vec<solana_instruction::AccountMeta>,
@@ -185,10 +185,10 @@ impl TrimVerificationConfigBuilder {
                         self.mint_account = Some(mint_account);
                     self
     }
-            /// The payer account (mint authority or designated manager)
+            /// The recipient account for recovered rent
 #[inline(always)]
-    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
-                        self.payer = Some(payer);
+    pub fn recipient(&mut self, recipient: solana_pubkey::Pubkey) -> &mut Self {
+                        self.recipient = Some(recipient);
                     self
     }
             /// The system program ID (optional for closing account)
@@ -222,7 +222,7 @@ impl TrimVerificationConfigBuilder {
                                         sysvar_or_creator: self.sysvar_or_creator.expect("sysvar_or_creator is not set"),
                                         config_account: self.config_account.expect("config_account is not set"),
                                         mint_account: self.mint_account.expect("mint_account is not set"),
-                                        payer: self.payer.expect("payer is not set"),
+                                        recipient: self.recipient.expect("recipient is not set"),
                                         system_program: self.system_program.expect("system_program is not set"),
                       };
           let args = TrimVerificationConfigInstructionArgs {
@@ -260,11 +260,11 @@ impl TrimVerificationConfigBuilder {
       
                     
               pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-                        /// The payer account (mint authority or designated manager)
+                        /// The recipient account for recovered rent
 
       
                     
-              pub payer: &'b solana_account_info::AccountInfo<'a>,
+              pub recipient: &'b solana_account_info::AccountInfo<'a>,
                         /// The system program ID (optional for closing account)
 
       
@@ -301,11 +301,11 @@ pub struct TrimVerificationConfigCpi<'a, 'b> {
     
               
           pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-                /// The payer account (mint authority or designated manager)
+                /// The recipient account for recovered rent
 
     
               
-          pub payer: &'b solana_account_info::AccountInfo<'a>,
+          pub recipient: &'b solana_account_info::AccountInfo<'a>,
                 /// The system program ID (optional for closing account)
 
     
@@ -328,7 +328,7 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
               sysvar_or_creator: accounts.sysvar_or_creator,
               config_account: accounts.config_account,
               mint_account: accounts.mint_account,
-              payer: accounts.payer,
+              recipient: accounts.recipient,
               system_program: accounts.system_program,
                     __args: args,
           }
@@ -375,8 +375,8 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
             false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new(
-            *self.payer.key,
-            true
+            *self.recipient.key,
+            false
           ));
                                           accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.system_program.key,
@@ -405,7 +405,7 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
                         account_infos.push(self.sysvar_or_creator.0.clone());
                         account_infos.push(self.config_account.clone());
                         account_infos.push(self.mint_account.clone());
-                        account_infos.push(self.payer.clone());
+                        account_infos.push(self.recipient.clone());
                         account_infos.push(self.system_program.clone());
               remaining_accounts.iter().for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
 
@@ -426,7 +426,7 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
                 ///   2. `[signer]` sysvar_or_creator
                 ///   3. `[writable]` config_account
           ///   4. `[]` mint_account
-                      ///   5. `[writable, signer]` payer
+                ///   5. `[writable]` recipient
           ///   6. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct TrimVerificationConfigCpiBuilder<'a, 'b> {
@@ -442,7 +442,7 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
               sysvar_or_creator: None,
               config_account: None,
               mint_account: None,
-              payer: None,
+              recipient: None,
               system_program: None,
                                             args: None,
                     __remaining_accounts: Vec::new(),
@@ -479,10 +479,10 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
                         self.instruction.mint_account = Some(mint_account);
                     self
     }
-      /// The payer account (mint authority or designated manager)
+      /// The recipient account for recovered rent
 #[inline(always)]
-    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-                        self.instruction.payer = Some(payer);
+    pub fn recipient(&mut self, recipient: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+                        self.instruction.recipient = Some(recipient);
                     self
     }
       /// The system program ID (optional for closing account)
@@ -534,7 +534,7 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
                   
           mint_account: self.instruction.mint_account.expect("mint_account is not set"),
                   
-          payer: self.instruction.payer.expect("payer is not set"),
+          recipient: self.instruction.recipient.expect("recipient is not set"),
                   
           system_program: self.instruction.system_program.expect("system_program is not set"),
                           __args: args,
@@ -551,7 +551,7 @@ struct TrimVerificationConfigCpiBuilderInstruction<'a, 'b> {
                 sysvar_or_creator: Option<(&'b solana_account_info::AccountInfo<'a>, bool)>,
                 config_account: Option<&'b solana_account_info::AccountInfo<'a>>,
                 mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-                payer: Option<&'b solana_account_info::AccountInfo<'a>>,
+                recipient: Option<&'b solana_account_info::AccountInfo<'a>>,
                 system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
                         args: Option<TrimVerificationConfigArgs>,
         /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

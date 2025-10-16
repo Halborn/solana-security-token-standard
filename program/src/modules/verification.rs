@@ -1181,13 +1181,10 @@ impl VerificationModule {
         // 2. [signer, writable] Payer (mint authority or designated config authority)
         // 3. [] System program ID (optional for closing account)
 
-        let [config_account, mint_account, payer, _system_program] = accounts else {
+        let [config_account, mint_account, recipient, _system_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_signer(payer, false)?;
-        // TODO: Add proper authority validation
-        // For now, we accept any signer as authority
-        // In production, should validate against mint authority or config-specific authority
+        // verify_signer(payer, false)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
@@ -1238,7 +1235,7 @@ impl VerificationModule {
 
             // Transfer all lamports to recipient
             *config_account.try_borrow_mut_lamports()? = 0;
-            *payer.try_borrow_mut_lamports()? = payer
+            *recipient.try_borrow_mut_lamports()? = recipient
                 .lamports()
                 .checked_add(config_lamports)
                 .ok_or(ProgramError::InsufficientFunds)?;
@@ -1284,7 +1281,7 @@ impl VerificationModule {
                     .checked_sub(recovered_rent)
                     .ok_or(ProgramError::InsufficientFunds)?;
 
-                *payer.try_borrow_mut_lamports()? = payer
+                *recipient.try_borrow_mut_lamports()? = recipient
                     .lamports()
                     .checked_add(recovered_rent)
                     .ok_or(ProgramError::InsufficientFunds)?;

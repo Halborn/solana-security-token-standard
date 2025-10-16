@@ -665,9 +665,9 @@ const program = programNode({
           isWritable: false,
         }),
         instructionAccountNode({
-          name: 'payer',
-          docs: ['The payer account (mint authority or designated manager)'],
-          isSigner: true,
+          name: 'recipient',
+          docs: ['The recipient account for recovered rent'],
+          isSigner: false,
           isWritable: true,
         }),
         instructionAccountNode({
