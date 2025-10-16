@@ -62,25 +62,6 @@ impl AccountDeserialize for MintAuthority {
 
         Ok(config)
     }
-
-    /// Parse from account info, verifying ownership and data length
-    pub fn from_account_info(
-        account_info: &AccountInfo,
-    ) -> Result<Ref<MintAuthority>, ProgramError> {
-        if account_info.data_len() < Self::LEN {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        if !account_info.is_owned_by(&crate::ID) {
-            return Err(ProgramError::InvalidAccountOwner);
-        }
-
-        let data_ref = account_info.try_borrow_data()?;
-        let mint_authority = Self::try_from_bytes(&data_ref[..MintAuthority::LEN])?;
-        Ok(Ref::map(account_info.try_borrow_data()?, |_| {
-            &*Box::leak(Box::new(mint_authority))
-        }))
-    }
 }
 
 impl MintAuthority {
@@ -109,5 +90,24 @@ impl MintAuthority {
         }
 
         Ok(())
+    }
+
+    /// Parse from account info, verifying ownership and data length
+    pub fn from_account_info(
+        account_info: &AccountInfo,
+    ) -> Result<Ref<MintAuthority>, ProgramError> {
+        if account_info.data_len() < Self::LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        if !account_info.is_owned_by(&crate::ID) {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+
+        let data_ref = account_info.try_borrow_data()?;
+        let mint_authority = Self::try_from_bytes(&data_ref[..MintAuthority::LEN])?;
+        Ok(Ref::map(account_info.try_borrow_data()?, |_| {
+            &*Box::leak(Box::new(mint_authority))
+        }))
     }
 }
