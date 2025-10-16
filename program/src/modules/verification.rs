@@ -39,9 +39,7 @@ use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
-use crate::modules::{
-    verify_instructions_sysvar, verify_owner, verify_signer,
-};
+use crate::modules::{verify_instructions_sysvar, verify_owner, verify_signer};
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
     VerificationConfig,
