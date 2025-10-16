@@ -21,27 +21,16 @@ impl Processor {
     fn instruction_verification_profile(
         instruction: &SecurityTokenInstruction,
     ) -> VerificationProfile {
+        use SecurityTokenInstruction::*;
+        use VerificationProfile::*;
+
         match instruction {
-            SecurityTokenInstruction::InitializeMint => VerificationProfile::None,
-            SecurityTokenInstruction::Verify => VerificationProfile::None,
-            SecurityTokenInstruction::InitializeVerificationConfig => {
-                VerificationProfile::VerificationProgramsOrMintAuthority
-            }
-            SecurityTokenInstruction::UpdateVerificationConfig => {
-                VerificationProfile::VerificationProgramsOrMintAuthority
-            }
-            SecurityTokenInstruction::TrimVerificationConfig => {
-                VerificationProfile::VerificationProgramsOrMintAuthority
-            }
-            SecurityTokenInstruction::UpdateMetadata => {
-                VerificationProfile::VerificationProgramsOrMintAuthority
-            }
-            SecurityTokenInstruction::Burn => VerificationProfile::VerificationPrograms,
-            SecurityTokenInstruction::Mint => VerificationProfile::VerificationPrograms,
-            SecurityTokenInstruction::Pause => VerificationProfile::VerificationPrograms,
-            SecurityTokenInstruction::Resume => VerificationProfile::VerificationPrograms,
-            SecurityTokenInstruction::Freeze => VerificationProfile::VerificationPrograms,
-            SecurityTokenInstruction::Thaw => VerificationProfile::VerificationPrograms,
+            InitializeMint | Verify => None,
+            InitializeVerificationConfig
+            | UpdateVerificationConfig
+            | TrimVerificationConfig
+            | UpdateMetadata => VerificationProgramsOrMintAuthority,
+            Burn | Mint | Pause | Resume | Freeze | Thaw => VerificationPrograms,
         }
     }
 
