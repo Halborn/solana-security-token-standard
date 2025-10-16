@@ -108,8 +108,8 @@ const program = programNode({
         }),
         structFieldTypeNode({
           name: 'freezeAuthority',
-          docs: ['Optional freeze authority public key'],
-          type: optionTypeNode(publicKeyTypeNode()),
+          docs: ['Freeze authority public key'],
+          type: publicKeyTypeNode(),
         }),
       ]),
     }),
@@ -427,7 +427,7 @@ const program = programNode({
           name: 'mint',
           docs: ['The mint account (position 0 - required for verification)'],
           isSigner: false,
-          isWritable: true,
+          isWritable: false,
         }),
         instructionAccountNode({
           name: 'verificationConfig',
@@ -664,6 +664,400 @@ const program = programNode({
         instructionArgumentNode({
           name: 'args',
           type: definedTypeLinkNode('VerifyArgs'),
+        }),
+      ],
+    }),
+
+    // Mint (discriminant = 6)
+    instructionNode({
+      name: 'mint',
+      discriminators: [fieldDiscriminatorNode('discriminator', 6)],
+      docs: [
+        'Mint new tokens to a destination account after verification succeeds',
+      ],
+      accounts: [
+        instructionAccountNode({
+          name: 'mint',
+          docs: ['The mint account (position 0 - required for verification)'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: [
+            'The VerificationConfig PDA (position 1 - may not exist but position reserved)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: [
+            'The Instructions sysvar (position 2 - required for Instruction Introspection)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'creator',
+          docs: [
+            'Original mint creator account that must sign and matches the mint authority PDA seeds',
+          ],
+          isSigner: true,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'mintInfo',
+          docs: ['SPL Token mint account'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'mintAuthority',
+          docs: [
+            'Mint authority PDA account owned by the Security Token program',
+          ],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'destinationAccount',
+          docs: [
+            'Destination token account that will receive the newly minted tokens',
+          ],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'tokenProgram',
+          docs: ['SPL Token 2022 program account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(6),
+          defaultValueStrategy: 'omitted',
+        }),
+        instructionArgumentNode({
+          name: 'amount',
+          docs: ['Amount of tokens to mint'],
+          type: numberTypeNode('u64'),
+        }),
+      ],
+    }),
+
+    // Burn (discriminant = 7)
+    instructionNode({
+      name: 'burn',
+      discriminators: [fieldDiscriminatorNode('discriminator', 7)],
+      docs: ['Burn tokens from a holder account after verification succeeds'],
+      accounts: [
+        instructionAccountNode({
+          name: 'mint',
+          docs: ['The mint account (position 0 - required for verification)'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: [
+            'The VerificationConfig PDA (position 1 - may not exist but position reserved)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: [
+            'The Instructions sysvar (position 2 - required for Instruction Introspection)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'mintInfo',
+          docs: ['SPL Token mint account'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'permanentDelegate',
+          docs: [
+            'Permanent delegate PDA account derived for the mint (signs via program seeds)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'tokenAccount',
+          docs: ['Token account holding the balance to be burned'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'tokenProgram',
+          docs: ['SPL Token 2022 program account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(7),
+          defaultValueStrategy: 'omitted',
+        }),
+        instructionArgumentNode({
+          name: 'amount',
+          docs: ['Amount of tokens to burn'],
+          type: numberTypeNode('u64'),
+        }),
+      ],
+    }),
+
+    // Pause (discriminant = 8)
+    instructionNode({
+      name: 'pause',
+      discriminators: [fieldDiscriminatorNode('discriminator', 8)],
+      docs: ['Pause all token activity after verification succeeds'],
+      accounts: [
+        instructionAccountNode({
+          name: 'mint',
+          docs: ['The mint account (position 0 - required for verification)'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: [
+            'The VerificationConfig PDA (position 1 - required for pause verification)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: [
+            'The Instructions sysvar (position 2 - required for Instruction Introspection)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'mintInfo',
+          docs: ['SPL Token mint account'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'pauseAuthority',
+          docs: ['Pause authority PDA account derived for the mint'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'tokenProgram',
+          docs: ['SPL Token 2022 program account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(8),
+          defaultValueStrategy: 'omitted',
+        }),
+      ],
+    }),
+
+    // Resume (discriminant = 9)
+    instructionNode({
+      name: 'resume',
+      discriminators: [fieldDiscriminatorNode('discriminator', 9)],
+      docs: ['Resume token activity after verification succeeds'],
+      accounts: [
+        instructionAccountNode({
+          name: 'mint',
+          docs: ['The mint account (position 0 - required for verification)'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: [
+            'The VerificationConfig PDA (position 1 - required for resume verification)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: [
+            'The Instructions sysvar (position 2 - required for Instruction Introspection)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'mintInfo',
+          docs: ['SPL Token mint account'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'pauseAuthority',
+          docs: ['Pause authority PDA account derived for the mint'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'tokenProgram',
+          docs: ['SPL Token 2022 program account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(9),
+          defaultValueStrategy: 'omitted',
+        }),
+      ],
+    }),
+
+    // Freeze (discriminant = 10)
+    instructionNode({
+      name: 'freeze',
+      discriminators: [fieldDiscriminatorNode('discriminator', 10)],
+      docs: ['Freeze a token account after verification succeeds'],
+      accounts: [
+        instructionAccountNode({
+          name: 'mint',
+          docs: ['The mint account (position 0 - required for verification)'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: [
+            'The VerificationConfig PDA (position 1 - required for freeze verification)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: [
+            'The Instructions sysvar (position 2 - required for Instruction Introspection)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'mintInfo',
+          docs: ['SPL Token mint account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'freezeAuthority',
+          docs: ['Freeze authority PDA account derived for the mint'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'tokenAccount',
+          docs: ['Token account that will be frozen'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'tokenProgram',
+          docs: ['SPL Token 2022 program account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(10),
+          defaultValueStrategy: 'omitted',
+        }),
+      ],
+    }),
+
+    // Thaw (discriminant = 11)
+    instructionNode({
+      name: 'thaw',
+      discriminators: [fieldDiscriminatorNode('discriminator', 11)],
+      docs: [
+        'Thaw a previously frozen token account after verification succeeds',
+      ],
+      accounts: [
+        instructionAccountNode({
+          name: 'mint',
+          docs: ['The mint account (position 0 - required for verification)'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'verificationConfig',
+          docs: [
+            'The VerificationConfig PDA (position 1 - required for thaw verification)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'instructionsSysvar',
+          docs: [
+            'The Instructions sysvar (position 2 - required for Instruction Introspection)',
+          ],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'mintInfo',
+          docs: ['SPL Token mint account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'freezeAuthority',
+          docs: ['Freeze authority PDA account derived for the mint'],
+          isSigner: false,
+          isWritable: false,
+        }),
+        instructionAccountNode({
+          name: 'tokenAccount',
+          docs: ['Token account that will be thawed'],
+          isSigner: false,
+          isWritable: true,
+        }),
+        instructionAccountNode({
+          name: 'tokenProgram',
+          docs: ['SPL Token 2022 program account'],
+          isSigner: false,
+          isWritable: false,
+        }),
+      ],
+      arguments: [
+        instructionArgumentNode({
+          name: 'discriminator',
+          type: numberTypeNode('u8'),
+          defaultValue: numberValueNode(11),
+          defaultValueStrategy: 'omitted',
         }),
       ],
     }),

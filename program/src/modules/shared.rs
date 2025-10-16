@@ -1,7 +1,7 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use pinocchio_log::log;
 
-use crate::state::{AccountDeserialize, MintAuthority};
+use crate::state::MintAuthority;
 use crate::{acc_info_as_str, utils};
 
 /// Verify account as a signer, returning an error if it is not or if it is not writable while
@@ -84,12 +84,7 @@ pub fn verify_mint_authority(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let data = mint_authority.try_borrow_data()?;
-    if data.len() < MintAuthority::LEN {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    let mint_authority_state = MintAuthority::try_from_bytes(&data)?;
+    let mint_authority_state = MintAuthority::from_account_info(mint_authority)?;
 
     if mint_authority_state.mint != *mint_info.key() {
         return Err(ProgramError::InvalidAccountData);
@@ -101,6 +96,44 @@ pub fn verify_mint_authority(
 
     if mint_authority_state.bump != expected_bump {
         return Err(ProgramError::InvalidAccountData);
+    }
+
+    Ok(())
+}
+
+/// Verify account as system program, returning an error if it is not.
+///
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_system_program(info: &AccountInfo) -> Result<(), ProgramError> {
+    if info.key().ne(&pinocchio_system::ID) {
+        log!(
+            "Account {} is not the system program",
+            acc_info_as_str!(info)
+        );
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
+}
+
+/// Verify account as Token 2022 program, returning an error if it is not.
+///
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_token22_program(info: &AccountInfo) -> Result<(), ProgramError> {
+    if info.key().ne(&pinocchio_token_2022::ID) {
+        log!(
+            "Account {} is not the Token 2022 program",
+            acc_info_as_str!(info)
+        );
+        return Err(ProgramError::IncorrectProgramId);
     }
 
     Ok(())

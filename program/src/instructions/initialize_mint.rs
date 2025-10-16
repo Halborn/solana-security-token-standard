@@ -13,7 +13,7 @@ pub struct InitializeMintArgs {
     /// Mint authority public key
     pub mint_authority: Pubkey,
     /// Optional freeze authority public key
-    pub freeze_authority: Option<Pubkey>,
+    pub freeze_authority: Pubkey,
 }
 
 impl InitializeMintArgs {
@@ -27,13 +27,8 @@ impl InitializeMintArgs {
         // Pack mint authority (32 bytes)
         buf.extend_from_slice(self.mint_authority.as_ref());
 
-        // Pack freeze authority option (1 byte flag + 32 bytes if Some)
-        if let Some(freeze_auth) = self.freeze_authority {
-            buf.push(1); // has freeze authority
-            buf.extend_from_slice(freeze_auth.as_ref());
-        } else {
-            buf.push(0); // no freeze authority
-        }
+        // Freeze authority (32 bytes)
+        buf.extend_from_slice(self.freeze_authority.as_ref());
 
         buf
     }
@@ -50,18 +45,9 @@ impl InitializeMintArgs {
             .try_into()
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-        let freeze_authority = if data[33] == 1 {
-            if data.len() < 66 {
-                return Err(ProgramError::InvalidInstructionData);
-            }
-            Some(
-                data[34..66]
-                    .try_into()
-                    .map_err(|_| ProgramError::InvalidInstructionData)?,
-            )
-        } else {
-            None
-        };
+        let freeze_authority = data[33..65]
+            .try_into()
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
 
         Ok(Self {
             decimals,
@@ -236,7 +222,7 @@ impl<'a> InitializeArgs<'a> {
     pub fn new(
         decimals: u8,
         mint_authority: Pubkey,
-        freeze_authority: Option<Pubkey>,
+        freeze_authority: Pubkey,
         metadata_pointer: Option<MetadataPointer>,
         metadata: Option<TokenMetadata<'a>>,
         scaled_ui_amount: Option<ScaledUiAmountConfig>,
@@ -305,11 +291,7 @@ impl<'a> InitializeArgs<'a> {
         let ix_mint = InitializeMintArgs::try_from_bytes(data)?;
 
         // Determine the offset after mint args
-        let mut offset = if ix_mint.freeze_authority.is_some() {
-            66 // 1 + 32 + 1 + 32
-        } else {
-            34 // 1 + 32 + 1
-        };
+        let mut offset = 65;
 
         if data.len() <= offset {
             // No extensions
@@ -473,7 +455,7 @@ mod tests {
     #[test]
     fn test_initialize_mint_args_to_bytes_inner_try_from_bytes() {
         let mint_authority = random_pubkey();
-        let freeze_authority = Some(random_pubkey());
+        let freeze_authority = random_pubkey();
 
         let original = InitializeMintArgs {
             decimals: 6,
@@ -492,7 +474,7 @@ mod tests {
     #[test]
     fn test_initialize_args_with_metadata_and_scaled_ui_amount() {
         let mint_authority = random_pubkey();
-        let freeze_authority = Some(random_pubkey());
+        let freeze_authority = random_pubkey();
         let update_authority = random_pubkey();
         let multiplier_authority = random_pubkey();
         let mint = random_pubkey();
@@ -585,7 +567,7 @@ mod tests {
     #[test]
     fn test_initialize_args_with_metadata() {
         let mint_authority = random_pubkey();
-        let freeze_authority = Some(random_pubkey());
+        let freeze_authority = random_pubkey();
 
         // Create a test with simple metadata (no scaled UI amount for simplicity)
         let original = InitializeArgs::new(
@@ -618,13 +600,15 @@ mod tests {
     #[test]
     fn test_validate() {
         let mint_authority = random_pubkey();
+        let freeze_authority = random_pubkey();
 
         // Valid args without metadata
-        let valid_args = InitializeArgs::new(6, mint_authority, None, None, None, None);
+        let valid_args = InitializeArgs::new(6, mint_authority, freeze_authority, None, None, None);
         assert!(valid_args.validate().is_ok());
 
         // Invalid decimals
-        let invalid_decimals = InitializeArgs::new(25, mint_authority, None, None, None, None);
+        let invalid_decimals =
+            InitializeArgs::new(25, mint_authority, freeze_authority, None, None, None);
         assert!(invalid_decimals.validate().is_err());
 
         // Test with a valid metadata pointer but no metadata (this should be valid)
@@ -635,7 +619,7 @@ mod tests {
         let valid_with_metadata_pointer_only = InitializeArgs::new(
             6,
             mint_authority,
-            None,
+            freeze_authority,
             Some(metadata_pointer),
             None, // no metadata
             None,
@@ -664,7 +648,7 @@ mod tests {
         let valid_with_metadata = InitializeArgs::new(
             6,
             mint_authority,
-            None,
+            freeze_authority,
             Some(metadata_pointer),
             Some(valid_metadata),
             None,
@@ -687,7 +671,7 @@ mod tests {
         let metadata_without_pointer = InitializeArgs::new(
             6,
             mint_authority,
-            None,
+            freeze_authority,
             None,
             Some(metadata_for_invalid_test),
             None,
@@ -710,7 +694,7 @@ mod tests {
         let invalid_metadata = InitializeArgs::new(
             6,
             mint_authority,
-            None,
+            freeze_authority,
             Some(metadata_pointer),
             Some(bad_metadata),
             None,

@@ -59,7 +59,7 @@ impl VerificationModule {
 
         let decimals = args.ix_mint.decimals;
         let client_mint_authority = args.ix_mint.mint_authority;
-        let freeze_authority_opt = args.ix_mint.freeze_authority;
+        let freeze_authority = args.ix_mint.freeze_authority;
         let metadata_pointer_opt = &args.ix_metadata_pointer;
         let metadata_opt = &args.ix_metadata;
         let scaled_ui_amount_opt = &args.ix_scaled_ui_amount;
@@ -91,6 +91,14 @@ impl VerificationModule {
 
         verify_signer(creator_info, false)?;
         verify_signer(mint_info, false)?;
+
+        let (freeze_authority_pda, _bump) =
+            utils::find_freeze_authority_pda(mint_info.key(), program_id);
+
+        if freeze_authority != freeze_authority_pda {
+            log!("Freeze authority PDA mismatch");
+            return Err(ProgramError::InvalidSeeds);
+        }
 
         let mut extensions_buf: [ExtensionType; 5] = [ExtensionType::Pausable; 5];
         let mut ext_count: usize = 0;
@@ -164,8 +172,8 @@ impl VerificationModule {
         let (transfer_hook_pda, _bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
         let (permanent_delegate_pda, _bump) =
             utils::find_permanent_delegate_pda(mint_info.key(), program_id);
-        let (freeze_authority_pda, _bump) =
-            utils::find_freeze_authority_pda(mint_info.key(), program_id);
+        let (pause_authority_pda, _bump) =
+            utils::find_pause_authority_pda(mint_info.key(), program_id);
 
         // Initialize extensions BEFORE base mint initialization
         log!("Extensions setup - initializing extensions BEFORE basic mint");
@@ -187,7 +195,7 @@ impl VerificationModule {
 
         let pausable_initialize = InitializePausable {
             mint: mint_info,
-            authority: freeze_authority_pda,
+            authority: pause_authority_pda,
         };
 
         pausable_initialize.invoke()?;
@@ -246,7 +254,7 @@ impl VerificationModule {
             mint: mint_info,
             decimals,
             mint_authority: &client_mint_authority,
-            freeze_authority: freeze_authority_opt.as_ref(),
+            freeze_authority: Some(&freeze_authority),
         };
 
         initialize_mint_instruction.invoke()?;
@@ -696,7 +704,7 @@ impl VerificationModule {
 
         // TODO: Should we pass?
         if verification_config.data_is_empty() {
-            log!("No VerificationConfig found");
+            log!("No verification programs required - passing");
             return Ok(());
         }
 

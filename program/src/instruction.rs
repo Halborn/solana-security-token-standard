@@ -53,6 +53,66 @@ pub enum SecurityTokenInstruction {
     /// 2. `[]` Instructions sysvar (for introspection mode)
     /// 3. Remaining accounts depend on the instruction being verified and CPI mode requirements
     Verify = 5,
+    /// Mint new tokens after verification succeeds
+    /// Accounts expected:
+    /// 0. `[]` The mint account (used for verification config PDA derivation)
+    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
+    /// 2. `[]` Instructions sysvar for introspection-based verification
+    /// 3. `[signer]` Original mint creator account that matches the mint authority PDA seeds
+    /// 4. `[writable]` SPL Token mint account
+    /// 5. `[writable]` Mint authority PDA account (owned by this program)
+    /// 6. `[writable]` Destination token account to receive newly minted tokens
+    /// 7. `[]` System program account
+    /// 8. `[]` SPL Token 2022 program account
+    Mint = 6,
+    /// Burn tokens from a holder account after verification succeeds
+    /// Accounts expected:
+    /// 0. `[]` The mint account (used for verification config PDA derivation)
+    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
+    /// 2. `[]` Instructions sysvar for introspection-based verification
+    /// 3. `[writable]` SPL Token mint account
+    /// 4. `[]` Permanent delegate PDA account derived for the mint (signs via PDA seeds)
+    /// 5. `[writable]` Token account holding the balance to burn
+    /// 6. `[]` SPL Token 2022 program account
+    Burn = 7,
+    /// Pause all token activity after verification succeeds
+    /// Accounts expected:
+    /// 0. `[]` The mint account (used for verification config PDA derivation)
+    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
+    /// 2. `[]` Instructions sysvar for introspection-based verification
+    /// 3. `[writable]` SPL Token mint account (the mint to pause)
+    /// 4. `[]` Pause authority PDA account derived for the mint
+    /// 5. `[]` SPL Token 2022 program account
+    Pause = 8,
+    /// Resume all token activity after verification succeeds
+    /// Accounts expected:
+    /// 0. `[]` The mint account (used for verification config PDA derivation)
+    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
+    /// 2. `[]` Instructions sysvar for introspection-based verification
+    /// 3. `[writable]` SPL Token mint account (the mint to resume)
+    /// 4. `[]` Pause authority PDA account derived for the mint
+    /// 5. `[]` SPL Token 2022 program account
+    Resume = 9,
+    /// Freeze a token account after verification succeeds
+    /// Accounts expected:
+    /// 0. `[]` The mint account (used for verification config PDA derivation)
+    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
+    /// 2. `[]` Instructions sysvar for introspection-based verification
+    /// 3. `[]` SPL Token mint account
+    /// 4. `[]` Freeze authority PDA account derived for the mint (signs via PDA seeds)
+    /// 5. `[writable]` Token account that will be frozen
+    /// 6. `[]` SPL Token 2022 program account
+    Freeze = 10,
+    /// Thaw a frozen token account after verification succeeds
+    /// Accounts expected:
+    /// 0. `[]` The mint account (used for verification config PDA derivation)
+    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
+    /// 2. `[]` Instructions sysvar for introspection-based verification
+    /// 3. `[]` SPL Token mint account
+    /// 4. `[]` Freeze authority PDA account derived for the mint (signs via PDA seeds)
+    /// 5. `[writable]` Token account that will be thawed
+    /// 6. `[]` SPL Token 2022 program account
+    Thaw = 11,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -66,6 +126,12 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             3 => Ok(SecurityTokenInstruction::UpdateVerificationConfig),
             4 => Ok(SecurityTokenInstruction::TrimVerificationConfig),
             5 => Ok(SecurityTokenInstruction::Verify),
+            6 => Ok(SecurityTokenInstruction::Mint),
+            7 => Ok(SecurityTokenInstruction::Burn),
+            8 => Ok(SecurityTokenInstruction::Pause),
+            9 => Ok(SecurityTokenInstruction::Resume),
+            10 => Ok(SecurityTokenInstruction::Freeze),
+            11 => Ok(SecurityTokenInstruction::Thaw),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

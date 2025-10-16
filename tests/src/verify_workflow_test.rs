@@ -108,6 +108,11 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         &SECURITY_TOKEN_ID,
     );
 
+    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
+        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
+        &SECURITY_TOKEN_ID,
+    );
+
     let init_mint_instruction = security_token_client::InitializeMint {
         mint: mint_pubkey,
         payer: payer.pubkey(),
@@ -121,7 +126,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
             ix_mint: security_token_client::InitializeMintArgs {
                 decimals: 6,
                 mint_authority: payer.pubkey(),
-                freeze_authority: Some(payer.pubkey()),
+                freeze_authority: freeze_authority_pda,
             },
             ix_metadata_pointer: None,
             ix_metadata: None,
@@ -409,6 +414,11 @@ async fn test_update_metadata_under_verification() {
         &SECURITY_TOKEN_ID,
     );
 
+    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
+        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
+        &SECURITY_TOKEN_ID,
+    );
+
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
@@ -422,7 +432,7 @@ async fn test_update_metadata_under_verification() {
             ix_mint: InitializeMintArgs {
                 decimals: 6,
                 mint_authority: context.payer.pubkey(),
-                freeze_authority: None, // No freeze authority for this test
+                freeze_authority: freeze_authority_pda,
             },
             ix_metadata_pointer: Some(MetadataPointer {
                 authority: context.payer.pubkey(),
