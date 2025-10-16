@@ -1184,7 +1184,6 @@ impl VerificationModule {
         let [config_account, mint_account, recipient, _system_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        // verify_signer(payer, false)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
