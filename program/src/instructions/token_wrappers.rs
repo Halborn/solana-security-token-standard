@@ -1,6 +1,7 @@
 //! Token extension wrappers
 
 use pinocchio::account_info::AccountInfo;
+use pinocchio::cpi::invoke_signed;
 use pinocchio::instruction::{AccountMeta, Instruction, Signer};
 use pinocchio::ProgramResult;
 use pinocchio_token_2022::extensions::metadata::InitializeTokenMetadata;
@@ -170,5 +171,85 @@ impl<'a> CustomInitializeTokenMetadata<'a> {
             ],
             &[],
         )
+    }
+}
+
+/// Wrapper for the Pause instruction.
+pub struct CustomPause<'a> {
+    /// The mint to pause
+    pub mint: &'a AccountInfo,
+    /// The mint's pause authority
+    pub pause_authority: &'a AccountInfo,
+}
+
+impl CustomPause<'_> {
+    /// Invoke the Pause instruction.
+    #[inline(always)]
+    pub fn invoke(&self) -> ProgramResult {
+        self.invoke_signed(&[])
+    }
+
+    /// Invoke the Pause instruction with signers.
+    /// NOTE: The implementation from the third party repository has wrong data bytes and account metas.
+    #[inline(always)]
+    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
+        let account_metas: [AccountMeta; 2] = [
+            AccountMeta::writable(self.mint.key()),
+            AccountMeta::readonly_signer(self.pause_authority.key()),
+        ];
+        // Instruction data Layout:
+        // -  [0]: token instruction discriminator (PausableExtension)
+        // -  [1]: pausable extension sub-instruction (Pause)
+        let instruction_data = [44u8, 1u8];
+
+        let instruction = Instruction {
+            program_id: &pinocchio_token_2022::ID,
+            accounts: &account_metas,
+            data: &instruction_data,
+        };
+
+        invoke_signed(&instruction, &[self.mint, self.pause_authority], signers)?;
+
+        Ok(())
+    }
+}
+
+/// Wrapper for the Resume instruction.
+pub struct CustomResume<'a> {
+    /// The mint to pause
+    pub mint: &'a AccountInfo,
+    /// The mint's pause authority
+    pub pause_authority: &'a AccountInfo,
+}
+
+impl CustomResume<'_> {
+    /// Invoke the Resume instruction.
+    #[inline(always)]
+    pub fn invoke(&self) -> ProgramResult {
+        self.invoke_signed(&[])
+    }
+
+    /// Invoke the Resume instruction with signers.
+    /// NOTE: The implementation from the third party repository has wrong data bytes and account metas.
+    #[inline(always)]
+    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
+        let account_metas: [AccountMeta; 2] = [
+            AccountMeta::writable(self.mint.key()),
+            AccountMeta::readonly_signer(self.pause_authority.key()),
+        ];
+        // Instruction data Layout:
+        // -  [0]: token instruction discriminator (PausableExtension)
+        // -  [1]: pausable extension sub-instruction (Resume)
+        let instruction_data = [44u8, 2];
+
+        let instruction = Instruction {
+            program_id: &pinocchio_token_2022::ID,
+            accounts: &account_metas,
+            data: &instruction_data,
+        };
+
+        invoke_signed(&instruction, &[self.mint, self.pause_authority], signers)?;
+
+        Ok(())
     }
 }

@@ -6,7 +6,7 @@ use crate::{
         InitializeVerificationConfigInstructionArgs, UpdateMetadataArgs,
         UpdateVerificationConfigInstructionArgs, VerifyArgs,
     },
-    modules::{verification::VerificationModule, VerificationProfile},
+    modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
 use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
@@ -34,6 +34,12 @@ impl Processor {
                 VerificationProfile::VerificationProgramsOrMintAuthority
             }
             SecurityTokenInstruction::UpdateMetadata => VerificationProfile::VerificationPrograms,
+            SecurityTokenInstruction::Burn => VerificationProfile::VerificationPrograms,
+            SecurityTokenInstruction::Mint => VerificationProfile::VerificationPrograms,
+            SecurityTokenInstruction::Pause => VerificationProfile::VerificationPrograms,
+            SecurityTokenInstruction::Resume => VerificationProfile::VerificationPrograms,
+            SecurityTokenInstruction::Freeze => VerificationProfile::VerificationPrograms,
+            SecurityTokenInstruction::Thaw => VerificationProfile::VerificationPrograms,
         }
     }
 
@@ -102,6 +108,22 @@ impl Processor {
             SecurityTokenInstruction::UpdateMetadata => {
                 Self::process_update_metadata(program_id, instruction_accounts, args_data)
             }
+            SecurityTokenInstruction::Mint => {
+                Self::process_mint(program_id, instruction_accounts, args_data)
+            }
+            SecurityTokenInstruction::Burn => {
+                Self::process_burn(program_id, instruction_accounts, args_data)
+            }
+            SecurityTokenInstruction::Pause => {
+                Self::process_pause(program_id, instruction_accounts)
+            }
+            SecurityTokenInstruction::Resume => {
+                Self::process_resume(program_id, instruction_accounts)
+            }
+            SecurityTokenInstruction::Freeze => {
+                Self::process_freeze(program_id, instruction_accounts)
+            }
+            SecurityTokenInstruction::Thaw => Self::process_thaw(program_id, instruction_accounts),
         }
     }
 
@@ -171,6 +193,56 @@ impl Processor {
     ) -> ProgramResult {
         let instruction_args = VerifyArgs::try_from_bytes(args_data)?;
         VerificationModule::verify_instruction(program_id, accounts, &instruction_args)?;
+        Ok(())
+    }
+
+    fn process_mint(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        // NOTE: Change to MintArgs structure?
+        let amount = args_data
+            .get(..8)
+            .and_then(|slice| slice.try_into().ok())
+            .map(u64::from_le_bytes)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        OperationsModule::execute_mint(program_id, accounts, amount)?;
+        Ok(())
+    }
+
+    fn process_burn(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        // NOTE: Change to BurnArgs structure?
+        let amount = args_data
+            .get(..8)
+            .and_then(|slice| slice.try_into().ok())
+            .map(u64::from_le_bytes)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        OperationsModule::execute_burn(program_id, accounts, amount)?;
+        Ok(())
+    }
+
+    fn process_pause(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        OperationsModule::execute_pause(program_id, accounts)?;
+        Ok(())
+    }
+
+    fn process_resume(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        OperationsModule::execute_resume(program_id, accounts)?;
+        Ok(())
+    }
+
+    fn process_freeze(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        OperationsModule::execute_freeze_account(program_id, accounts)?;
+        Ok(())
+    }
+
+    fn process_thaw(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        OperationsModule::execute_thaw_account(program_id, accounts)?;
         Ok(())
     }
 }
