@@ -68,6 +68,23 @@ pub fn find_account_delegate_pda(account: &Pubkey, program_id: &Pubkey) -> (Pubk
     find_program_address(&[seeds::ACCOUNT_DELEGATE, account.as_ref()], program_id)
 }
 
+/// Derive rate PDA
+/// Seeds: ["security_token.accounts.rate", action_id, mints...]
+pub fn find_rate_pda(
+    action_id: u64,
+    mints: Vec<Pubkey>,
+    program_id: &Pubkey,
+) -> (Pubkey, u8) {
+    let mints_seed = mints.iter()
+        .flat_map(|pubkey| pubkey.to_vec())
+        .collect::<Vec<u8>>();
+
+    find_program_address(
+        &[seeds::RATE_ACCOUNT, &action_id.to_le_bytes(), mints_seed.as_ref()],
+        program_id,
+    )
+}
+
 /// Parse additional metadata from raw bytes in TLV format
 /// Calls the provided callback for each key-value pair found
 pub fn parse_additional_metadata<F>(data: &[u8], mut callback: F) -> Result<(), ProgramError>

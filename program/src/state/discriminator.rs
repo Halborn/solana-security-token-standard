@@ -12,6 +12,7 @@ pub trait Discriminator {
 pub enum SecurityTokenDiscriminators {
     MintAuthorityDiscriminator = 0,
     VerificationConfigDiscriminator = 1,
+    RateDiscriminator = 2,
 }
 
 impl TryFrom<u8> for SecurityTokenDiscriminators {

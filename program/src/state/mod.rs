@@ -7,9 +7,11 @@
 
 pub mod discriminator;
 pub mod mint_authority;
+pub mod rate;
 pub mod verification;
 
 // Re-export all structures for convenience
 pub use discriminator::*;
 pub use mint_authority::*;
+pub use rate::*;
 pub use verification::*;
