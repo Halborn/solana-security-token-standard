@@ -1,4 +1,4 @@
-use crate::acc_info_as_str;
+use crate::{acc_info_as_str, key_as_str};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use pinocchio_log::log;
 
@@ -73,6 +73,22 @@ pub fn verify_token22_program(info: &AccountInfo) -> Result<(), ProgramError> {
     if info.key().ne(&pinocchio_token_2022::ID) {
         log!(
             "Account {} is not the Token 2022 program",
+            acc_info_as_str!(info),
+        );
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
+}
+
+/// Verify account as instructions sysvar, returning an error if it is not.
+pub fn verify_instructions_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
+    if info
+        .key()
+        .ne(&pinocchio::sysvars::instructions::INSTRUCTIONS_ID)
+    {
+        log!(
+            "Account {} is not the instructions sysvar",
             acc_info_as_str!(info)
         );
         return Err(ProgramError::IncorrectProgramId);

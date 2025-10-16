@@ -39,7 +39,9 @@ use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
-use crate::modules::{verify_owner, verify_signer};
+use crate::modules::{
+    verify_instructions_sysvar, verify_owner, verify_signer,
+};
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
     VerificationConfig,
@@ -812,9 +814,7 @@ impl VerificationModule {
             return Err(ProgramError::UninitializedAccount);
         }
 
-        // TODO: Check t22 is missing
-        // Add then https://github.com/hoodieshq/security-token/pull/53 will be merged
-
+        verify_instructions_sysvar(instructions_sysvar)?;
         verify_owner(verification_config, program_id)?;
 
         let (expected_pda, _bump) =
