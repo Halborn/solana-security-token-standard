@@ -95,8 +95,8 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_signer(creator_info, false)?;
-        verify_signer(mint_info, false)?;
+        verify_signer(creator_info, true)?;
+        verify_signer(mint_info, true)?;
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
         verify_rent_sysvar(rent_info)?;
@@ -984,17 +984,11 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::InitializeVerificationConfigArgs,
     ) -> ProgramResult {
-        // Expected accounts:
-        // 0. [writable] VerificationConfig PDA (derived from instruction_id + mint)
-        // 1. [writable, signer] Payer (for account creation)
-        // 2. [] Mint account
-        // 3. [] System program
-
         let [config_account, payer, mint_account, system_program_info] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_signer(payer, false)?;
+        verify_signer(payer, true)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_system_program(system_program_info)?;
 
@@ -1072,17 +1066,12 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::UpdateVerificationConfigArgs,
     ) -> ProgramResult {
-        // Expected accounts:
-        // 0. [writable] VerificationConfig PDA account
-        // 1. [] Mint account
-        // 2. [signer] Payer (for rent if resizing is needed)
-        // 3. [] System program (if resizing is needed)
         let [config_account, mint_account, payer, system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         verify_owner(config_account, program_id)?;
-        verify_signer(payer, false)?;
+        verify_signer(payer, true)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_system_program(system_program_info)?;
 
@@ -1184,12 +1173,6 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &TrimVerificationConfigArgs,
     ) -> ProgramResult {
-        // Expected accounts:
-        // 0. [writable] VerificationConfig PDA account
-        // 1. [] Mint account
-        // 2. [signer, writable] Payer (mint authority or designated config authority)
-        // 3. [] System program ID (optional for closing account)
-
         let [config_account, mint_account, recipient, system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
