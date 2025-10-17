@@ -413,7 +413,7 @@ impl VerificationModule {
 
         // Validate arguments
         args.validate()?;
-        // TODO: authority info must be renamed to payer?
+
         let [mint_info, authority_info, token_program_info, system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
