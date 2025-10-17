@@ -5,7 +5,7 @@
 
 use crate::constants::seeds;
 use crate::instructions::{CustomPause, CustomResume};
-use crate::modules::{verify_signer, verify_token22_program};
+use crate::modules::{verify_owner, verify_signer, verify_token22_program};
 use crate::state::MintAuthority;
 use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda};
 use pinocchio::instruction::{Seed, Signer};
@@ -22,7 +22,7 @@ impl OperationsModule {
     /// Mint tokens to an account
     /// Wrapper for SPL Token MintToChecked instruction
     pub fn execute_mint(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
@@ -33,6 +33,9 @@ impl OperationsModule {
         };
         verify_token22_program(token_program)?;
         verify_signer(creator_signer, false)?;
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
+        verify_owner(destination_account_info, &pinocchio_token_2022::ID)?;
+        verify_owner(mint_authority, program_id)?;
 
         log!("All checks passed, proceeding to mint {} tokens", amount);
 
@@ -77,6 +80,8 @@ impl OperationsModule {
         };
 
         verify_token22_program(token_program)?;
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
+        verify_owner(token_account, &pinocchio_token_2022::ID)?;
 
         let (permanent_delegate_pda, bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
@@ -115,6 +120,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
+
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
             return Err(ProgramError::InvalidSeeds);
@@ -145,6 +152,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
+
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
             return Err(ProgramError::InvalidSeeds);
@@ -174,6 +183,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
+        verify_owner(token_account, &pinocchio_token_2022::ID)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
@@ -204,6 +215,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+        verify_owner(token_account, &pinocchio_token_2022::ID)?;
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {

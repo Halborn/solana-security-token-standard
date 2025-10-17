@@ -82,6 +82,11 @@ pub fn verify_token22_program(info: &AccountInfo) -> Result<(), ProgramError> {
 }
 
 /// Verify account as instructions sysvar, returning an error if it is not.
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
 pub fn verify_instructions_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
     if info
         .key()
@@ -91,6 +96,21 @@ pub fn verify_instructions_sysvar(info: &AccountInfo) -> Result<(), ProgramError
             "Account {} is not the instructions sysvar",
             acc_info_as_str!(info)
         );
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
+}
+
+/// Verify account as rent sysvar, returning an error if it is not.
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_rent_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
+    if info.key().ne(&pinocchio::sysvars::rent::RENT_ID) {
+        log!("Account {} is not the rent sysvar", acc_info_as_str!(info));
         return Err(ProgramError::IncorrectProgramId);
     }
 
