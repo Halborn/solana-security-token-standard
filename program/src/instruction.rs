@@ -1,20 +1,19 @@
-use num_derive::FromPrimitive;
 use pinocchio::program_error::ProgramError;
+use shank::ShankInstruction;
 
 /// Security Token Program instructions
-#[derive(Clone, Debug, PartialEq, FromPrimitive)]
+#[repr(u8)]
+#[derive(Clone)]
 pub enum SecurityTokenInstruction {
     /// Initialize a new security token mint with metadata and compliance features
-    /// Accounts expected:
-    /// 0. `[writable, signer]` The mint account (must be a signer when creating new account)
-    /// 1. `[signer]` The creator/payer account
-    /// 2. `[]` The SPL Token 2022 program ID
-    /// 3. `[]` The system program ID
-    /// 4. `[]` The rent sysvar
+    // #[account(0, writable, signer, name = "mint")]
+    // #[account(1, signer, name = "payer")]
+    // #[account(2, signer, name = "authority")]
+    // #[account(3, name = "SPL Token 2022 Program")]
+    // #[account(4, name = "System Program")]
+    // #[account(5, name = "Rent Sysvar")]
     InitializeMint = 0,
     /// Update the metadata of an existing security token mint
-    /// Accounts expected:
-    /// * Authorization through verification programs
     /// 0. `[]` The mint account
     /// 1. `[]` The verification config PDA account
     /// 2. `[]` Instructions sysvar (for introspection mode)
@@ -30,24 +29,6 @@ pub enum SecurityTokenInstruction {
     /// 6. `[]` The system program ID - NOTE: Add lamports if needed
     /// 7. `[]` the remaining accounts for the verification purposes
     UpdateMetadata = 1,
-    /// Initialize verification configuration for an instruction
-    /// Accounts expected:
-    /// * Authorization through verification programs
-    /// 0. `[]` The mint account
-    /// 1. `[]` The verification config PDA account
-    /// 2. `[]` Instructions sysvar (for introspection mode)
-    ///
-    /// * Authorization through mint authority
-    /// 0. `[]` The mint account
-    /// 1. `[]` The mint authority PDA account
-    /// 2. `[signer]` The mint creator account
-    ///
-    /// * Instruction accounts:
-    /// 3. `[writable]` The VerificationConfig PDA account
-    /// 4. `[writable, signer]` The payer account  
-    /// 5. `[]` The mint account
-    /// 6. `[signer]` The authority account (mint authority)
-    /// 7. `[]` The system program ID
     InitializeVerificationConfig = 2,
     /// Update verification configuration for an instruction
     /// Accounts expected:
@@ -201,5 +182,120 @@ impl SecurityTokenInstruction {
     /// Create instruction from discriminant byte
     pub fn from_discriminant(discriminant: u8) -> Option<Self> {
         Self::try_from(discriminant).ok()
+    }
+}
+
+mod idl_gen {
+
+    use crate::instructions::{
+        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateVerificationConfigArgs,
+    };
+
+    #[derive(shank::ShankInstruction)]
+    #[repr(u8)]
+    enum _SecurityTokenInstruction {
+        #[account(0, name = "mint", desc = "Mint used when deriving verification PDAs")]
+        #[account(
+            1,
+            name = "verification_config_or_mint_authority",
+            desc = "VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback"
+        )]
+        #[account(
+            2,
+            name = "instructions_sysvar_or_creator",
+            desc = "Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback"
+        )]
+        #[account(
+            3,
+            writable,
+            name = "config_account",
+            desc = "VerificationConfig PDA being created"
+        )]
+        #[account(
+            4,
+            writable,
+            signer,
+            name = "payer",
+            desc = "Payer funding the new VerificationConfig account"
+        )]
+        #[account(
+            5,
+            name = "mint_account",
+            desc = "SPL Token 2022 mint the configuration applies to"
+        )]
+        #[account(
+            6,
+            name = "system_program",
+            desc = "System program used for account creation"
+        )]
+        InitializeVerificationConfig(InitializeVerificationConfigArgs) = 2,
+
+        #[account(0, name = "mint", desc = "Mint used when deriving verification PDAs")]
+        #[account(
+            1,
+            name = "verification_config_or_mint_authority",
+            desc = "VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback"
+        )]
+        #[account(
+            2,
+            name = "instructions_sysvar_or_creator",
+            desc = "Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback"
+        )]
+        #[account(
+            3,
+            writable,
+            name = "config_account",
+            desc = "VerificationConfig PDA account to update"
+        )]
+        #[account(
+            4,
+            name = "mint_account",
+            desc = "SPL Token 2022 mint the configuration applies to"
+        )]
+        #[account(
+            5,
+            writable,
+            signer,
+            name = "payer",
+            desc = "Payer covering any additional rent during update"
+        )]
+        #[account(6, name = "system_program", desc = "System program for reallocations")]
+        UpdateVerificationConfig(UpdateVerificationConfigArgs) = 3,
+
+        #[account(0, name = "mint", desc = "Mint used when deriving verification PDAs")]
+        #[account(
+            1,
+            name = "verification_config_or_mint_authority",
+            desc = "VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback"
+        )]
+        #[account(
+            2,
+            name = "instructions_sysvar_or_creator",
+            desc = "Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback"
+        )]
+        #[account(
+            3,
+            writable,
+            name = "config_account",
+            desc = "VerificationConfig PDA account to trim"
+        )]
+        #[account(
+            4,
+            name = "mint_account",
+            desc = "SPL Token 2022 mint the configuration applies to"
+        )]
+        #[account(
+            5,
+            writable,
+            name = "recipient",
+            desc = "Recipient account that receives reclaimed lamports"
+        )]
+        #[account(
+            6,
+            name = "system_program",
+            desc = "System program for closing or reallocating accounts"
+        )]
+        TrimVerificationConfig(TrimVerificationConfigArgs) = 4,
+        
     }
 }

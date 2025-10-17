@@ -1,0 +1,353 @@
+{
+  "version": "0.1.0",
+  "name": "security_token_program",
+  "instructions": [
+    {
+      "name": "InitializeVerificationConfig",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Mint used when deriving verification PDAs"
+          ]
+        },
+        {
+          "name": "verificationConfigOrMintAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback"
+          ]
+        },
+        {
+          "name": "instructionsSysvarOrCreator",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback"
+          ]
+        },
+        {
+          "name": "configAccount",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "VerificationConfig PDA being created"
+          ]
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "Payer funding the new VerificationConfig account"
+          ]
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "SPL Token 2022 mint the configuration applies to"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System program used for account creation"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "initializeVerificationConfigArgs",
+          "type": {
+            "defined": "InitializeVerificationConfigArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 2
+      }
+    },
+    {
+      "name": "UpdateVerificationConfig",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Mint used when deriving verification PDAs"
+          ]
+        },
+        {
+          "name": "verificationConfigOrMintAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback"
+          ]
+        },
+        {
+          "name": "instructionsSysvarOrCreator",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback"
+          ]
+        },
+        {
+          "name": "configAccount",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "VerificationConfig PDA account to update"
+          ]
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "SPL Token 2022 mint the configuration applies to"
+          ]
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "Payer covering any additional rent during update"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System program for reallocations"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "updateVerificationConfigArgs",
+          "type": {
+            "defined": "UpdateVerificationConfigArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 3
+      }
+    },
+    {
+      "name": "TrimVerificationConfig",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Mint used when deriving verification PDAs"
+          ]
+        },
+        {
+          "name": "verificationConfigOrMintAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback"
+          ]
+        },
+        {
+          "name": "instructionsSysvarOrCreator",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback"
+          ]
+        },
+        {
+          "name": "configAccount",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "VerificationConfig PDA account to trim"
+          ]
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "SPL Token 2022 mint the configuration applies to"
+          ]
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Recipient account that receives reclaimed lamports"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System program for closing or reallocating accounts"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "trimVerificationConfigArgs",
+          "type": {
+            "defined": "TrimVerificationConfigArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 4
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "name": "MintAuthority",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "mintCreator",
+            "type": "publicKey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VerificationConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "instructionDiscriminator",
+            "type": "u8"
+          },
+          {
+            "name": "verificationPrograms",
+            "type": {
+              "vec": "publicKey"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "InitializeVerificationConfigArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "instructionDiscriminator",
+            "type": "u8"
+          },
+          {
+            "name": "programAddresses",
+            "type": {
+              "vec": "publicKey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateVerificationConfigArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "instructionDiscriminator",
+            "type": "u8"
+          },
+          {
+            "name": "offset",
+            "type": "u8"
+          },
+          {
+            "name": "programAddresses",
+            "type": {
+              "vec": "publicKey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TrimVerificationConfigArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "instructionDiscriminator",
+            "type": "u8"
+          },
+          {
+            "name": "size",
+            "type": "u8"
+          },
+          {
+            "name": "close",
+            "type": "bool"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 1,
+      "name": "VerificationProgramNotFound",
+      "msg": "Verification program not found"
+    },
+    {
+      "code": 2,
+      "name": "NotEnoughAccountsForVerification",
+      "msg": "Not enough accounts for verification"
+    },
+    {
+      "code": 3,
+      "name": "AccountIntersectionMismatch",
+      "msg": "Account intersection mismatch"
+    },
+    {
+      "code": 4,
+      "name": "InvalidVerificationConfigPda",
+      "msg": "Invalid Verification Config PDA"
+    }
+  ],
+  "metadata": {
+    "origin": "shank",
+    "address": "Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH"
+  }
+}

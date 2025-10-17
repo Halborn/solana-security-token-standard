@@ -1,9 +1,10 @@
 //! Verification configuration instruction arguments and utilities
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
+use shank::ShankType;
 
 /// Arguments for InitializeVerificationConfig instruction
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, ShankType)]
 #[repr(C)]
 pub struct InitializeVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
@@ -30,7 +31,7 @@ impl InitializeVerificationConfigInstructionArgs {
 }
 
 /// Arguments for UpdateVerificationConfig instruction
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, ShankType)]
 #[repr(C)]
 pub struct UpdateVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
@@ -244,7 +245,7 @@ impl UpdateVerificationConfigArgs {
 }
 
 /// Arguments for TrimVerificationConfig instruction
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, ShankType)]
 #[repr(C)]
 pub struct TrimVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)

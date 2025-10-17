@@ -1,5 +1,5 @@
 [package]
-name = "security-token-client"
+name = "security-token-client-old"
 version.workspace = true
 description = "Rust client for Security Token Standard"
 authors.workspace = true
