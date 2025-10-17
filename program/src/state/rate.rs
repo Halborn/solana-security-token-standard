@@ -1,22 +1,22 @@
 //! Rate account state
-use num_derive::FromPrimitive;
 use pinocchio::account_info::AccountInfo;
 use pinocchio::program_error::ProgramError;
+use shank::{ShankAccount, ShankType};
 
 use crate::state::{
     AccountDeserialize, AccountSerialize, Discriminator, SecurityTokenDiscriminators,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, Copy, FromPrimitive)]
 #[repr(u8)]
+#[derive(Clone, Debug, PartialEq, Eq, Copy, ShankType)]
 pub enum Rounding {
     Up = 0,
     Down = 1,
 }
 
-impl Into<u8> for Rounding {
-    fn into(self) -> u8 {
-        self as u8
+impl From<Rounding> for u8 {
+    fn from(rounding: Rounding) -> Self {
+        rounding as u8
     }
 }
 
@@ -33,7 +33,8 @@ impl TryFrom<u8> for Rounding {
 }
 
 /// Configuration data stored per mint
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[repr(C)]
+#[derive(ShankAccount)]
 pub struct Rate {
     /// Rounding direction (Up or Down)
     pub rounding: Rounding,
@@ -84,7 +85,7 @@ impl AccountDeserialize for Rate {
 
 impl Rate {
     /// Serialized size of the account data (discriminator + rounding enum + numerator + denominator + bump)
-    pub const LEN: usize = 1 + (1 + 1) + 1 + 1 + 1;
+    pub const LEN: usize = 1 + 1 + 1 + 1 + 1;
 
     /// Create a new Rate
     pub fn new(
@@ -145,5 +146,34 @@ impl Rate {
         let data_ref = account_info.try_borrow_data()?;
         let rate = Self::try_from_bytes(&data_ref)?;
         Ok(rate)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case(Rounding::Up, 1u8, 3u8, 100_000u64, 33_334u64)]
+    #[case(Rounding::Up, 2u8, 3u8, 1000u64, 667u64)]
+    #[case(Rounding::Down, 1u8, 3u8, 100_000u64, 33_333u64)]
+    #[case(Rounding::Down, 2u8, 3u8, 1000u64, 666u64)]
+    fn test_rate_calculate_valid_args(
+        #[case] rounding: Rounding,
+        #[case] numerator: u8,
+        #[case] denominator: u8,
+        #[case] amount: u64,
+        #[case] expected: u64,
+    ) {
+        let rate = Rate {
+            rounding,
+            numerator,
+            denominator,
+            bump: 0,
+        };
+
+        let result = rate.calculate(amount).unwrap();
+        assert_eq!(result, expected);
     }
 }

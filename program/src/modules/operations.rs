@@ -5,13 +5,16 @@
 
 use crate::constants::seeds;
 use crate::instructions::{CustomPause, CustomResume};
-use crate::modules::{verify_owner, verify_token22_program};
-use crate::state::MintAuthority;
-use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda};
+use crate::modules::{verify_owner, verify_signer, verify_token22_program, verify_writable};
+use crate::state::{AccountSerialize, MintAuthority, Rate, Rounding};
+use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda, find_rate_pda};
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
+use pinocchio::sysvars::fees::DEFAULT_BURN_PERCENT;
+use pinocchio::sysvars::rent::{Rent, DEFAULT_EXEMPTION_THRESHOLD, DEFAULT_LAMPORTS_PER_BYTE_YEAR};
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
 use pinocchio_log::log;
+use pinocchio_system::instructions::CreateAccount;
 use pinocchio_token_2022::instructions::{BurnChecked, FreezeAccount, MintToChecked, ThawAccount};
 use pinocchio_token_2022::state::Mint;
 
@@ -277,6 +280,99 @@ impl OperationsModule {
         _merkle_proof: &[u8],
     ) -> ProgramResult {
         // TODO: Create escrow token account with PDA authority
+        Ok(())
+    }
+
+    /// Create Rate account
+    pub fn execute_create_rate_account(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        action_id: u64,
+        numerator: u8,
+        denominator: u8,
+        rounding: u8,
+    ) -> ProgramResult {
+        // Expected accounts after verification:
+        // 0. [writable] The Rate PDA account
+        // 1. [] The first mint account (primary mint)
+        // 2. [] The second mint account (for conversion) or equals first mint (for split)
+        // 3. [writable, signer] The payer account
+        // 4. [] The system program ID
+
+        let [rate_account, mint1_account, mint2_account, payer, _system_program] = accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_signer(payer)?;
+        verify_writable(payer)?;
+
+        let mint_account1 = Mint::from_account_info(mint1_account)?;
+        let mint_account2 = Mint::from_account_info(mint2_account)?;
+        let mint1_key = mint1_account.key();
+        let mint2_key = mint2_account.key();
+        drop(mint_account1);
+        drop(mint_account2);
+
+        let mints = [mint1_key, mint2_key];
+        let (expected_rate_pda, bump) = find_rate_pda(action_id, &mints, program_id);
+
+        if rate_account.key().ne(&expected_rate_pda) {
+            log!("Invalid Rate account PDA");
+            log!(
+                "Expected: {}, Provided: {}",
+                &expected_rate_pda,
+                rate_account.key()
+            );
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        if rate_account.data_len() > 0
+            || rate_account.lamports() > 0
+            || !rate_account.is_owned_by(&pinocchio_system::id())
+        {
+            log!("Rate account already exists for action_id: {}", action_id);
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
+        // Calculate rent and create Rate account
+        let rounding_enum = Rounding::try_from(rounding)?;
+        let rate = Rate::new(rounding_enum, numerator, denominator, bump)?;
+        let account_size = Rate::LEN;
+        let rent = Rent {
+            lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
+            exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
+            burn_percent: DEFAULT_BURN_PERCENT,
+        };
+        let required_lamports = rent.minimum_balance(account_size);
+
+        let create_account_instruction = CreateAccount {
+            from: payer,
+            to: rate_account,
+            lamports: required_lamports,
+            space: account_size as u64,
+            owner: program_id,
+        };
+
+        let action_id_seed = action_id.to_le_bytes();
+        let bump_seed = [bump];
+        let seeds = [
+            Seed::from(seeds::RATE_ACCOUNT),
+            Seed::from(action_id_seed.as_ref()),
+            Seed::from(mint1_key.as_ref()),
+            Seed::from(mint2_key.as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+        let signer = Signer::from(&seeds);
+        create_account_instruction.invoke_signed(&[signer])?;
+
+        log!("Rate PDA account created successfully");
+
+        // Write Rate data to the account
+        let mut data = rate_account.try_borrow_mut_data()?;
+        let rate_bytes = rate.to_bytes();
+        data[..rate_bytes.len()].copy_from_slice(&rate_bytes);
+
+        log!("Rate PDA account created: {}", rate_account.key());
         Ok(())
     }
 }

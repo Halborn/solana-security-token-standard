@@ -22,6 +22,7 @@ impl TryFrom<u8> for SecurityTokenDiscriminators {
         match value {
             0 => Ok(SecurityTokenDiscriminators::MintAuthorityDiscriminator),
             1 => Ok(SecurityTokenDiscriminators::VerificationConfigDiscriminator),
+            2 => Ok(SecurityTokenDiscriminators::RateDiscriminator),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

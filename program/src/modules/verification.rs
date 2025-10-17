@@ -724,6 +724,9 @@ impl VerificationModule {
                     mint_creator_info,
                 )?;
             }
+            _ => {
+                return Err(ProgramError::InvalidAccountData);
+            }
         }
         Ok(())
     }

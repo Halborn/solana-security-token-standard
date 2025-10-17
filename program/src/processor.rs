@@ -2,10 +2,9 @@ use crate::{
     constants::INSTRUCTION_ACCOUNTS_OFFSET,
     instruction::SecurityTokenInstruction,
     instructions::{
-        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
-        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs
     },
-    modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
+    modules::{OperationsModule, VerificationProfile, verification::VerificationModule},
 };
 use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
@@ -25,11 +24,14 @@ impl Processor {
 
         match instruction {
             InitializeMint | Verify => None,
-            InitializeVerificationConfig
+            CreateRateAccount
+            | InitializeVerificationConfig
             | UpdateVerificationConfig
             | TrimVerificationConfig
             | UpdateMetadata => VerificationProgramsOrMintAuthority,
-            Burn | Mint | Pause | Resume | Freeze | Thaw => VerificationPrograms,
+            Burn | Mint | Pause | Resume | Freeze | Thaw => {
+                VerificationPrograms
+            }
         }
     }
 
@@ -114,6 +116,9 @@ impl Processor {
                 Self::process_freeze(program_id, instruction_accounts)
             }
             SecurityTokenInstruction::Thaw => Self::process_thaw(program_id, instruction_accounts),
+            SecurityTokenInstruction::CreateRateAccount => {
+                Self::process_create_rate_account(program_id, instruction_accounts, args_data)
+            }
         }
     }
 
@@ -227,6 +232,24 @@ impl Processor {
 
     fn process_thaw(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         OperationsModule::execute_thaw_account(program_id, accounts)?;
+        Ok(())
+    }
+
+    fn process_create_rate_account(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let CreateRateArgs { action_id, rate } = CreateRateArgs::try_from_bytes(args_data)?;
+
+        OperationsModule::execute_create_rate_account(
+            program_id,
+            accounts,
+            action_id,
+            rate.numerator,
+            rate.denominator,
+            rate.rounding,
+        )?;
         Ok(())
     }
 }

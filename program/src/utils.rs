@@ -69,18 +69,16 @@ pub fn find_account_delegate_pda(account: &Pubkey, program_id: &Pubkey) -> (Pubk
 }
 
 /// Derive rate PDA
-/// Seeds: ["security_token.accounts.rate", action_id, mints...]
-pub fn find_rate_pda(
-    action_id: u64,
-    mints: Vec<Pubkey>,
-    program_id: &Pubkey,
-) -> (Pubkey, u8) {
-    let mints_seed = mints.iter()
-        .flat_map(|pubkey| pubkey.to_vec())
-        .collect::<Vec<u8>>();
-
+/// Seeds: ["security_token.accounts.rate", action_id, mint_pubkey1, mint_pubkey2]
+pub fn find_rate_pda(action_id: u64, mints: &[&Pubkey; 2], program_id: &Pubkey) -> (Pubkey, u8) {
+    let [first, second] = mints;
     find_program_address(
-        &[seeds::RATE_ACCOUNT, &action_id.to_le_bytes(), mints_seed.as_ref()],
+        &[
+            seeds::RATE_ACCOUNT,
+            action_id.to_le_bytes().as_ref(),
+            first.as_ref(),
+            second.as_ref(),
+        ],
         program_id,
     )
 }
