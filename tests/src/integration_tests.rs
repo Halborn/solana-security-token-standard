@@ -1,26 +1,20 @@
 //! Security Token Standard Integration Tests
 
 use borsh::BorshDeserialize;
-use kaigan::types::RemainderVec;
-// use security_token_client::{
-//     InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
-//     InitializeVerificationConfig, InitializeVerificationConfigArgs,
-//     InitializeVerificationConfigInstructionArgs, MetadataPointer, MintAuthority,
-//     ScaledUiAmountConfig, TokenMetadata, TrimVerificationConfig, TrimVerificationConfigArgs,
-//     TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataArgs,
-//     UpdateMetadataInstructionArgs, UpdateVerificationConfig, UpdateVerificationConfigArgs,
-//     UpdateVerificationConfigInstructionArgs, VerificationConfig, SECURITY_TOKEN_PROGRAM_ID,
-//     UPDATE_METADATA_DISCRIMINATOR,
-// };
-
 use security_token_client::accounts::{MintAuthority, VerificationConfig};
 use security_token_client::instructions::{
-    InitializeMint, InitializeMintInstructionArgs, InitializeVerificationConfig, InitializeVerificationConfigInstructionArgs, TrimVerificationConfig, TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataInstructionArgs, UpdateVerificationConfig, UpdateVerificationConfigInstructionArgs, UPDATE_METADATA_DISCRIMINATOR
+    InitializeMint, InitializeMintInstructionArgs, InitializeVerificationConfig,
+    InitializeVerificationConfigInstructionArgs, TrimVerificationConfig,
+    TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataInstructionArgs,
+    UpdateVerificationConfig, UpdateVerificationConfigInstructionArgs,
+    UPDATE_METADATA_DISCRIMINATOR,
 };
 use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
 
 use security_token_client::types::{
-    InitializeMintArgs, InitializeVerificationConfigArgs, MetadataPointerArgs, MintArgs, ScaledUiAmountConfigArgs, TokenMetadataArgs, TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs
+    InitializeMintArgs, InitializeVerificationConfigArgs, MetadataPointerArgs, MintArgs,
+    ScaledUiAmountConfigArgs, TokenMetadataArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
+    UpdateVerificationConfigArgs,
 };
 use solana_program_test::ProgramTest;
 use solana_sdk::sysvar;

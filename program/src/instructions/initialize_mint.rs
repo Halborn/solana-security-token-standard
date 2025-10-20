@@ -126,9 +126,6 @@ impl std::fmt::Debug for InitializeMintArgs {
 impl InitializeMintArgs {
     /// Internal parser that returns both TokenMetadata and number of bytes consumed
     fn parse_token_metadata(data: &[u8]) -> Result<(TokenMetadataArgs, usize), ProgramError> {
-        use pinocchio_log::log;
-
-        log!("Parsing TokenMetadata from bytes");
         if data.len() < TokenMetadata::SIZE_METADATA_LEN {
             return Err(ProgramError::AccountDataTooSmall);
         }
@@ -142,16 +139,12 @@ impl InitializeMintArgs {
         );
         offset += 32;
 
-        log!("Parsed update_authority");
-
         // Read mint (32 bytes)
         let mint = Pubkey::from(
             <[u8; 32]>::try_from(&data[offset..offset + 32])
                 .map_err(|_| ProgramError::InvalidRealloc)?,
         );
         offset += 32;
-
-        log!("Parsed mint");
 
         // Read name_len (4 bytes)
         let name_len = u32::from_le_bytes(
@@ -170,16 +163,12 @@ impl InitializeMintArgs {
             .to_string();
         offset += name_len as usize;
 
-        log!("Parsed name");
-
         // Read symbol_len (4 bytes)
         let symbol_len = u32::from_le_bytes(
             <[u8; 4]>::try_from(&data[offset..offset + 4])
                 .map_err(|_| ProgramError::InvalidRealloc)?,
         );
         offset += 4;
-
-        log!("Parsed symbol len");
 
         // Read symbol string
         if data.len() < offset + symbol_len as usize {
@@ -191,8 +180,6 @@ impl InitializeMintArgs {
             .to_string();
         offset += symbol_len as usize;
 
-        log!("Parsed symbol");
-
         // Read uri_len (4 bytes)
         let uri_len = u32::from_le_bytes(
             <[u8; 4]>::try_from(&data[offset..offset + 4])
@@ -200,7 +187,6 @@ impl InitializeMintArgs {
         );
         offset += 4;
 
-        log!("Parsed uri len");
 
         // Read uri string
         if data.len() < offset + uri_len as usize {
@@ -211,8 +197,6 @@ impl InitializeMintArgs {
             .map_err(|_| ProgramError::InvalidRealloc)?
             .to_string();
         offset += uri_len as usize;
-
-        log!("Parsed main metadta");
 
         // Read additional_metadata_len (4 bytes)
         let additional_metadata_len = u32::from_le_bytes(
@@ -353,14 +337,11 @@ impl InitializeMintArgs {
 
     /// Deserialize arguments from bytes
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        use pinocchio_log::log;
-        log!("Try to parse InitializeArgs from bytes");
         // First, try_from_bytes the mint arguments
         let ix_mint = MintArgs::try_from_bytes(data)?;
 
         // Determine the offset after mint args
         let mut offset = 65;
-        log!("Check extensions");
         if data.len() <= offset {
             // No extensions
             return Ok(Self {
@@ -370,7 +351,6 @@ impl InitializeMintArgs {
                 ix_scaled_ui_amount: None,
             });
         }
-        log!("Check metadata pointer");
         // Check metadata pointer flag
         let has_metadata_pointer = data[offset];
         offset += 1;
@@ -401,8 +381,6 @@ impl InitializeMintArgs {
             None
         };
 
-        log!("Check metadata");
-
         if data.len() <= offset {
             // No metadata
             return Ok(Self {
@@ -426,7 +404,6 @@ impl InitializeMintArgs {
             None
         };
 
-        log!("Check scaled UI amount");
         // Check scaled UI amount flag
         let has_scaled_ui_amount = if data.len() > offset { data[offset] } else { 0 };
 
