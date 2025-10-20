@@ -26,15 +26,16 @@ import {
   type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
+  type WritableAccount,
   type WritableSignerAccount,
 } from '@solana/kit';
 import { SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
-  getInstructionInitializeMintArgsDecoder,
-  getInstructionInitializeMintArgsEncoder,
-  type InstructionInitializeMintArgs,
-  type InstructionInitializeMintArgsArgs,
+  getInitializeMintArgsDecoder,
+  getInitializeMintArgsEncoder,
+  type InitializeMintArgs,
+  type InitializeMintArgsArgs,
 } from '../types';
 
 export const INITIALIZE_MINT_DISCRIMINATOR = 0;
@@ -68,7 +69,7 @@ export type InitializeMintInstruction<
             AccountSignerMeta<TAccountPayer>
         : TAccountPayer,
       TAccountAuthority extends string
-        ? ReadonlyAccount<TAccountAuthority>
+        ? WritableAccount<TAccountAuthority>
         : TAccountAuthority,
       TAccountSplToken2022Program extends string
         ? ReadonlyAccount<TAccountSplToken2022Program>
@@ -85,21 +86,18 @@ export type InitializeMintInstruction<
 
 export type InitializeMintInstructionData = {
   discriminator: number;
-  instructionInitializeMintArgs: InstructionInitializeMintArgs;
+  initializeMintArgs: InitializeMintArgs;
 };
 
 export type InitializeMintInstructionDataArgs = {
-  instructionInitializeMintArgs: InstructionInitializeMintArgsArgs;
+  initializeMintArgs: InitializeMintArgsArgs;
 };
 
 export function getInitializeMintInstructionDataEncoder(): Encoder<InitializeMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      [
-        'instructionInitializeMintArgs',
-        getInstructionInitializeMintArgsEncoder(),
-      ],
+      ['initializeMintArgs', getInitializeMintArgsEncoder()],
     ]),
     (value) => ({ ...value, discriminator: INITIALIZE_MINT_DISCRIMINATOR })
   );
@@ -108,10 +106,7 @@ export function getInitializeMintInstructionDataEncoder(): Encoder<InitializeMin
 export function getInitializeMintInstructionDataDecoder(): Decoder<InitializeMintInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    [
-      'instructionInitializeMintArgs',
-      getInstructionInitializeMintArgsDecoder(),
-    ],
+    ['initializeMintArgs', getInitializeMintArgsDecoder()],
   ]);
 }
 
@@ -139,7 +134,7 @@ export type InitializeMintInput<
   splToken2022Program: Address<TAccountSplToken2022Program>;
   systemProgram?: Address<TAccountSystemProgram>;
   rentSysvar?: Address<TAccountRentSysvar>;
-  instructionInitializeMintArgs: InitializeMintInstructionDataArgs['instructionInitializeMintArgs'];
+  initializeMintArgs: InitializeMintInstructionDataArgs['initializeMintArgs'];
 };
 
 export function getInitializeMintInstruction<
@@ -178,7 +173,7 @@ export function getInitializeMintInstruction<
   const originalAccounts = {
     mint: { value: input.mint ?? null, isWritable: true },
     payer: { value: input.payer ?? null, isWritable: false },
-    authority: { value: input.authority ?? null, isWritable: false },
+    authority: { value: input.authority ?? null, isWritable: true },
     splToken2022Program: {
       value: input.splToken2022Program ?? null,
       isWritable: false,

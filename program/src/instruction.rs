@@ -69,9 +69,8 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        InitializeVerificationConfigArgs, InstructionInitializeMintArgs,
-        InstructionUpdateMetadataArgs, TrimVerificationConfigArgs, UpdateVerificationConfigArgs,
-        VerifyArgs,
+        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -79,11 +78,11 @@ mod idl_gen {
     enum _SecurityTokenInstruction {
         #[account(0, writable, signer, name = "Mint")]
         #[account(1, signer, name = "Payer")]
-        #[account(2, name = "Authority")]
+        #[account(2, writable, name = "Authority")]
         #[account(3, name = "SPL Token 2022 Program")]
         #[account(4, name = "System Program")]
         #[account(5, name = "Rent Sysvar")]
-        InitializeMint(InstructionInitializeMintArgs) = 0,
+        InitializeMint(InitializeMintArgs) = 0,
 
         #[account(0, name = "mint")]
         #[account(1, name = "verification_config_or_mint_authority")]
@@ -92,7 +91,7 @@ mod idl_gen {
         #[account(4, signer, name = "payer")] // Pays for potential rent-exempt top-up, must sign
         #[account(5, name = "token_program")]
         #[account(6, name = "system_program")]
-        UpdateMetadata(InstructionUpdateMetadataArgs) = 1,
+        UpdateMetadata(UpdateMetadataArgs) = 1,
 
         #[account(0, name = "mint")]
         #[account(1, name = "verification_config_or_mint_authority")]

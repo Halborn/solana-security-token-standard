@@ -5,7 +5,7 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use crate::generated::types::InstructionInitializeMintArgs;
+use crate::generated::types::InitializeMintArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
@@ -46,10 +46,7 @@ impl InitializeMint {
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.payer, true,
         ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.authority,
-            false,
-        ));
+        accounts.push(solana_instruction::AccountMeta::new(self.authority, false));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.spl_token2022_program,
             false,
@@ -96,7 +93,7 @@ impl Default for InitializeMintInstructionData {
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitializeMintInstructionArgs {
-    pub instruction_initialize_mint_args: InstructionInitializeMintArgs,
+    pub initialize_mint_args: InitializeMintArgs,
 }
 
 /// Instruction builder for `InitializeMint`.
@@ -105,7 +102,7 @@ pub struct InitializeMintInstructionArgs {
 ///
 ///   0. `[writable, signer]` mint
 ///   1. `[signer]` payer
-///   2. `[]` authority
+///   2. `[writable]` authority
 ///   3. `[]` spl_token2022_program
 ///   4. `[optional]` system_program (default to `11111111111111111111111111111111`)
 ///   5. `[optional]` rent_sysvar (default to `SysvarRent111111111111111111111111111111111`)
@@ -117,7 +114,7 @@ pub struct InitializeMintBuilder {
     spl_token2022_program: Option<solana_pubkey::Pubkey>,
     system_program: Option<solana_pubkey::Pubkey>,
     rent_sysvar: Option<solana_pubkey::Pubkey>,
-    instruction_initialize_mint_args: Option<InstructionInitializeMintArgs>,
+    initialize_mint_args: Option<InitializeMintArgs>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
@@ -161,11 +158,8 @@ impl InitializeMintBuilder {
         self
     }
     #[inline(always)]
-    pub fn instruction_initialize_mint_args(
-        &mut self,
-        instruction_initialize_mint_args: InstructionInitializeMintArgs,
-    ) -> &mut Self {
-        self.instruction_initialize_mint_args = Some(instruction_initialize_mint_args);
+    pub fn initialize_mint_args(&mut self, initialize_mint_args: InitializeMintArgs) -> &mut Self {
+        self.initialize_mint_args = Some(initialize_mint_args);
         self
     }
     /// Add an additional account to the instruction.
@@ -200,10 +194,10 @@ impl InitializeMintBuilder {
             )),
         };
         let args = InitializeMintInstructionArgs {
-            instruction_initialize_mint_args: self
-                .instruction_initialize_mint_args
+            initialize_mint_args: self
+                .initialize_mint_args
                 .clone()
-                .expect("instruction_initialize_mint_args is not set"),
+                .expect("initialize_mint_args is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
@@ -291,7 +285,7 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
             *self.payer.key,
             true,
         ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
+        accounts.push(solana_instruction::AccountMeta::new(
             *self.authority.key,
             false,
         ));
@@ -349,7 +343,7 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
 ///
 ///   0. `[writable, signer]` mint
 ///   1. `[signer]` payer
-///   2. `[]` authority
+///   2. `[writable]` authority
 ///   3. `[]` spl_token2022_program
 ///   4. `[]` system_program
 ///   5. `[]` rent_sysvar
@@ -368,7 +362,7 @@ impl<'a, 'b> InitializeMintCpiBuilder<'a, 'b> {
             spl_token2022_program: None,
             system_program: None,
             rent_sysvar: None,
-            instruction_initialize_mint_args: None,
+            initialize_mint_args: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -413,11 +407,8 @@ impl<'a, 'b> InitializeMintCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn instruction_initialize_mint_args(
-        &mut self,
-        instruction_initialize_mint_args: InstructionInitializeMintArgs,
-    ) -> &mut Self {
-        self.instruction.instruction_initialize_mint_args = Some(instruction_initialize_mint_args);
+    pub fn initialize_mint_args(&mut self, initialize_mint_args: InitializeMintArgs) -> &mut Self {
+        self.instruction.initialize_mint_args = Some(initialize_mint_args);
         self
     }
     /// Add an additional account to the instruction.
@@ -455,11 +446,11 @@ impl<'a, 'b> InitializeMintCpiBuilder<'a, 'b> {
     #[allow(clippy::vec_init_then_push)]
     pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
         let args = InitializeMintInstructionArgs {
-            instruction_initialize_mint_args: self
+            initialize_mint_args: self
                 .instruction
-                .instruction_initialize_mint_args
+                .initialize_mint_args
                 .clone()
-                .expect("instruction_initialize_mint_args is not set"),
+                .expect("initialize_mint_args is not set"),
         };
         let instruction = InitializeMintCpi {
             __program: self.instruction.__program,
@@ -502,7 +493,7 @@ struct InitializeMintCpiBuilderInstruction<'a, 'b> {
     spl_token2022_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     rent_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
-    instruction_initialize_mint_args: Option<InstructionInitializeMintArgs>,
+    initialize_mint_args: Option<InitializeMintArgs>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }

@@ -5,9 +5,9 @@ use pinocchio::{
     pubkey::{find_program_address, Pubkey},
 };
 use pinocchio_token::state::Mint;
-use pinocchio_token_2022::extensions::{metadata::TokenMetadata, ExtensionType};
+use pinocchio_token_2022::extensions::ExtensionType;
 
-use crate::constants::seeds;
+use crate::{constants::seeds, instructions::TokenMetadataArgs};
 
 /// Find PDA for verification config
 pub fn find_verification_config_pda(
@@ -174,7 +174,7 @@ pub fn calculate_mint_size_with_extensions(extensions: &[ExtensionType]) -> usiz
 }
 
 /// Calculate TLV size for TokenMetadata (equivalent to TokenMetadata::tlv_size_of)
-pub fn calculate_metadata_tlv_size(metadata: &TokenMetadata) -> Result<usize, ProgramError> {
+pub fn calculate_metadata_tlv_size(metadata: &TokenMetadataArgs) -> Result<usize, ProgramError> {
     use pinocchio_token_2022::extensions::{EXTENSION_LENGTH_LEN, EXTENSION_TYPE_LEN};
 
     // TLV header (type + length)
@@ -182,7 +182,7 @@ pub fn calculate_metadata_tlv_size(metadata: &TokenMetadata) -> Result<usize, Pr
 
     // Calculate additional metadata size using callback
     let mut additional_metadata_size: usize = 0;
-    parse_additional_metadata(metadata.additional_metadata, |key, value| {
+    parse_additional_metadata(metadata.additional_metadata.as_slice(), |key, value| {
         additional_metadata_size += 4 + key.len() + 4 + value.len(); // key_len + key + value_len + value
         Ok(())
     })?;

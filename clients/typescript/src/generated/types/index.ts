@@ -8,11 +8,11 @@
 
 export * from './initializeMintArgs';
 export * from './initializeVerificationConfigArgs';
-export * from './instructionInitializeMintArgs';
-export * from './instructionUpdateMetadataArgs';
 export * from './metadataPointerArgs';
+export * from './mintArgs';
 export * from './scaledUiAmountConfigArgs';
 export * from './tokenMetadataArgs';
 export * from './trimVerificationConfigArgs';
+export * from './updateMetadataArgs';
 export * from './updateVerificationConfigArgs';
 export * from './verifyArgs';

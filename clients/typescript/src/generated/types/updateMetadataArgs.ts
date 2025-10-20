@@ -21,26 +21,24 @@ import {
   type TokenMetadataArgsArgs,
 } from '.';
 
-export type InstructionUpdateMetadataArgs = { metadata: TokenMetadataArgs };
+export type UpdateMetadataArgs = { metadata: TokenMetadataArgs };
 
-export type InstructionUpdateMetadataArgsArgs = {
-  metadata: TokenMetadataArgsArgs;
-};
+export type UpdateMetadataArgsArgs = { metadata: TokenMetadataArgsArgs };
 
-export function getInstructionUpdateMetadataArgsEncoder(): Encoder<InstructionUpdateMetadataArgsArgs> {
+export function getUpdateMetadataArgsEncoder(): Encoder<UpdateMetadataArgsArgs> {
   return getStructEncoder([['metadata', getTokenMetadataArgsEncoder()]]);
 }
 
-export function getInstructionUpdateMetadataArgsDecoder(): Decoder<InstructionUpdateMetadataArgs> {
+export function getUpdateMetadataArgsDecoder(): Decoder<UpdateMetadataArgs> {
   return getStructDecoder([['metadata', getTokenMetadataArgsDecoder()]]);
 }
 
-export function getInstructionUpdateMetadataArgsCodec(): Codec<
-  InstructionUpdateMetadataArgsArgs,
-  InstructionUpdateMetadataArgs
+export function getUpdateMetadataArgsCodec(): Codec<
+  UpdateMetadataArgsArgs,
+  UpdateMetadataArgs
 > {
   return combineCodec(
-    getInstructionUpdateMetadataArgsEncoder(),
-    getInstructionUpdateMetadataArgsDecoder()
+    getUpdateMetadataArgsEncoder(),
+    getUpdateMetadataArgsDecoder()
   );
 }

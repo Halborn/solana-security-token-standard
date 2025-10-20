@@ -2,7 +2,7 @@ use crate::{
     constants::INSTRUCTION_ACCOUNTS_OFFSET,
     instruction::SecurityTokenInstruction,
     instructions::{
-        verification_config::TrimVerificationConfigInstructionArgs, InitializeArgs,
+        verification_config::TrimVerificationConfigInstructionArgs, InitializeMintArgs,
         InitializeVerificationConfigInstructionArgs, UpdateMetadataArgs,
         UpdateVerificationConfigInstructionArgs, VerifyArgs,
     },
@@ -133,7 +133,7 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        let args = InitializeArgs::try_from_bytes(args_data)
+        let args = InitializeMintArgs::try_from_bytes(args_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
         VerificationModule::initialize_mint(program_id, accounts, &args)
     }

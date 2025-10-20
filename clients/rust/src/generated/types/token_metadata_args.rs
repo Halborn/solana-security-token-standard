@@ -22,12 +22,8 @@ pub struct TokenMetadataArgs {
         serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
     )]
     pub mint: Pubkey,
-    pub name_len: u32,
     pub name: String,
-    pub symbol_len: u32,
     pub symbol: String,
-    pub uri_len: u32,
     pub uri: String,
-    pub additional_metadata_len: u32,
     pub additional_metadata: Vec<u8>,
 }

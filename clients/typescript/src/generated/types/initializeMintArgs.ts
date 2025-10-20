@@ -8,43 +8,74 @@
 
 import {
   combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
+  getOptionDecoder,
+  getOptionEncoder,
   getStructDecoder,
   getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
+  type Codec,
+  type Decoder,
+  type Encoder,
+  type Option,
+  type OptionOrNullable,
 } from '@solana/kit';
+import {
+  getMetadataPointerArgsDecoder,
+  getMetadataPointerArgsEncoder,
+  getMintArgsDecoder,
+  getMintArgsEncoder,
+  getScaledUiAmountConfigArgsDecoder,
+  getScaledUiAmountConfigArgsEncoder,
+  getTokenMetadataArgsDecoder,
+  getTokenMetadataArgsEncoder,
+  type MetadataPointerArgs,
+  type MetadataPointerArgsArgs,
+  type MintArgs,
+  type MintArgsArgs,
+  type ScaledUiAmountConfigArgs,
+  type ScaledUiAmountConfigArgsArgs,
+  type TokenMetadataArgs,
+  type TokenMetadataArgsArgs,
+} from '.';
 
 export type InitializeMintArgs = {
-  decimals: number;
-  mintAuthority: Address;
-  freezeAuthority: Address;
+  ixMint: MintArgs;
+  ixMetadataPointer: Option<MetadataPointerArgs>;
+  ixMetadata: Option<TokenMetadataArgs>;
+  ixScaledUiAmount: Option<ScaledUiAmountConfigArgs>;
 };
 
-export type InitializeMintArgsArgs = InitializeMintArgs;
+export type InitializeMintArgsArgs = {
+  ixMint: MintArgsArgs;
+  ixMetadataPointer: OptionOrNullable<MetadataPointerArgsArgs>;
+  ixMetadata: OptionOrNullable<TokenMetadataArgsArgs>;
+  ixScaledUiAmount: OptionOrNullable<ScaledUiAmountConfigArgsArgs>;
+};
 
-export function getInitializeMintArgsEncoder(): FixedSizeEncoder<InitializeMintArgsArgs> {
+export function getInitializeMintArgsEncoder(): Encoder<InitializeMintArgsArgs> {
   return getStructEncoder([
-    ['decimals', getU8Encoder()],
-    ['mintAuthority', getAddressEncoder()],
-    ['freezeAuthority', getAddressEncoder()],
+    ['ixMint', getMintArgsEncoder()],
+    ['ixMetadataPointer', getOptionEncoder(getMetadataPointerArgsEncoder())],
+    ['ixMetadata', getOptionEncoder(getTokenMetadataArgsEncoder())],
+    [
+      'ixScaledUiAmount',
+      getOptionEncoder(getScaledUiAmountConfigArgsEncoder()),
+    ],
   ]);
 }
 
-export function getInitializeMintArgsDecoder(): FixedSizeDecoder<InitializeMintArgs> {
+export function getInitializeMintArgsDecoder(): Decoder<InitializeMintArgs> {
   return getStructDecoder([
-    ['decimals', getU8Decoder()],
-    ['mintAuthority', getAddressDecoder()],
-    ['freezeAuthority', getAddressDecoder()],
+    ['ixMint', getMintArgsDecoder()],
+    ['ixMetadataPointer', getOptionDecoder(getMetadataPointerArgsDecoder())],
+    ['ixMetadata', getOptionDecoder(getTokenMetadataArgsDecoder())],
+    [
+      'ixScaledUiAmount',
+      getOptionDecoder(getScaledUiAmountConfigArgsDecoder()),
+    ],
   ]);
 }
 
-export function getInitializeMintArgsCodec(): FixedSizeCodec<
+export function getInitializeMintArgsCodec(): Codec<
   InitializeMintArgsArgs,
   InitializeMintArgs
 > {

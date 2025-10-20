@@ -31,10 +31,10 @@ import {
 import { SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
-  getInstructionUpdateMetadataArgsDecoder,
-  getInstructionUpdateMetadataArgsEncoder,
-  type InstructionUpdateMetadataArgs,
-  type InstructionUpdateMetadataArgsArgs,
+  getUpdateMetadataArgsDecoder,
+  getUpdateMetadataArgsEncoder,
+  type UpdateMetadataArgs,
+  type UpdateMetadataArgsArgs,
 } from '../types';
 
 export const UPDATE_METADATA_DISCRIMINATOR = 1;
@@ -93,21 +93,18 @@ export type UpdateMetadataInstruction<
 
 export type UpdateMetadataInstructionData = {
   discriminator: number;
-  instructionUpdateMetadataArgs: InstructionUpdateMetadataArgs;
+  updateMetadataArgs: UpdateMetadataArgs;
 };
 
 export type UpdateMetadataInstructionDataArgs = {
-  instructionUpdateMetadataArgs: InstructionUpdateMetadataArgsArgs;
+  updateMetadataArgs: UpdateMetadataArgsArgs;
 };
 
 export function getUpdateMetadataInstructionDataEncoder(): Encoder<UpdateMetadataInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      [
-        'instructionUpdateMetadataArgs',
-        getInstructionUpdateMetadataArgsEncoder(),
-      ],
+      ['updateMetadataArgs', getUpdateMetadataArgsEncoder()],
     ]),
     (value) => ({ ...value, discriminator: UPDATE_METADATA_DISCRIMINATOR })
   );
@@ -116,10 +113,7 @@ export function getUpdateMetadataInstructionDataEncoder(): Encoder<UpdateMetadat
 export function getUpdateMetadataInstructionDataDecoder(): Decoder<UpdateMetadataInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    [
-      'instructionUpdateMetadataArgs',
-      getInstructionUpdateMetadataArgsDecoder(),
-    ],
+    ['updateMetadataArgs', getUpdateMetadataArgsDecoder()],
   ]);
 }
 
@@ -149,7 +143,7 @@ export type UpdateMetadataInput<
   payer: TransactionSigner<TAccountPayer>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
-  instructionUpdateMetadataArgs: UpdateMetadataInstructionDataArgs['instructionUpdateMetadataArgs'];
+  updateMetadataArgs: UpdateMetadataInstructionDataArgs['updateMetadataArgs'];
 };
 
 export function getUpdateMetadataInstruction<

@@ -30,13 +30,9 @@ import {
 export type TokenMetadataArgs = {
   updateAuthority: Address;
   mint: Address;
-  nameLen: number;
   name: string;
-  symbolLen: number;
   symbol: string;
-  uriLen: number;
   uri: string;
-  additionalMetadataLen: number;
   additionalMetadata: ReadonlyUint8Array;
 };
 
@@ -46,13 +42,9 @@ export function getTokenMetadataArgsEncoder(): Encoder<TokenMetadataArgsArgs> {
   return getStructEncoder([
     ['updateAuthority', getAddressEncoder()],
     ['mint', getAddressEncoder()],
-    ['nameLen', getU32Encoder()],
     ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-    ['symbolLen', getU32Encoder()],
     ['symbol', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-    ['uriLen', getU32Encoder()],
     ['uri', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-    ['additionalMetadataLen', getU32Encoder()],
     [
       'additionalMetadata',
       addEncoderSizePrefix(getBytesEncoder(), getU32Encoder()),
@@ -64,13 +56,9 @@ export function getTokenMetadataArgsDecoder(): Decoder<TokenMetadataArgs> {
   return getStructDecoder([
     ['updateAuthority', getAddressDecoder()],
     ['mint', getAddressDecoder()],
-    ['nameLen', getU32Decoder()],
     ['name', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ['symbolLen', getU32Decoder()],
     ['symbol', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ['uriLen', getU32Decoder()],
     ['uri', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ['additionalMetadataLen', getU32Decoder()],
     [
       'additionalMetadata',
       addDecoderSizePrefix(getBytesDecoder(), getU32Decoder()),

@@ -5,18 +5,12 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use crate::generated::types::InitializeMintArgs;
-use crate::generated::types::MetadataPointerArgs;
-use crate::generated::types::ScaledUiAmountConfigArgs;
 use crate::generated::types::TokenMetadataArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct InstructionInitializeMintArgs {
-    pub ix_mint: InitializeMintArgs,
-    pub ix_metadata_pointer: Option<MetadataPointerArgs>,
-    pub ix_metadata: Option<TokenMetadataArgs>,
-    pub ix_scaled_ui_amount: Option<ScaledUiAmountConfigArgs>,
+pub struct UpdateMetadataArgs {
+    pub metadata: TokenMetadataArgs,
 }

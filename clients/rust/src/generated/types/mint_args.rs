@@ -5,12 +5,22 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use crate::generated::types::TokenMetadataArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
+use solana_pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct InstructionUpdateMetadataArgs {
-    pub metadata: TokenMetadataArgs,
+pub struct MintArgs {
+    pub decimals: u8,
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
+    )]
+    pub mint_authority: Pubkey,
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
+    )]
+    pub freeze_authority: Pubkey,
 }

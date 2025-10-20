@@ -17,7 +17,7 @@
         },
         {
           "name": "authority",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -38,9 +38,9 @@
       ],
       "args": [
         {
-          "name": "instructionInitializeMintArgs",
+          "name": "initializeMintArgs",
           "type": {
-            "defined": "InstructionInitializeMintArgs"
+            "defined": "InitializeMintArgs"
           }
         }
       ],
@@ -90,9 +90,9 @@
       ],
       "args": [
         {
-          "name": "instructionUpdateMetadataArgs",
+          "name": "updateMetadataArgs",
           "type": {
-            "defined": "InstructionUpdateMetadataArgs"
+            "defined": "UpdateMetadataArgs"
           }
         }
       ],
@@ -620,32 +620,16 @@
             "type": "publicKey"
           },
           {
-            "name": "nameLen",
-            "type": "u32"
-          },
-          {
             "name": "name",
             "type": "string"
-          },
-          {
-            "name": "symbolLen",
-            "type": "u32"
           },
           {
             "name": "symbol",
             "type": "string"
           },
           {
-            "name": "uriLen",
-            "type": "u32"
-          },
-          {
             "name": "uri",
             "type": "string"
-          },
-          {
-            "name": "additionalMetadataLen",
-            "type": "u32"
           },
           {
             "name": "additionalMetadata",
@@ -705,14 +689,34 @@
       }
     },
     {
-      "name": "InstructionInitializeMintArgs",
+      "name": "MintArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "mintAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "freezeAuthority",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializeMintArgs",
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "ixMint",
             "type": {
-              "defined": "InitializeMintArgs"
+              "defined": "MintArgs"
             }
           },
           {
@@ -743,27 +747,7 @@
       }
     },
     {
-      "name": "InitializeMintArgs",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "decimals",
-            "type": "u8"
-          },
-          {
-            "name": "mintAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "freezeAuthority",
-            "type": "publicKey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "InstructionUpdateMetadataArgs",
+      "name": "UpdateMetadataArgs",
       "type": {
         "kind": "struct",
         "fields": [
