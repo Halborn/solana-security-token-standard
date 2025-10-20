@@ -56,7 +56,7 @@ impl Thaw {
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.freeze_authority,
-            true,
+            false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             self.token_account,
@@ -103,7 +103,7 @@ impl Default for ThawInstructionData {
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
 ///   3. `[]` mint_account
-///   4. `[signer]` freeze_authority
+///   4. `[]` freeze_authority
 ///   5. `[writable]` token_account
 ///   6. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 #[derive(Clone, Debug, Default)]
@@ -291,7 +291,7 @@ impl<'a, 'b> ThawCpi<'a, 'b> {
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.freeze_authority.key,
-            true,
+            false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             *self.token_account.key,
@@ -344,7 +344,7 @@ impl<'a, 'b> ThawCpi<'a, 'b> {
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
 ///   3. `[]` mint_account
-///   4. `[signer]` freeze_authority
+///   4. `[]` freeze_authority
 ///   5. `[writable]` token_account
 ///   6. `[]` token_program
 #[derive(Clone, Debug)]

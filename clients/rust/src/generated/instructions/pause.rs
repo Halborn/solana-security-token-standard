@@ -54,7 +54,7 @@ impl Pause {
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.pause_authority,
-            true,
+            false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.token_program,
@@ -97,7 +97,7 @@ impl Default for PauseInstructionData {
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
 ///   3. `[writable]` mint_account
-///   4. `[signer]` pause_authority
+///   4. `[]` pause_authority
 ///   5. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 #[derive(Clone, Debug, Default)]
 pub struct PauseBuilder {
@@ -272,7 +272,7 @@ impl<'a, 'b> PauseCpi<'a, 'b> {
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.pause_authority.key,
-            true,
+            false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.token_program.key,
@@ -320,7 +320,7 @@ impl<'a, 'b> PauseCpi<'a, 'b> {
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
 ///   3. `[writable]` mint_account
-///   4. `[signer]` pause_authority
+///   4. `[]` pause_authority
 ///   5. `[]` token_program
 #[derive(Clone, Debug)]
 pub struct PauseCpiBuilder<'a, 'b> {

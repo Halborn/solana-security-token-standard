@@ -14,7 +14,6 @@ import {
   getU8Encoder,
   transformEncoder,
   type AccountMeta,
-  type AccountSignerMeta,
   type Address,
   type FixedSizeCodec,
   type FixedSizeDecoder,
@@ -23,9 +22,7 @@ import {
   type InstructionWithAccounts,
   type InstructionWithData,
   type ReadonlyAccount,
-  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
-  type TransactionSigner,
   type WritableAccount,
 } from '@solana/kit';
 import { SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS } from '../programs';
@@ -68,8 +65,7 @@ export type ThawInstruction<
         ? ReadonlyAccount<TAccountMintAccount>
         : TAccountMintAccount,
       TAccountFreezeAuthority extends string
-        ? ReadonlySignerAccount<TAccountFreezeAuthority> &
-            AccountSignerMeta<TAccountFreezeAuthority>
+        ? ReadonlyAccount<TAccountFreezeAuthority>
         : TAccountFreezeAuthority,
       TAccountTokenAccount extends string
         ? WritableAccount<TAccountTokenAccount>
@@ -119,7 +115,7 @@ export type ThawInput<
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
   mintAccount: Address<TAccountMintAccount>;
-  freezeAuthority: TransactionSigner<TAccountFreezeAuthority>;
+  freezeAuthority: Address<TAccountFreezeAuthority>;
   tokenAccount: Address<TAccountTokenAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
 };

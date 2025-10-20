@@ -57,7 +57,7 @@ impl Burn {
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.permanent_delegate,
-            true,
+            false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             self.token_account,
@@ -112,7 +112,7 @@ pub struct BurnInstructionArgs {
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
 ///   3. `[writable]` mint_account
-///   4. `[signer]` permanent_delegate
+///   4. `[]` permanent_delegate
 ///   5. `[writable]` token_account
 ///   6. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 #[derive(Clone, Debug, Default)]
@@ -315,7 +315,7 @@ impl<'a, 'b> BurnCpi<'a, 'b> {
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.permanent_delegate.key,
-            true,
+            false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             *self.token_account.key,
@@ -370,7 +370,7 @@ impl<'a, 'b> BurnCpi<'a, 'b> {
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
 ///   3. `[writable]` mint_account
-///   4. `[signer]` permanent_delegate
+///   4. `[]` permanent_delegate
 ///   5. `[writable]` token_account
 ///   6. `[]` token_program
 #[derive(Clone, Debug)]

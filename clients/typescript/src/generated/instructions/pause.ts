@@ -14,7 +14,6 @@ import {
   getU8Encoder,
   transformEncoder,
   type AccountMeta,
-  type AccountSignerMeta,
   type Address,
   type FixedSizeCodec,
   type FixedSizeDecoder,
@@ -23,9 +22,7 @@ import {
   type InstructionWithAccounts,
   type InstructionWithData,
   type ReadonlyAccount,
-  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
-  type TransactionSigner,
   type WritableAccount,
 } from '@solana/kit';
 import { SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS } from '../programs';
@@ -67,8 +64,7 @@ export type PauseInstruction<
         ? WritableAccount<TAccountMintAccount>
         : TAccountMintAccount,
       TAccountPauseAuthority extends string
-        ? ReadonlySignerAccount<TAccountPauseAuthority> &
-            AccountSignerMeta<TAccountPauseAuthority>
+        ? ReadonlyAccount<TAccountPauseAuthority>
         : TAccountPauseAuthority,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
@@ -114,7 +110,7 @@ export type PauseInput<
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
   mintAccount: Address<TAccountMintAccount>;
-  pauseAuthority: TransactionSigner<TAccountPauseAuthority>;
+  pauseAuthority: Address<TAccountPauseAuthority>;
   tokenProgram?: Address<TAccountTokenProgram>;
 };
 

@@ -26,13 +26,10 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
-        let [creator_signer, mint_info, mint_authority, destination_account_info, token_program] =
-            accounts
-        else {
+        let [mint_info, mint_authority, destination_account_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
-        verify_signer(creator_signer, false)?;
 
         log!("All checks passed, proceeding to mint {} tokens", amount);
 

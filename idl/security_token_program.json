@@ -308,11 +308,6 @@
           "isSigner": false
         },
         {
-          "name": "mintCreator",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
           "name": "mintAccount",
           "isMut": true,
           "isSigner": false
@@ -370,7 +365,7 @@
         {
           "name": "permanentDelegate",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "tokenAccount",
@@ -420,7 +415,7 @@
         {
           "name": "pauseAuthority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "tokenProgram",
@@ -460,7 +455,7 @@
         {
           "name": "pauseAuthority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "tokenProgram",
@@ -500,7 +495,7 @@
         {
           "name": "freezeAuthority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "tokenAccount",
@@ -545,7 +540,7 @@
         {
           "name": "freezeAuthority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "tokenAccount",

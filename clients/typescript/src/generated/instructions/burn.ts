@@ -16,7 +16,6 @@ import {
   getU8Encoder,
   transformEncoder,
   type AccountMeta,
-  type AccountSignerMeta,
   type Address,
   type FixedSizeCodec,
   type FixedSizeDecoder,
@@ -25,9 +24,7 @@ import {
   type InstructionWithAccounts,
   type InstructionWithData,
   type ReadonlyAccount,
-  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
-  type TransactionSigner,
   type WritableAccount,
 } from '@solana/kit';
 import { SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS } from '../programs';
@@ -70,8 +67,7 @@ export type BurnInstruction<
         ? WritableAccount<TAccountMintAccount>
         : TAccountMintAccount,
       TAccountPermanentDelegate extends string
-        ? ReadonlySignerAccount<TAccountPermanentDelegate> &
-            AccountSignerMeta<TAccountPermanentDelegate>
+        ? ReadonlyAccount<TAccountPermanentDelegate>
         : TAccountPermanentDelegate,
       TAccountTokenAccount extends string
         ? WritableAccount<TAccountTokenAccount>
@@ -127,7 +123,7 @@ export type BurnInput<
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
   mintAccount: Address<TAccountMintAccount>;
-  permanentDelegate: TransactionSigner<TAccountPermanentDelegate>;
+  permanentDelegate: Address<TAccountPermanentDelegate>;
   tokenAccount: Address<TAccountTokenAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
   amount: BurnInstructionDataArgs['amount'];

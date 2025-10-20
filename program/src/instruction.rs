@@ -128,18 +128,17 @@ mod idl_gen {
         #[account(0, name = "mint")]
         #[account(1, name = "verification_config")]
         #[account(2, name = "instructions_sysvar")]
-        #[account(3, signer, name = "mint_creator")]
-        #[account(4, writable, name = "mint_account")]
-        #[account(5, writable, name = "mint_authority")]
-        #[account(6, writable, name = "destination")]
-        #[account(7, name = "token_program")]
+        #[account(3, writable, name = "mint_account")]
+        #[account(4, writable, name = "mint_authority")]
+        #[account(5, writable, name = "destination")]
+        #[account(6, name = "token_program")]
         Mint { amount: u64 } = 6,
 
         #[account(0, name = "mint")]
         #[account(1, name = "verification_config")]
         #[account(2, name = "instructions_sysvar")]
         #[account(3, writable, name = "mint_account")]
-        #[account(4, signer, name = "permanent_delegate")]
+        #[account(4, name = "permanent_delegate")]
         #[account(5, writable, name = "token_account")]
         #[account(6, name = "token_program")]
         Burn { amount: u64 } = 7,
@@ -148,7 +147,7 @@ mod idl_gen {
         #[account(1, name = "verification_config")]
         #[account(2, name = "instructions_sysvar")]
         #[account(3, writable, name = "mint_account")]
-        #[account(4, signer, name = "pause_authority")]
+        #[account(4, name = "pause_authority")]
         #[account(5, name = "token_program")]
         Pause = 8,
 
@@ -156,7 +155,7 @@ mod idl_gen {
         #[account(1, name = "verification_config")]
         #[account(2, name = "instructions_sysvar")]
         #[account(3, writable, name = "mint_account")]
-        #[account(4, signer, name = "pause_authority")]
+        #[account(4, name = "pause_authority")]
         #[account(5, name = "token_program")]
         Resume = 9,
 
@@ -164,7 +163,7 @@ mod idl_gen {
         #[account(1, name = "verification_config")]
         #[account(2, name = "instructions_sysvar")]
         #[account(3, name = "mint_account")]
-        #[account(4, signer, name = "freeze_authority")]
+        #[account(4, name = "freeze_authority")]
         #[account(5, writable, name = "token_account")]
         #[account(6, name = "token_program")]
         Freeze = 10,
@@ -173,7 +172,7 @@ mod idl_gen {
         #[account(1, name = "verification_config")]
         #[account(2, name = "instructions_sysvar")]
         #[account(3, name = "mint_account")]
-        #[account(4, signer, name = "freeze_authority")]
+        #[account(4, name = "freeze_authority")]
         #[account(5, writable, name = "token_account")]
         #[account(6, name = "token_program")]
         Thaw = 11,
