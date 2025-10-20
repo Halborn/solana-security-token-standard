@@ -3,63 +3,127 @@
   "name": "security_token_program",
   "instructions": [
     {
+      "name": "InitializeMint",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "splToken2022Program",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rentSysvar",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 0
+      }
+    },
+    {
+      "name": "UpdateMetadata",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfigOrMintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvarOrCreator",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 1
+      }
+    },
+    {
       "name": "InitializeVerificationConfig",
       "accounts": [
         {
           "name": "mint",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Mint used when deriving verification PDAs"
-          ]
+          "isSigner": false
         },
         {
           "name": "verificationConfigOrMintAuthority",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback"
-          ]
+          "isSigner": false
         },
         {
           "name": "instructionsSysvarOrCreator",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback"
-          ]
+          "isSigner": false
         },
         {
           "name": "configAccount",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "VerificationConfig PDA being created"
-          ]
+          "isSigner": false
         },
         {
           "name": "payer",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Payer funding the new VerificationConfig account"
-          ]
+          "isSigner": true
         },
         {
           "name": "mintAccount",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "SPL Token 2022 mint the configuration applies to"
-          ]
+          "isSigner": false
         },
         {
           "name": "systemProgram",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "System program used for account creation"
-          ]
+          "isSigner": false
         }
       ],
       "args": [
@@ -81,58 +145,37 @@
         {
           "name": "mint",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Mint used when deriving verification PDAs"
-          ]
+          "isSigner": false
         },
         {
           "name": "verificationConfigOrMintAuthority",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback"
-          ]
+          "isSigner": false
         },
         {
           "name": "instructionsSysvarOrCreator",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback"
-          ]
+          "isSigner": false
         },
         {
           "name": "configAccount",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "VerificationConfig PDA account to update"
-          ]
+          "isSigner": false
         },
         {
           "name": "mintAccount",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "SPL Token 2022 mint the configuration applies to"
-          ]
+          "isSigner": false
         },
         {
           "name": "payer",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Payer covering any additional rent during update"
-          ]
+          "isSigner": true
         },
         {
           "name": "systemProgram",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "System program for reallocations"
-          ]
+          "isSigner": false
         }
       ],
       "args": [
@@ -154,58 +197,37 @@
         {
           "name": "mint",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Mint used when deriving verification PDAs"
-          ]
+          "isSigner": false
         },
         {
           "name": "verificationConfigOrMintAuthority",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback"
-          ]
+          "isSigner": false
         },
         {
           "name": "instructionsSysvarOrCreator",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback"
-          ]
+          "isSigner": false
         },
         {
           "name": "configAccount",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "VerificationConfig PDA account to trim"
-          ]
+          "isSigner": false
         },
         {
           "name": "mintAccount",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "SPL Token 2022 mint the configuration applies to"
-          ]
+          "isSigner": false
         },
         {
           "name": "recipient",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Recipient account that receives reclaimed lamports"
-          ]
+          "isSigner": false
         },
         {
           "name": "systemProgram",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "System program for closing or reallocating accounts"
-          ]
+          "isSigner": false
         }
       ],
       "args": [
@@ -219,6 +241,313 @@
       "discriminant": {
         "type": "u8",
         "value": 4
+      }
+    },
+    {
+      "name": "Verify",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "verifyArgs",
+          "type": {
+            "defined": "VerifyArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 5
+      }
+    },
+    {
+      "name": "Mint",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintCreator",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "mintAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mintAuthority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "destination",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 6
+      }
+    },
+    {
+      "name": "Burn",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "permanentDelegate",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 7
+      }
+    },
+    {
+      "name": "Pause",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "pauseAuthority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 8
+      }
+    },
+    {
+      "name": "Resume",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "pauseAuthority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 9
+      }
+    },
+    {
+      "name": "Freeze",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "freezeAuthority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 10
+      }
+    },
+    {
+      "name": "Thaw",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "freezeAuthority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 11
       }
     }
   ],

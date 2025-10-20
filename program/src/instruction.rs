@@ -69,19 +69,21 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        InitializeArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs
+        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateVerificationConfigArgs,
+        VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
     #[repr(u8)]
-    enum _SecurityTokenInstruction<'a> {
+    enum _SecurityTokenInstruction {
         #[account(0, writable, signer, name = "mint")]
         #[account(1, signer, name = "payer")]
         #[account(2, signer, name = "authority")]
         #[account(3, name = "SPL Token 2022 Program")]
         #[account(4, name = "System Program")]
         #[account(5, name = "Rent Sysvar")]
-        InitializeMint(InitializeArgs<'a>) = 0,
+        // NOTE: Shank doesn't work with external instructions, we define as dependency in codama
+        InitializeMint = 0,
 
         #[account(0, name = "mint")]
         #[account(1, name = "verification_config_or_mint_authority")]
@@ -90,8 +92,9 @@ mod idl_gen {
         #[account(4, signer, name = "payer")] // Pays for potential rent-exempt top-up
         #[account(5, name = "token_program")]
         #[account(6, name = "system_program")]
-        UpdateMetadata(UpdateMetadataArgs<'a>) = 1,
-        
+        // NOTE: Shank doesn't work with external instructions, we define as dependency in codama
+        UpdateMetadata = 1,
+
         #[account(0, name = "mint")]
         #[account(1, name = "verification_config_or_mint_authority")]
         #[account(2, name = "instructions_sysvar_or_creator")]
