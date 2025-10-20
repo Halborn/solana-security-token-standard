@@ -187,7 +187,6 @@ impl InitializeMintArgs {
         );
         offset += 4;
 
-
         // Read uri string
         if data.len() < offset + uri_len as usize {
             return Err(ProgramError::InvalidRealloc);
