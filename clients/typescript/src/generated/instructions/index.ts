@@ -6,6 +6,15 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './burn';
+export * from './freeze';
+export * from './initializeMint';
 export * from './initializeVerificationConfig';
+export * from './mint';
+export * from './pause';
+export * from './resume';
+export * from './thaw';
 export * from './trimVerificationConfig';
+export * from './updateMetadata';
 export * from './updateVerificationConfig';
+export * from './verify';

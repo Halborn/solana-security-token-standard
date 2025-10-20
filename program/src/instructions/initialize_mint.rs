@@ -3,10 +3,57 @@ use pinocchio::pubkey::Pubkey;
 use pinocchio_token_2022::extensions::metadata::TokenMetadata;
 use pinocchio_token_2022::extensions::metadata_pointer::MetadataPointer;
 use pinocchio_token_2022::extensions::scaled_ui_amount::ScaledUiAmountConfig;
+use shank::ShankType;
+
+// Those types only for IDL generation purpose
+
+#[repr(C)]
+#[derive(ShankType)]
+pub struct TokenMetadataArgs {
+    pub update_authority: Pubkey,
+    pub mint: Pubkey,
+    pub name_len: u32,
+    pub name: String,
+    pub symbol_len: u32,
+    pub symbol: String,
+    pub uri_len: u32,
+    pub uri: String,
+    pub additional_metadata_len: u32,
+    pub additional_metadata: Vec<u8>,
+}
+
+#[repr(C)]
+#[derive(ShankType)]
+pub struct ScaledUiAmountConfigArgs {
+    pub authority: Pubkey,
+    pub multiplier: [u8; 8],
+    pub new_multiplier_effective_timestamp: i64, // pinocchio::sysvars::clock::UnixTimestamp;
+    pub new_multiplier: [u8; 8],
+}
+
+#[repr(C)]
+#[derive(ShankType)]
+pub struct MetadataPointerArgs {
+    pub authority: Pubkey,
+    pub metadata_address: Pubkey,
+}
+
+#[repr(C)]
+#[derive(ShankType)]
+pub struct InstructionInitializeMintArgs {
+    /// Basic mint arguments
+    pub ix_mint: InitializeMintArgs,
+    /// Optional metadata pointer configuration
+    pub ix_metadata_pointer: Option<MetadataPointerArgs>,
+    /// Optional metadata
+    pub ix_metadata: Option<TokenMetadataArgs>,
+    /// Optional scaled UI amount configuration
+    pub ix_scaled_ui_amount: Option<ScaledUiAmountConfigArgs>,
+}
 
 /// Arguments to initialize mint
 #[repr(C)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, ShankType)]
 pub struct InitializeMintArgs {
     /// Number of decimals for the token
     pub decimals: u8,
@@ -287,12 +334,14 @@ impl<'a> InitializeArgs<'a> {
 
     /// Deserialize arguments from bytes
     pub fn try_from_bytes(data: &'a [u8]) -> Result<Self, ProgramError> {
+        use pinocchio_log::log;
+        log!("Try to parse InitializeArgs from bytes");
         // First, try_from_bytes the mint arguments
         let ix_mint = InitializeMintArgs::try_from_bytes(data)?;
 
         // Determine the offset after mint args
         let mut offset = 65;
-
+        log!("Check extensions");
         if data.len() <= offset {
             // No extensions
             return Ok(Self {
@@ -302,7 +351,7 @@ impl<'a> InitializeArgs<'a> {
                 ix_scaled_ui_amount: None,
             });
         }
-
+        log!("Check metadata pointer");
         // Check metadata pointer flag
         let has_metadata_pointer = data[offset];
         offset += 1;
@@ -333,6 +382,8 @@ impl<'a> InitializeArgs<'a> {
             None
         };
 
+        log!("Check metadata");
+
         if data.len() <= offset {
             // No metadata
             return Ok(Self {
@@ -356,6 +407,7 @@ impl<'a> InitializeArgs<'a> {
             None
         };
 
+        log!("Check scaled UI amount");
         // Check scaled UI amount flag
         let has_scaled_ui_amount = if data.len() > offset { data[offset] } else { 0 };
 

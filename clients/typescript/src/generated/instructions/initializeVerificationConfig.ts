@@ -143,19 +143,12 @@ export type InitializeVerificationConfigInput<
   TAccountMintAccount extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
-  /** Mint used when deriving verification PDAs */
   mint: Address<TAccountMint>;
-  /** VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback */
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
-  /** Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback */
   instructionsSysvarOrCreator: Address<TAccountInstructionsSysvarOrCreator>;
-  /** VerificationConfig PDA being created */
   configAccount: Address<TAccountConfigAccount>;
-  /** Payer funding the new VerificationConfig account */
   payer: TransactionSigner<TAccountPayer>;
-  /** SPL Token 2022 mint the configuration applies to */
   mintAccount: Address<TAccountMintAccount>;
-  /** System program used for account creation */
   systemProgram?: Address<TAccountSystemProgram>;
   initializeVerificationConfigArgs: InitializeVerificationConfigInstructionDataArgs['initializeVerificationConfigArgs'];
 };
@@ -258,19 +251,12 @@ export type ParsedInitializeVerificationConfigInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** Mint used when deriving verification PDAs */
     mint: TAccountMetas[0];
-    /** VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback */
     verificationConfigOrMintAuthority: TAccountMetas[1];
-    /** Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback */
     instructionsSysvarOrCreator: TAccountMetas[2];
-    /** VerificationConfig PDA being created */
     configAccount: TAccountMetas[3];
-    /** Payer funding the new VerificationConfig account */
     payer: TAccountMetas[4];
-    /** SPL Token 2022 mint the configuration applies to */
     mintAccount: TAccountMetas[5];
-    /** System program used for account creation */
     systemProgram: TAccountMetas[6];
   };
   data: InitializeVerificationConfigInstructionData;

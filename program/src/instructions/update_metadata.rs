@@ -1,7 +1,14 @@
+use crate::instructions::{InitializeArgs, TokenMetadataArgs};
 use pinocchio::program_error::ProgramError;
 use pinocchio_token_2022::extensions::metadata::TokenMetadata;
+use shank::ShankType;
 
-use crate::instructions::InitializeArgs;
+// Those types only for IDL generation purpose
+#[repr(C)]
+#[derive(ShankType)]
+pub struct InstructionUpdateMetadataArgs {
+    pub metadata: TokenMetadataArgs,
+}
 
 /// Arguments for UpdateMetadata instruction
 #[repr(C)]

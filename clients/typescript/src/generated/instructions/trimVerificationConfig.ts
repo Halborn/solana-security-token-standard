@@ -133,19 +133,12 @@ export type TrimVerificationConfigInput<
   TAccountRecipient extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
-  /** Mint used when deriving verification PDAs */
   mint: Address<TAccountMint>;
-  /** VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback */
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
-  /** Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback */
   instructionsSysvarOrCreator: Address<TAccountInstructionsSysvarOrCreator>;
-  /** VerificationConfig PDA account to trim */
   configAccount: Address<TAccountConfigAccount>;
-  /** SPL Token 2022 mint the configuration applies to */
   mintAccount: Address<TAccountMintAccount>;
-  /** Recipient account that receives reclaimed lamports */
   recipient: Address<TAccountRecipient>;
-  /** System program for closing or reallocating accounts */
   systemProgram?: Address<TAccountSystemProgram>;
   trimVerificationConfigArgs: TrimVerificationConfigInstructionDataArgs['trimVerificationConfigArgs'];
 };
@@ -248,19 +241,12 @@ export type ParsedTrimVerificationConfigInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** Mint used when deriving verification PDAs */
     mint: TAccountMetas[0];
-    /** VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback */
     verificationConfigOrMintAuthority: TAccountMetas[1];
-    /** Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback */
     instructionsSysvarOrCreator: TAccountMetas[2];
-    /** VerificationConfig PDA account to trim */
     configAccount: TAccountMetas[3];
-    /** SPL Token 2022 mint the configuration applies to */
     mintAccount: TAccountMetas[4];
-    /** Recipient account that receives reclaimed lamports */
     recipient: TAccountMetas[5];
-    /** System program for closing or reallocating accounts */
     systemProgram: TAccountMetas[6];
   };
   data: TrimVerificationConfigInstructionData;

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["program", "clients/rust"]
+members = ["program", "clients/rust", "tests"]
 
 [workspace.package]
 version = "0.1.0"

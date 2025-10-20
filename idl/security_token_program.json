@@ -18,7 +18,7 @@
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "splToken2022Program",
@@ -36,7 +36,14 @@
           "isSigner": false
         }
       ],
-      "args": [],
+      "args": [
+        {
+          "name": "instructionInitializeMintArgs",
+          "type": {
+            "defined": "InstructionInitializeMintArgs"
+          }
+        }
+      ],
       "discriminant": {
         "type": "u8",
         "value": 0
@@ -81,7 +88,14 @@
           "isSigner": false
         }
       ],
-      "args": [],
+      "args": [
+        {
+          "name": "instructionUpdateMetadataArgs",
+          "type": {
+            "defined": "InstructionUpdateMetadataArgs"
+          }
+        }
+      ],
       "discriminant": {
         "type": "u8",
         "value": 1
@@ -593,6 +607,176 @@
   ],
   "types": [
     {
+      "name": "TokenMetadataArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "updateAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "nameLen",
+            "type": "u32"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "symbolLen",
+            "type": "u32"
+          },
+          {
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "name": "uriLen",
+            "type": "u32"
+          },
+          {
+            "name": "uri",
+            "type": "string"
+          },
+          {
+            "name": "additionalMetadataLen",
+            "type": "u32"
+          },
+          {
+            "name": "additionalMetadata",
+            "type": "bytes"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ScaledUiAmountConfigArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "multiplier",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "newMultiplierEffectiveTimestamp",
+            "type": "i64"
+          },
+          {
+            "name": "newMultiplier",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MetadataPointerArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "metadataAddress",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InstructionInitializeMintArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ixMint",
+            "type": {
+              "defined": "InitializeMintArgs"
+            }
+          },
+          {
+            "name": "ixMetadataPointer",
+            "type": {
+              "option": {
+                "defined": "MetadataPointerArgs"
+              }
+            }
+          },
+          {
+            "name": "ixMetadata",
+            "type": {
+              "option": {
+                "defined": "TokenMetadataArgs"
+              }
+            }
+          },
+          {
+            "name": "ixScaledUiAmount",
+            "type": {
+              "option": {
+                "defined": "ScaledUiAmountConfigArgs"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializeMintArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "mintAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "freezeAuthority",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InstructionUpdateMetadataArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "metadata",
+            "type": {
+              "defined": "TokenMetadataArgs"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "InitializeVerificationConfigArgs",
       "type": {
         "kind": "struct",
@@ -648,6 +832,18 @@
           {
             "name": "close",
             "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VerifyArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ix",
+            "type": "u8"
           }
         ]
       }

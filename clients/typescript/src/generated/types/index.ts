@@ -6,6 +6,13 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './initializeMintArgs';
 export * from './initializeVerificationConfigArgs';
+export * from './instructionInitializeMintArgs';
+export * from './instructionUpdateMetadataArgs';
+export * from './metadataPointerArgs';
+export * from './scaledUiAmountConfigArgs';
+export * from './tokenMetadataArgs';
 export * from './trimVerificationConfigArgs';
 export * from './updateVerificationConfigArgs';
+export * from './verifyArgs';

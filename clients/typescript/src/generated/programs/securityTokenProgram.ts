@@ -13,9 +13,18 @@ import {
   type ReadonlyUint8Array,
 } from '@solana/kit';
 import {
+  type ParsedBurnInstruction,
+  type ParsedFreezeInstruction,
+  type ParsedInitializeMintInstruction,
   type ParsedInitializeVerificationConfigInstruction,
+  type ParsedMintInstruction,
+  type ParsedPauseInstruction,
+  type ParsedResumeInstruction,
+  type ParsedThawInstruction,
   type ParsedTrimVerificationConfigInstruction,
+  type ParsedUpdateMetadataInstruction,
   type ParsedUpdateVerificationConfigInstruction,
+  type ParsedVerifyInstruction,
 } from '../instructions';
 
 export const SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS =
@@ -27,15 +36,30 @@ export enum SecurityTokenProgramAccount {
 }
 
 export enum SecurityTokenProgramInstruction {
+  InitializeMint,
+  UpdateMetadata,
   InitializeVerificationConfig,
   UpdateVerificationConfig,
   TrimVerificationConfig,
+  Verify,
+  Mint,
+  Burn,
+  Pause,
+  Resume,
+  Freeze,
+  Thaw,
 }
 
 export function identifySecurityTokenProgramInstruction(
   instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): SecurityTokenProgramInstruction {
   const data = 'data' in instruction ? instruction.data : instruction;
+  if (containsBytes(data, getU8Encoder().encode(0), 0)) {
+    return SecurityTokenProgramInstruction.InitializeMint;
+  }
+  if (containsBytes(data, getU8Encoder().encode(1), 0)) {
+    return SecurityTokenProgramInstruction.UpdateMetadata;
+  }
   if (containsBytes(data, getU8Encoder().encode(2), 0)) {
     return SecurityTokenProgramInstruction.InitializeVerificationConfig;
   }
@@ -44,6 +68,27 @@ export function identifySecurityTokenProgramInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(4), 0)) {
     return SecurityTokenProgramInstruction.TrimVerificationConfig;
+  }
+  if (containsBytes(data, getU8Encoder().encode(5), 0)) {
+    return SecurityTokenProgramInstruction.Verify;
+  }
+  if (containsBytes(data, getU8Encoder().encode(6), 0)) {
+    return SecurityTokenProgramInstruction.Mint;
+  }
+  if (containsBytes(data, getU8Encoder().encode(7), 0)) {
+    return SecurityTokenProgramInstruction.Burn;
+  }
+  if (containsBytes(data, getU8Encoder().encode(8), 0)) {
+    return SecurityTokenProgramInstruction.Pause;
+  }
+  if (containsBytes(data, getU8Encoder().encode(9), 0)) {
+    return SecurityTokenProgramInstruction.Resume;
+  }
+  if (containsBytes(data, getU8Encoder().encode(10), 0)) {
+    return SecurityTokenProgramInstruction.Freeze;
+  }
+  if (containsBytes(data, getU8Encoder().encode(11), 0)) {
+    return SecurityTokenProgramInstruction.Thaw;
   }
   throw new Error(
     'The provided instruction could not be identified as a securityTokenProgram instruction.'
@@ -54,6 +99,12 @@ export type ParsedSecurityTokenProgramInstruction<
   TProgram extends string = 'Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH',
 > =
   | ({
+      instructionType: SecurityTokenProgramInstruction.InitializeMint;
+    } & ParsedInitializeMintInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.UpdateMetadata;
+    } & ParsedUpdateMetadataInstruction<TProgram>)
+  | ({
       instructionType: SecurityTokenProgramInstruction.InitializeVerificationConfig;
     } & ParsedInitializeVerificationConfigInstruction<TProgram>)
   | ({
@@ -61,4 +112,25 @@ export type ParsedSecurityTokenProgramInstruction<
     } & ParsedUpdateVerificationConfigInstruction<TProgram>)
   | ({
       instructionType: SecurityTokenProgramInstruction.TrimVerificationConfig;
-    } & ParsedTrimVerificationConfigInstruction<TProgram>);
+    } & ParsedTrimVerificationConfigInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.Verify;
+    } & ParsedVerifyInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.Mint;
+    } & ParsedMintInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.Burn;
+    } & ParsedBurnInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.Pause;
+    } & ParsedPauseInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.Resume;
+    } & ParsedResumeInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.Freeze;
+    } & ParsedFreezeInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.Thaw;
+    } & ParsedThawInstruction<TProgram>);

@@ -14,19 +14,18 @@ pub const UPDATE_VERIFICATION_CONFIG_DISCRIMINATOR: u8 = 3;
 /// Accounts.
 #[derive(Debug)]
 pub struct UpdateVerificationConfig {
-    /// Mint used when deriving verification PDAs
     pub mint: solana_pubkey::Pubkey,
-    /// VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback
+
     pub verification_config_or_mint_authority: solana_pubkey::Pubkey,
-    /// Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback
+
     pub instructions_sysvar_or_creator: solana_pubkey::Pubkey,
-    /// VerificationConfig PDA account to update
+
     pub config_account: solana_pubkey::Pubkey,
-    /// SPL Token 2022 mint the configuration applies to
+
     pub mint_account: solana_pubkey::Pubkey,
-    /// Payer covering any additional rent during update
+
     pub payer: solana_pubkey::Pubkey,
-    /// System program for reallocations
+
     pub system_program: solana_pubkey::Pubkey,
 }
 
@@ -134,13 +133,11 @@ impl UpdateVerificationConfigBuilder {
     pub fn new() -> Self {
         Self::default()
     }
-    /// Mint used when deriving verification PDAs
     #[inline(always)]
     pub fn mint(&mut self, mint: solana_pubkey::Pubkey) -> &mut Self {
         self.mint = Some(mint);
         self
     }
-    /// VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback
     #[inline(always)]
     pub fn verification_config_or_mint_authority(
         &mut self,
@@ -149,7 +146,6 @@ impl UpdateVerificationConfigBuilder {
         self.verification_config_or_mint_authority = Some(verification_config_or_mint_authority);
         self
     }
-    /// Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback
     #[inline(always)]
     pub fn instructions_sysvar_or_creator(
         &mut self,
@@ -158,26 +154,22 @@ impl UpdateVerificationConfigBuilder {
         self.instructions_sysvar_or_creator = Some(instructions_sysvar_or_creator);
         self
     }
-    /// VerificationConfig PDA account to update
     #[inline(always)]
     pub fn config_account(&mut self, config_account: solana_pubkey::Pubkey) -> &mut Self {
         self.config_account = Some(config_account);
         self
     }
-    /// SPL Token 2022 mint the configuration applies to
     #[inline(always)]
     pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
         self.mint_account = Some(mint_account);
         self
     }
-    /// Payer covering any additional rent during update
     #[inline(always)]
     pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
         self.payer = Some(payer);
         self
     }
     /// `[optional account, default to '11111111111111111111111111111111']`
-    /// System program for reallocations
     #[inline(always)]
     pub fn system_program(&mut self, system_program: solana_pubkey::Pubkey) -> &mut Self {
         self.system_program = Some(system_program);
@@ -236,19 +228,18 @@ impl UpdateVerificationConfigBuilder {
 
 /// `update_verification_config` CPI accounts.
 pub struct UpdateVerificationConfigCpiAccounts<'a, 'b> {
-    /// Mint used when deriving verification PDAs
     pub mint: &'b solana_account_info::AccountInfo<'a>,
-    /// VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback
+
     pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
-    /// Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback
+
     pub instructions_sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>,
-    /// VerificationConfig PDA account to update
+
     pub config_account: &'b solana_account_info::AccountInfo<'a>,
-    /// SPL Token 2022 mint the configuration applies to
+
     pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-    /// Payer covering any additional rent during update
+
     pub payer: &'b solana_account_info::AccountInfo<'a>,
-    /// System program for reallocations
+
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
 }
 
@@ -256,19 +247,19 @@ pub struct UpdateVerificationConfigCpiAccounts<'a, 'b> {
 pub struct UpdateVerificationConfigCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_account_info::AccountInfo<'a>,
-    /// Mint used when deriving verification PDAs
+
     pub mint: &'b solana_account_info::AccountInfo<'a>,
-    /// VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback
+
     pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
-    /// Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback
+
     pub instructions_sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>,
-    /// VerificationConfig PDA account to update
+
     pub config_account: &'b solana_account_info::AccountInfo<'a>,
-    /// SPL Token 2022 mint the configuration applies to
+
     pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-    /// Payer covering any additional rent during update
+
     pub payer: &'b solana_account_info::AccountInfo<'a>,
-    /// System program for reallocations
+
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
     pub __args: UpdateVerificationConfigInstructionArgs,
@@ -410,13 +401,11 @@ impl<'a, 'b> UpdateVerificationConfigCpiBuilder<'a, 'b> {
         });
         Self { instruction }
     }
-    /// Mint used when deriving verification PDAs
     #[inline(always)]
     pub fn mint(&mut self, mint: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.mint = Some(mint);
         self
     }
-    /// VerificationConfig PDA when using program verification, or MintAuthority PDA when using mint-authority fallback
     #[inline(always)]
     pub fn verification_config_or_mint_authority(
         &mut self,
@@ -426,7 +415,6 @@ impl<'a, 'b> UpdateVerificationConfigCpiBuilder<'a, 'b> {
             Some(verification_config_or_mint_authority);
         self
     }
-    /// Instructions sysvar for CPI introspection (non-signer) or mint creator signer when using mint-authority fallback
     #[inline(always)]
     pub fn instructions_sysvar_or_creator(
         &mut self,
@@ -435,7 +423,6 @@ impl<'a, 'b> UpdateVerificationConfigCpiBuilder<'a, 'b> {
         self.instruction.instructions_sysvar_or_creator = Some(instructions_sysvar_or_creator);
         self
     }
-    /// VerificationConfig PDA account to update
     #[inline(always)]
     pub fn config_account(
         &mut self,
@@ -444,7 +431,6 @@ impl<'a, 'b> UpdateVerificationConfigCpiBuilder<'a, 'b> {
         self.instruction.config_account = Some(config_account);
         self
     }
-    /// SPL Token 2022 mint the configuration applies to
     #[inline(always)]
     pub fn mint_account(
         &mut self,
@@ -453,13 +439,11 @@ impl<'a, 'b> UpdateVerificationConfigCpiBuilder<'a, 'b> {
         self.instruction.mint_account = Some(mint_account);
         self
     }
-    /// Payer covering any additional rent during update
     #[inline(always)]
     pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.payer = Some(payer);
         self
     }
-    /// System program for reallocations
     #[inline(always)]
     pub fn system_program(
         &mut self,

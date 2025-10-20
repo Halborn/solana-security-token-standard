@@ -88,8 +88,6 @@ sasCodama.update(
   ])
 );
 
-
-
 sasCodama.update(
   codama.setInstructionAccountDefaultValuesVisitor([
     {
@@ -100,7 +98,6 @@ sasCodama.update(
 );
 
 const configPreserver = preserveConfigFiles();
-
 sasCodama.accept(
   renderers.renderRustVisitor(path.join(rustClientsDir, 'src', 'generated'), {
     formatCode: true,
@@ -108,7 +105,6 @@ sasCodama.accept(
     deleteFolderBeforeRendering: true,
   })
 );
-
 sasCodama.accept(
   renderers.renderJavaScriptVisitor(
     path.join(typescriptClientsDir, 'src', 'generated'),

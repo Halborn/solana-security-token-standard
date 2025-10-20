@@ -5,34 +5,34 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use crate::generated::types::TrimVerificationConfigArgs;
+use crate::generated::types::InstructionUpdateMetadataArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
-pub const TRIM_VERIFICATION_CONFIG_DISCRIMINATOR: u8 = 4;
+pub const UPDATE_METADATA_DISCRIMINATOR: u8 = 1;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct TrimVerificationConfig {
+pub struct UpdateMetadata {
     pub mint: solana_pubkey::Pubkey,
 
     pub verification_config_or_mint_authority: solana_pubkey::Pubkey,
 
     pub instructions_sysvar_or_creator: solana_pubkey::Pubkey,
 
-    pub config_account: solana_pubkey::Pubkey,
-
     pub mint_account: solana_pubkey::Pubkey,
 
-    pub recipient: solana_pubkey::Pubkey,
+    pub payer: solana_pubkey::Pubkey,
+
+    pub token_program: solana_pubkey::Pubkey,
 
     pub system_program: solana_pubkey::Pubkey,
 }
 
-impl TrimVerificationConfig {
+impl UpdateMetadata {
     pub fn instruction(
         &self,
-        args: TrimVerificationConfigInstructionArgs,
+        args: UpdateMetadataInstructionArgs,
     ) -> solana_instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
@@ -40,7 +40,7 @@ impl TrimVerificationConfig {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: TrimVerificationConfigInstructionArgs,
+        args: UpdateMetadataInstructionArgs,
         remaining_accounts: &[solana_instruction::AccountMeta],
     ) -> solana_instruction::Instruction {
         let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
@@ -56,20 +56,22 @@ impl TrimVerificationConfig {
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
-            self.config_account,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint_account,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(self.recipient, false));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.payer, true,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.token_program,
+            false,
+        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.system_program,
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&TrimVerificationConfigInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&UpdateMetadataInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
@@ -83,17 +85,17 @@ impl TrimVerificationConfig {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct TrimVerificationConfigInstructionData {
+pub struct UpdateMetadataInstructionData {
     discriminator: u8,
 }
 
-impl TrimVerificationConfigInstructionData {
+impl UpdateMetadataInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 4 }
+        Self { discriminator: 1 }
     }
 }
 
-impl Default for TrimVerificationConfigInstructionData {
+impl Default for UpdateMetadataInstructionData {
     fn default() -> Self {
         Self::new()
     }
@@ -101,35 +103,35 @@ impl Default for TrimVerificationConfigInstructionData {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct TrimVerificationConfigInstructionArgs {
-    pub trim_verification_config_args: TrimVerificationConfigArgs,
+pub struct UpdateMetadataInstructionArgs {
+    pub instruction_update_metadata_args: InstructionUpdateMetadataArgs,
 }
 
-/// Instruction builder for `TrimVerificationConfig`.
+/// Instruction builder for `UpdateMetadata`.
 ///
 /// ### Accounts:
 ///
 ///   0. `[]` mint
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
-///   3. `[writable]` config_account
-///   4. `[]` mint_account
-///   5. `[writable]` recipient
+///   3. `[writable]` mint_account
+///   4. `[signer]` payer
+///   5. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 ///   6. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
-pub struct TrimVerificationConfigBuilder {
+pub struct UpdateMetadataBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config_or_mint_authority: Option<solana_pubkey::Pubkey>,
     instructions_sysvar_or_creator: Option<solana_pubkey::Pubkey>,
-    config_account: Option<solana_pubkey::Pubkey>,
     mint_account: Option<solana_pubkey::Pubkey>,
-    recipient: Option<solana_pubkey::Pubkey>,
+    payer: Option<solana_pubkey::Pubkey>,
+    token_program: Option<solana_pubkey::Pubkey>,
     system_program: Option<solana_pubkey::Pubkey>,
-    trim_verification_config_args: Option<TrimVerificationConfigArgs>,
+    instruction_update_metadata_args: Option<InstructionUpdateMetadataArgs>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
-impl TrimVerificationConfigBuilder {
+impl UpdateMetadataBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -155,18 +157,19 @@ impl TrimVerificationConfigBuilder {
         self
     }
     #[inline(always)]
-    pub fn config_account(&mut self, config_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.config_account = Some(config_account);
-        self
-    }
-    #[inline(always)]
     pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
         self.mint_account = Some(mint_account);
         self
     }
     #[inline(always)]
-    pub fn recipient(&mut self, recipient: solana_pubkey::Pubkey) -> &mut Self {
-        self.recipient = Some(recipient);
+    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
+        self.payer = Some(payer);
+        self
+    }
+    /// `[optional account, default to 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']`
+    #[inline(always)]
+    pub fn token_program(&mut self, token_program: solana_pubkey::Pubkey) -> &mut Self {
+        self.token_program = Some(token_program);
         self
     }
     /// `[optional account, default to '11111111111111111111111111111111']`
@@ -176,11 +179,11 @@ impl TrimVerificationConfigBuilder {
         self
     }
     #[inline(always)]
-    pub fn trim_verification_config_args(
+    pub fn instruction_update_metadata_args(
         &mut self,
-        trim_verification_config_args: TrimVerificationConfigArgs,
+        instruction_update_metadata_args: InstructionUpdateMetadataArgs,
     ) -> &mut Self {
-        self.trim_verification_config_args = Some(trim_verification_config_args);
+        self.instruction_update_metadata_args = Some(instruction_update_metadata_args);
         self
     }
     /// Add an additional account to the instruction.
@@ -200,7 +203,7 @@ impl TrimVerificationConfigBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_instruction::Instruction {
-        let accounts = TrimVerificationConfig {
+        let accounts = UpdateMetadata {
             mint: self.mint.expect("mint is not set"),
             verification_config_or_mint_authority: self
                 .verification_config_or_mint_authority
@@ -208,43 +211,45 @@ impl TrimVerificationConfigBuilder {
             instructions_sysvar_or_creator: self
                 .instructions_sysvar_or_creator
                 .expect("instructions_sysvar_or_creator is not set"),
-            config_account: self.config_account.expect("config_account is not set"),
             mint_account: self.mint_account.expect("mint_account is not set"),
-            recipient: self.recipient.expect("recipient is not set"),
+            payer: self.payer.expect("payer is not set"),
+            token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
+                "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+            )),
             system_program: self
                 .system_program
                 .unwrap_or(solana_pubkey::pubkey!("11111111111111111111111111111111")),
         };
-        let args = TrimVerificationConfigInstructionArgs {
-            trim_verification_config_args: self
-                .trim_verification_config_args
+        let args = UpdateMetadataInstructionArgs {
+            instruction_update_metadata_args: self
+                .instruction_update_metadata_args
                 .clone()
-                .expect("trim_verification_config_args is not set"),
+                .expect("instruction_update_metadata_args is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
     }
 }
 
-/// `trim_verification_config` CPI accounts.
-pub struct TrimVerificationConfigCpiAccounts<'a, 'b> {
+/// `update_metadata` CPI accounts.
+pub struct UpdateMetadataCpiAccounts<'a, 'b> {
     pub mint: &'b solana_account_info::AccountInfo<'a>,
 
     pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
 
     pub instructions_sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>,
 
-    pub config_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub recipient: &'b solana_account_info::AccountInfo<'a>,
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
+
+    pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
 }
 
-/// `trim_verification_config` CPI instruction.
-pub struct TrimVerificationConfigCpi<'a, 'b> {
+/// `update_metadata` CPI instruction.
+pub struct UpdateMetadataCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -254,31 +259,31 @@ pub struct TrimVerificationConfigCpi<'a, 'b> {
 
     pub instructions_sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>,
 
-    pub config_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub recipient: &'b solana_account_info::AccountInfo<'a>,
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
+
+    pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
-    pub __args: TrimVerificationConfigInstructionArgs,
+    pub __args: UpdateMetadataInstructionArgs,
 }
 
-impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
+impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_account_info::AccountInfo<'a>,
-        accounts: TrimVerificationConfigCpiAccounts<'a, 'b>,
-        args: TrimVerificationConfigInstructionArgs,
+        accounts: UpdateMetadataCpiAccounts<'a, 'b>,
+        args: UpdateMetadataInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
             mint: accounts.mint,
             verification_config_or_mint_authority: accounts.verification_config_or_mint_authority,
             instructions_sysvar_or_creator: accounts.instructions_sysvar_or_creator,
-            config_account: accounts.config_account,
             mint_account: accounts.mint_account,
-            recipient: accounts.recipient,
+            payer: accounts.payer,
+            token_program: accounts.token_program,
             system_program: accounts.system_program,
             __args: args,
         }
@@ -320,15 +325,15 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
-            *self.config_account.key,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint_account.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
-            *self.recipient.key,
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.payer.key,
+            true,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.token_program.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -342,7 +347,7 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&TrimVerificationConfigInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&UpdateMetadataInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
@@ -356,9 +361,9 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config_or_mint_authority.clone());
         account_infos.push(self.instructions_sysvar_or_creator.clone());
-        account_infos.push(self.config_account.clone());
         account_infos.push(self.mint_account.clone());
-        account_infos.push(self.recipient.clone());
+        account_infos.push(self.payer.clone());
+        account_infos.push(self.token_program.clone());
         account_infos.push(self.system_program.clone());
         remaining_accounts
             .iter()
@@ -372,34 +377,34 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `TrimVerificationConfig` via CPI.
+/// Instruction builder for `UpdateMetadata` via CPI.
 ///
 /// ### Accounts:
 ///
 ///   0. `[]` mint
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
-///   3. `[writable]` config_account
-///   4. `[]` mint_account
-///   5. `[writable]` recipient
+///   3. `[writable]` mint_account
+///   4. `[signer]` payer
+///   5. `[]` token_program
 ///   6. `[]` system_program
 #[derive(Clone, Debug)]
-pub struct TrimVerificationConfigCpiBuilder<'a, 'b> {
-    instruction: Box<TrimVerificationConfigCpiBuilderInstruction<'a, 'b>>,
+pub struct UpdateMetadataCpiBuilder<'a, 'b> {
+    instruction: Box<UpdateMetadataCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
+impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(TrimVerificationConfigCpiBuilderInstruction {
+        let instruction = Box::new(UpdateMetadataCpiBuilderInstruction {
             __program: program,
             mint: None,
             verification_config_or_mint_authority: None,
             instructions_sysvar_or_creator: None,
-            config_account: None,
             mint_account: None,
-            recipient: None,
+            payer: None,
+            token_program: None,
             system_program: None,
-            trim_verification_config_args: None,
+            instruction_update_metadata_args: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -427,14 +432,6 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn config_account(
-        &mut self,
-        config_account: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.config_account = Some(config_account);
-        self
-    }
-    #[inline(always)]
     pub fn mint_account(
         &mut self,
         mint_account: &'b solana_account_info::AccountInfo<'a>,
@@ -443,8 +440,16 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn recipient(&mut self, recipient: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.recipient = Some(recipient);
+    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.payer = Some(payer);
+        self
+    }
+    #[inline(always)]
+    pub fn token_program(
+        &mut self,
+        token_program: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.token_program = Some(token_program);
         self
     }
     #[inline(always)]
@@ -456,11 +461,11 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn trim_verification_config_args(
+    pub fn instruction_update_metadata_args(
         &mut self,
-        trim_verification_config_args: TrimVerificationConfigArgs,
+        instruction_update_metadata_args: InstructionUpdateMetadataArgs,
     ) -> &mut Self {
-        self.instruction.trim_verification_config_args = Some(trim_verification_config_args);
+        self.instruction.instruction_update_metadata_args = Some(instruction_update_metadata_args);
         self
     }
     /// Add an additional account to the instruction.
@@ -497,14 +502,14 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
     #[allow(clippy::clone_on_copy)]
     #[allow(clippy::vec_init_then_push)]
     pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
-        let args = TrimVerificationConfigInstructionArgs {
-            trim_verification_config_args: self
+        let args = UpdateMetadataInstructionArgs {
+            instruction_update_metadata_args: self
                 .instruction
-                .trim_verification_config_args
+                .instruction_update_metadata_args
                 .clone()
-                .expect("trim_verification_config_args is not set"),
+                .expect("instruction_update_metadata_args is not set"),
         };
-        let instruction = TrimVerificationConfigCpi {
+        let instruction = UpdateMetadataCpi {
             __program: self.instruction.__program,
 
             mint: self.instruction.mint.expect("mint is not set"),
@@ -519,17 +524,17 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
                 .instructions_sysvar_or_creator
                 .expect("instructions_sysvar_or_creator is not set"),
 
-            config_account: self
-                .instruction
-                .config_account
-                .expect("config_account is not set"),
-
             mint_account: self
                 .instruction
                 .mint_account
                 .expect("mint_account is not set"),
 
-            recipient: self.instruction.recipient.expect("recipient is not set"),
+            payer: self.instruction.payer.expect("payer is not set"),
+
+            token_program: self
+                .instruction
+                .token_program
+                .expect("token_program is not set"),
 
             system_program: self
                 .instruction
@@ -545,16 +550,16 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct TrimVerificationConfigCpiBuilderInstruction<'a, 'b> {
+struct UpdateMetadataCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_account_info::AccountInfo<'a>,
     mint: Option<&'b solana_account_info::AccountInfo<'a>>,
     verification_config_or_mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar_or_creator: Option<&'b solana_account_info::AccountInfo<'a>>,
-    config_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-    recipient: Option<&'b solana_account_info::AccountInfo<'a>>,
+    payer: Option<&'b solana_account_info::AccountInfo<'a>>,
+    token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    trim_verification_config_args: Option<TrimVerificationConfigArgs>,
+    instruction_update_metadata_args: Option<InstructionUpdateMetadataArgs>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }
