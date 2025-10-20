@@ -41,7 +41,7 @@ use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
     verify_instructions_sysvar, verify_owner, verify_rent_sysvar, verify_signer,
-    verify_system_program, verify_token22_program,
+    verify_system_program, verify_token22_program, verify_writable,
 };
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
@@ -95,8 +95,10 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_signer(creator_info, true)?;
-        verify_signer(mint_info, true)?;
+        verify_signer(creator_info)?;
+        verify_signer(mint_info)?;
+        verify_writable(creator_info)?;
+        verify_writable(mint_info)?;
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
         verify_rent_sysvar(rent_info)?;
@@ -421,7 +423,7 @@ impl VerificationModule {
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
-        verify_signer(authority_info, false)?;
+        verify_signer(authority_info)?;
 
         // Get metadata account address from MetadataPointer extension
         let metadata_address: Option<Pubkey> = {
@@ -763,7 +765,7 @@ impl VerificationModule {
         mint_authority: &AccountInfo,
         candidate_authority: &AccountInfo,
     ) -> Result<(), ProgramError> {
-        verify_signer(candidate_authority, false)?;
+        verify_signer(candidate_authority)?;
         verify_owner(mint_authority, program_id)?;
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
@@ -988,7 +990,8 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_signer(payer, true)?;
+        verify_signer(payer)?;
+        verify_writable(payer)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_system_program(system_program_info)?;
 
@@ -1071,7 +1074,8 @@ impl VerificationModule {
         };
 
         verify_owner(config_account, program_id)?;
-        verify_signer(payer, true)?;
+        verify_signer(payer)?;
+        verify_writable(payer)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_system_program(system_program_info)?;
 
@@ -1180,6 +1184,7 @@ impl VerificationModule {
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_system_program(system_program_info)?;
+        verify_writable(recipient)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;

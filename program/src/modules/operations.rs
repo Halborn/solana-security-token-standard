@@ -32,10 +32,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
-        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
-        verify_owner(destination_account_info, &pinocchio_token_2022::ID)?;
         verify_owner(mint_authority, program_id)?;
-        verify_signer(creator_signer, false)?;
+        verify_signer(creator_signer)?;
 
         log!("All checks passed, proceeding to mint {} tokens", amount);
 
