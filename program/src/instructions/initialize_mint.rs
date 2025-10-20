@@ -44,11 +44,11 @@ pub struct InstructionInitializeMintArgs {
     /// Basic mint arguments
     pub ix_mint: InitializeMintArgs,
     /// Optional metadata pointer configuration
-    pub ix_metadata_pointer: Option<MetadataPointerArgs>,
+    pub ix_metadata_pointer: Option<MetadataPointerArgs>, // pinocchio_token_2022::extensions::metadata_pointer::MetadataPointer
     /// Optional metadata
-    pub ix_metadata: Option<TokenMetadataArgs>,
+    pub ix_metadata: Option<TokenMetadataArgs>, // pinocchio_token_2022::extensions::metadata::TokenMetadata
     /// Optional scaled UI amount configuration
-    pub ix_scaled_ui_amount: Option<ScaledUiAmountConfigArgs>,
+    pub ix_scaled_ui_amount: Option<ScaledUiAmountConfigArgs>, //  pinocchio_token_2022::extensions::scaled_ui_amount::ScaledUiAmountConfig
 }
 
 /// Arguments to initialize mint
