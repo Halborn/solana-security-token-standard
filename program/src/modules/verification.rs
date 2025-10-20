@@ -692,11 +692,6 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &VerifyArgs,
     ) -> ProgramResult {
-        // Expected accounts:
-        // 0. [readonly] Mint account - to derive VerificationConfig PDA
-        // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
-        // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
-        // 3+ [any] Accounts for the target instruction and comparison with verification program calls
         Self::verify_by_programs(program_id, accounts, args.ix)?;
         Ok(())
     }
