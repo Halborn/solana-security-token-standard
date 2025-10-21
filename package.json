@@ -7,7 +7,6 @@
     "test": "tests"
   },
   "scripts": {
-    "generate:rust": "npx tsx ./client/codama.ts",
     "generate-idl": "shank idl -r program -o idl",
     "generate-clients": "node ./scripts/generate-clients.js"
   },
