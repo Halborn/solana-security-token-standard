@@ -91,6 +91,7 @@ mod idl_gen {
         #[account(4, signer, name = "payer")] // Pays for potential rent-exempt top-up, must sign
         #[account(5, name = "token_program")]
         #[account(6, name = "system_program")]
+        #[account(7, name = "rent_sysvar")]
         UpdateMetadata(UpdateMetadataArgs) = 1,
 
         #[account(0, name = "mint")]

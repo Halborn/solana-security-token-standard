@@ -27,6 +27,8 @@ pub struct UpdateMetadata {
     pub token_program: solana_pubkey::Pubkey,
 
     pub system_program: solana_pubkey::Pubkey,
+
+    pub rent_sysvar: solana_pubkey::Pubkey,
 }
 
 impl UpdateMetadata {
@@ -43,7 +45,7 @@ impl UpdateMetadata {
         args: UpdateMetadataInstructionArgs,
         remaining_accounts: &[solana_instruction::AccountMeta],
     ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint, false,
         ));
@@ -68,6 +70,10 @@ impl UpdateMetadata {
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.system_program,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.rent_sysvar,
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
@@ -118,6 +124,7 @@ pub struct UpdateMetadataInstructionArgs {
 ///   4. `[signer]` payer
 ///   5. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 ///   6. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   7. `[optional]` rent_sysvar (default to `SysvarRent111111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct UpdateMetadataBuilder {
     mint: Option<solana_pubkey::Pubkey>,
@@ -127,6 +134,7 @@ pub struct UpdateMetadataBuilder {
     payer: Option<solana_pubkey::Pubkey>,
     token_program: Option<solana_pubkey::Pubkey>,
     system_program: Option<solana_pubkey::Pubkey>,
+    rent_sysvar: Option<solana_pubkey::Pubkey>,
     update_metadata_args: Option<UpdateMetadataArgs>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
@@ -178,6 +186,12 @@ impl UpdateMetadataBuilder {
         self.system_program = Some(system_program);
         self
     }
+    /// `[optional account, default to 'SysvarRent111111111111111111111111111111111']`
+    #[inline(always)]
+    pub fn rent_sysvar(&mut self, rent_sysvar: solana_pubkey::Pubkey) -> &mut Self {
+        self.rent_sysvar = Some(rent_sysvar);
+        self
+    }
     #[inline(always)]
     pub fn update_metadata_args(&mut self, update_metadata_args: UpdateMetadataArgs) -> &mut Self {
         self.update_metadata_args = Some(update_metadata_args);
@@ -216,6 +230,9 @@ impl UpdateMetadataBuilder {
             system_program: self
                 .system_program
                 .unwrap_or(solana_pubkey::pubkey!("11111111111111111111111111111111")),
+            rent_sysvar: self.rent_sysvar.unwrap_or(solana_pubkey::pubkey!(
+                "SysvarRent111111111111111111111111111111111"
+            )),
         };
         let args = UpdateMetadataInstructionArgs {
             update_metadata_args: self
@@ -243,6 +260,8 @@ pub struct UpdateMetadataCpiAccounts<'a, 'b> {
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
+
+    pub rent_sysvar: &'b solana_account_info::AccountInfo<'a>,
 }
 
 /// `update_metadata` CPI instruction.
@@ -263,6 +282,8 @@ pub struct UpdateMetadataCpi<'a, 'b> {
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
+
+    pub rent_sysvar: &'b solana_account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
     pub __args: UpdateMetadataInstructionArgs,
 }
@@ -282,6 +303,7 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
             payer: accounts.payer,
             token_program: accounts.token_program,
             system_program: accounts.system_program,
+            rent_sysvar: accounts.rent_sysvar,
             __args: args,
         }
     }
@@ -308,7 +330,7 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
         remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
     ) -> solana_program_error::ProgramResult {
-        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint.key,
             false,
@@ -337,6 +359,10 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
             *self.system_program.key,
             false,
         ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.rent_sysvar.key,
+            false,
+        ));
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
@@ -353,7 +379,7 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(8 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(9 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config_or_mint_authority.clone());
@@ -362,6 +388,7 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
         account_infos.push(self.payer.clone());
         account_infos.push(self.token_program.clone());
         account_infos.push(self.system_program.clone());
+        account_infos.push(self.rent_sysvar.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -385,6 +412,7 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
 ///   4. `[signer]` payer
 ///   5. `[]` token_program
 ///   6. `[]` system_program
+///   7. `[]` rent_sysvar
 #[derive(Clone, Debug)]
 pub struct UpdateMetadataCpiBuilder<'a, 'b> {
     instruction: Box<UpdateMetadataCpiBuilderInstruction<'a, 'b>>,
@@ -401,6 +429,7 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
             payer: None,
             token_program: None,
             system_program: None,
+            rent_sysvar: None,
             update_metadata_args: None,
             __remaining_accounts: Vec::new(),
         });
@@ -455,6 +484,14 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
         system_program: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.system_program = Some(system_program);
+        self
+    }
+    #[inline(always)]
+    pub fn rent_sysvar(
+        &mut self,
+        rent_sysvar: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.rent_sysvar = Some(rent_sysvar);
         self
     }
     #[inline(always)]
@@ -534,6 +571,11 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
                 .instruction
                 .system_program
                 .expect("system_program is not set"),
+
+            rent_sysvar: self
+                .instruction
+                .rent_sysvar
+                .expect("rent_sysvar is not set"),
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -553,6 +595,7 @@ struct UpdateMetadataCpiBuilderInstruction<'a, 'b> {
     payer: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
+    rent_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
     update_metadata_args: Option<UpdateMetadataArgs>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,

@@ -60,6 +60,9 @@ export type UpdateMetadataInstruction<
   TAccountSystemProgram extends
     | string
     | AccountMeta<string> = '11111111111111111111111111111111',
+  TAccountRentSysvar extends
+    | string
+    | AccountMeta<string> = 'SysvarRent111111111111111111111111111111111',
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -87,6 +90,9 @@ export type UpdateMetadataInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
+      TAccountRentSysvar extends string
+        ? ReadonlyAccount<TAccountRentSysvar>
+        : TAccountRentSysvar,
       ...TRemainingAccounts,
     ]
   >;
@@ -135,6 +141,7 @@ export type UpdateMetadataInput<
   TAccountPayer extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
+  TAccountRentSysvar extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
@@ -143,6 +150,7 @@ export type UpdateMetadataInput<
   payer: TransactionSigner<TAccountPayer>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
+  rentSysvar?: Address<TAccountRentSysvar>;
   updateMetadataArgs: UpdateMetadataInstructionDataArgs['updateMetadataArgs'];
 };
 
@@ -154,6 +162,7 @@ export function getUpdateMetadataInstruction<
   TAccountPayer extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
+  TAccountRentSysvar extends string,
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
 >(
@@ -164,7 +173,8 @@ export function getUpdateMetadataInstruction<
     TAccountMintAccount,
     TAccountPayer,
     TAccountTokenProgram,
-    TAccountSystemProgram
+    TAccountSystemProgram,
+    TAccountRentSysvar
   >,
   config?: { programAddress?: TProgramAddress }
 ): UpdateMetadataInstruction<
@@ -175,7 +185,8 @@ export function getUpdateMetadataInstruction<
   TAccountMintAccount,
   TAccountPayer,
   TAccountTokenProgram,
-  TAccountSystemProgram
+  TAccountSystemProgram,
+  TAccountRentSysvar
 > {
   // Program address.
   const programAddress =
@@ -196,6 +207,7 @@ export function getUpdateMetadataInstruction<
     payer: { value: input.payer ?? null, isWritable: false },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    rentSysvar: { value: input.rentSysvar ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -214,6 +226,10 @@ export function getUpdateMetadataInstruction<
     accounts.systemProgram.value =
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
+  if (!accounts.rentSysvar.value) {
+    accounts.rentSysvar.value =
+      'SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>;
+  }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   return Object.freeze({
@@ -225,6 +241,7 @@ export function getUpdateMetadataInstruction<
       getAccountMeta(accounts.payer),
       getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.rentSysvar),
     ],
     data: getUpdateMetadataInstructionDataEncoder().encode(
       args as UpdateMetadataInstructionDataArgs
@@ -238,7 +255,8 @@ export function getUpdateMetadataInstruction<
     TAccountMintAccount,
     TAccountPayer,
     TAccountTokenProgram,
-    TAccountSystemProgram
+    TAccountSystemProgram,
+    TAccountRentSysvar
   >);
 }
 
@@ -255,6 +273,7 @@ export type ParsedUpdateMetadataInstruction<
     payer: TAccountMetas[4];
     tokenProgram: TAccountMetas[5];
     systemProgram: TAccountMetas[6];
+    rentSysvar: TAccountMetas[7];
   };
   data: UpdateMetadataInstructionData;
 };
@@ -267,7 +286,7 @@ export function parseUpdateMetadataInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
 ): ParsedUpdateMetadataInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 7) {
+  if (instruction.accounts.length < 8) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -287,6 +306,7 @@ export function parseUpdateMetadataInstruction<
       payer: getNextAccount(),
       tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
+      rentSysvar: getNextAccount(),
     },
     data: getUpdateMetadataInstructionDataDecoder().decode(instruction.data),
   };

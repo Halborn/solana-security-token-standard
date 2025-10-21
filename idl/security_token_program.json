@@ -86,6 +86,11 @@
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "rentSysvar",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
