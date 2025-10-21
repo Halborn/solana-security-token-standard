@@ -4,6 +4,7 @@ use crate::instruction::SecurityTokenInstruction;
 use shank::ShankType;
 
 /// Arguments for the Verify instruction
+#[repr(C)]
 #[derive(ShankType)]
 pub struct VerifyArgs {
     /// The Security Token instruction discriminant to verify

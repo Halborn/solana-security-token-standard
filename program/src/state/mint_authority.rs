@@ -8,7 +8,8 @@ use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 use shank::ShankAccount;
 
 /// Configuration data stored per mint
-#[derive(Clone, Debug, PartialEq, Eq, ShankAccount)]
+#[repr(C)]
+#[derive(ShankAccount)]
 pub struct MintAuthority {
     /// SPL mint address this configuration belongs to
     pub mint: Pubkey,

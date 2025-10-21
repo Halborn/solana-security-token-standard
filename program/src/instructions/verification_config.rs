@@ -4,8 +4,8 @@ use pinocchio::pubkey::Pubkey;
 use shank::ShankType;
 
 /// Arguments for InitializeVerificationConfig instruction
-#[derive(ShankType)]
 #[repr(C)]
+#[derive(ShankType)]
 pub struct InitializeVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
     pub instruction_discriminator: u8,
@@ -14,8 +14,8 @@ pub struct InitializeVerificationConfigArgs {
 }
 
 /// Arguments for UpdateVerificationConfig instruction
-#[derive(ShankType)]
 #[repr(C)]
+#[derive(ShankType)]
 pub struct UpdateVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
     pub instruction_discriminator: u8,

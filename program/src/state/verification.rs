@@ -8,7 +8,8 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 use shank::ShankAccount;
 
 /// Verification configuration for instructions
-#[derive(Default, Clone, Debug, PartialEq, ShankAccount)]
+#[repr(C)]
+#[derive(ShankAccount)]
 pub struct VerificationConfig {
     /// Instruction discriminator this config applies to
     pub instruction_discriminator: u8,
