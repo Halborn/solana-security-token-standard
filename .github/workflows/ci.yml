@@ -90,6 +90,8 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    env:
+      SBF_OUT_DIR: ${{ github.workspace }}/target/deploy
     needs: build-sbf
     steps:
       - uses: actions/checkout@v4
