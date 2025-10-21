@@ -48,8 +48,6 @@ async fn test_program_loads() {
 
 #[tokio::test]
 async fn test_unknown_instruction_discriminator() {
-    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
-
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
     pt.prefer_bpf(true);
     let (banks_client, payer, recent_blockhash) = pt.start().await;
@@ -79,8 +77,6 @@ async fn test_unknown_instruction_discriminator() {
 
 #[tokio::test]
 async fn test_initialize_mint_with_all_extensions() {
-    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
-
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
     pt.prefer_bpf(true);
 
@@ -473,8 +469,6 @@ async fn test_initialize_mint_with_all_extensions() {
 
 #[tokio::test]
 async fn test_update_metadata() {
-    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
-
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
     pt.prefer_bpf(true);
 
@@ -729,8 +723,6 @@ async fn test_update_metadata() {
 
 #[tokio::test]
 async fn test_initialize_mint_with_different_decimals() {
-    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
-
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
     pt.prefer_bpf(true);
 
@@ -826,8 +818,6 @@ async fn test_initialize_mint_with_different_decimals() {
 
 #[tokio::test]
 async fn test_initialize_mint_error_cases() {
-    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
-
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
     pt.prefer_bpf(true);
 
@@ -978,8 +968,6 @@ async fn test_initialize_mint_error_cases() {
 
 #[tokio::test]
 async fn test_verification_config() {
-    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
-
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
     pt.prefer_bpf(true);
 

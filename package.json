@@ -7,7 +7,8 @@
     "test": "tests"
   },
   "scripts": {
-    "generate:rust": "npx tsx ./client/codama.ts"
+    "generate:rust": "npx tsx ./client/codama.ts",
+    "test": "cargo-build-sbf && SBF_OUT_DIR=$(pwd)/target/deploy cargo test"
   },
   "repository": {
     "type": "git",

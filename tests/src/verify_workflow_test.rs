@@ -64,8 +64,6 @@ fn dummy_program_2_processor(
 /// Test verifies that our verification workflow works with any program calls
 #[tokio::test]
 async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::error::Error>> {
-    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
-
     // Create dummy program IDs for testing
     let dummy_program_1_id = Pubkey::new_unique();
     let dummy_program_2_id = Pubkey::new_unique();
@@ -377,7 +375,6 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
 #[tokio::test]
 async fn test_update_metadata_under_verification() {
-    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
     let dummy_program_1_id = Pubkey::new_unique();
     let dummy_program_2_id = Pubkey::new_unique();
 
