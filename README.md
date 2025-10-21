@@ -19,5 +19,5 @@ pnpm generate-clients
 In a project root:
 
 ```
-cargo build-sbf & cargo test
+cargo build-sbf && cargo test
 ```
