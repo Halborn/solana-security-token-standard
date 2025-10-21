@@ -98,20 +98,6 @@ impl MintArgs {
     }
 }
 
-/// Arguments for Initialize instruction that supports both mint and metadata
-// #[repr(C)]
-// #[derive(Clone)]
-// pub struct InitializeArgs<'a> {
-//     /// Basic mint arguments
-//     pub ix_mint: InitializeMintArgs,
-//     /// Optional metadata pointer configuration
-//     pub ix_metadata_pointer: Option<MetadataPointer>,
-//     /// Optional metadata
-//     pub ix_metadata: Option<TokenMetadata<'a>>,
-//     /// Optional scaled UI amount configuration
-//     pub ix_scaled_ui_amount: Option<ScaledUiAmountConfig>,
-// }
-
 impl std::fmt::Debug for InitializeMintArgs {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InitializeArgs")
