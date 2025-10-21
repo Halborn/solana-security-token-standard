@@ -20,7 +20,7 @@ pub struct InitializeMint {
 
     pub authority: solana_pubkey::Pubkey,
 
-    pub spl_token2022_program: solana_pubkey::Pubkey,
+    pub token_program: solana_pubkey::Pubkey,
 
     pub system_program: solana_pubkey::Pubkey,
 
@@ -48,7 +48,7 @@ impl InitializeMint {
         ));
         accounts.push(solana_instruction::AccountMeta::new(self.authority, false));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.spl_token2022_program,
+            self.token_program,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -103,7 +103,7 @@ pub struct InitializeMintInstructionArgs {
 ///   0. `[writable, signer]` mint
 ///   1. `[signer]` payer
 ///   2. `[writable]` authority
-///   3. `[]` spl_token2022_program
+///   3. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 ///   4. `[optional]` system_program (default to `11111111111111111111111111111111`)
 ///   5. `[optional]` rent_sysvar (default to `SysvarRent111111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
@@ -111,7 +111,7 @@ pub struct InitializeMintBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     payer: Option<solana_pubkey::Pubkey>,
     authority: Option<solana_pubkey::Pubkey>,
-    spl_token2022_program: Option<solana_pubkey::Pubkey>,
+    token_program: Option<solana_pubkey::Pubkey>,
     system_program: Option<solana_pubkey::Pubkey>,
     rent_sysvar: Option<solana_pubkey::Pubkey>,
     initialize_mint_args: Option<InitializeMintArgs>,
@@ -137,12 +137,10 @@ impl InitializeMintBuilder {
         self.authority = Some(authority);
         self
     }
+    /// `[optional account, default to 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']`
     #[inline(always)]
-    pub fn spl_token2022_program(
-        &mut self,
-        spl_token2022_program: solana_pubkey::Pubkey,
-    ) -> &mut Self {
-        self.spl_token2022_program = Some(spl_token2022_program);
+    pub fn token_program(&mut self, token_program: solana_pubkey::Pubkey) -> &mut Self {
+        self.token_program = Some(token_program);
         self
     }
     /// `[optional account, default to '11111111111111111111111111111111']`
@@ -183,9 +181,9 @@ impl InitializeMintBuilder {
             mint: self.mint.expect("mint is not set"),
             payer: self.payer.expect("payer is not set"),
             authority: self.authority.expect("authority is not set"),
-            spl_token2022_program: self
-                .spl_token2022_program
-                .expect("spl_token2022_program is not set"),
+            token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
+                "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+            )),
             system_program: self
                 .system_program
                 .unwrap_or(solana_pubkey::pubkey!("11111111111111111111111111111111")),
@@ -212,7 +210,7 @@ pub struct InitializeMintCpiAccounts<'a, 'b> {
 
     pub authority: &'b solana_account_info::AccountInfo<'a>,
 
-    pub spl_token2022_program: &'b solana_account_info::AccountInfo<'a>,
+    pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -230,7 +228,7 @@ pub struct InitializeMintCpi<'a, 'b> {
 
     pub authority: &'b solana_account_info::AccountInfo<'a>,
 
-    pub spl_token2022_program: &'b solana_account_info::AccountInfo<'a>,
+    pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -250,7 +248,7 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
             mint: accounts.mint,
             payer: accounts.payer,
             authority: accounts.authority,
-            spl_token2022_program: accounts.spl_token2022_program,
+            token_program: accounts.token_program,
             system_program: accounts.system_program,
             rent_sysvar: accounts.rent_sysvar,
             __args: args,
@@ -290,7 +288,7 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.spl_token2022_program.key,
+            *self.token_program.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -322,7 +320,7 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
         account_infos.push(self.mint.clone());
         account_infos.push(self.payer.clone());
         account_infos.push(self.authority.clone());
-        account_infos.push(self.spl_token2022_program.clone());
+        account_infos.push(self.token_program.clone());
         account_infos.push(self.system_program.clone());
         account_infos.push(self.rent_sysvar.clone());
         remaining_accounts
@@ -344,7 +342,7 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
 ///   0. `[writable, signer]` mint
 ///   1. `[signer]` payer
 ///   2. `[writable]` authority
-///   3. `[]` spl_token2022_program
+///   3. `[]` token_program
 ///   4. `[]` system_program
 ///   5. `[]` rent_sysvar
 #[derive(Clone, Debug)]
@@ -359,7 +357,7 @@ impl<'a, 'b> InitializeMintCpiBuilder<'a, 'b> {
             mint: None,
             payer: None,
             authority: None,
-            spl_token2022_program: None,
+            token_program: None,
             system_program: None,
             rent_sysvar: None,
             initialize_mint_args: None,
@@ -383,11 +381,11 @@ impl<'a, 'b> InitializeMintCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn spl_token2022_program(
+    pub fn token_program(
         &mut self,
-        spl_token2022_program: &'b solana_account_info::AccountInfo<'a>,
+        token_program: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.spl_token2022_program = Some(spl_token2022_program);
+        self.instruction.token_program = Some(token_program);
         self
     }
     #[inline(always)]
@@ -461,10 +459,10 @@ impl<'a, 'b> InitializeMintCpiBuilder<'a, 'b> {
 
             authority: self.instruction.authority.expect("authority is not set"),
 
-            spl_token2022_program: self
+            token_program: self
                 .instruction
-                .spl_token2022_program
-                .expect("spl_token2022_program is not set"),
+                .token_program
+                .expect("token_program is not set"),
 
             system_program: self
                 .instruction
@@ -490,7 +488,7 @@ struct InitializeMintCpiBuilderInstruction<'a, 'b> {
     mint: Option<&'b solana_account_info::AccountInfo<'a>>,
     payer: Option<&'b solana_account_info::AccountInfo<'a>>,
     authority: Option<&'b solana_account_info::AccountInfo<'a>>,
-    spl_token2022_program: Option<&'b solana_account_info::AccountInfo<'a>>,
+    token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     rent_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
     initialize_mint_args: Option<InitializeMintArgs>,

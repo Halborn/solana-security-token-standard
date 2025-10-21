@@ -90,7 +90,7 @@ async fn test_basic_t22_operations() {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
         authority: mint_authority_pda,
-        spl_token2022_program: spl_token_2022_program,
+        token_program: spl_token_2022_program,
         system_program: solana_system_interface::program::ID,
         rent_sysvar: sysvar::rent::ID,
     }
@@ -459,7 +459,7 @@ async fn test_t22_extension_operations() {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
         authority: mint_authority_pda,
-        spl_token2022_program: spl_token_2022_program,
+        token_program: spl_token_2022_program,
         system_program: solana_system_interface::program::ID,
         rent_sysvar: sysvar::rent::ID,
     }

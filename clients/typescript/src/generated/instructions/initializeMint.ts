@@ -49,7 +49,9 @@ export type InitializeMintInstruction<
   TAccountMint extends string | AccountMeta<string> = string,
   TAccountPayer extends string | AccountMeta<string> = string,
   TAccountAuthority extends string | AccountMeta<string> = string,
-  TAccountSplToken2022Program extends string | AccountMeta<string> = string,
+  TAccountTokenProgram extends
+    | string
+    | AccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
   TAccountSystemProgram extends
     | string
     | AccountMeta<string> = '11111111111111111111111111111111',
@@ -71,9 +73,9 @@ export type InitializeMintInstruction<
       TAccountAuthority extends string
         ? WritableAccount<TAccountAuthority>
         : TAccountAuthority,
-      TAccountSplToken2022Program extends string
-        ? ReadonlyAccount<TAccountSplToken2022Program>
-        : TAccountSplToken2022Program,
+      TAccountTokenProgram extends string
+        ? ReadonlyAccount<TAccountTokenProgram>
+        : TAccountTokenProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -124,14 +126,14 @@ export type InitializeMintInput<
   TAccountMint extends string = string,
   TAccountPayer extends string = string,
   TAccountAuthority extends string = string,
-  TAccountSplToken2022Program extends string = string,
+  TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
   TAccountRentSysvar extends string = string,
 > = {
   mint: TransactionSigner<TAccountMint>;
   payer: TransactionSigner<TAccountPayer>;
   authority: Address<TAccountAuthority>;
-  splToken2022Program: Address<TAccountSplToken2022Program>;
+  tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   rentSysvar?: Address<TAccountRentSysvar>;
   initializeMintArgs: InitializeMintInstructionDataArgs['initializeMintArgs'];
@@ -141,7 +143,7 @@ export function getInitializeMintInstruction<
   TAccountMint extends string,
   TAccountPayer extends string,
   TAccountAuthority extends string,
-  TAccountSplToken2022Program extends string,
+  TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
   TAccountRentSysvar extends string,
   TProgramAddress extends
@@ -151,7 +153,7 @@ export function getInitializeMintInstruction<
     TAccountMint,
     TAccountPayer,
     TAccountAuthority,
-    TAccountSplToken2022Program,
+    TAccountTokenProgram,
     TAccountSystemProgram,
     TAccountRentSysvar
   >,
@@ -161,7 +163,7 @@ export function getInitializeMintInstruction<
   TAccountMint,
   TAccountPayer,
   TAccountAuthority,
-  TAccountSplToken2022Program,
+  TAccountTokenProgram,
   TAccountSystemProgram,
   TAccountRentSysvar
 > {
@@ -174,10 +176,7 @@ export function getInitializeMintInstruction<
     mint: { value: input.mint ?? null, isWritable: true },
     payer: { value: input.payer ?? null, isWritable: false },
     authority: { value: input.authority ?? null, isWritable: true },
-    splToken2022Program: {
-      value: input.splToken2022Program ?? null,
-      isWritable: false,
-    },
+    tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     rentSysvar: { value: input.rentSysvar ?? null, isWritable: false },
   };
@@ -190,6 +189,10 @@ export function getInitializeMintInstruction<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.tokenProgram.value) {
+    accounts.tokenProgram.value =
+      'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' as Address<'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'>;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
@@ -205,7 +208,7 @@ export function getInitializeMintInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.payer),
       getAccountMeta(accounts.authority),
-      getAccountMeta(accounts.splToken2022Program),
+      getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.rentSysvar),
     ],
@@ -218,7 +221,7 @@ export function getInitializeMintInstruction<
     TAccountMint,
     TAccountPayer,
     TAccountAuthority,
-    TAccountSplToken2022Program,
+    TAccountTokenProgram,
     TAccountSystemProgram,
     TAccountRentSysvar
   >);
@@ -233,7 +236,7 @@ export type ParsedInitializeMintInstruction<
     mint: TAccountMetas[0];
     payer: TAccountMetas[1];
     authority: TAccountMetas[2];
-    splToken2022Program: TAccountMetas[3];
+    tokenProgram: TAccountMetas[3];
     systemProgram: TAccountMetas[4];
     rentSysvar: TAccountMetas[5];
   };
@@ -264,7 +267,7 @@ export function parseInitializeMintInstruction<
       mint: getNextAccount(),
       payer: getNextAccount(),
       authority: getNextAccount(),
-      splToken2022Program: getNextAccount(),
+      tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
       rentSysvar: getNextAccount(),
     },

@@ -128,7 +128,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         mint: mint_pubkey,
         payer: payer.pubkey(),
         authority: mint_authority_pda,
-        spl_token2022_program: spl_token_2022::ID,
+        token_program: spl_token_2022::ID,
         system_program: system_program::ID,
         rent_sysvar: solana_sdk::sysvar::rent::ID,
     }
@@ -443,7 +443,7 @@ async fn test_update_metadata_under_verification() {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
         authority: mint_authority_pda,
-        spl_token2022_program: spl_token_2022_program,
+        token_program: spl_token_2022_program,
         system_program: system_program::ID,
         rent_sysvar: sysvar::rent::ID,
     }

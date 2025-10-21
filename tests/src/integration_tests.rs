@@ -136,7 +136,7 @@ async fn test_initialize_mint_with_all_extensions() {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
         authority: mint_authority_pda,
-        spl_token2022_program: spl_token_2022_program,
+        token_program: spl_token_2022_program,
         system_program: system_program::ID,
         rent_sysvar: sysvar::rent::ID,
     }
@@ -528,7 +528,7 @@ async fn test_update_metadata() {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
         authority: mint_authority_pda,
-        spl_token2022_program: spl_token_2022_program,
+        token_program: spl_token_2022_program,
         system_program: system_program::ID,
         rent_sysvar: sysvar::rent::ID,
     }
@@ -755,7 +755,7 @@ async fn test_initialize_mint_with_different_decimals() {
             mint: mint_keypair.pubkey(),
             payer: context.payer.pubkey(),
             authority: mint_authority_pda,
-            spl_token2022_program: spl_token_2022_program,
+            token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent_sysvar: sysvar::rent::ID,
         }
@@ -850,7 +850,7 @@ async fn test_initialize_mint_error_cases() {
             mint: mint_keypair.pubkey(),
             payer: context.payer.pubkey(),
             authority: mint_authority_pda,
-            spl_token2022_program: spl_token_2022_program,
+            token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent_sysvar: sysvar::rent::ID,
         }
@@ -920,7 +920,7 @@ async fn test_initialize_mint_error_cases() {
             mint: mint_keypair.pubkey(),
             payer: fake_creator.pubkey(),
             authority: mint_authority_pda,
-            spl_token2022_program: spl_token_2022_program,
+            token_program: spl_token_2022_program,
             system_program: system_program::ID,
             rent_sysvar: sysvar::rent::ID,
         }
@@ -1010,7 +1010,7 @@ async fn test_verification_config() {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
         authority: mint_authority_pda,
-        spl_token2022_program: spl_token_2022_program,
+        token_program: spl_token_2022_program,
         system_program: solana_system_interface::program::ID,
         rent_sysvar: sysvar::rent::ID,
     }

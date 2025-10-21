@@ -21,7 +21,7 @@
           "isSigner": false
         },
         {
-          "name": "splToken2022Program",
+          "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         },

@@ -76,12 +76,12 @@ mod idl_gen {
     #[derive(shank::ShankInstruction)]
     #[repr(u8)]
     enum _SecurityTokenInstruction {
-        #[account(0, writable, signer, name = "Mint")]
-        #[account(1, signer, name = "Payer")]
-        #[account(2, writable, name = "Authority")]
-        #[account(3, name = "SPL Token 2022 Program")]
-        #[account(4, name = "System Program")]
-        #[account(5, name = "Rent Sysvar")]
+        #[account(0, writable, signer, name = "mint")]
+        #[account(1, signer, name = "payer")]
+        #[account(2, writable, name = "authority")]
+        #[account(3, name = "token_program")]
+        #[account(4, name = "system_program")]
+        #[account(5, name = "rent_sysvar")]
         InitializeMint(InitializeMintArgs) = 0,
 
         #[account(0, name = "mint")]

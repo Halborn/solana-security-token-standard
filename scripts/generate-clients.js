@@ -4,6 +4,7 @@ const path = require('path');
 const renderers = require('@codama/renderers');
 const fs = require('fs');
 
+// NOTE: rent sysvar, instruction sysvar, system program stay the same
 const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 
 const projectRoot = path.join(__dirname, '..');
