@@ -9,7 +9,7 @@ pub struct UpdateMetadataArgs {
     pub metadata: TokenMetadataArgs,
 }
 
-impl<'a> UpdateMetadataArgs {
+impl UpdateMetadataArgs {
     /// Create new UpdateMetadataArgs
     pub fn new(metadata: TokenMetadataArgs) -> Self {
         Self { metadata }
@@ -21,7 +21,7 @@ impl<'a> UpdateMetadataArgs {
     }
 
     /// Deserialize arguments from bytes
-    pub fn try_from_bytes(data: &'a [u8]) -> Result<Self, ProgramError> {
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         let metadata = InitializeMintArgs::deserialize_token_metadata(data)?;
         Ok(Self { metadata })
     }
