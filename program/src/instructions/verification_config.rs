@@ -4,7 +4,7 @@ use pinocchio::pubkey::Pubkey;
 use shank::ShankType;
 
 /// Arguments for InitializeVerificationConfig instruction
-#[derive(Clone, Debug, PartialEq, ShankType)]
+#[derive(Clone, Debug, ShankType)]
 #[repr(C)]
 pub struct InitializeVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
@@ -14,7 +14,7 @@ pub struct InitializeVerificationConfigArgs {
 }
 
 /// Arguments for UpdateVerificationConfig instruction
-#[derive(Clone, Debug, PartialEq, ShankType)]
+#[derive(Clone, Debug, ShankType)]
 #[repr(C)]
 pub struct UpdateVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
@@ -211,7 +211,7 @@ impl UpdateVerificationConfigArgs {
 }
 
 /// Arguments for TrimVerificationConfig instruction
-#[derive(Clone, Debug, PartialEq, ShankType)]
+#[derive(Clone, Debug, ShankType)]
 #[repr(C)]
 pub struct TrimVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)

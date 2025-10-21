@@ -4,7 +4,7 @@ use crate::instruction::SecurityTokenInstruction;
 use shank::ShankType;
 
 /// Arguments for the Verify instruction
-#[derive(Clone, Debug, PartialEq, ShankType)]
+#[derive(Clone, Debug, ShankType)]
 pub struct VerifyArgs {
     /// The Security Token instruction discriminant to verify
     pub ix: u8,
