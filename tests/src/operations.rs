@@ -47,8 +47,6 @@ async fn get_token_account_state(
 //TODO: Don't forget about fixtures initialization mint at least
 #[tokio::test]
 async fn test_basic_t22_operations() {
-    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
-
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
     pt.prefer_bpf(true);
 
@@ -425,8 +423,6 @@ async fn test_basic_t22_operations() {
 
 #[tokio::test]
 async fn test_t22_extension_operations() {
-    std::env::set_var("SBF_OUT_DIR", "../target/deploy");
-
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
     pt.prefer_bpf(true);
 
