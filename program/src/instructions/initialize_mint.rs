@@ -3,8 +3,6 @@ use pinocchio::pubkey::Pubkey;
 use pinocchio_token_2022::extensions::metadata::TokenMetadata;
 use shank::ShankType;
 
-// Those types only for IDL generation purpose
-
 #[repr(C)]
 #[derive(Clone, Debug, ShankType)]
 pub struct TokenMetadataArgs {

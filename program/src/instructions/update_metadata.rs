@@ -2,7 +2,6 @@ use crate::instructions::{InitializeMintArgs, TokenMetadataArgs};
 use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
-// Those types only for IDL generation purpose
 #[repr(C)]
 #[derive(ShankType)]
 pub struct UpdateMetadataArgs {
