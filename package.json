@@ -8,7 +8,8 @@
   },
   "scripts": {
     "generate-idl": "shank idl -r program -o idl",
-    "generate-clients": "node ./scripts/generate-clients.js"
+    "generate-clients": "node ./scripts/generate-clients.js",
+    "test": "cargo-build-sbf && SBF_OUT_DIR=$(pwd)/target/deploy cargo test"
   },
   "repository": {
     "type": "git",

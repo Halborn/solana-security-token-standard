@@ -19,5 +19,11 @@ pnpm generate-clients
 In a project root:
 
 ```
-cargo build-sbf && cargo test
+cargo-build-sbf && SBF_OUT_DIR=$(pwd)/target/deploy cargo test
+```
+
+OR 
+
+```
+pnpm test
 ```
