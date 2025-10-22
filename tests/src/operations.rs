@@ -287,7 +287,6 @@ async fn test_t22_extension_operations() {
     let mint_keypair = Keypair::new();
 
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let (mint_authority_pda, _bump) = Pubkey::find_program_address(
         &[
             b"mint.authority",

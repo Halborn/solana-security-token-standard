@@ -9,6 +9,7 @@ use security_token_client::instructions::{
 use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
 
 use crate::constants::TOKEN_PROGRAM_ID;
+use crate::helpers::{assert_transaction_success, initialize_mint, initialize_verification_config};
 use security_token_client::types::{
     InitializeMintArgs, InitializeVerificationConfigArgs, MetadataPointerArgs, MintArgs,
     ScaledUiAmountConfigArgs, TokenMetadataArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
@@ -17,14 +18,12 @@ use security_token_client::types::{
 use solana_program_test::ProgramTest;
 use solana_sdk::sysvar;
 use solana_sdk::{pubkey::Pubkey, signature::Signer};
-use spl_token_2022::extension::{
-    permanent_delegate::PermanentDelegate, transfer_hook::TransferHook,
-};
-// Parse mint data to verify all parameters (with extensions)
-use crate::helpers::{assert_transaction_success, initialize_mint, initialize_verification_config};
 use spl_token_2022::extension::metadata_pointer::MetadataPointer as SolanaProgramMetadataPointer;
 use spl_token_2022::extension::scaled_ui_amount::ScaledUiAmountConfig as SolanaProgramScaledUiAmountConfig;
-use spl_token_2022::extension::{BaseStateWithExtensions, ExtensionType, StateWithExtensions};
+use spl_token_2022::extension::{
+    permanent_delegate::PermanentDelegate, transfer_hook::TransferHook, BaseStateWithExtensions,
+    ExtensionType, StateWithExtensions,
+};
 use spl_token_2022::state::Mint;
 use spl_token_metadata_interface::state::TokenMetadata as SolanaProgramTokenMetadata;
 
@@ -609,10 +608,6 @@ async fn test_initialize_mint_with_different_decimals() {
             mint_with_extensions.base.decimals, decimals,
             "Mint should have {} decimals",
             decimals
-        );
-        println!(
-            "Actual mint account size: {} bytes",
-            mint_account.data.len()
         );
     }
 }

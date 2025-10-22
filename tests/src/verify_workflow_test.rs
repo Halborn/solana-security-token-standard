@@ -1,10 +1,13 @@
-use crate::helpers::{assert_security_token_error, assert_transaction_success};
+use crate::helpers::{
+    assert_security_token_error, assert_transaction_success, initialize_mint,
+    initialize_verification_config,
+};
 use security_token_client::{
     errors::SecurityTokenProgramError,
     instructions::{
         InitializeMint, InitializeMintInstructionArgs, InitializeVerificationConfig,
         InitializeVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataInstructionArgs,
-        Verify, VerifyInstructionArgs, UPDATE_METADATA_DISCRIMINATOR,
+        Verify, VerifyBuilder, VerifyInstructionArgs, UPDATE_METADATA_DISCRIMINATOR,
     },
     programs::SECURITY_TOKEN_PROGRAM_ID,
     types::{
@@ -99,15 +102,9 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
     let mut context = pt.start_with_context().await;
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
-    // Extract client and payer for easier use
-    let banks_client = &mut context.banks_client;
-    let payer = &context.payer;
-
-    // Create mint keypair
     let mint_keypair = Keypair::new();
     let mint_pubkey = mint_keypair.pubkey();
-    println!("Created mint: {}", mint_keypair.pubkey());
+
     let (mint_authority_pda, _bump) = Pubkey::find_program_address(
         &[
             b"mint.authority",
@@ -122,39 +119,24 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    let init_mint_instruction = InitializeMint {
-        mint: mint_pubkey,
-        payer: payer.pubkey(),
-        authority: mint_authority_pda,
-        token_program: spl_token_2022::ID,
-        system_program: system_program::ID,
-        rent_sysvar: solana_sdk::sysvar::rent::ID,
-    }
-    .instruction(InitializeMintInstructionArgs {
-        initialize_mint_args: InitializeMintArgs {
-            ix_mint: MintArgs {
-                decimals: 6,
-                mint_authority: payer.pubkey(),
-                freeze_authority: freeze_authority_pda,
-            },
-            ix_metadata_pointer: None,
-            ix_metadata: None,
-            ix_scaled_ui_amount: None,
+    let initialize_mint_args = InitializeMintArgs {
+        ix_mint: MintArgs {
+            decimals: 6,
+            mint_authority: context.payer.pubkey(),
+            freeze_authority: freeze_authority_pda,
         },
-    });
+        ix_metadata_pointer: None,
+        ix_metadata: None,
+        ix_scaled_ui_amount: None,
+    };
 
-    let mint_transaction = Transaction::new_signed_with_payer(
-        &[init_mint_instruction],
-        Some(&payer.pubkey()),
-        &[&payer, &mint_keypair], // Both payer and mint need to sign
-        recent_blockhash,
-    );
-
-    banks_client
-        .process_transaction(mint_transaction)
-        .await
-        .map_err(|e| format!("Failed to create mint: {:?}", e))?;
-    println!("Mint created successfully: {}", mint_pubkey);
+    initialize_mint(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        &initialize_mint_args,
+    )
+    .await;
 
     let (verification_config_pda, _bump) = Pubkey::find_program_address(
         &[
@@ -166,59 +148,37 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     );
 
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
-    let init_config_instruction = InitializeVerificationConfig {
-        mint: mint_pubkey,
-        verification_config_or_mint_authority: mint_authority_pda,
-        instructions_sysvar_or_creator: payer.pubkey(),
-        config_account: verification_config_pda,
-        payer: payer.pubkey(),
-        mint_account: mint_pubkey,
-        system_program: system_program::ID,
-    }
-    .instruction(InitializeVerificationConfigInstructionArgs {
-        initialize_verification_config_args: InitializeVerificationConfigArgs {
-            instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
-            program_addresses: verification_programs,
-        },
-    });
+    let initialize_verification_config_args = InitializeVerificationConfigArgs {
+        instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
+        program_addresses: verification_programs,
+    };
 
-    let config_transaction = Transaction::new_signed_with_payer(
-        &[init_config_instruction],
-        Some(&payer.pubkey()),
-        &[&payer],
-        recent_blockhash,
-    );
+    initialize_verification_config(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        verification_config_pda,
+        &initialize_verification_config_args,
+    )
+    .await;
 
-    banks_client
-        .process_transaction(config_transaction)
-        .await
-        .map_err(|e| format!("Failed to create VerificationConfig: {:?}", e))?;
-
-    println!("VerificationConfig created for UpdateMetadata instruction");
-
-    println!("Test 1: Verify without prior verification calls (should fail)");
-    let verify_only_instruction = Verify {
-        mint: mint_keypair.pubkey(),
-        verification_config: verification_config_pda,
-        instructions_sysvar: sysvar::instructions::ID,
-    }
-    .instruction_with_remaining_accounts(
-        VerifyInstructionArgs {
-            verify_args: VerifyArgs {
-                ix: UPDATE_METADATA_DISCRIMINATOR,
-            },
-        },
-        &[],
-    );
+    // Test 1: Verify without prior verification calls (should fail)
+    let verify_only_ix = VerifyBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config(verification_config_pda)
+        .verify_args(VerifyArgs {
+            ix: UPDATE_METADATA_DISCRIMINATOR,
+        })
+        .instruction();
 
     let transaction = Transaction::new_signed_with_payer(
-        &[verify_only_instruction],
-        Some(&payer.pubkey()),
-        &[&payer],
+        &[verify_only_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
         recent_blockhash,
     );
 
-    let result = banks_client.process_transaction(transaction).await;
+    let result = context.banks_client.process_transaction(transaction).await;
     assert_security_token_error(
         result,
         SecurityTokenProgramError::VerificationProgramNotFound,
@@ -253,35 +213,30 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
     ];
 
-    println!("Test 2: Verify with proper prior instruction calls (should succeed)");
-    let verify_instruction_success = Verify {
-        mint: mint_keypair.pubkey(),
-        verification_config: verification_config_pda,
-        instructions_sysvar: sysvar::instructions::ID,
-    }
-    .instruction_with_remaining_accounts(
-        VerifyInstructionArgs {
-            verify_args: VerifyArgs {
-                ix: UPDATE_METADATA_DISCRIMINATOR,
-            },
-        },
-        &success_verify_accounts,
-    );
+    // Test 2: Verify with proper prior instruction calls (should succeed)
+    let verify_instruction_success = VerifyBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config(verification_config_pda)
+        .verify_args(VerifyArgs {
+            ix: UPDATE_METADATA_DISCRIMINATOR,
+        })
+        .add_remaining_accounts(&success_verify_accounts)
+        .instruction();
 
     let mut success_tx_instructions = success_instructions.clone();
     success_tx_instructions.push(verify_instruction_success);
 
     let transaction = Transaction::new_signed_with_payer(
         &success_tx_instructions,
-        Some(&payer.pubkey()),
-        &[&payer],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
         recent_blockhash,
     );
 
-    let result = banks_client.process_transaction(transaction).await;
+    let result = context.banks_client.process_transaction(transaction).await;
     assert_transaction_success(result);
 
-    println!("Test 3: Verify instruction discriminator (should fail)");
+    // Test 3: Verify instruction discriminator (should fail)
     let instructions = vec![
         Instruction {
             program_id: dummy_program_2_id,
@@ -301,39 +256,33 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         },
     ];
 
-    let verify_instruction = Verify {
-        mint: mint_keypair.pubkey(),
-        verification_config: verification_config_pda,
-        instructions_sysvar: sysvar::instructions::ID,
-    }
-    .instruction_with_remaining_accounts(
-        VerifyInstructionArgs {
-            verify_args: VerifyArgs {
-                ix: UPDATE_METADATA_DISCRIMINATOR,
-            },
-        },
-        &success_verify_accounts,
-    );
+    let verify_ix = VerifyBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config(verification_config_pda)
+        .verify_args(VerifyArgs {
+            ix: UPDATE_METADATA_DISCRIMINATOR,
+        })
+        .add_remaining_accounts(&success_verify_accounts)
+        .instruction();
 
     let mut tx_instructions = instructions.clone();
-    tx_instructions.push(verify_instruction);
+    tx_instructions.push(verify_ix);
 
     let transaction = Transaction::new_signed_with_payer(
         &tx_instructions,
-        Some(&payer.pubkey()),
-        &[&payer],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
         recent_blockhash,
     );
 
-    let result = banks_client.process_transaction(transaction).await;
+    let result = context.banks_client.process_transaction(transaction).await;
     assert_security_token_error(
         result,
         SecurityTokenProgramError::VerificationProgramNotFound,
     );
-
-    println!("Test 4: Verify instruction with system instruction (should succeed)");
+    // Test 4: Verify instruction with system instruction (should succeed)
     let instructions = vec![
-        system_instruction::transfer(&payer.pubkey(), &mint_pubkey, 1),
+        system_instruction::transfer(&context.payer.pubkey(), &mint_pubkey, 1),
         Instruction {
             program_id: dummy_program_2_id,
             accounts: vec![
@@ -342,7 +291,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
             ],
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
-        system_instruction::transfer(&payer.pubkey(), &mint_pubkey, 1),
+        system_instruction::transfer(&context.payer.pubkey(), &mint_pubkey, 1),
         Instruction {
             program_id: dummy_program_1_id,
             accounts: vec![
@@ -361,31 +310,26 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         },
     ];
 
-    let verify_instruction = Verify {
-        mint: mint_keypair.pubkey(),
-        verification_config: verification_config_pda,
-        instructions_sysvar: sysvar::instructions::ID,
-    }
-    .instruction_with_remaining_accounts(
-        VerifyInstructionArgs {
-            verify_args: VerifyArgs {
-                ix: UPDATE_METADATA_DISCRIMINATOR,
-            },
-        },
-        &success_verify_accounts,
-    );
+    let verify_ix = VerifyBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config(verification_config_pda)
+        .verify_args(VerifyArgs {
+            ix: UPDATE_METADATA_DISCRIMINATOR,
+        })
+        .add_remaining_accounts(&success_verify_accounts)
+        .instruction();
 
     let mut tx_instructions = instructions.clone();
-    tx_instructions.push(verify_instruction);
+    tx_instructions.push(verify_ix);
 
     let transaction = Transaction::new_signed_with_payer(
         &tx_instructions,
-        Some(&payer.pubkey()),
-        &[&payer],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
         recent_blockhash,
     );
 
-    let result = banks_client.process_transaction(transaction).await;
+    let result = context.banks_client.process_transaction(transaction).await;
     assert_transaction_success(result);
     Ok(())
 }
