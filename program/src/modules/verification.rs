@@ -400,8 +400,7 @@ impl VerificationModule {
         // Validate arguments
         args.validate()?;
 
-        let [mint_info, authority_info, _token_program_info, _system_program_info, rent_info] =
-            accounts
+        let [mint_info, authority_info, _token_program_info, _system_program_info] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -464,7 +463,11 @@ impl VerificationModule {
 
         if new_metadata_size > current_metadata_size {
             let additional_metadata_space = new_metadata_size - current_metadata_size;
-            let rent = Rent::from_account_info(rent_info)?;
+            let rent = Rent {
+                lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
+                exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
+                burn_percent: DEFAULT_BURN_PERCENT,
+            };
             let additional_rent = rent.minimum_balance(additional_metadata_space);
 
             log!(

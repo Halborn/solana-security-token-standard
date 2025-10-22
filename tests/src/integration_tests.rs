@@ -617,7 +617,6 @@ async fn test_update_metadata() {
         payer: context.payer.pubkey(),
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
-        rent_sysvar: sysvar::rent::ID,
     }
     .instruction(UpdateMetadataInstructionArgs {
         update_metadata_args: UpdateMetadataArgs {

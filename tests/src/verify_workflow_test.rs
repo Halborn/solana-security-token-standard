@@ -12,7 +12,13 @@ use security_token_client::{
         TokenMetadataArgs, UpdateMetadataArgs, VerifyArgs,
     },
 };
-
+// use security_token_client::{
+//     InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
+//     InitializeVerificationConfig, InitializeVerificationConfigArgs,
+//     InitializeVerificationConfigInstructionArgs, MetadataPointer, SecurityTokenError,
+//     TokenMetadata, UpdateMetadata, UpdateMetadataArgs, UpdateMetadataInstructionArgs, Verify,
+//     VerifyArgs, VerifyInstructionArgs, SECURITY_TOKEN_PROGRAM_ID, UPDATE_METADATA_DISCRIMINATOR,
+// };
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey as SolanaPubkey,
@@ -524,7 +530,6 @@ async fn test_update_metadata_under_verification() {
         payer: context.payer.pubkey(),
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
-        rent_sysvar: sysvar::rent::ID,
     }
     .instruction(UpdateMetadataInstructionArgs {
         update_metadata_args: UpdateMetadataArgs {
@@ -590,7 +595,6 @@ async fn test_update_metadata_under_verification() {
         payer: context.payer.pubkey(),
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
-        rent_sysvar: sysvar::rent::ID,
     }
     .instruction(UpdateMetadataInstructionArgs {
         update_metadata_args: UpdateMetadataArgs {
@@ -636,7 +640,6 @@ async fn test_update_metadata_under_verification() {
         payer: context.payer.pubkey(),
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
-        rent_sysvar: sysvar::rent::ID,
     }
     .instruction(UpdateMetadataInstructionArgs {
         update_metadata_args: UpdateMetadataArgs {
@@ -661,7 +664,6 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
                 AccountMeta::new_readonly(spl_token_2022_program, false),
                 AccountMeta::new_readonly(system_program::ID, false),
-                AccountMeta::new_readonly(sysvar::rent::ID, false),
             ],
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
@@ -672,7 +674,6 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
                 AccountMeta::new_readonly(spl_token_2022_program, false),
                 AccountMeta::new_readonly(system_program::ID, false),
-                AccountMeta::new_readonly(sysvar::rent::ID, false),
             ],
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
