@@ -52,9 +52,9 @@ export type InitializeVerificationConfigInstruction<
   TAccountInstructionsSysvarOrCreator extends
     | string
     | AccountMeta<string> = string,
+  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountConfigAccount extends string | AccountMeta<string> = string,
   TAccountPayer extends string | AccountMeta<string> = string,
-  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends
     | string
     | AccountMeta<string> = '11111111111111111111111111111111',
@@ -72,6 +72,9 @@ export type InitializeVerificationConfigInstruction<
       TAccountInstructionsSysvarOrCreator extends string
         ? ReadonlyAccount<TAccountInstructionsSysvarOrCreator>
         : TAccountInstructionsSysvarOrCreator,
+      TAccountMintAccount extends string
+        ? ReadonlyAccount<TAccountMintAccount>
+        : TAccountMintAccount,
       TAccountConfigAccount extends string
         ? WritableAccount<TAccountConfigAccount>
         : TAccountConfigAccount,
@@ -79,9 +82,6 @@ export type InitializeVerificationConfigInstruction<
         ? WritableSignerAccount<TAccountPayer> &
             AccountSignerMeta<TAccountPayer>
         : TAccountPayer,
-      TAccountMintAccount extends string
-        ? ReadonlyAccount<TAccountMintAccount>
-        : TAccountMintAccount,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -138,17 +138,17 @@ export type InitializeVerificationConfigInput<
   TAccountMint extends string = string,
   TAccountVerificationConfigOrMintAuthority extends string = string,
   TAccountInstructionsSysvarOrCreator extends string = string,
+  TAccountMintAccount extends string = string,
   TAccountConfigAccount extends string = string,
   TAccountPayer extends string = string,
-  TAccountMintAccount extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
   instructionsSysvarOrCreator: Address<TAccountInstructionsSysvarOrCreator>;
+  mintAccount: Address<TAccountMintAccount>;
   configAccount: Address<TAccountConfigAccount>;
   payer: TransactionSigner<TAccountPayer>;
-  mintAccount: Address<TAccountMintAccount>;
   systemProgram?: Address<TAccountSystemProgram>;
   initializeVerificationConfigArgs: InitializeVerificationConfigInstructionDataArgs['initializeVerificationConfigArgs'];
 };
@@ -157,9 +157,9 @@ export function getInitializeVerificationConfigInstruction<
   TAccountMint extends string,
   TAccountVerificationConfigOrMintAuthority extends string,
   TAccountInstructionsSysvarOrCreator extends string,
+  TAccountMintAccount extends string,
   TAccountConfigAccount extends string,
   TAccountPayer extends string,
-  TAccountMintAccount extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
@@ -168,9 +168,9 @@ export function getInitializeVerificationConfigInstruction<
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
+    TAccountMintAccount,
     TAccountConfigAccount,
     TAccountPayer,
-    TAccountMintAccount,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress }
@@ -179,9 +179,9 @@ export function getInitializeVerificationConfigInstruction<
   TAccountMint,
   TAccountVerificationConfigOrMintAuthority,
   TAccountInstructionsSysvarOrCreator,
+  TAccountMintAccount,
   TAccountConfigAccount,
   TAccountPayer,
-  TAccountMintAccount,
   TAccountSystemProgram
 > {
   // Program address.
@@ -199,9 +199,9 @@ export function getInitializeVerificationConfigInstruction<
       value: input.instructionsSysvarOrCreator ?? null,
       isWritable: false,
     },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     configAccount: { value: input.configAccount ?? null, isWritable: true },
     payer: { value: input.payer ?? null, isWritable: true },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -224,9 +224,9 @@ export function getInitializeVerificationConfigInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfigOrMintAuthority),
       getAccountMeta(accounts.instructionsSysvarOrCreator),
+      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.configAccount),
       getAccountMeta(accounts.payer),
-      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.systemProgram),
     ],
     data: getInitializeVerificationConfigInstructionDataEncoder().encode(
@@ -238,9 +238,9 @@ export function getInitializeVerificationConfigInstruction<
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
+    TAccountMintAccount,
     TAccountConfigAccount,
     TAccountPayer,
-    TAccountMintAccount,
     TAccountSystemProgram
   >);
 }
@@ -254,9 +254,9 @@ export type ParsedInitializeVerificationConfigInstruction<
     mint: TAccountMetas[0];
     verificationConfigOrMintAuthority: TAccountMetas[1];
     instructionsSysvarOrCreator: TAccountMetas[2];
-    configAccount: TAccountMetas[3];
-    payer: TAccountMetas[4];
-    mintAccount: TAccountMetas[5];
+    mintAccount: TAccountMetas[3];
+    configAccount: TAccountMetas[4];
+    payer: TAccountMetas[5];
     systemProgram: TAccountMetas[6];
   };
   data: InitializeVerificationConfigInstructionData;
@@ -286,9 +286,9 @@ export function parseInitializeVerificationConfigInstruction<
       mint: getNextAccount(),
       verificationConfigOrMintAuthority: getNextAccount(),
       instructionsSysvarOrCreator: getNextAccount(),
+      mintAccount: getNextAccount(),
       configAccount: getNextAccount(),
       payer: getNextAccount(),
-      mintAccount: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getInitializeVerificationConfigInstructionDataDecoder().decode(

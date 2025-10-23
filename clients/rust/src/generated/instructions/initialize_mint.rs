@@ -43,9 +43,7 @@ impl InitializeMint {
     ) -> solana_instruction::Instruction {
         let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new(self.mint, true));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.payer, true,
-        ));
+        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
         accounts.push(solana_instruction::AccountMeta::new(self.authority, false));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.token_program,
@@ -101,7 +99,7 @@ pub struct InitializeMintInstructionArgs {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` mint
-///   1. `[signer]` payer
+///   1. `[writable, signer]` payer
 ///   2. `[writable]` authority
 ///   3. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 ///   4. `[optional]` system_program (default to `11111111111111111111111111111111`)
@@ -279,10 +277,7 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
     ) -> solana_program_error::ProgramResult {
         let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new(*self.mint.key, true));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.payer.key,
-            true,
-        ));
+        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
         accounts.push(solana_instruction::AccountMeta::new(
             *self.authority.key,
             false,
@@ -340,7 +335,7 @@ impl<'a, 'b> InitializeMintCpi<'a, 'b> {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` mint
-///   1. `[signer]` payer
+///   1. `[writable, signer]` payer
 ///   2. `[writable]` authority
 ///   3. `[]` token_program
 ///   4. `[]` system_program

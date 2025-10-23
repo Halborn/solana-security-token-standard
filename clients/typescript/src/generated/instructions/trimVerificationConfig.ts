@@ -49,8 +49,8 @@ export type TrimVerificationConfigInstruction<
   TAccountInstructionsSysvarOrCreator extends
     | string
     | AccountMeta<string> = string,
-  TAccountConfigAccount extends string | AccountMeta<string> = string,
   TAccountMintAccount extends string | AccountMeta<string> = string,
+  TAccountConfigAccount extends string | AccountMeta<string> = string,
   TAccountRecipient extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends
     | string
@@ -69,12 +69,12 @@ export type TrimVerificationConfigInstruction<
       TAccountInstructionsSysvarOrCreator extends string
         ? ReadonlyAccount<TAccountInstructionsSysvarOrCreator>
         : TAccountInstructionsSysvarOrCreator,
+      TAccountMintAccount extends string
+        ? WritableAccount<TAccountMintAccount>
+        : TAccountMintAccount,
       TAccountConfigAccount extends string
         ? WritableAccount<TAccountConfigAccount>
         : TAccountConfigAccount,
-      TAccountMintAccount extends string
-        ? ReadonlyAccount<TAccountMintAccount>
-        : TAccountMintAccount,
       TAccountRecipient extends string
         ? WritableAccount<TAccountRecipient>
         : TAccountRecipient,
@@ -128,16 +128,16 @@ export type TrimVerificationConfigInput<
   TAccountMint extends string = string,
   TAccountVerificationConfigOrMintAuthority extends string = string,
   TAccountInstructionsSysvarOrCreator extends string = string,
-  TAccountConfigAccount extends string = string,
   TAccountMintAccount extends string = string,
+  TAccountConfigAccount extends string = string,
   TAccountRecipient extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
   instructionsSysvarOrCreator: Address<TAccountInstructionsSysvarOrCreator>;
-  configAccount: Address<TAccountConfigAccount>;
   mintAccount: Address<TAccountMintAccount>;
+  configAccount: Address<TAccountConfigAccount>;
   recipient: Address<TAccountRecipient>;
   systemProgram?: Address<TAccountSystemProgram>;
   trimVerificationConfigArgs: TrimVerificationConfigInstructionDataArgs['trimVerificationConfigArgs'];
@@ -147,8 +147,8 @@ export function getTrimVerificationConfigInstruction<
   TAccountMint extends string,
   TAccountVerificationConfigOrMintAuthority extends string,
   TAccountInstructionsSysvarOrCreator extends string,
-  TAccountConfigAccount extends string,
   TAccountMintAccount extends string,
+  TAccountConfigAccount extends string,
   TAccountRecipient extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends
@@ -158,8 +158,8 @@ export function getTrimVerificationConfigInstruction<
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
-    TAccountConfigAccount,
     TAccountMintAccount,
+    TAccountConfigAccount,
     TAccountRecipient,
     TAccountSystemProgram
   >,
@@ -169,8 +169,8 @@ export function getTrimVerificationConfigInstruction<
   TAccountMint,
   TAccountVerificationConfigOrMintAuthority,
   TAccountInstructionsSysvarOrCreator,
-  TAccountConfigAccount,
   TAccountMintAccount,
+  TAccountConfigAccount,
   TAccountRecipient,
   TAccountSystemProgram
 > {
@@ -189,8 +189,8 @@ export function getTrimVerificationConfigInstruction<
       value: input.instructionsSysvarOrCreator ?? null,
       isWritable: false,
     },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     configAccount: { value: input.configAccount ?? null, isWritable: true },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     recipient: { value: input.recipient ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -214,8 +214,8 @@ export function getTrimVerificationConfigInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfigOrMintAuthority),
       getAccountMeta(accounts.instructionsSysvarOrCreator),
-      getAccountMeta(accounts.configAccount),
       getAccountMeta(accounts.mintAccount),
+      getAccountMeta(accounts.configAccount),
       getAccountMeta(accounts.recipient),
       getAccountMeta(accounts.systemProgram),
     ],
@@ -228,8 +228,8 @@ export function getTrimVerificationConfigInstruction<
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
-    TAccountConfigAccount,
     TAccountMintAccount,
+    TAccountConfigAccount,
     TAccountRecipient,
     TAccountSystemProgram
   >);
@@ -244,8 +244,8 @@ export type ParsedTrimVerificationConfigInstruction<
     mint: TAccountMetas[0];
     verificationConfigOrMintAuthority: TAccountMetas[1];
     instructionsSysvarOrCreator: TAccountMetas[2];
-    configAccount: TAccountMetas[3];
-    mintAccount: TAccountMetas[4];
+    mintAccount: TAccountMetas[3];
+    configAccount: TAccountMetas[4];
     recipient: TAccountMetas[5];
     systemProgram: TAccountMetas[6];
   };
@@ -276,8 +276,8 @@ export function parseTrimVerificationConfigInstruction<
       mint: getNextAccount(),
       verificationConfigOrMintAuthority: getNextAccount(),
       instructionsSysvarOrCreator: getNextAccount(),
-      configAccount: getNextAccount(),
       mintAccount: getNextAccount(),
+      configAccount: getNextAccount(),
       recipient: getNextAccount(),
       systemProgram: getNextAccount(),
     },

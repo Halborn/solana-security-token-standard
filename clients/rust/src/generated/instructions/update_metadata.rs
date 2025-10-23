@@ -59,9 +59,7 @@ impl UpdateMetadata {
             self.mint_account,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.payer, true,
-        ));
+        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.token_program,
             false,
@@ -115,7 +113,7 @@ pub struct UpdateMetadataInstructionArgs {
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
 ///   3. `[writable]` mint_account
-///   4. `[signer]` payer
+///   4. `[writable, signer]` payer
 ///   5. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 ///   6. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
@@ -325,10 +323,7 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
             *self.mint_account.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.payer.key,
-            true,
-        ));
+        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.token_program.key,
             false,
@@ -382,7 +377,7 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
 ///   3. `[writable]` mint_account
-///   4. `[signer]` payer
+///   4. `[writable, signer]` payer
 ///   5. `[]` token_program
 ///   6. `[]` system_program
 #[derive(Clone, Debug)]

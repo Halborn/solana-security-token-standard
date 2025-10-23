@@ -23,7 +23,6 @@ import {
   type InstructionWithAccounts,
   type InstructionWithData,
   type ReadonlyAccount,
-  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
@@ -67,7 +66,7 @@ export type InitializeMintInstruction<
         ? WritableSignerAccount<TAccountMint> & AccountSignerMeta<TAccountMint>
         : TAccountMint,
       TAccountPayer extends string
-        ? ReadonlySignerAccount<TAccountPayer> &
+        ? WritableSignerAccount<TAccountPayer> &
             AccountSignerMeta<TAccountPayer>
         : TAccountPayer,
       TAccountAuthority extends string
@@ -174,7 +173,7 @@ export function getInitializeMintInstruction<
   // Original accounts.
   const originalAccounts = {
     mint: { value: input.mint ?? null, isWritable: true },
-    payer: { value: input.payer ?? null, isWritable: false },
+    payer: { value: input.payer ?? null, isWritable: true },
     authority: { value: input.authority ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },

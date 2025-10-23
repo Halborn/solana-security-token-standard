@@ -951,7 +951,7 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::InitializeVerificationConfigArgs,
     ) -> ProgramResult {
-        let [config_account, payer, mint_account, system_program_info] = &accounts else {
+        let [mint_account, config_account, payer, system_program_info] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -1034,7 +1034,7 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::UpdateVerificationConfigArgs,
     ) -> ProgramResult {
-        let [config_account, mint_account, payer, system_program_info] = accounts else {
+        let [mint_account, config_account, payer, system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -1142,7 +1142,7 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &TrimVerificationConfigArgs,
     ) -> ProgramResult {
-        let [config_account, mint_account, recipient, system_program_info] = accounts else {
+        let [mint_account, config_account, recipient, system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 

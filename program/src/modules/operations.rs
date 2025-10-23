@@ -5,7 +5,7 @@
 
 use crate::constants::seeds;
 use crate::instructions::{CustomPause, CustomResume};
-use crate::modules::{verify_owner, verify_signer, verify_token22_program};
+use crate::modules::{verify_owner, verify_token22_program};
 use crate::state::MintAuthority;
 use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda};
 use pinocchio::instruction::{Seed, Signer};

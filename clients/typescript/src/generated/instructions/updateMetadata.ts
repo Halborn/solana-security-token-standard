@@ -23,10 +23,10 @@ import {
   type InstructionWithAccounts,
   type InstructionWithData,
   type ReadonlyAccount,
-  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
+  type WritableSignerAccount,
 } from '@solana/kit';
 import { SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
@@ -78,7 +78,7 @@ export type UpdateMetadataInstruction<
         ? WritableAccount<TAccountMintAccount>
         : TAccountMintAccount,
       TAccountPayer extends string
-        ? ReadonlySignerAccount<TAccountPayer> &
+        ? WritableSignerAccount<TAccountPayer> &
             AccountSignerMeta<TAccountPayer>
         : TAccountPayer,
       TAccountTokenProgram extends string
@@ -193,7 +193,7 @@ export function getUpdateMetadataInstruction<
       isWritable: false,
     },
     mintAccount: { value: input.mintAccount ?? null, isWritable: true },
-    payer: { value: input.payer ?? null, isWritable: false },
+    payer: { value: input.payer ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
