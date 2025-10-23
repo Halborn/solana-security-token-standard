@@ -78,8 +78,6 @@ impl OperationsModule {
         };
 
         verify_token22_program(token_program)?;
-        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
-        verify_owner(token_account, &pinocchio_token_2022::ID)?;
 
         let (permanent_delegate_pda, bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
@@ -118,7 +116,6 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
-        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
@@ -150,7 +147,6 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
-        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
@@ -181,8 +177,6 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
-        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
-        verify_owner(token_account, &pinocchio_token_2022::ID)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
@@ -213,8 +207,6 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
-        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
-        verify_owner(token_account, &pinocchio_token_2022::ID)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {

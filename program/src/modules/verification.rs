@@ -420,7 +420,6 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
         verify_signer(authority_info)?;
