@@ -2,25 +2,35 @@ use crate::acc_info_as_str;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use pinocchio_log::log;
 
-/// Verify account as a signer, returning an error if it is not or if it is not writable while
+/// Verify account as writable
 /// expected to be.
 ///
 /// # Arguments
 /// * `info` - The account to verify.
-/// * `expect_writable` - Whether the account should be writable
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
-pub fn verify_signer(info: &AccountInfo, expect_writable: bool) -> Result<(), ProgramError> {
+pub fn verify_writable(info: &AccountInfo) -> Result<(), ProgramError> {
+    if !info.is_writable() {
+        log!("Account {} is not writable", acc_info_as_str!(info));
+        return Err(ProgramError::Immutable);
+    }
+    Ok(())
+}
+
+/// Verify account as a signer
+/// expected to be.
+///
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_signer(info: &AccountInfo) -> Result<(), ProgramError> {
     if !info.is_signer() {
         log!("Account {} is not a signer", acc_info_as_str!(info));
         return Err(ProgramError::MissingRequiredSignature);
     }
-    if expect_writable && !info.is_writable() {
-        log!("Signer {} is not writable", acc_info_as_str!(info));
-        return Err(ProgramError::Immutable);
-    }
-
     Ok(())
 }
 
@@ -82,6 +92,11 @@ pub fn verify_token22_program(info: &AccountInfo) -> Result<(), ProgramError> {
 }
 
 /// Verify account as instructions sysvar, returning an error if it is not.
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
 pub fn verify_instructions_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
     if info
         .key()
@@ -91,6 +106,21 @@ pub fn verify_instructions_sysvar(info: &AccountInfo) -> Result<(), ProgramError
             "Account {} is not the instructions sysvar",
             acc_info_as_str!(info)
         );
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
+}
+
+/// Verify account as rent sysvar, returning an error if it is not.
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_rent_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
+    if info.key().ne(&pinocchio::sysvars::rent::RENT_ID) {
+        log!("Account {} is not the rent sysvar", acc_info_as_str!(info));
         return Err(ProgramError::IncorrectProgramId);
     }
 
