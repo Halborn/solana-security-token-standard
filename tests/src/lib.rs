@@ -11,9 +11,3 @@ pub mod helpers;
 
 #[cfg(test)]
 pub mod operations;
-
-#[cfg(test)]
-pub mod constants;
-
-// TODO: To avoid passing default values like token_program, rent_sysvar and etc we must use 
-// a builder pattern for instruction construction.

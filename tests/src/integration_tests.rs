@@ -8,7 +8,6 @@ use security_token_client::instructions::{
 };
 use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
 
-use crate::constants::TOKEN_PROGRAM_ID;
 use crate::helpers::{assert_transaction_success, initialize_mint, initialize_verification_config};
 use security_token_client::types::{
     InitializeMintArgs, InitializeVerificationConfigArgs, MetadataPointerArgs, MintArgs,
@@ -25,6 +24,7 @@ use spl_token_2022::extension::{
     ExtensionType, StateWithExtensions,
 };
 use spl_token_2022::state::Mint;
+use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 use spl_token_metadata_interface::state::TokenMetadata as SolanaProgramTokenMetadata;
 
 fn encode_additional_metadata(pairs: &[(String, String)]) -> Vec<u8> {
@@ -151,7 +151,7 @@ async fn test_initialize_mint_with_all_extensions() {
         .unwrap()
         .expect("Mint account should exist");
     assert_eq!(
-        mint_account.owner, TOKEN_PROGRAM_ID,
+        mint_account.owner, TOKEN_22_PROGRAM_ID,
         "Mint should be owned by Token-2022 program"
     );
 

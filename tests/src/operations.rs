@@ -18,8 +18,8 @@ use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
 
-use crate::constants::TOKEN_PROGRAM_ID;
 use crate::helpers::{assert_transaction_success, initialize_mint, initialize_verification_config};
+use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 
 async fn get_mint_state(
     banks_client: &mut solana_program_test::BanksClient,
@@ -76,7 +76,7 @@ async fn test_basic_t22_operations() {
         spl_associated_token_account::get_associated_token_address_with_program_id(
             &context.payer.pubkey(),
             &mint_keypair.pubkey(),
-            &TOKEN_PROGRAM_ID,
+            &TOKEN_22_PROGRAM_ID,
         );
 
     let initialize_mint_args = InitializeMintArgs {
@@ -141,7 +141,7 @@ async fn test_basic_t22_operations() {
             &context.payer.pubkey(),
             &context.payer.pubkey(),
             &mint_keypair.pubkey(),
-            &TOKEN_PROGRAM_ID,
+            &TOKEN_22_PROGRAM_ID,
         );
 
     let create_destination_account_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(

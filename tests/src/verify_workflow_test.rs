@@ -1,9 +1,6 @@
-use crate::{
-    constants::TOKEN_PROGRAM_ID,
-    helpers::{
-        assert_security_token_error, assert_transaction_success, initialize_mint,
-        initialize_verification_config,
-    },
+use crate::helpers::{
+    assert_security_token_error, assert_transaction_success, initialize_mint,
+    initialize_verification_config,
 };
 use security_token_client::{
     errors::SecurityTokenProgramError,
@@ -14,13 +11,6 @@ use security_token_client::{
         TokenMetadataArgs, UpdateMetadataArgs, VerifyArgs,
     },
 };
-// use security_token_client::{
-//     InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
-//     InitializeVerificationConfig, InitializeVerificationConfigArgs,
-//     InitializeVerificationConfigInstructionArgs, MetadataPointer, SecurityTokenError,
-//     TokenMetadata, UpdateMetadata, UpdateMetadataArgs, UpdateMetadataInstructionArgs, Verify,
-//     VerifyArgs, VerifyInstructionArgs, SECURITY_TOKEN_PROGRAM_ID, UPDATE_METADATA_DISCRIMINATOR,
-// };
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey as SolanaPubkey,
@@ -34,6 +24,7 @@ use solana_sdk::{
     sysvar,
     transaction::Transaction,
 };
+use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 
 use solana_system_interface::instruction as system_instruction;
 use solana_system_interface::program as system_program;
@@ -522,7 +513,7 @@ async fn test_update_metadata_under_verification() {
             accounts: vec![
                 AccountMeta::new_readonly(mint_keypair.pubkey(), false),
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
-                AccountMeta::new_readonly(TOKEN_PROGRAM_ID, false),
+                AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
@@ -532,7 +523,7 @@ async fn test_update_metadata_under_verification() {
             accounts: vec![
                 AccountMeta::new_readonly(mint_keypair.pubkey(), false),
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
-                AccountMeta::new_readonly(TOKEN_PROGRAM_ID, false),
+                AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
