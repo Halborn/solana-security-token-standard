@@ -1,8 +1,22 @@
 # Solana Security Token Standard
 
-## Running Tests
+The README is pending
 
-Run integration tests with the following script
+### Generate IDL
+
+```
+pnpm generate-idl
+```
+
+### Generate clients
+
+```
+pnpm generate-clients
+```
+
+### Run tests
+
+In a project root:
 
 ```
 cargo-build-sbf && SBF_OUT_DIR=$(pwd)/target/deploy cargo test

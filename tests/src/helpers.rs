@@ -1,11 +1,11 @@
-use security_token_client::SecurityTokenError;
+use security_token_client::errors::SecurityTokenProgramError;
 use solana_program_test::BanksClientError;
 use solana_sdk::{instruction::InstructionError, transaction::TransactionError};
 
 /// Helper function to assert that a transaction failed with a specific SecurityTokenError
 pub fn assert_security_token_error(
     result: Result<(), BanksClientError>,
-    expected_error: SecurityTokenError,
+    expected_error: SecurityTokenProgramError,
 ) {
     match result {
         Err(e) => match e {

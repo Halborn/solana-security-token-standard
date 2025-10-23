@@ -1,10 +1,11 @@
 //! Verification configuration instruction arguments and utilities
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
+use shank::ShankType;
 
 /// Arguments for InitializeVerificationConfig instruction
-#[derive(Clone, Debug, PartialEq)]
 #[repr(C)]
+#[derive(ShankType)]
 pub struct InitializeVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
     pub instruction_discriminator: u8,
@@ -12,26 +13,9 @@ pub struct InitializeVerificationConfigArgs {
     pub program_addresses: Vec<Pubkey>,
 }
 
-/// Wrapper struct that matches what codama generates
-#[derive(Clone, Debug, PartialEq)]
-#[repr(C)]
-pub struct InitializeVerificationConfigInstructionArgs {
-    /// The verification config arguments
-    pub args: InitializeVerificationConfigArgs,
-}
-
-impl InitializeVerificationConfigInstructionArgs {
-    /// Deserialize from bytes using manual deserialization
-    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        Ok(Self {
-            args: InitializeVerificationConfigArgs::try_from_bytes(data)?,
-        })
-    }
-}
-
 /// Arguments for UpdateVerificationConfig instruction
-#[derive(Clone, Debug, PartialEq)]
 #[repr(C)]
+#[derive(ShankType)]
 pub struct UpdateVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
     pub instruction_discriminator: u8,
@@ -39,23 +23,6 @@ pub struct UpdateVerificationConfigArgs {
     pub offset: u8,
     /// Vector of new verification program addresses to add/replace
     pub program_addresses: Vec<Pubkey>,
-}
-
-/// Wrapper struct that matches what codama generates for UpdateVerificationConfig
-#[derive(Clone, Debug, PartialEq)]
-#[repr(C)]
-pub struct UpdateVerificationConfigInstructionArgs {
-    /// The verification config update arguments
-    pub args: UpdateVerificationConfigArgs,
-}
-
-impl UpdateVerificationConfigInstructionArgs {
-    /// Deserialize from bytes using manual deserialization
-    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        Ok(Self {
-            args: UpdateVerificationConfigArgs::try_from_bytes(data)?,
-        })
-    }
 }
 
 impl InitializeVerificationConfigArgs {
@@ -244,7 +211,7 @@ impl UpdateVerificationConfigArgs {
 }
 
 /// Arguments for TrimVerificationConfig instruction
-#[derive(Clone, Debug, PartialEq)]
+#[derive(ShankType)]
 #[repr(C)]
 pub struct TrimVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
@@ -253,23 +220,6 @@ pub struct TrimVerificationConfigArgs {
     pub size: u8,
     /// Whether to close the account completely
     pub close: bool,
-}
-
-/// Wrapper struct that matches what codama generates for TrimVerificationConfig
-#[derive(Clone, Debug, PartialEq)]
-#[repr(C)]
-pub struct TrimVerificationConfigInstructionArgs {
-    /// The trim verification config arguments
-    pub args: TrimVerificationConfigArgs,
-}
-
-impl TrimVerificationConfigInstructionArgs {
-    /// Deserialize from bytes using manual deserialization
-    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        Ok(Self {
-            args: TrimVerificationConfigArgs::try_from_bytes(data)?,
-        })
-    }
 }
 
 impl TrimVerificationConfigArgs {

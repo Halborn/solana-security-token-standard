@@ -7,7 +7,8 @@
     "test": "tests"
   },
   "scripts": {
-    "generate:rust": "npx tsx ./client/codama.ts",
+    "generate-idl": "shank idl -r program -o idl",
+    "generate-clients": "node ./scripts/generate-clients.js",
     "test": "cargo-build-sbf && SBF_OUT_DIR=$(pwd)/target/deploy cargo test"
   },
   "repository": {
@@ -26,7 +27,10 @@
     "@codama/nodes": "^1.3.2",
     "@codama/renderers-core": "^1.0.18",
     "@codama/renderers-rust": "^1.2.1",
-    "@codama/visitors-core": "^1.3.2"
+    "@codama/visitors-core": "^1.3.2",
+    "@codama/nodes-from-anchor": "^1.2.0",
+    "@codama/renderers": "^1.0.23",
+    "codama": "^1.3.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

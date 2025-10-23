@@ -11,9 +11,8 @@ publish = false
 [dependencies]
 assert_matches = "1.5.0"
 security-token-program = { path = "../program" }
-security-token-client = { path = "../client/rust" }
+security-token-client = { path = "../clients/rust" }
 tokio = { version = "1.41.1", features = ["macros", "rt"] }
-kaigan = "0.2.2"
 borsh = "0.10.4"
 solana-program-test = "2.3.1"
 solana-sdk = "2.3.1"

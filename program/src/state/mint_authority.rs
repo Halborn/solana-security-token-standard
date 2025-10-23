@@ -1,14 +1,15 @@
 //! Mint configuration account state
-use pinocchio::account_info::{AccountInfo, Ref};
-use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
-
 use crate::state::{
     AccountDeserialize, AccountSerialize, Discriminator, SecurityTokenDiscriminators,
 };
+use pinocchio::account_info::{AccountInfo, Ref};
+use pinocchio::program_error::ProgramError;
+use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
+use shank::ShankAccount;
 
 /// Configuration data stored per mint
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[repr(C)]
+#[derive(ShankAccount)]
 pub struct MintAuthority {
     /// SPL mint address this configuration belongs to
     pub mint: Pubkey,

@@ -1,13 +1,39 @@
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
 use pinocchio_token_2022::extensions::metadata::TokenMetadata;
-use pinocchio_token_2022::extensions::metadata_pointer::MetadataPointer;
-use pinocchio_token_2022::extensions::scaled_ui_amount::ScaledUiAmountConfig;
+use shank::ShankType;
 
-/// Arguments to initialize mint
 #[repr(C)]
-#[derive(Clone, Debug)]
-pub struct InitializeMintArgs {
+#[derive(Clone, Debug, ShankType)]
+pub struct TokenMetadataArgs {
+    // Length fields are omitted because the owned values carry that information
+    pub update_authority: Pubkey,
+    pub mint: Pubkey,
+    pub name: String,
+    pub symbol: String,
+    pub uri: String,
+    pub additional_metadata: Vec<u8>,
+}
+
+#[repr(C)]
+#[derive(Clone, Debug, ShankType)]
+pub struct ScaledUiAmountConfigArgs {
+    pub authority: Pubkey,
+    pub multiplier: [u8; 8],
+    pub new_multiplier_effective_timestamp: i64, // pinocchio::sysvars::clock::UnixTimestamp;
+    pub new_multiplier: [u8; 8],
+}
+
+#[repr(C)]
+#[derive(Clone, Debug, ShankType)]
+pub struct MetadataPointerArgs {
+    pub authority: Pubkey,
+    pub metadata_address: Pubkey,
+}
+
+#[repr(C)]
+#[derive(Clone, Debug, ShankType)]
+pub struct MintArgs {
     /// Number of decimals for the token
     pub decimals: u8,
     /// Mint authority public key
@@ -16,7 +42,20 @@ pub struct InitializeMintArgs {
     pub freeze_authority: Pubkey,
 }
 
-impl InitializeMintArgs {
+#[repr(C)]
+#[derive(Clone, ShankType)]
+pub struct InitializeMintArgs {
+    /// Basic mint arguments
+    pub ix_mint: MintArgs,
+    /// Optional metadata pointer configuration
+    pub ix_metadata_pointer: Option<MetadataPointerArgs>, // pinocchio_token_2022::extensions::metadata_pointer::MetadataPointer
+    /// Optional metadata
+    pub ix_metadata: Option<TokenMetadataArgs>, // pinocchio_token_2022::extensions::metadata::TokenMetadata
+    /// Optional scaled UI amount configuration
+    pub ix_scaled_ui_amount: Option<ScaledUiAmountConfigArgs>, //  pinocchio_token_2022::extensions::scaled_ui_amount::ScaledUiAmountConfig
+}
+
+impl MintArgs {
     /// Pack the mint arguments into bytes using the same format as SPL Token 2022
     pub fn to_bytes_inner(&self) -> Vec<u8> {
         let mut buf = Vec::new();
@@ -57,21 +96,7 @@ impl InitializeMintArgs {
     }
 }
 
-/// Arguments for Initialize instruction that supports both mint and metadata
-#[repr(C)]
-#[derive(Clone)]
-pub struct InitializeArgs<'a> {
-    /// Basic mint arguments
-    pub ix_mint: InitializeMintArgs,
-    /// Optional metadata pointer configuration
-    pub ix_metadata_pointer: Option<MetadataPointer>,
-    /// Optional metadata
-    pub ix_metadata: Option<TokenMetadata<'a>>,
-    /// Optional scaled UI amount configuration
-    pub ix_scaled_ui_amount: Option<ScaledUiAmountConfig>,
-}
-
-impl<'a> std::fmt::Debug for InitializeArgs<'a> {
+impl std::fmt::Debug for InitializeMintArgs {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InitializeArgs")
             .field("ix_mint", &self.ix_mint)
@@ -82,9 +107,9 @@ impl<'a> std::fmt::Debug for InitializeArgs<'a> {
     }
 }
 
-impl<'a> InitializeArgs<'a> {
+impl InitializeMintArgs {
     /// Internal parser that returns both TokenMetadata and number of bytes consumed
-    fn parse_token_metadata(data: &'a [u8]) -> Result<(TokenMetadata<'a>, usize), ProgramError> {
+    fn parse_token_metadata(data: &[u8]) -> Result<(TokenMetadataArgs, usize), ProgramError> {
         if data.len() < TokenMetadata::SIZE_METADATA_LEN {
             return Err(ProgramError::AccountDataTooSmall);
         }
@@ -116,8 +141,10 @@ impl<'a> InitializeArgs<'a> {
         if data.len() < offset + name_len as usize {
             return Err(ProgramError::InvalidRealloc);
         }
-        let name = core::str::from_utf8(&data[offset..offset + name_len as usize])
-            .map_err(|_| ProgramError::InvalidRealloc)?;
+        let name_bytes = &data[offset..offset + name_len as usize];
+        let name = core::str::from_utf8(name_bytes)
+            .map_err(|_| ProgramError::InvalidRealloc)?
+            .to_string();
         offset += name_len as usize;
 
         // Read symbol_len (4 bytes)
@@ -131,8 +158,10 @@ impl<'a> InitializeArgs<'a> {
         if data.len() < offset + symbol_len as usize {
             return Err(ProgramError::InvalidRealloc);
         }
-        let symbol = core::str::from_utf8(&data[offset..offset + symbol_len as usize])
-            .map_err(|_| ProgramError::InvalidRealloc)?;
+        let symbol_bytes = &data[offset..offset + symbol_len as usize];
+        let symbol = core::str::from_utf8(symbol_bytes)
+            .map_err(|_| ProgramError::InvalidRealloc)?
+            .to_string();
         offset += symbol_len as usize;
 
         // Read uri_len (4 bytes)
@@ -146,8 +175,10 @@ impl<'a> InitializeArgs<'a> {
         if data.len() < offset + uri_len as usize {
             return Err(ProgramError::InvalidRealloc);
         }
-        let uri = core::str::from_utf8(&data[offset..offset + uri_len as usize])
-            .map_err(|_| ProgramError::InvalidRealloc)?;
+        let uri_bytes = &data[offset..offset + uri_len as usize];
+        let uri = core::str::from_utf8(uri_bytes)
+            .map_err(|_| ProgramError::InvalidRealloc)?
+            .to_string();
         offset += uri_len as usize;
 
         // Read additional_metadata_len (4 bytes)
@@ -162,35 +193,33 @@ impl<'a> InitializeArgs<'a> {
             if data.len() < offset + additional_metadata_len as usize {
                 return Err(ProgramError::InvalidRealloc);
             }
-            &data[offset..offset + additional_metadata_len as usize]
+            let slice = &data[offset..offset + additional_metadata_len as usize];
+            offset += additional_metadata_len as usize;
+            slice.to_vec()
         } else {
-            &[]
+            Vec::new()
         };
 
-        let meta = TokenMetadata {
+        let meta = TokenMetadataArgs {
             update_authority,
             mint,
-            name_len,
             name,
-            symbol_len,
             symbol,
-            uri_len,
             uri,
-            additional_metadata_len,
             additional_metadata,
         };
 
-        Ok((meta, offset + additional_metadata_len as usize))
+        Ok((meta, offset))
     }
 
     /// Deserialize TokenMetadata from bytes using the same format as pinocchio's from_bytes
     /// TODO: For some reason it is pub(crate) fn from_bytes<'a>(data: &[u8]) -> Result<TokenMetadata<'a>, ProgramError>
-    pub fn deserialize_token_metadata(data: &'a [u8]) -> Result<TokenMetadata<'a>, ProgramError> {
+    pub fn deserialize_token_metadata(data: &[u8]) -> Result<TokenMetadataArgs, ProgramError> {
         Self::parse_token_metadata(data).map(|(m, _)| m)
     }
 
     /// Serialize TokenMetadata to bytes using the same format as pinocchio's from_bytes expects
-    pub fn serialize_token_metadata(metadata: &TokenMetadata) -> Vec<u8> {
+    pub fn serialize_token_metadata(metadata: &TokenMetadataArgs) -> Vec<u8> {
         let mut buf = Vec::new();
 
         // Write update_authority (32 bytes)
@@ -199,21 +228,25 @@ impl<'a> InitializeArgs<'a> {
         // Write mint (32 bytes)
         buf.extend_from_slice(metadata.mint.as_ref());
 
-        // Write name_len and name
-        buf.extend_from_slice(&metadata.name_len.to_le_bytes());
+        // Write name length and bytes
+        let name_len = metadata.name.len() as u32;
+        buf.extend_from_slice(&name_len.to_le_bytes());
         buf.extend_from_slice(metadata.name.as_bytes());
 
-        // Write symbol_len and symbol
-        buf.extend_from_slice(&metadata.symbol_len.to_le_bytes());
+        // Write symbol length and bytes
+        let symbol_len = metadata.symbol.len() as u32;
+        buf.extend_from_slice(&symbol_len.to_le_bytes());
         buf.extend_from_slice(metadata.symbol.as_bytes());
 
-        // Write uri_len and uri
-        buf.extend_from_slice(&metadata.uri_len.to_le_bytes());
+        // Write URI length and bytes
+        let uri_len = metadata.uri.len() as u32;
+        buf.extend_from_slice(&uri_len.to_le_bytes());
         buf.extend_from_slice(metadata.uri.as_bytes());
 
-        // Write additional_metadata_len and additional_metadata
-        buf.extend_from_slice(&metadata.additional_metadata_len.to_le_bytes());
-        buf.extend_from_slice(metadata.additional_metadata);
+        // Write additional metadata length and bytes
+        let additional_metadata_len = metadata.additional_metadata.len() as u32;
+        buf.extend_from_slice(&additional_metadata_len.to_le_bytes());
+        buf.extend_from_slice(&metadata.additional_metadata);
 
         buf
     }
@@ -223,12 +256,12 @@ impl<'a> InitializeArgs<'a> {
         decimals: u8,
         mint_authority: Pubkey,
         freeze_authority: Pubkey,
-        metadata_pointer: Option<MetadataPointer>,
-        metadata: Option<TokenMetadata<'a>>,
-        scaled_ui_amount: Option<ScaledUiAmountConfig>,
+        metadata_pointer: Option<MetadataPointerArgs>,
+        metadata: Option<TokenMetadataArgs>,
+        scaled_ui_amount: Option<ScaledUiAmountConfigArgs>,
     ) -> Self {
         Self {
-            ix_mint: InitializeMintArgs {
+            ix_mint: MintArgs {
                 decimals,
                 mint_authority,
                 freeze_authority,
@@ -286,13 +319,12 @@ impl<'a> InitializeArgs<'a> {
     }
 
     /// Deserialize arguments from bytes
-    pub fn try_from_bytes(data: &'a [u8]) -> Result<Self, ProgramError> {
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         // First, try_from_bytes the mint arguments
-        let ix_mint = InitializeMintArgs::try_from_bytes(data)?;
+        let ix_mint = MintArgs::try_from_bytes(data)?;
 
         // Determine the offset after mint args
         let mut offset = 65;
-
         if data.len() <= offset {
             // No extensions
             return Ok(Self {
@@ -302,7 +334,6 @@ impl<'a> InitializeArgs<'a> {
                 ix_scaled_ui_amount: None,
             });
         }
-
         // Check metadata pointer flag
         let has_metadata_pointer = data[offset];
         offset += 1;
@@ -325,7 +356,7 @@ impl<'a> InitializeArgs<'a> {
             );
             offset += 32;
 
-            Some(MetadataPointer {
+            Some(MetadataPointerArgs {
                 authority,
                 metadata_address,
             })
@@ -398,7 +429,7 @@ impl<'a> InitializeArgs<'a> {
             let new_multiplier = <[u8; 8]>::try_from(&data[offset..offset + 8])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-            Some(ScaledUiAmountConfig {
+            Some(ScaledUiAmountConfigArgs {
                 authority,
                 multiplier,
                 new_multiplier_effective_timestamp,
@@ -457,14 +488,14 @@ mod tests {
         let mint_authority = random_pubkey();
         let freeze_authority = random_pubkey();
 
-        let original = InitializeMintArgs {
+        let original = MintArgs {
             decimals: 6,
             mint_authority,
             freeze_authority,
         };
 
         let inner_bytes = original.to_bytes_inner();
-        let deserialized = InitializeMintArgs::try_from_bytes(&inner_bytes).unwrap();
+        let deserialized = MintArgs::try_from_bytes(&inner_bytes).unwrap();
 
         assert_eq!(original.decimals, deserialized.decimals);
         assert_eq!(original.mint_authority, deserialized.mint_authority);
@@ -482,44 +513,40 @@ mod tests {
         let name = "Security Token";
         let symbol = "SEC";
         let uri = "https://example.com/metadata.json";
-        let additional_metadata = &[];
+        let additional_metadata = vec![];
 
-        let metadata = TokenMetadata {
+        let metadata = TokenMetadataArgs {
             update_authority,
             mint,
-            name_len: name.len() as u32,
-            name,
-            symbol_len: symbol.len() as u32,
-            symbol,
-            uri_len: uri.len() as u32,
-            uri,
-            additional_metadata_len: 0,
+            name: name.to_string(),
+            symbol: symbol.to_string(),
+            uri: uri.to_string(),
             additional_metadata,
         };
 
-        let metadata_pointer = MetadataPointer {
+        let metadata_pointer = MetadataPointerArgs {
             authority: update_authority,
             metadata_address: mint,
         };
 
-        let scaled_ui_amount = ScaledUiAmountConfig {
+        let scaled_ui_amount = ScaledUiAmountConfigArgs {
             authority: multiplier_authority,
             multiplier: 2.0f64.to_le_bytes(),
             new_multiplier_effective_timestamp: 0,
             new_multiplier: 2.0f64.to_le_bytes(),
         };
 
-        let original = InitializeArgs::new(
+        let original = InitializeMintArgs::new(
             6,
             mint_authority,
             freeze_authority,
-            Some(metadata_pointer),
+            Some(metadata_pointer.clone()),
             Some(metadata.clone()),
-            Some(scaled_ui_amount),
+            Some(scaled_ui_amount.clone()),
         );
 
         let inner_bytes = original.to_bytes_inner();
-        let deserialized = InitializeArgs::try_from_bytes(&inner_bytes).unwrap();
+        let deserialized = InitializeMintArgs::try_from_bytes(&inner_bytes).unwrap();
 
         assert_eq!(original.ix_mint.decimals, deserialized.ix_mint.decimals);
         assert_eq!(
@@ -565,12 +592,12 @@ mod tests {
     }
 
     #[test]
-    fn test_initialize_args_with_metadata() {
+    fn test_initialize_args_without_metadata() {
         let mint_authority = random_pubkey();
         let freeze_authority = random_pubkey();
 
         // Create a test with simple metadata (no scaled UI amount for simplicity)
-        let original = InitializeArgs::new(
+        let original = InitializeMintArgs::new(
             6,
             mint_authority,
             freeze_authority,
@@ -580,7 +607,7 @@ mod tests {
         );
 
         let inner_bytes = original.to_bytes_inner();
-        let deserialized = InitializeArgs::try_from_bytes(&inner_bytes).unwrap();
+        let deserialized = InitializeMintArgs::try_from_bytes(&inner_bytes).unwrap();
 
         assert_eq!(original.ix_mint.decimals, deserialized.ix_mint.decimals);
         assert_eq!(
@@ -603,24 +630,25 @@ mod tests {
         let freeze_authority = random_pubkey();
 
         // Valid args without metadata
-        let valid_args = InitializeArgs::new(6, mint_authority, freeze_authority, None, None, None);
+        let valid_args =
+            InitializeMintArgs::new(6, mint_authority, freeze_authority, None, None, None);
         assert!(valid_args.validate().is_ok());
 
         // Invalid decimals
         let invalid_decimals =
-            InitializeArgs::new(25, mint_authority, freeze_authority, None, None, None);
+            InitializeMintArgs::new(25, mint_authority, freeze_authority, None, None, None);
         assert!(invalid_decimals.validate().is_err());
 
         // Test with a valid metadata pointer but no metadata (this should be valid)
-        let metadata_pointer = MetadataPointer {
+        let metadata_pointer = MetadataPointerArgs {
             authority: mint_authority,
             metadata_address: mint_authority,
         };
-        let valid_with_metadata_pointer_only = InitializeArgs::new(
+        let valid_with_metadata_pointer_only = InitializeMintArgs::new(
             6,
             mint_authority,
             freeze_authority,
-            Some(metadata_pointer),
+            Some(metadata_pointer.clone()),
             None, // no metadata
             None,
         );
@@ -630,45 +658,37 @@ mod tests {
         let name = "Test Token";
         let symbol = "TEST";
         let uri = "https://example.com";
-        let additional_metadata = &[];
+        let additional_metadata = vec![];
 
-        let valid_metadata = TokenMetadata {
+        let valid_metadata = TokenMetadataArgs {
             update_authority: mint_authority,
             mint: mint_authority,
-            name_len: name.len() as u32,
-            name,
-            symbol_len: symbol.len() as u32,
-            symbol,
-            uri_len: uri.len() as u32,
-            uri,
-            additional_metadata_len: 0,
-            additional_metadata,
+            name: name.to_string(),
+            symbol: symbol.to_string(),
+            uri: uri.to_string(),
+            additional_metadata: additional_metadata.clone(),
         };
 
-        let valid_with_metadata = InitializeArgs::new(
+        let valid_with_metadata = InitializeMintArgs::new(
             6,
             mint_authority,
             freeze_authority,
-            Some(metadata_pointer),
+            Some(metadata_pointer.clone()),
             Some(valid_metadata),
             None,
         );
         assert!(valid_with_metadata.validate().is_ok());
 
         // Invalid: metadata without metadata pointer (create a new metadata instance)
-        let metadata_for_invalid_test = TokenMetadata {
+        let metadata_for_invalid_test = TokenMetadataArgs {
             update_authority: mint_authority,
             mint: mint_authority,
-            name_len: name.len() as u32,
-            name,
-            symbol_len: symbol.len() as u32,
-            symbol,
-            uri_len: uri.len() as u32,
-            uri,
-            additional_metadata_len: 0,
-            additional_metadata,
+            name: name.to_string(),
+            symbol: symbol.to_string(),
+            uri: uri.to_string(),
+            additional_metadata: additional_metadata.clone(),
         };
-        let metadata_without_pointer = InitializeArgs::new(
+        let metadata_without_pointer = InitializeMintArgs::new(
             6,
             mint_authority,
             freeze_authority,
@@ -679,19 +699,15 @@ mod tests {
         assert!(metadata_without_pointer.validate().is_err());
 
         // Invalid metadata - empty name
-        let bad_metadata = TokenMetadata {
+        let bad_metadata = TokenMetadataArgs {
             update_authority: mint_authority,
             mint: mint_authority,
-            name_len: 0,
-            name: "",
-            symbol_len: symbol.len() as u32,
-            symbol,
-            uri_len: uri.len() as u32,
-            uri,
-            additional_metadata_len: 0,
-            additional_metadata,
+            name: "".to_string(),
+            symbol: symbol.to_string(),
+            uri: uri.to_string(),
+            additional_metadata: additional_metadata.clone(),
         };
-        let invalid_metadata = InitializeArgs::new(
+        let invalid_metadata = InitializeMintArgs::new(
             6,
             mint_authority,
             freeze_authority,

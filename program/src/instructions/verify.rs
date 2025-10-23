@@ -1,9 +1,11 @@
 use pinocchio::program_error::ProgramError;
 
 use crate::instruction::SecurityTokenInstruction;
+use shank::ShankType;
 
 /// Arguments for the Verify instruction
-#[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
+#[derive(ShankType)]
 pub struct VerifyArgs {
     /// The Security Token instruction discriminant to verify
     pub ix: u8,

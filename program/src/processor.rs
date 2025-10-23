@@ -2,9 +2,8 @@ use crate::{
     constants::INSTRUCTION_ACCOUNTS_OFFSET,
     instruction::SecurityTokenInstruction,
     instructions::{
-        verification_config::TrimVerificationConfigInstructionArgs, InitializeArgs,
-        InitializeVerificationConfigInstructionArgs, UpdateMetadataArgs,
-        UpdateVerificationConfigInstructionArgs, VerifyArgs,
+        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     },
     modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
@@ -133,7 +132,7 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        let args = InitializeArgs::try_from_bytes(args_data)
+        let args = InitializeMintArgs::try_from_bytes(args_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
         VerificationModule::initialize_mint(program_id, accounts, &args)
     }
@@ -143,15 +142,10 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        let instruction_args =
-            InitializeVerificationConfigInstructionArgs::try_from_bytes(args_data)
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
+        let args = InitializeVerificationConfigArgs::try_from_bytes(args_data)
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-        VerificationModule::initialize_verification_config(
-            program_id,
-            accounts,
-            &instruction_args.args,
-        )
+        VerificationModule::initialize_verification_config(program_id, accounts, &args)
     }
 
     fn process_update_verification_config(
@@ -159,10 +153,9 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        let instruction_args = UpdateVerificationConfigInstructionArgs::try_from_bytes(args_data)
+        let args = UpdateVerificationConfigArgs::try_from_bytes(args_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
-
-        VerificationModule::update_verification_config(program_id, accounts, &instruction_args.args)
+        VerificationModule::update_verification_config(program_id, accounts, &args)
     }
 
     /// Process TrimVerificationConfig instruction
@@ -171,10 +164,10 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        let instruction_args = TrimVerificationConfigInstructionArgs::try_from_bytes(args_data)
+        let args = TrimVerificationConfigArgs::try_from_bytes(args_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-        VerificationModule::trim_verification_config(program_id, accounts, &instruction_args.args)
+        VerificationModule::trim_verification_config(program_id, accounts, &args)
     }
 
     fn process_verify(

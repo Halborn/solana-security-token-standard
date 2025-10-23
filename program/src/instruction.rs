@@ -1,158 +1,20 @@
-use num_derive::FromPrimitive;
 use pinocchio::program_error::ProgramError;
 
 /// Security Token Program instructions
-#[derive(Clone, Debug, PartialEq, FromPrimitive)]
+#[repr(u8)]
+#[derive(Clone)]
 pub enum SecurityTokenInstruction {
-    /// Initialize a new security token mint with metadata and compliance features
-    /// Accounts expected:
-    /// 0. `[writable, signer]` The mint account (must be a signer when creating new account)
-    /// 1. `[signer]` The creator/payer account
-    /// 2. `[]` The SPL Token 2022 program ID
-    /// 3. `[]` The system program ID
-    /// 4. `[]` The rent sysvar
     InitializeMint = 0,
-    /// Update the metadata of an existing security token mint
-    /// Accounts expected:
-    /// * Authorization through verification programs
-    /// 0. `[]` The mint account
-    /// 1. `[]` The verification config PDA account
-    /// 2. `[]` Instructions sysvar (for introspection mode)
-    ///
-    /// * Authorization through mint authority
-    /// 0. `[]` The mint account
-    /// 1. `[]` The mint authority PDA account
-    /// 2. `[signer]` The mint creator account
-    ///
-    /// 3. `[writable]` The mint account
-    /// 4. `[signer]` The mint authority account
-    /// 5. `[]` The SPL Token 2022 program ID
-    /// 6. `[]` The system program ID - NOTE: Add lamports if needed
-    /// 7. `[]` the remaining accounts for the verification purposes
     UpdateMetadata = 1,
-    /// Initialize verification configuration for an instruction
-    /// Accounts expected:
-    /// * Authorization through verification programs
-    /// 0. `[]` The mint account
-    /// 1. `[]` The verification config PDA account
-    /// 2. `[]` Instructions sysvar (for introspection mode)
-    ///
-    /// * Authorization through mint authority
-    /// 0. `[]` The mint account
-    /// 1. `[]` The mint authority PDA account
-    /// 2. `[signer]` The mint creator account
-    ///
-    /// * Instruction accounts:
-    /// 3. `[writable]` The VerificationConfig PDA account
-    /// 4. `[writable, signer]` The payer account  
-    /// 5. `[]` The mint account
-    /// 6. `[signer]` The authority account (mint authority)
-    /// 7. `[]` The system program ID
     InitializeVerificationConfig = 2,
-    /// Update verification configuration for an instruction
-    /// Accounts expected:
-    /// * Authorization through verification programs
-    /// 0. `[]` The mint account
-    /// 1. `[]` The verification config PDA account
-    /// 2. `[]` Instructions sysvar (for introspection mode)
-    ///
-    /// * Authorization through mint authority
-    /// 0. `[]` The mint account
-    /// 1. `[]` The mint authority PDA account
-    /// 2. `[signer]` The mint creator account
-    ///
-    /// * Instruction accounts:
-    /// 3. `[writable]` The VerificationConfig PDA account
-    /// 4. `[writable, signer]` The payer account  
-    /// 5. `[]` The mint account
-    /// 6. `[signer]` The authority account (mint authority)
-    /// 7. `[]` The system program ID
     UpdateVerificationConfig = 3,
-    /// Trim verification configuration for an instruction
-    /// Accounts expected:
-    /// * Authorization through verification programs
-    /// 0. `[]` The mint account
-    /// 1. `[]` The verification config PDA account
-    /// 2. `[]` Instructions sysvar (for introspection mode)
-    ///
-    /// * Authorization through mint authority
-    /// 0. `[]` The mint account
-    /// 1. `[]` The mint authority PDA account
-    /// 2. `[signer]` The mint creator account
-    ///
-    /// * Instruction accounts:
-    /// 3. `[writable]` The VerificationConfig PDA account
-    /// 4. `[writable]` The recipient account  
-    /// 5. `[]` The mint account
-    /// 6. `[signer]` The authority account (mint authority)
-    /// 7. `[]` The system program ID
     TrimVerificationConfig = 4,
-    /// Verify a security token instruction using configured verification programs
-    /// Accounts expected:
-    /// 0. `[]` The mint account
-    /// 1. `[]` The verification config PDA account
-    /// 2. `[]` Instructions sysvar (for introspection mode)
-    /// 3. Remaining accounts depend on the instruction being verified and CPI mode requirements
     Verify = 5,
-    /// Mint new tokens after verification succeeds
-    /// Accounts expected:
-    /// 0. `[]` The mint account (used for verification config PDA derivation)
-    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
-    /// 2. `[]` Instructions sysvar for introspection-based verification
-    /// 3. `[signer]` Original mint creator account that matches the mint authority PDA seeds
-    /// 4. `[writable]` SPL Token mint account
-    /// 5. `[writable]` Mint authority PDA account (owned by this program)
-    /// 6. `[writable]` Destination token account to receive newly minted tokens
-    /// 7. `[]` System program account
-    /// 8. `[]` SPL Token 2022 program account
     Mint = 6,
-    /// Burn tokens from a holder account after verification succeeds
-    /// Accounts expected:
-    /// 0. `[]` The mint account (used for verification config PDA derivation)
-    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
-    /// 2. `[]` Instructions sysvar for introspection-based verification
-    /// 3. `[writable]` SPL Token mint account
-    /// 4. `[]` Permanent delegate PDA account derived for the mint (signs via PDA seeds)
-    /// 5. `[writable]` Token account holding the balance to burn
-    /// 6. `[]` SPL Token 2022 program account
     Burn = 7,
-    /// Pause all token activity after verification succeeds
-    /// Accounts expected:
-    /// 0. `[]` The mint account (used for verification config PDA derivation)
-    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
-    /// 2. `[]` Instructions sysvar for introspection-based verification
-    /// 3. `[writable]` SPL Token mint account (the mint to pause)
-    /// 4. `[]` Pause authority PDA account derived for the mint
-    /// 5. `[]` SPL Token 2022 program account
     Pause = 8,
-    /// Resume all token activity after verification succeeds
-    /// Accounts expected:
-    /// 0. `[]` The mint account (used for verification config PDA derivation)
-    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
-    /// 2. `[]` Instructions sysvar for introspection-based verification
-    /// 3. `[writable]` SPL Token mint account (the mint to resume)
-    /// 4. `[]` Pause authority PDA account derived for the mint
-    /// 5. `[]` SPL Token 2022 program account
     Resume = 9,
-    /// Freeze a token account after verification succeeds
-    /// Accounts expected:
-    /// 0. `[]` The mint account (used for verification config PDA derivation)
-    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
-    /// 2. `[]` Instructions sysvar for introspection-based verification
-    /// 3. `[]` SPL Token mint account
-    /// 4. `[]` Freeze authority PDA account derived for the mint (signs via PDA seeds)
-    /// 5. `[writable]` Token account that will be frozen
-    /// 6. `[]` SPL Token 2022 program account
     Freeze = 10,
-    /// Thaw a frozen token account after verification succeeds
-    /// Accounts expected:
-    /// 0. `[]` The mint account (used for verification config PDA derivation)
-    /// 1. `[]` The VerificationConfig PDA (optional; may be uninitialized when verification is disabled)
-    /// 2. `[]` Instructions sysvar for introspection-based verification
-    /// 3. `[]` SPL Token mint account
-    /// 4. `[]` Freeze authority PDA account derived for the mint (signs via PDA seeds)
-    /// 5. `[writable]` Token account that will be thawed
-    /// 6. `[]` SPL Token 2022 program account
     Thaw = 11,
 }
 
@@ -201,5 +63,118 @@ impl SecurityTokenInstruction {
     /// Create instruction from discriminant byte
     pub fn from_discriminant(discriminant: u8) -> Option<Self> {
         Self::try_from(discriminant).ok()
+    }
+}
+
+mod idl_gen {
+
+    use crate::instructions::{
+        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+    };
+
+    #[derive(shank::ShankInstruction)]
+    #[repr(u8)]
+    enum _SecurityTokenInstruction {
+        #[account(0, writable, signer, name = "mint")]
+        #[account(1, writable, signer, name = "payer")]
+        #[account(2, writable, name = "authority")]
+        #[account(3, name = "token_program")]
+        #[account(4, name = "system_program")]
+        #[account(5, name = "rent_sysvar")]
+        InitializeMint(InitializeMintArgs) = 0,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, writable, name = "mint_account")]
+        #[account(4, writable, signer, name = "payer")] // Pays for potential rent-exempt top-up, must sign
+        #[account(5, name = "token_program")]
+        #[account(6, name = "system_program")]
+        UpdateMetadata(UpdateMetadataArgs) = 1,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, name = "mint_account")]
+        #[account(4, writable, name = "config_account")]
+        #[account(5, writable, signer, name = "payer")]
+        #[account(6, name = "system_program")]
+        InitializeVerificationConfig(InitializeVerificationConfigArgs) = 2,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, name = "mint_account")]
+        #[account(4, writable, name = "config_account")]
+        #[account(5, writable, signer, name = "payer")]
+        #[account(6, name = "system_program")]
+        UpdateVerificationConfig(UpdateVerificationConfigArgs) = 3,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, writable, name = "mint_account")]
+        #[account(4, writable, name = "config_account")]
+        #[account(5, writable, name = "recipient")]
+        #[account(6, name = "system_program")]
+        TrimVerificationConfig(TrimVerificationConfigArgs) = 4,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        Verify(VerifyArgs) = 5,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        #[account(3, writable, name = "mint_account")]
+        #[account(4, writable, name = "mint_authority")]
+        #[account(5, writable, name = "destination")]
+        #[account(6, name = "token_program")]
+        Mint { amount: u64 } = 6,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        #[account(3, writable, name = "mint_account")]
+        #[account(4, name = "permanent_delegate")]
+        #[account(5, writable, name = "token_account")]
+        #[account(6, name = "token_program")]
+        Burn { amount: u64 } = 7,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        #[account(3, writable, name = "mint_account")]
+        #[account(4, name = "pause_authority")]
+        #[account(5, name = "token_program")]
+        Pause = 8,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        #[account(3, writable, name = "mint_account")]
+        #[account(4, name = "pause_authority")]
+        #[account(5, name = "token_program")]
+        Resume = 9,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        #[account(3, name = "mint_account")]
+        #[account(4, name = "freeze_authority")]
+        #[account(5, writable, name = "token_account")]
+        #[account(6, name = "token_program")]
+        Freeze = 10,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        #[account(3, name = "mint_account")]
+        #[account(4, name = "freeze_authority")]
+        #[account(5, writable, name = "token_account")]
+        #[account(6, name = "token_program")]
+        Thaw = 11,
     }
 }

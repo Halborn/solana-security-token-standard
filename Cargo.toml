@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["program", "client/rust", "tests"]
+members = ["program", "clients/rust", "tests"]
 
 [workspace.package]
 version = "0.1.0"
@@ -19,6 +19,10 @@ pinocchio-token-2022 = { git = "https://github.com/Nagaprasadvr/pinocchio.git", 
 pinocchio-log = "0.5.0"
 borsh = "0.10.4"
 bs58 = "0.4"
+
+# Idl
+shank = "0.4.2"
+security-token-client = { path = "clients/rust" }
 
 # Error handling
 thiserror = "2.0.3"

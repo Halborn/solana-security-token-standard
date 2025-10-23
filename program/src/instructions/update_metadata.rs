@@ -1,30 +1,27 @@
+use crate::instructions::{InitializeMintArgs, TokenMetadataArgs};
 use pinocchio::program_error::ProgramError;
-use pinocchio_token_2022::extensions::metadata::TokenMetadata;
+use shank::ShankType;
 
-use crate::instructions::InitializeArgs;
-
-/// Arguments for UpdateMetadata instruction
 #[repr(C)]
-#[derive(Clone, Debug)]
-pub struct UpdateMetadataArgs<'a> {
-    /// Metadata to update
-    pub metadata: TokenMetadata<'a>,
+#[derive(ShankType)]
+pub struct UpdateMetadataArgs {
+    pub metadata: TokenMetadataArgs,
 }
 
-impl<'a> UpdateMetadataArgs<'a> {
+impl UpdateMetadataArgs {
     /// Create new UpdateMetadataArgs
-    pub fn new(metadata: TokenMetadata<'a>) -> Self {
+    pub fn new(metadata: TokenMetadataArgs) -> Self {
         Self { metadata }
     }
 
     /// Pack the arguments into bytes
     pub fn to_bytes_inner(&self) -> Vec<u8> {
-        InitializeArgs::serialize_token_metadata(&self.metadata)
+        InitializeMintArgs::serialize_token_metadata(&self.metadata)
     }
 
     /// Deserialize arguments from bytes
-    pub fn try_from_bytes(data: &'a [u8]) -> Result<Self, ProgramError> {
-        let metadata = InitializeArgs::deserialize_token_metadata(data)?;
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
+        let metadata = InitializeMintArgs::deserialize_token_metadata(data)?;
         Ok(Self { metadata })
     }
 
@@ -58,17 +55,13 @@ mod tests {
         // For now, we'll test just the to_bytes_inner/try_from_bytes mechanism without full metadata construction
         // since TokenMetadata requires proper lifetime management with &str and &[u8] fields
 
-        let original = UpdateMetadataArgs::new(TokenMetadata {
+        let original = UpdateMetadataArgs::new(TokenMetadataArgs {
             update_authority: random_pubkey(),
             mint: random_pubkey(),
-            name_len: 4,
-            name: "Test",
-            symbol_len: 3,
-            symbol: "TST",
-            uri_len: 0,
-            uri: "",
-            additional_metadata_len: 0,
-            additional_metadata: &[],
+            name: "Test".to_string(),
+            symbol: "TST".to_string(),
+            uri: "".to_string(),
+            additional_metadata: vec![],
         });
 
         // Test validation
@@ -87,17 +80,13 @@ mod tests {
         assert_eq!(original.metadata.uri, deserialized.metadata.uri);
 
         // Test validation failure with empty name
-        let bad_metadata = TokenMetadata {
+        let bad_metadata = TokenMetadataArgs {
             update_authority: random_pubkey(),
             mint: random_pubkey(),
-            name_len: 0,
-            name: "",
-            symbol_len: 3,
-            symbol: "TST",
-            uri_len: 0,
-            uri: "",
-            additional_metadata_len: 0,
-            additional_metadata: &[],
+            name: "".to_string(),
+            symbol: "TST".to_string(),
+            uri: "".to_string(),
+            additional_metadata: vec![],
         };
         let invalid_args = UpdateMetadataArgs::new(bad_metadata);
         assert!(invalid_args.validate().is_err());

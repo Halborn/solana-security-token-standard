@@ -38,7 +38,7 @@ use crate::constants::seeds;
 use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
-use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
+use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
     verify_instructions_sysvar, verify_owner, verify_rent_sysvar, verify_signer,
     verify_system_program, verify_token22_program, verify_writable,
@@ -59,7 +59,7 @@ impl VerificationModule {
     pub fn initialize_mint(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        args: &InitializeArgs,
+        args: &InitializeMintArgs,
     ) -> ProgramResult {
         log!("Processing InitializeMint with Token-2022 extensions");
 
@@ -71,17 +71,6 @@ impl VerificationModule {
         let scaled_ui_amount_opt = &args.ix_scaled_ui_amount;
         log!("Initializing mint with {} decimals", decimals);
 
-        if let Some(metadata) = &metadata_opt {
-            log!("Token name: {}", metadata.name);
-            log!("Token symbol: {}", metadata.symbol);
-            log!("Token URI: {}", metadata.uri);
-            log!(
-                "With metadata: {} ({}) - {}",
-                metadata.name,
-                metadata.symbol,
-                metadata.uri
-            );
-        }
         if let Some(_metadata_pointer) = &metadata_pointer_opt {
             log!("MetadataPointer configuration provided by client");
         }
@@ -303,9 +292,9 @@ impl VerificationModule {
                 creator_info,
                 mint_info,
                 creator_info,
-                metadata.name,
-                metadata.symbol,
-                metadata.uri,
+                &metadata.name,
+                &metadata.symbol,
+                &metadata.uri,
             );
             let invoke_result = metadata_init_instruction.invoke();
 
@@ -328,16 +317,19 @@ impl VerificationModule {
                 );
 
                 // Parse additional metadata from raw bytes and process each field
-                utils::parse_additional_metadata(metadata.additional_metadata, |key, value| {
-                    let update_field_instruction = UpdateField {
-                        metadata: &metadata_account_info,
-                        update_authority: creator_info,
-                        field: Field::Key(key),
-                        value,
-                    };
-                    update_field_instruction.invoke()?;
-                    Ok(())
-                })?;
+                utils::parse_additional_metadata(
+                    metadata.additional_metadata.as_slice(),
+                    |key, value| {
+                        let update_field_instruction = UpdateField {
+                            metadata: &metadata_account_info,
+                            update_authority: creator_info,
+                            field: Field::Key(key),
+                            value,
+                        };
+                        update_field_instruction.invoke()?;
+                        Ok(())
+                    },
+                )?;
             }
             log!("All metadata initialized successfully");
         } else {
@@ -513,7 +505,7 @@ impl VerificationModule {
             metadata: &metadata_account_info,
             update_authority: authority_info,
             field: Field::Name,
-            value: args.metadata.name,
+            value: &args.metadata.name,
         };
 
         update_field_instruction.invoke()?;
@@ -523,7 +515,7 @@ impl VerificationModule {
             metadata: &metadata_account_info,
             update_authority: authority_info,
             field: Field::Symbol,
-            value: args.metadata.symbol,
+            value: &args.metadata.symbol,
         };
 
         update_symbol_instruction.invoke()?;
@@ -533,14 +525,10 @@ impl VerificationModule {
             metadata: &metadata_account_info,
             update_authority: authority_info,
             field: Field::Uri,
-            value: args.metadata.uri,
+            value: &args.metadata.uri,
         };
 
         update_uri_instruction.invoke()?;
-
-        log!("Name updated to: {}", args.metadata.name);
-        log!("Symbol updated to: {}", args.metadata.symbol);
-        log!("URI updated to: {}", args.metadata.uri);
 
         // Handle additional metadata fields atomically
         // Step 1: Read all existing additional metadata fields and remove them
@@ -611,7 +599,7 @@ impl VerificationModule {
 
                     if !args.metadata.additional_metadata.is_empty() {
                         let _check_result = utils::parse_additional_metadata(
-                            args.metadata.additional_metadata,
+                            args.metadata.additional_metadata.as_slice(),
                             |new_key, _value| {
                                 if existing_key == new_key {
                                     found_in_new = true;
@@ -659,7 +647,7 @@ impl VerificationModule {
             );
 
             let result = utils::parse_additional_metadata(
-                args.metadata.additional_metadata,
+                args.metadata.additional_metadata.as_slice(),
                 |key, value| {
                     log!(
                         "Adding/updating additional metadata field: {} = {}",
@@ -701,11 +689,6 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &VerifyArgs,
     ) -> ProgramResult {
-        // Expected accounts:
-        // 0. [readonly] Mint account - to derive VerificationConfig PDA
-        // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
-        // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
-        // 3+ [any] Accounts for the target instruction and comparison with verification program calls
         Self::verify_by_programs(program_id, accounts, args.ix)?;
         Ok(())
     }
@@ -717,18 +700,6 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         ix_discriminator: u8,
     ) -> ProgramResult {
-        // Accounts expected:
-        // * Authorization through verification programs
-        // 0. `[]` The mint account
-        // 1. `[]` The verification config PDA account
-        // 2. `[]` Instructions sysvar (for introspection mode)
-        //
-        // * Authorization through mint authority
-        // 0. `[]` The mint account
-        // 1. `[]` The mint authority PDA account
-        // 2. `[signer]` The mint creator account
-        //
-        // 3+ [any] Accounts for the target instruction and comparison with verification program calls
         let [mint_info, verification_config_or_mint_authority, instructions_sysvar_or_signer, _instruction_accounts @ ..] =
             accounts
         else {
@@ -803,11 +774,6 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         ix_discriminator: u8,
     ) -> ProgramResult {
-        // Expected accounts:
-        // 0. [readonly] Mint account - to derive VerificationConfig PDA
-        // 1. [readonly] VerificationConfig PDA - client derives from (mint + ix + program_id)
-        // 2. [readonly] Instructions sysvar - SysvarS1nstructions1111111111111111111111
-        // 3+ [any] Accounts for the target instruction and comparison with verification program calls
         let [mint_info, verification_config, instructions_sysvar, instruction_accounts @ ..] =
             accounts
         else {
@@ -985,7 +951,7 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::InitializeVerificationConfigArgs,
     ) -> ProgramResult {
-        let [config_account, payer, mint_account, system_program_info] = &accounts else {
+        let [mint_account, config_account, payer, system_program_info] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -1068,7 +1034,7 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::UpdateVerificationConfigArgs,
     ) -> ProgramResult {
-        let [config_account, mint_account, payer, system_program_info] = accounts else {
+        let [mint_account, config_account, payer, system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -1176,7 +1142,7 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &TrimVerificationConfigArgs,
     ) -> ProgramResult {
-        let [config_account, mint_account, recipient, system_program_info] = accounts else {
+        let [mint_account, config_account, recipient, system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 

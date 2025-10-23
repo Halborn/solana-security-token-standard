@@ -5,9 +5,11 @@ use crate::state::{
 };
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use shank::ShankAccount;
 
 /// Verification configuration for instructions
-#[derive(Default, Clone, Debug, PartialEq)]
+#[repr(C)]
+#[derive(ShankAccount)]
 pub struct VerificationConfig {
     /// Instruction discriminator this config applies to
     pub instruction_discriminator: u8,

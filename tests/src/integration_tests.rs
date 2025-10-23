@@ -1,16 +1,20 @@
 //! Security Token Standard Integration Tests
 
 use borsh::BorshDeserialize;
-use kaigan::types::RemainderVec;
-use security_token_client::{
-    InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
-    InitializeVerificationConfig, InitializeVerificationConfigArgs,
-    InitializeVerificationConfigInstructionArgs, MetadataPointer, MintAuthority,
-    ScaledUiAmountConfig, TokenMetadata, TrimVerificationConfig, TrimVerificationConfigArgs,
-    TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataArgs,
-    UpdateMetadataInstructionArgs, UpdateVerificationConfig, UpdateVerificationConfigArgs,
-    UpdateVerificationConfigInstructionArgs, VerificationConfig, SECURITY_TOKEN_ID,
+use security_token_client::accounts::{MintAuthority, VerificationConfig};
+use security_token_client::instructions::{
+    InitializeMint, InitializeMintInstructionArgs, InitializeVerificationConfig,
+    InitializeVerificationConfigInstructionArgs, TrimVerificationConfig,
+    TrimVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataInstructionArgs,
+    UpdateVerificationConfig, UpdateVerificationConfigInstructionArgs,
     UPDATE_METADATA_DISCRIMINATOR,
+};
+use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
+
+use security_token_client::types::{
+    InitializeMintArgs, InitializeVerificationConfigArgs, MetadataPointerArgs, MintArgs,
+    ScaledUiAmountConfigArgs, TokenMetadataArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
+    UpdateVerificationConfigArgs,
 };
 use solana_program_test::ProgramTest;
 use solana_sdk::sysvar;
@@ -38,7 +42,7 @@ fn encode_additional_metadata(pairs: &[(String, String)]) -> Vec<u8> {
 
 #[tokio::test]
 async fn test_program_loads() {
-    let program_test = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    let program_test = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
 
     let (_banks_client, _payer, _recent_blockhash) = program_test.start().await;
 
@@ -48,7 +52,7 @@ async fn test_program_loads() {
 
 #[tokio::test]
 async fn test_unknown_instruction_discriminator() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(true);
     let (banks_client, payer, recent_blockhash) = pt.start().await;
 
@@ -56,7 +60,7 @@ async fn test_unknown_instruction_discriminator() {
     let instruction_data = vec![unknown_discriminator];
 
     let instruction = solana_sdk::instruction::Instruction {
-        program_id: SECURITY_TOKEN_ID,
+        program_id: SECURITY_TOKEN_PROGRAM_ID,
         accounts: vec![],
         data: instruction_data,
     };
@@ -77,7 +81,7 @@ async fn test_unknown_instruction_discriminator() {
 
 #[tokio::test]
 async fn test_initialize_mint_with_all_extensions() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(true);
 
     // Create mint keypair - mint account must be a signer when creating new account
@@ -101,12 +105,12 @@ async fn test_initialize_mint_with_all_extensions() {
             &mint_keypair.pubkey().to_bytes(),
             &context.payer.pubkey().to_bytes(),
         ],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
         &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     println!("Mint authority PDA: {}", mint_authority_pda);
@@ -127,35 +131,31 @@ async fn test_initialize_mint_with_all_extensions() {
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
-        mint_authority_account: mint_authority_pda,
+        authority: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
-        rent: sysvar::rent::ID,
+        rent_sysvar: sysvar::rent::ID,
     }
     .instruction(InitializeMintInstructionArgs {
-        args: InitializeArgs {
-            ix_mint: InitializeMintArgs {
+        initialize_mint_args: InitializeMintArgs {
+            ix_mint: MintArgs {
                 decimals: 6,
                 mint_authority: context.payer.pubkey(),
                 freeze_authority: freeze_authority_pda,
             },
-            ix_metadata_pointer: Some(MetadataPointer {
+            ix_metadata_pointer: Some(MetadataPointerArgs {
                 authority: context.payer.pubkey(),
                 metadata_address: mint_keypair.pubkey(),
             }),
-            ix_metadata: Some(TokenMetadata {
+            ix_metadata: Some(TokenMetadataArgs {
                 update_authority: context.payer.pubkey(),
                 mint: mint_keypair.pubkey(),
-                name_len: name.len() as u32,
                 name: name.to_string().into(),
-                symbol_len: symbol.len() as u32,
                 symbol: symbol.to_string().into(),
-                uri_len: uri.len() as u32,
                 uri: uri.to_string().into(),
-                additional_metadata_len: encoded.len() as u32,
-                additional_metadata: RemainderVec::<u8>::try_from_slice(&encoded).unwrap(),
+                additional_metadata: encoded,
             }),
-            ix_scaled_ui_amount: Some(ScaledUiAmountConfig {
+            ix_scaled_ui_amount: Some(ScaledUiAmountConfigArgs {
                 authority: mint_authority_pda,
                 multiplier: [1u8; 8].into(),
                 new_multiplier_effective_timestamp: 0,
@@ -203,7 +203,7 @@ async fn test_initialize_mint_with_all_extensions() {
         .unwrap()
         .expect("Mint authority PDA should exist");
     assert_eq!(
-        mint_authority_account.owner, SECURITY_TOKEN_ID,
+        mint_authority_account.owner, SECURITY_TOKEN_PROGRAM_ID,
         "Mint authority PDA should be owned by security token program"
     );
 
@@ -418,7 +418,7 @@ async fn test_initialize_mint_with_all_extensions() {
     // Find permanent delegate PDA using the same seed as in the program
     let (expected_permanent_delegate, _bump) = Pubkey::find_program_address(
         &[b"mint.permanent_delegate", mint_keypair.pubkey().as_ref()],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     assert_eq!(
@@ -436,7 +436,7 @@ async fn test_initialize_mint_with_all_extensions() {
     // Find transfer hook PDA using the same seed as in the program
     let (expected_transfer_hook_pda, _bump) = Pubkey::find_program_address(
         &[b"mint.transfer_hook", mint_keypair.pubkey().as_ref()],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     assert_eq!(
@@ -453,7 +453,7 @@ async fn test_initialize_mint_with_all_extensions() {
             &mint_keypair.pubkey().to_bytes(),
             &context.payer.pubkey().to_bytes(),
         ],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     let mint_authority_pubkey = mint_with_extensions.base.mint_authority.unwrap();
@@ -469,7 +469,7 @@ async fn test_initialize_mint_with_all_extensions() {
 
 #[tokio::test]
 async fn test_update_metadata() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(true);
 
     // Create mint keypair - mint account must be a signer when creating new account
@@ -502,7 +502,7 @@ async fn test_update_metadata() {
             mint_keypair.pubkey().as_ref(),
             &[UPDATE_METADATA_DISCRIMINATOR],
         ],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
     let (mint_authority_pda, _bump) = Pubkey::find_program_address(
         &[
@@ -510,44 +510,40 @@ async fn test_update_metadata() {
             &mint_keypair.pubkey().to_bytes(),
             &context.payer.pubkey().to_bytes(),
         ],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
         &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
-        mint_authority_account: mint_authority_pda,
+        authority: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
-        rent: sysvar::rent::ID,
+        rent_sysvar: sysvar::rent::ID,
     }
     .instruction(InitializeMintInstructionArgs {
-        args: InitializeArgs {
-            ix_mint: InitializeMintArgs {
+        initialize_mint_args: InitializeMintArgs {
+            ix_mint: MintArgs {
                 decimals: 6,
                 mint_authority: context.payer.pubkey(),
                 freeze_authority: freeze_authority_pda,
             },
-            ix_metadata_pointer: Some(MetadataPointer {
+            ix_metadata_pointer: Some(MetadataPointerArgs {
                 authority: context.payer.pubkey(),
                 metadata_address: mint_keypair.pubkey(),
             }),
-            ix_metadata: Some(TokenMetadata {
+            ix_metadata: Some(TokenMetadataArgs {
                 update_authority: context.payer.pubkey(),
                 mint: mint_keypair.pubkey(),
-                name_len: name.len() as u32,
                 name: name.to_string().into(),
-                symbol_len: symbol.len() as u32,
                 symbol: symbol.to_string().into(),
-                uri_len: uri.len() as u32,
                 uri: uri.to_string().into(),
-                additional_metadata_len: encoded.len() as u32,
-                additional_metadata: RemainderVec::<u8>::try_from_slice(&encoded).unwrap(),
+                additional_metadata: encoded,
             }),
             ix_scaled_ui_amount: None,
         },
@@ -567,14 +563,14 @@ async fn test_update_metadata() {
     let initialize_config_ix = InitializeVerificationConfig {
         mint: mint_keypair.pubkey(),
         verification_config_or_mint_authority: mint_authority_pda,
-        sysvar_or_creator: (context.payer.pubkey(), true),
+        instructions_sysvar_or_creator: context.payer.pubkey(),
         config_account: verification_config_pda,
         payer: context.payer.pubkey(),
         mint_account: mint_keypair.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(InitializeVerificationConfigInstructionArgs {
-        args: InitializeVerificationConfigArgs {
+        initialize_verification_config_args: InitializeVerificationConfigArgs {
             instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
             program_addresses: vec![],
         },
@@ -615,26 +611,22 @@ async fn test_update_metadata() {
 
     let update_metadata_instruction = UpdateMetadata {
         verification_config_or_mint_authority: verification_config_pda,
-        sysvar_or_creator: (sysvar::instructions::ID, false),
+        instructions_sysvar_or_creator: sysvar::instructions::ID,
         mint: mint_keypair.pubkey(),
-        mint_for_update: mint_keypair.pubkey(),
-        mint_authority: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        payer: context.payer.pubkey(),
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
     }
     .instruction(UpdateMetadataInstructionArgs {
-        args: UpdateMetadataArgs {
-            metadata: TokenMetadata {
+        update_metadata_args: UpdateMetadataArgs {
+            metadata: TokenMetadataArgs {
                 update_authority: context.payer.pubkey(),
                 mint: mint_keypair.pubkey(),
-                name_len: updated_name.len() as u32,
                 name: updated_name.to_string().into(),
-                symbol_len: updated_symbol.len() as u32,
                 symbol: updated_symbol.to_string().into(),
-                uri_len: updated_uri.len() as u32,
                 uri: updated_uri.to_string().into(),
-                additional_metadata_len: encoded.len() as u32,
-                additional_metadata: RemainderVec::<u8>::try_from_slice(&encoded).unwrap(),
+                additional_metadata: encoded,
             },
         },
     });
@@ -723,7 +715,7 @@ async fn test_update_metadata() {
 
 #[tokio::test]
 async fn test_initialize_mint_with_different_decimals() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(true);
 
     let context = pt.start_with_context().await;
@@ -743,25 +735,25 @@ async fn test_initialize_mint_with_different_decimals() {
                 &mint_keypair.pubkey().to_bytes(),
                 &context.payer.pubkey().to_bytes(),
             ],
-            &SECURITY_TOKEN_ID,
+            &SECURITY_TOKEN_PROGRAM_ID,
         );
 
         let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
             &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-            &SECURITY_TOKEN_ID,
+            &SECURITY_TOKEN_PROGRAM_ID,
         );
 
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: context.payer.pubkey(),
-            mint_authority_account: mint_authority_pda,
+            authority: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
-            rent: sysvar::rent::ID,
+            rent_sysvar: sysvar::rent::ID,
         }
         .instruction(InitializeMintInstructionArgs {
-            args: InitializeArgs {
-                ix_mint: InitializeMintArgs {
+            initialize_mint_args: InitializeMintArgs {
+                ix_mint: MintArgs {
                     decimals,
                     mint_authority: context.payer.pubkey(),
                     freeze_authority: freeze_authority_pda,
@@ -818,7 +810,7 @@ async fn test_initialize_mint_with_different_decimals() {
 
 #[tokio::test]
 async fn test_initialize_mint_error_cases() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(true);
 
     let context = pt.start_with_context().await;
@@ -837,24 +829,24 @@ async fn test_initialize_mint_error_cases() {
                 &mint_keypair.pubkey().to_bytes(),
                 &context.payer.pubkey().to_bytes(),
             ],
-            &SECURITY_TOKEN_ID,
+            &SECURITY_TOKEN_PROGRAM_ID,
         );
         let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
             &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-            &SECURITY_TOKEN_ID,
+            &SECURITY_TOKEN_PROGRAM_ID,
         );
 
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: context.payer.pubkey(),
-            mint_authority_account: mint_authority_pda,
+            authority: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
-            rent: sysvar::rent::ID,
+            rent_sysvar: sysvar::rent::ID,
         }
         .instruction(InitializeMintInstructionArgs {
-            args: InitializeArgs {
-                ix_mint: InitializeMintArgs {
+            initialize_mint_args: InitializeMintArgs {
+                ix_mint: MintArgs {
                     decimals: 10,
                     mint_authority: context.payer.pubkey(),
                     freeze_authority: freeze_authority_pda,
@@ -906,25 +898,25 @@ async fn test_initialize_mint_error_cases() {
                 &mint_keypair.pubkey().to_bytes(),
                 &context.payer.pubkey().to_bytes(),
             ],
-            &SECURITY_TOKEN_ID,
+            &SECURITY_TOKEN_PROGRAM_ID,
         );
 
         let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
             &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-            &SECURITY_TOKEN_ID,
+            &SECURITY_TOKEN_PROGRAM_ID,
         );
 
         let ix = InitializeMint {
             mint: mint_keypair.pubkey(),
             payer: fake_creator.pubkey(),
-            mint_authority_account: mint_authority_pda,
+            authority: mint_authority_pda,
             token_program: spl_token_2022_program,
             system_program: system_program::ID,
-            rent: sysvar::rent::ID,
+            rent_sysvar: sysvar::rent::ID,
         }
         .instruction(InitializeMintInstructionArgs {
-            args: InitializeArgs {
-                ix_mint: InitializeMintArgs {
+            initialize_mint_args: InitializeMintArgs {
+                ix_mint: MintArgs {
                     decimals: 10,
                     mint_authority: context.payer.pubkey(),
                     freeze_authority: freeze_authority_pda,
@@ -968,7 +960,7 @@ async fn test_initialize_mint_error_cases() {
 
 #[tokio::test]
 async fn test_verification_config() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(true);
 
     // Create mint keypair - we need this to derive the verification config PDA
@@ -981,12 +973,12 @@ async fn test_verification_config() {
             &mint_keypair.pubkey().to_bytes(),
             &context.payer.pubkey().to_bytes(),
         ],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
         &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     println!("Testing InitializeVerificationConfig");
@@ -1002,36 +994,32 @@ async fn test_verification_config() {
     let symbol = "TEST";
     let uri = "https://example.com";
 
-    let initialize_mint_ix = security_token_client::InitializeMint {
+    let initialize_mint_ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
-        mint_authority_account: mint_authority_pda,
+        authority: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: solana_system_interface::program::ID,
-        rent: sysvar::rent::ID,
+        rent_sysvar: sysvar::rent::ID,
     }
-    .instruction(security_token_client::InitializeMintInstructionArgs {
-        args: security_token_client::InitializeArgs {
-            ix_mint: security_token_client::InitializeMintArgs {
+    .instruction(InitializeMintInstructionArgs {
+        initialize_mint_args: InitializeMintArgs {
+            ix_mint: MintArgs {
                 decimals: 6,
                 mint_authority: context.payer.pubkey(),
                 freeze_authority: freeze_authority_pda,
             },
-            ix_metadata_pointer: Some(security_token_client::MetadataPointer {
+            ix_metadata_pointer: Some(MetadataPointerArgs {
                 authority: context.payer.pubkey(),
                 metadata_address: mint_keypair.pubkey(),
             }),
-            ix_metadata: Some(security_token_client::TokenMetadata {
+            ix_metadata: Some(TokenMetadataArgs {
                 update_authority: context.payer.pubkey(),
                 mint: mint_keypair.pubkey(),
-                name_len: name.len() as u32,
                 name: name.to_string().into(),
-                symbol_len: symbol.len() as u32,
                 symbol: symbol.to_string().into(),
-                uri_len: uri.len() as u32,
                 uri: uri.to_string().into(),
-                additional_metadata_len: 0,
-                additional_metadata: RemainderVec::<u8>::try_from_slice(&[]).unwrap(),
+                additional_metadata: vec![],
             }),
             ix_scaled_ui_amount: None,
         },
@@ -1072,7 +1060,7 @@ async fn test_verification_config() {
             &mint_keypair.pubkey().to_bytes(),
             &[instruction_discriminator],
         ],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     println!("Expected config PDA: {}", config_pda);
@@ -1081,14 +1069,14 @@ async fn test_verification_config() {
     let initialize_config_ix = InitializeVerificationConfig {
         mint: mint_keypair.pubkey(),
         verification_config_or_mint_authority: mint_authority_pda,
-        sysvar_or_creator: (context.payer.pubkey(), true),
+        instructions_sysvar_or_creator: context.payer.pubkey(),
         config_account: config_pda,
         payer: context.payer.pubkey(),
         mint_account: mint_keypair.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(InitializeVerificationConfigInstructionArgs {
-        args: InitializeVerificationConfigArgs {
+        initialize_verification_config_args: InitializeVerificationConfigArgs {
             instruction_discriminator,
             program_addresses: verification_programs.clone(),
         },
@@ -1127,7 +1115,7 @@ async fn test_verification_config() {
 
     // Verify account owner is our security token program
     assert_eq!(
-        config_account.owner, SECURITY_TOKEN_ID,
+        config_account.owner, SECURITY_TOKEN_PROGRAM_ID,
         "Config PDA should be owned by security token program"
     );
 
@@ -1167,14 +1155,14 @@ async fn test_verification_config() {
     let update_config_ix = UpdateVerificationConfig {
         mint: mint_keypair.pubkey(),
         verification_config_or_mint_authority: mint_authority_pda,
-        sysvar_or_creator: (context.payer.pubkey(), true),
+        instructions_sysvar_or_creator: context.payer.pubkey(),
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(UpdateVerificationConfigInstructionArgs {
-        args: UpdateVerificationConfigArgs {
+        update_verification_config_args: UpdateVerificationConfigArgs {
             instruction_discriminator,
             program_addresses: new_verification_programs.clone(),
             offset,
@@ -1256,14 +1244,14 @@ async fn test_verification_config() {
     let trim_config_ix = TrimVerificationConfig {
         mint: mint_keypair.pubkey(),
         verification_config_or_mint_authority: mint_authority_pda,
-        sysvar_or_creator: (context.payer.pubkey(), true),
+        instructions_sysvar_or_creator: context.payer.pubkey(),
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
         recipient: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(TrimVerificationConfigInstructionArgs {
-        args: TrimVerificationConfigArgs {
+        trim_verification_config_args: TrimVerificationConfigArgs {
             instruction_discriminator,
             size: new_size,
             close,
@@ -1348,14 +1336,14 @@ async fn test_verification_config() {
     let close_config_ix = TrimVerificationConfig {
         mint: mint_keypair.pubkey(),
         verification_config_or_mint_authority: mint_authority_pda,
-        sysvar_or_creator: (context.payer.pubkey(), true),
+        instructions_sysvar_or_creator: context.payer.pubkey(),
         config_account: config_pda,
         mint_account: mint_keypair.pubkey(),
         recipient: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
     .instruction(TrimVerificationConfigInstructionArgs {
-        args: TrimVerificationConfigArgs {
+        trim_verification_config_args: TrimVerificationConfigArgs {
             instruction_discriminator,
             size: 0,
             close: true,

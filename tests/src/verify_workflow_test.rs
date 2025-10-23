@@ -1,13 +1,24 @@
 use crate::helpers::{assert_security_token_error, assert_transaction_success};
-use borsh::BorshDeserialize;
-use kaigan::types::RemainderVec;
 use security_token_client::{
-    InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
-    InitializeVerificationConfig, InitializeVerificationConfigArgs,
-    InitializeVerificationConfigInstructionArgs, MetadataPointer, SecurityTokenError,
-    TokenMetadata, UpdateMetadata, UpdateMetadataArgs, UpdateMetadataInstructionArgs, Verify,
-    VerifyArgs, VerifyInstructionArgs, SECURITY_TOKEN_ID, UPDATE_METADATA_DISCRIMINATOR,
+    errors::SecurityTokenProgramError,
+    instructions::{
+        InitializeMint, InitializeMintInstructionArgs, InitializeVerificationConfig,
+        InitializeVerificationConfigInstructionArgs, UpdateMetadata, UpdateMetadataInstructionArgs,
+        Verify, VerifyInstructionArgs, UPDATE_METADATA_DISCRIMINATOR,
+    },
+    programs::SECURITY_TOKEN_PROGRAM_ID,
+    types::{
+        InitializeMintArgs, InitializeVerificationConfigArgs, MetadataPointerArgs, MintArgs,
+        TokenMetadataArgs, UpdateMetadataArgs, VerifyArgs,
+    },
 };
+// use security_token_client::{
+//     InitializeArgs, InitializeMint, InitializeMintArgs, InitializeMintInstructionArgs,
+//     InitializeVerificationConfig, InitializeVerificationConfigArgs,
+//     InitializeVerificationConfigInstructionArgs, MetadataPointer, SecurityTokenError,
+//     TokenMetadata, UpdateMetadata, UpdateMetadataArgs, UpdateMetadataInstructionArgs, Verify,
+//     VerifyArgs, VerifyInstructionArgs, SECURITY_TOKEN_PROGRAM_ID, UPDATE_METADATA_DISCRIMINATOR,
+// };
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey as SolanaPubkey,
@@ -69,7 +80,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     let dummy_program_2_id = Pubkey::new_unique();
 
     // Setup program test with our security token program
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
 
     // Disable BPF preference to use dummy programs
     pt.prefer_bpf(false);
@@ -103,25 +114,25 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
             &mint_keypair.pubkey().to_bytes(),
             &context.payer.pubkey().to_bytes(),
         ],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
         &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    let init_mint_instruction = security_token_client::InitializeMint {
+    let init_mint_instruction = InitializeMint {
         mint: mint_pubkey,
         payer: payer.pubkey(),
-        mint_authority_account: mint_authority_pda,
+        authority: mint_authority_pda,
         token_program: spl_token_2022::ID,
         system_program: system_program::ID,
-        rent: solana_sdk::sysvar::rent::ID,
+        rent_sysvar: solana_sdk::sysvar::rent::ID,
     }
-    .instruction(security_token_client::InitializeMintInstructionArgs {
-        args: security_token_client::InitializeArgs {
-            ix_mint: security_token_client::InitializeMintArgs {
+    .instruction(InitializeMintInstructionArgs {
+        initialize_mint_args: InitializeMintArgs {
+            ix_mint: MintArgs {
                 decimals: 6,
                 mint_authority: payer.pubkey(),
                 freeze_authority: freeze_authority_pda,
@@ -151,21 +162,21 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
             mint_pubkey.as_ref(),
             &[UPDATE_METADATA_DISCRIMINATOR],
         ],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let init_config_instruction = InitializeVerificationConfig {
         mint: mint_pubkey,
         verification_config_or_mint_authority: mint_authority_pda,
-        sysvar_or_creator: (payer.pubkey(), true),
+        instructions_sysvar_or_creator: payer.pubkey(),
         config_account: verification_config_pda,
         payer: payer.pubkey(),
         mint_account: mint_pubkey,
         system_program: system_program::ID,
     }
     .instruction(InitializeVerificationConfigInstructionArgs {
-        args: InitializeVerificationConfigArgs {
+        initialize_verification_config_args: InitializeVerificationConfigArgs {
             instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
             program_addresses: verification_programs,
         },
@@ -187,13 +198,13 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
     println!("Test 1: Verify without prior verification calls (should fail)");
     let verify_only_instruction = Verify {
-        mint_account: mint_keypair.pubkey(),
-        verification_config: Some(verification_config_pda),
+        mint: mint_keypair.pubkey(),
+        verification_config: verification_config_pda,
         instructions_sysvar: sysvar::instructions::ID,
     }
     .instruction_with_remaining_accounts(
         VerifyInstructionArgs {
-            args: VerifyArgs {
+            verify_args: VerifyArgs {
                 ix: UPDATE_METADATA_DISCRIMINATOR,
             },
         },
@@ -208,7 +219,10 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     );
 
     let result = banks_client.process_transaction(transaction).await;
-    assert_security_token_error(result, SecurityTokenError::VerificationProgramNotFound);
+    assert_security_token_error(
+        result,
+        SecurityTokenProgramError::VerificationProgramNotFound,
+    );
 
     // Accounts verified by dummy programs
     let account_for_verification_1 = Keypair::new();
@@ -241,13 +255,13 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
     println!("Test 2: Verify with proper prior instruction calls (should succeed)");
     let verify_instruction_success = Verify {
-        mint_account: mint_keypair.pubkey(),
-        verification_config: Some(verification_config_pda),
+        mint: mint_keypair.pubkey(),
+        verification_config: verification_config_pda,
         instructions_sysvar: sysvar::instructions::ID,
     }
     .instruction_with_remaining_accounts(
         VerifyInstructionArgs {
-            args: VerifyArgs {
+            verify_args: VerifyArgs {
                 ix: UPDATE_METADATA_DISCRIMINATOR,
             },
         },
@@ -288,13 +302,13 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     ];
 
     let verify_instruction = Verify {
-        mint_account: mint_keypair.pubkey(),
-        verification_config: Some(verification_config_pda),
+        mint: mint_keypair.pubkey(),
+        verification_config: verification_config_pda,
         instructions_sysvar: sysvar::instructions::ID,
     }
     .instruction_with_remaining_accounts(
         VerifyInstructionArgs {
-            args: VerifyArgs {
+            verify_args: VerifyArgs {
                 ix: UPDATE_METADATA_DISCRIMINATOR,
             },
         },
@@ -312,7 +326,10 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     );
 
     let result = banks_client.process_transaction(transaction).await;
-    assert_security_token_error(result, SecurityTokenError::VerificationProgramNotFound);
+    assert_security_token_error(
+        result,
+        SecurityTokenProgramError::VerificationProgramNotFound,
+    );
 
     println!("Test 4: Verify instruction with system instruction (should succeed)");
     let instructions = vec![
@@ -345,13 +362,13 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     ];
 
     let verify_instruction = Verify {
-        mint_account: mint_keypair.pubkey(),
-        verification_config: Some(verification_config_pda),
+        mint: mint_keypair.pubkey(),
+        verification_config: verification_config_pda,
         instructions_sysvar: sysvar::instructions::ID,
     }
     .instruction_with_remaining_accounts(
         VerifyInstructionArgs {
-            args: VerifyArgs {
+            verify_args: VerifyArgs {
                 ix: UPDATE_METADATA_DISCRIMINATOR,
             },
         },
@@ -378,7 +395,7 @@ async fn test_update_metadata_under_verification() {
     let dummy_program_1_id = Pubkey::new_unique();
     let dummy_program_2_id = Pubkey::new_unique();
 
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_ID, None);
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(false);
 
     // Add dummy programs using builtin functions
@@ -411,44 +428,40 @@ async fn test_update_metadata_under_verification() {
             &mint_keypair.pubkey().to_bytes(),
             &context.payer.pubkey().to_bytes(),
         ],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
         &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     let ix = InitializeMint {
         mint: mint_keypair.pubkey(),
         payer: context.payer.pubkey(),
-        mint_authority_account: mint_authority_pda,
+        authority: mint_authority_pda,
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
-        rent: sysvar::rent::ID,
+        rent_sysvar: sysvar::rent::ID,
     }
     .instruction(InitializeMintInstructionArgs {
-        args: InitializeArgs {
-            ix_mint: InitializeMintArgs {
+        initialize_mint_args: InitializeMintArgs {
+            ix_mint: MintArgs {
                 decimals: 6,
                 mint_authority: context.payer.pubkey(),
                 freeze_authority: freeze_authority_pda,
             },
-            ix_metadata_pointer: Some(MetadataPointer {
+            ix_metadata_pointer: Some(MetadataPointerArgs {
                 authority: context.payer.pubkey(),
                 metadata_address: mint_keypair.pubkey(),
             }),
-            ix_metadata: Some(TokenMetadata {
+            ix_metadata: Some(TokenMetadataArgs {
                 update_authority: context.payer.pubkey(),
                 mint: mint_keypair.pubkey(),
-                name_len: name.len() as u32,
                 name: name.to_string().into(),
-                symbol_len: symbol.len() as u32,
                 symbol: symbol.to_string().into(),
-                uri_len: uri.len() as u32,
                 uri: uri.to_string().into(),
-                additional_metadata_len: 0,
-                additional_metadata: RemainderVec::<u8>::try_from_slice(&[]).unwrap(),
+                additional_metadata: vec![],
             }),
             ix_scaled_ui_amount: None,
         },
@@ -471,21 +484,21 @@ async fn test_update_metadata_under_verification() {
             mint_keypair.pubkey().as_ref(),
             &[UPDATE_METADATA_DISCRIMINATOR],
         ],
-        &SECURITY_TOKEN_ID,
+        &SECURITY_TOKEN_PROGRAM_ID,
     );
 
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let init_config_instruction = InitializeVerificationConfig {
         mint: mint_keypair.pubkey(),
         verification_config_or_mint_authority: mint_authority_pda,
-        sysvar_or_creator: (context.payer.pubkey(), true),
+        instructions_sysvar_or_creator: context.payer.pubkey(),
         config_account: verification_config_pda,
         payer: context.payer.pubkey(),
         mint_account: mint_keypair.pubkey(),
         system_program: system_program::ID,
     }
     .instruction(InitializeVerificationConfigInstructionArgs {
-        args: InitializeVerificationConfigArgs {
+        initialize_verification_config_args: InitializeVerificationConfigArgs {
             instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
             program_addresses: verification_programs,
         },
@@ -511,26 +524,22 @@ async fn test_update_metadata_under_verification() {
 
     let update_metadata_instruction = UpdateMetadata {
         verification_config_or_mint_authority: verification_config_pda,
-        sysvar_or_creator: (sysvar::instructions::ID, false),
+        instructions_sysvar_or_creator: sysvar::instructions::ID,
         mint: mint_keypair.pubkey(),
-        mint_for_update: mint_keypair.pubkey(),
-        mint_authority: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        payer: context.payer.pubkey(),
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
     }
     .instruction(UpdateMetadataInstructionArgs {
-        args: UpdateMetadataArgs {
-            metadata: TokenMetadata {
+        update_metadata_args: UpdateMetadataArgs {
+            metadata: TokenMetadataArgs {
                 update_authority: context.payer.pubkey(),
                 mint: mint_keypair.pubkey(),
-                name_len: updated_name.len() as u32,
                 name: updated_name.to_string().into(),
-                symbol_len: updated_symbol.len() as u32,
                 symbol: updated_symbol.to_string().into(),
-                uri_len: updated_uri.len() as u32,
                 uri: updated_uri.to_string().into(),
-                additional_metadata_len: 0,
-                additional_metadata: RemainderVec::<u8>::try_from_slice(&[]).unwrap(),
+                additional_metadata: vec![],
             },
         },
     });
@@ -550,7 +559,10 @@ async fn test_update_metadata_under_verification() {
         .process_transaction(tx_update_metadata)
         .await;
 
-    assert_security_token_error(result, SecurityTokenError::VerificationProgramNotFound);
+    assert_security_token_error(
+        result,
+        SecurityTokenProgramError::VerificationProgramNotFound,
+    );
 
     // Case: not enough accounts provided to verify
     let account_for_verification_1 = Keypair::new();
@@ -577,26 +589,22 @@ async fn test_update_metadata_under_verification() {
 
     let update_metadata_instruction = UpdateMetadata {
         verification_config_or_mint_authority: verification_config_pda,
-        sysvar_or_creator: (sysvar::instructions::ID, false),
+        instructions_sysvar_or_creator: sysvar::instructions::ID,
         mint: mint_keypair.pubkey(),
-        mint_for_update: mint_keypair.pubkey(),
-        mint_authority: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        payer: context.payer.pubkey(),
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
     }
     .instruction(UpdateMetadataInstructionArgs {
-        args: UpdateMetadataArgs {
-            metadata: TokenMetadata {
+        update_metadata_args: UpdateMetadataArgs {
+            metadata: TokenMetadataArgs {
                 update_authority: context.payer.pubkey(),
                 mint: mint_keypair.pubkey(),
-                name_len: updated_name.len() as u32,
                 name: updated_name.to_string().into(),
-                symbol_len: updated_symbol.len() as u32,
                 symbol: updated_symbol.to_string().into(),
-                uri_len: updated_uri.len() as u32,
                 uri: updated_uri.to_string().into(),
-                additional_metadata_len: 0,
-                additional_metadata: RemainderVec::<u8>::try_from_slice(&[]).unwrap(),
+                additional_metadata: vec![],
             },
         },
     });
@@ -618,31 +626,30 @@ async fn test_update_metadata_under_verification() {
         .process_transaction(tx_update_metadata)
         .await;
 
-    assert_security_token_error(result, SecurityTokenError::AccountIntersectionMismatch);
+    assert_security_token_error(
+        result,
+        SecurityTokenProgramError::AccountIntersectionMismatch,
+    );
 
     // Success case: enough accounts provided to verify
     let update_metadata_instruction = UpdateMetadata {
         verification_config_or_mint_authority: verification_config_pda,
-        sysvar_or_creator: (sysvar::instructions::ID, false),
+        instructions_sysvar_or_creator: sysvar::instructions::ID,
         mint: mint_keypair.pubkey(),
-        mint_for_update: mint_keypair.pubkey(),
-        mint_authority: context.payer.pubkey(),
+        mint_account: mint_keypair.pubkey(),
+        payer: context.payer.pubkey(),
         token_program: spl_token_2022_program,
         system_program: system_program::ID,
     }
     .instruction(UpdateMetadataInstructionArgs {
-        args: UpdateMetadataArgs {
-            metadata: TokenMetadata {
+        update_metadata_args: UpdateMetadataArgs {
+            metadata: TokenMetadataArgs {
                 update_authority: context.payer.pubkey(),
                 mint: mint_keypair.pubkey(),
-                name_len: updated_name.len() as u32,
                 name: updated_name.to_string().into(),
-                symbol_len: updated_symbol.len() as u32,
                 symbol: updated_symbol.to_string().into(),
-                uri_len: updated_uri.len() as u32,
                 uri: updated_uri.to_string().into(),
-                additional_metadata_len: 0,
-                additional_metadata: RemainderVec::<u8>::try_from_slice(&[]).unwrap(),
+                additional_metadata: vec![],
             },
         },
     });
