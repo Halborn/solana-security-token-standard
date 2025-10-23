@@ -39,7 +39,10 @@ use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeArgs, UpdateMetadataArgs, VerifyArgs};
-use crate::modules::{verify_instructions_sysvar, verify_owner, verify_signer};
+use crate::modules::{
+    verify_instructions_sysvar, verify_owner, verify_rent_sysvar, verify_signer,
+    verify_system_program, verify_token22_program, verify_writable,
+};
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
     VerificationConfig,
@@ -86,14 +89,19 @@ impl VerificationModule {
             log!("ScaledUiAmount configuration provided by client");
         }
 
-        let [mint_info, creator_info, mint_authority_account, token_program_info, _system_program_info, rent_info] =
+        let [mint_info, creator_info, mint_authority_account, token_program_info, system_program_info, rent_info] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_signer(creator_info, false)?;
-        verify_signer(mint_info, false)?;
+        verify_signer(creator_info)?;
+        verify_signer(mint_info)?;
+        verify_writable(creator_info)?;
+        verify_writable(mint_info)?;
+        verify_token22_program(token_program_info)?;
+        verify_system_program(system_program_info)?;
+        verify_rent_sysvar(rent_info)?;
 
         let (freeze_authority_pda, _bump) =
             utils::find_freeze_authority_pda(mint_info.key(), program_id);
@@ -408,12 +416,13 @@ impl VerificationModule {
         // Validate arguments
         args.validate()?;
 
-        let [mint_info, authority_info, _token_program_info, _system_program_info] = accounts
-        else {
+        let [mint_info, authority_info, token_program_info, system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_signer(authority_info, false)?;
+        verify_token22_program(token_program_info)?;
+        verify_system_program(system_program_info)?;
+        verify_signer(authority_info)?;
 
         // Get metadata account address from MetadataPointer extension
         let metadata_address: Option<Pubkey> = {
@@ -755,7 +764,7 @@ impl VerificationModule {
         mint_authority: &AccountInfo,
         candidate_authority: &AccountInfo,
     ) -> Result<(), ProgramError> {
-        verify_signer(candidate_authority, false)?;
+        verify_signer(candidate_authority)?;
         verify_owner(mint_authority, program_id)?;
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
@@ -976,17 +985,14 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::InitializeVerificationConfigArgs,
     ) -> ProgramResult {
-        // Expected accounts:
-        // 0. [writable] VerificationConfig PDA (derived from instruction_id + mint)
-        // 1. [writable, signer] Payer (for account creation)
-        // 2. [] Mint account
-        // 3. [] System program
-
-        let [config_account, payer, mint_account, _system_program] = &accounts else {
+        let [config_account, payer, mint_account, system_program_info] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_signer(payer, false)?;
+        verify_signer(payer)?;
+        verify_writable(payer)?;
+        verify_owner(mint_account, &pinocchio_token_2022::ID)?;
+        verify_system_program(system_program_info)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
@@ -1062,19 +1068,15 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::UpdateVerificationConfigArgs,
     ) -> ProgramResult {
-        // Expected accounts:
-        // 0. [writable] VerificationConfig PDA account
-        // 1. [] Mint account
-        // 2. [signer] Payer (for rent if resizing is needed)
-        // 3. [] System program (if resizing is needed)
-        let [config_account, mint_account, payer, _system_program_info] = accounts else {
+        let [config_account, mint_account, payer, system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_signer(payer, false)?;
-        // TODO: Add proper authority validation
-        // For now, we accept any signer as authority
-        // In production, should validate against mint authority or config-specific authority
+        verify_owner(config_account, program_id)?;
+        verify_signer(payer)?;
+        verify_writable(payer)?;
+        verify_owner(mint_account, &pinocchio_token_2022::ID)?;
+        verify_system_program(system_program_info)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
@@ -1174,15 +1176,14 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &TrimVerificationConfigArgs,
     ) -> ProgramResult {
-        // Expected accounts:
-        // 0. [writable] VerificationConfig PDA account
-        // 1. [] Mint account
-        // 2. [signer, writable] Payer (mint authority or designated config authority)
-        // 3. [] System program ID (optional for closing account)
-
-        let [config_account, mint_account, recipient, _system_program] = accounts else {
+        let [config_account, mint_account, recipient, system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        verify_owner(config_account, program_id)?;
+        verify_owner(mint_account, &pinocchio_token_2022::ID)?;
+        verify_system_program(system_program_info)?;
+        verify_writable(recipient)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
