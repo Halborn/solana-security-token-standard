@@ -10,6 +10,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::TransactionError,
 };
+use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 
 /// Helper function to assert that a transaction failed with a specific SecurityTokenError
 pub fn assert_security_token_error(
@@ -116,4 +117,41 @@ pub async fn initialize_verification_config(
     let result = context.banks_client.process_transaction(transaction).await;
 
     assert_transaction_success(result);
+}
+
+pub async fn create_spl_account(
+    context: &mut ProgramTestContext,
+    mint_keypair: &Keypair,
+    target_keypair: &Keypair,
+) -> Pubkey {
+    let account = spl_associated_token_account::get_associated_token_address_with_program_id(
+        &context.payer.pubkey(),
+        &mint_keypair.pubkey(),
+        &TOKEN_22_PROGRAM_ID,
+    );
+
+    let create_account_ix =
+        spl_associated_token_account::instruction::create_associated_token_account_idempotent(
+            &context.payer.pubkey(),
+            &target_keypair.pubkey(),
+            &mint_keypair.pubkey(),
+            &TOKEN_22_PROGRAM_ID,
+        );
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let create_destination_account_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[create_account_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(create_destination_account_tx)
+        .await;
+
+    assert_transaction_success(result);
+
+    account
 }

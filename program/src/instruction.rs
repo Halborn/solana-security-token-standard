@@ -187,6 +187,6 @@ mod idl_gen {
         #[account(5, writable, name = "from_token_account")]
         #[account(6, writable, name = "to_token_account")]
         #[account(7, name = "token_program")]
-        Transfer = 12,
+        Transfer { amount: u64 } = 12,
     }
 }

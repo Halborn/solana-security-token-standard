@@ -1,7 +1,7 @@
 use security_token_client::instructions::{
     BurnBuilder, FreezeBuilder, MintBuilder, PauseBuilder, ResumeBuilder, ThawBuilder,
-    BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR, MINT_DISCRIMINATOR, PAUSE_DISCRIMINATOR,
-    RESUME_DISCRIMINATOR, THAW_DISCRIMINATOR,
+    TransferBuilder, BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR, MINT_DISCRIMINATOR,
+    PAUSE_DISCRIMINATOR, RESUME_DISCRIMINATOR, THAW_DISCRIMINATOR, TRANSFER_DISCRIMINATOR,
 };
 use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
 use security_token_client::types::{
@@ -18,7 +18,9 @@ use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
 
-use crate::helpers::{assert_transaction_success, initialize_mint, initialize_verification_config};
+use crate::helpers::{
+    assert_transaction_success, create_spl_account, initialize_mint, initialize_verification_config,
+};
 use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 
 async fn get_mint_state(
@@ -426,4 +428,104 @@ async fn test_t22_extension_operations() {
         .get_extension::<PausableConfig>()
         .expect("Pausable extension should exist");
     assert_eq!(pausable.paused, PodBool(0));
+}
+
+#[tokio::test]
+async fn test_t22_transfer_operations() {
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
+    pt.prefer_bpf(true);
+
+    let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
+
+    let mint_keypair = Keypair::new();
+    let source_keypair = Keypair::new();
+    let destination_keypair = Keypair::new();
+
+    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"mint.authority",
+            &mint_keypair.pubkey().to_bytes(),
+            &context.payer.pubkey().to_bytes(),
+        ],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+
+    let (permanent_delegate_pda, _bump) = Pubkey::find_program_address(
+        &[b"mint.permanent_delegate", mint_keypair.pubkey().as_ref()],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+
+    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
+        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+
+    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"verification_config",
+            mint_keypair.pubkey().as_ref(),
+            &[TRANSFER_DISCRIMINATOR],
+        ],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+
+    let initialize_mint_args = InitializeMintArgs {
+        ix_mint: MintArgs {
+            decimals: 6,
+            mint_authority: context.payer.pubkey(),
+            freeze_authority: freeze_authority_pda,
+        },
+        ix_metadata_pointer: None,
+        ix_metadata: None,
+        ix_scaled_ui_amount: None,
+    };
+
+    initialize_mint(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        &initialize_mint_args,
+    )
+    .await;
+
+    let initialize_verification_config_args = InitializeVerificationConfigArgs {
+        instruction_discriminator: TRANSFER_DISCRIMINATOR,
+        program_addresses: vec![],
+    };
+
+    initialize_verification_config(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        verification_config_pda,
+        &initialize_verification_config_args,
+    )
+    .await;
+
+    let source_account = create_spl_account(&mut context, &mint_keypair, &source_keypair).await;
+    let destination_account =
+        create_spl_account(&mut context, &mint_keypair, &destination_keypair).await;
+
+    let transfer_ix = TransferBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config(verification_config_pda)
+        .permanent_delegate_authority(permanent_delegate_pda)
+        .mint_account(mint_keypair.pubkey())
+        .from_token_account(source_account)
+        .to_token_account(destination_account)
+        .amount(100_000)
+        .instruction();
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let transfer_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[transfer_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+    let result = context
+        .banks_client
+        .process_transaction(transfer_transaction)
+        .await;
+    assert_transaction_success(result);
 }

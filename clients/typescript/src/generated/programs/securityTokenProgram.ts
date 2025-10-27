@@ -21,6 +21,7 @@ import {
   type ParsedPauseInstruction,
   type ParsedResumeInstruction,
   type ParsedThawInstruction,
+  type ParsedTransferInstruction,
   type ParsedTrimVerificationConfigInstruction,
   type ParsedUpdateMetadataInstruction,
   type ParsedUpdateVerificationConfigInstruction,
@@ -48,6 +49,7 @@ export enum SecurityTokenProgramInstruction {
   Resume,
   Freeze,
   Thaw,
+  Transfer,
 }
 
 export function identifySecurityTokenProgramInstruction(
@@ -89,6 +91,9 @@ export function identifySecurityTokenProgramInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(11), 0)) {
     return SecurityTokenProgramInstruction.Thaw;
+  }
+  if (containsBytes(data, getU8Encoder().encode(12), 0)) {
+    return SecurityTokenProgramInstruction.Transfer;
   }
   throw new Error(
     'The provided instruction could not be identified as a securityTokenProgram instruction.'
@@ -133,4 +138,7 @@ export type ParsedSecurityTokenProgramInstruction<
     } & ParsedFreezeInstruction<TProgram>)
   | ({
       instructionType: SecurityTokenProgramInstruction.Thaw;
-    } & ParsedThawInstruction<TProgram>);
+    } & ParsedThawInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.Transfer;
+    } & ParsedTransferInstruction<TProgram>);
