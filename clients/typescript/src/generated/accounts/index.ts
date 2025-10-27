@@ -7,4 +7,5 @@
  */
 
 export * from './mintAuthority';
+export * from './rate';
 export * from './verificationConfig';

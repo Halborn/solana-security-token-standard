@@ -6,6 +6,7 @@
 //!
 
 pub(crate) mod r#burn;
+pub(crate) mod r#create_rate_account;
 pub(crate) mod r#freeze;
 pub(crate) mod r#initialize_mint;
 pub(crate) mod r#initialize_verification_config;
@@ -19,6 +20,7 @@ pub(crate) mod r#update_verification_config;
 pub(crate) mod r#verify;
 
 pub use self::r#burn::*;
+pub use self::r#create_rate_account::*;
 pub use self::r#freeze::*;
 pub use self::r#initialize_mint::*;
 pub use self::r#initialize_verification_config::*;
