@@ -29,7 +29,7 @@ impl Processor {
             | UpdateVerificationConfig
             | TrimVerificationConfig
             | UpdateMetadata => VerificationProgramsOrMintAuthority,
-            Burn | Mint | Pause | Resume | Freeze | Thaw => VerificationPrograms,
+            Burn | Mint | Pause | Resume | Freeze | Thaw | Transfer => VerificationPrograms,
         }
     }
 
@@ -114,6 +114,9 @@ impl Processor {
                 Self::process_freeze(program_id, instruction_accounts)
             }
             SecurityTokenInstruction::Thaw => Self::process_thaw(program_id, instruction_accounts),
+            SecurityTokenInstruction::Transfer => {
+                Self::process_transfer(program_id, instruction_accounts, args_data)
+            }
         }
     }
 
@@ -227,6 +230,20 @@ impl Processor {
 
     fn process_thaw(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         OperationsModule::execute_thaw_account(program_id, accounts)?;
+        Ok(())
+    }
+
+    fn process_transfer(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let amount = args_data
+            .get(..8)
+            .and_then(|slice| slice.try_into().ok())
+            .map(u64::from_le_bytes)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        OperationsModule::execute_transfer(program_id, accounts, amount)?;
         Ok(())
     }
 }

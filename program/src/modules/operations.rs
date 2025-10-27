@@ -12,7 +12,9 @@ use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
 use pinocchio_log::log;
-use pinocchio_token_2022::instructions::{BurnChecked, FreezeAccount, MintToChecked, ThawAccount};
+use pinocchio_token_2022::instructions::{
+    BurnChecked, FreezeAccount, MintToChecked, ThawAccount, TransferChecked,
+};
 use pinocchio_token_2022::state::Mint;
 
 /// Operations Module - executes token operations
@@ -229,8 +231,50 @@ impl OperationsModule {
 
     /// Transfer tokens between accounts
     /// Wrapper for SPL Token TransferChecked instruction
-    pub fn execute_transfer(_accounts: &[AccountInfo], _amount: u64) -> ProgramResult {
-        // TODO: Execute SPL Token2022 transfer CPI with Permanent Delegate PDA
+    pub fn execute_transfer(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+    ) -> ProgramResult {
+        let [mint_info, permanent_delegate_authority, from_token_account, to_token_account, token_program] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+        verify_token22_program(token_program)?;
+
+        let (permanent_delegate_pda, bump) =
+            crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
+        if permanent_delegate_authority.key() != &permanent_delegate_pda {
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        log!(
+            "All checks passed, proceeding to transfer {} tokens",
+            amount
+        );
+
+        let mint_account = Mint::from_account_info(mint_info)?;
+        let decimals = mint_account.decimals();
+        drop(mint_account);
+
+        let transfer_instruction = TransferChecked {
+            mint: mint_info,
+            from: from_token_account,
+            to: to_token_account,
+            authority: permanent_delegate_authority,
+            amount,
+            decimals,
+        };
+
+        let bump_seed = [bump];
+        let seeds = [
+            Seed::from(seeds::PERMANENT_DELEGATE),
+            Seed::from(mint_info.key().as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+        let permanent_delegate_signer = Signer::from(&seeds);
+        transfer_instruction.invoke_signed(&[permanent_delegate_signer])?;
         Ok(())
     }
 

@@ -16,6 +16,7 @@ pub enum SecurityTokenInstruction {
     Resume = 9,
     Freeze = 10,
     Thaw = 11,
+    Transfer = 12,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -35,6 +36,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             9 => Ok(SecurityTokenInstruction::Resume),
             10 => Ok(SecurityTokenInstruction::Freeze),
             11 => Ok(SecurityTokenInstruction::Thaw),
+            12 => Ok(SecurityTokenInstruction::Transfer),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -176,5 +178,15 @@ mod idl_gen {
         #[account(5, writable, name = "token_account")]
         #[account(6, name = "token_program")]
         Thaw = 11,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        #[account(3, name = "mint_account")]
+        #[account(4, name = "permanent_delegate_authority")]
+        #[account(5, writable, name = "from_token_account")]
+        #[account(6, writable, name = "to_token_account")]
+        #[account(7, name = "token_program")]
+        Transfer = 12,
     }
 }
