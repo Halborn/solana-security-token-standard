@@ -1,6 +1,9 @@
 use security_token_client::{
     errors::SecurityTokenProgramError,
-    instructions::{InitializeMintBuilder, InitializeVerificationConfigBuilder},
+    instructions::{
+        InitializeMintBuilder, InitializeVerificationConfigBuilder, MintBuilder, MINT_DISCRIMINATOR,
+    },
+    programs::SECURITY_TOKEN_PROGRAM_ID,
     types::{InitializeMintArgs, InitializeVerificationConfigArgs},
 };
 use solana_program_test::{BanksClientError, ProgramTestContext};
@@ -125,7 +128,7 @@ pub async fn create_spl_account(
     target_keypair: &Keypair,
 ) -> Pubkey {
     let account = spl_associated_token_account::get_associated_token_address_with_program_id(
-        &context.payer.pubkey(),
+        &target_keypair.pubkey(),
         &mint_keypair.pubkey(),
         &TOKEN_22_PROGRAM_ID,
     );
@@ -154,4 +157,58 @@ pub async fn create_spl_account(
     assert_transaction_success(result);
 
     account
+}
+
+// TODO: Change the naming it also creates verification config
+pub async fn mint_to_account(
+    mint_keypair: &Keypair,
+    context: &mut ProgramTestContext,
+    mint_authority_pda: Pubkey,
+    account_to_mint: Pubkey,
+    amount: u64,
+) {
+    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"verification_config",
+            mint_keypair.pubkey().as_ref(),
+            &[MINT_DISCRIMINATOR],
+        ],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+    let mint_verification_config_args = InitializeVerificationConfigArgs {
+        instruction_discriminator: MINT_DISCRIMINATOR,
+        program_addresses: vec![],
+    };
+    initialize_verification_config(
+        &mint_keypair,
+        context,
+        mint_authority_pda,
+        verification_config_pda,
+        &mint_verification_config_args,
+    )
+    .await;
+
+    let mint_ix = MintBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config(verification_config_pda)
+        .mint_account(mint_keypair.pubkey())
+        .mint_authority(mint_authority_pda)
+        .destination(account_to_mint)
+        .amount(amount)
+        .instruction();
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+
+    let mint_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[mint_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context
+        .banks_client
+        .process_transaction(mint_transaction)
+        .await;
+    assert_transaction_success(result);
 }

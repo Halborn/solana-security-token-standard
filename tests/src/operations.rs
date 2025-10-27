@@ -19,7 +19,8 @@ use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
 
 use crate::helpers::{
-    assert_transaction_success, create_spl_account, initialize_mint, initialize_verification_config,
+    assert_transaction_success, create_spl_account, initialize_mint,
+    initialize_verification_config, mint_to_account,
 };
 use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 
@@ -505,6 +506,15 @@ async fn test_t22_transfer_operations() {
     let source_account = create_spl_account(&mut context, &mint_keypair, &source_keypair).await;
     let destination_account =
         create_spl_account(&mut context, &mint_keypair, &destination_keypair).await;
+
+    mint_to_account(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        source_account,
+        200_000,
+    )
+    .await;
 
     let transfer_ix = TransferBuilder::new()
         .mint(mint_keypair.pubkey())
