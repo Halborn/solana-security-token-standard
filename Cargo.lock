@@ -3737,6 +3737,7 @@ version = "0.1.0"
 dependencies = [
  "assert_matches",
  "borsh 0.10.4",
+ "rstest",
  "security-token-client",
  "security-token-program",
  "solana-program",
