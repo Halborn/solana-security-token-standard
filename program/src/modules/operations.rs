@@ -292,13 +292,6 @@ impl OperationsModule {
         denominator: u8,
         rounding: u8,
     ) -> ProgramResult {
-        // Expected accounts after verification:
-        // 0. [writable] The Rate PDA account
-        // 1. [] The first mint account (primary mint)
-        // 2. [] The second mint account (for conversion) or equals first mint (for split)
-        // 3. [writable, signer] The payer account
-        // 4. [] The system program ID
-
         let [rate_account, mint1_account, mint2_account, payer, _system_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
