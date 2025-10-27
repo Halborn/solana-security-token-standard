@@ -1,6 +1,15 @@
-use security_token_client::errors::SecurityTokenProgramError;
-use solana_program_test::BanksClientError;
-use solana_sdk::{instruction::InstructionError, transaction::TransactionError};
+use security_token_client::{
+    errors::SecurityTokenProgramError,
+    instructions::{InitializeMintBuilder, InitializeVerificationConfigBuilder},
+    types::{InitializeMintArgs, InitializeVerificationConfigArgs},
+};
+use solana_program_test::{BanksClientError, ProgramTestContext};
+use solana_sdk::{
+    instruction::InstructionError,
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+    transaction::TransactionError,
+};
 
 /// Helper function to assert that a transaction failed with a specific SecurityTokenError
 pub fn assert_security_token_error(
@@ -53,4 +62,58 @@ pub fn assert_transaction_failure(result: Result<(), BanksClientError>) {
         }
         Ok(_) => panic!("Expected transaction to fail, but it succeeded"),
     }
+}
+
+pub async fn initialize_mint(
+    mint_keypair: &Keypair,
+    context: &mut ProgramTestContext,
+    mint_authority_pda: Pubkey,
+    args: &InitializeMintArgs,
+) {
+    let ix = InitializeMintBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .payer(context.payer.pubkey())
+        .authority(mint_authority_pda)
+        .initialize_mint_args(args.clone())
+        .instruction();
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &mint_keypair],
+        recent_blockhash,
+    );
+
+    let result = context.banks_client.process_transaction(transaction).await;
+
+    assert_transaction_success(result);
+}
+
+pub async fn initialize_verification_config(
+    mint_keypair: &Keypair,
+    context: &mut ProgramTestContext,
+    mint_authority_pda: Pubkey,
+    verification_config_pda: Pubkey,
+    args: &InitializeVerificationConfigArgs,
+) {
+    let ix = InitializeVerificationConfigBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config_or_mint_authority(mint_authority_pda)
+        .instructions_sysvar_or_creator(context.payer.pubkey())
+        .mint_account(mint_keypair.pubkey())
+        .payer(context.payer.pubkey())
+        .config_account(verification_config_pda)
+        .initialize_verification_config_args(args.clone())
+        .instruction();
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+
+    let result = context.banks_client.process_transaction(transaction).await;
+
+    assert_transaction_success(result);
 }

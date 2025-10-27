@@ -1,8 +1,7 @@
 use security_token_client::instructions::{
-    Burn, BurnInstructionArgs, Freeze, InitializeMint, InitializeMintInstructionArgs,
-    InitializeVerificationConfig, InitializeVerificationConfigInstructionArgs, Mint,
-    MintInstructionArgs, Pause, Resume, Thaw, BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR,
-    MINT_DISCRIMINATOR, PAUSE_DISCRIMINATOR, RESUME_DISCRIMINATOR, THAW_DISCRIMINATOR,
+    BurnBuilder, FreezeBuilder, MintBuilder, PauseBuilder, ResumeBuilder, ThawBuilder,
+    BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR, MINT_DISCRIMINATOR, PAUSE_DISCRIMINATOR,
+    RESUME_DISCRIMINATOR, THAW_DISCRIMINATOR,
 };
 use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
 use security_token_client::types::{
@@ -19,7 +18,8 @@ use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
 
-use crate::helpers::assert_transaction_success;
+use crate::helpers::{assert_transaction_success, initialize_mint, initialize_verification_config};
+use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 
 async fn get_mint_state(
     banks_client: &mut solana_program_test::BanksClient,
@@ -49,7 +49,6 @@ async fn get_token_account_state(
         .expect("token account state should deserialize")
 }
 
-//TODO: Don't forget about fixtures initialization mint at least
 #[tokio::test]
 async fn test_basic_t22_operations() {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
@@ -58,7 +57,7 @@ async fn test_basic_t22_operations() {
     let mint_keypair = Keypair::new();
 
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+
     let (mint_authority_pda, _bump) = Pubkey::find_program_address(
         &[
             b"mint.authority",
@@ -73,50 +72,67 @@ async fn test_basic_t22_operations() {
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    let spl_token_2022_program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
-        .parse::<Pubkey>()
-        .unwrap();
-
     let destination_account =
         spl_associated_token_account::get_associated_token_address_with_program_id(
             &context.payer.pubkey(),
             &mint_keypair.pubkey(),
-            &spl_token_2022_program,
+            &TOKEN_22_PROGRAM_ID,
         );
 
-    let initialize_mint_ix = InitializeMint {
-        mint: mint_keypair.pubkey(),
-        payer: context.payer.pubkey(),
-        authority: mint_authority_pda,
-        token_program: spl_token_2022_program,
-        system_program: solana_system_interface::program::ID,
-        rent_sysvar: sysvar::rent::ID,
-    }
-    .instruction(InitializeMintInstructionArgs {
-        initialize_mint_args: InitializeMintArgs {
-            ix_mint: MintArgs {
-                decimals: 6,
-                mint_authority: context.payer.pubkey(),
-                freeze_authority: freeze_authority_pda,
-            },
-            ix_metadata_pointer: None,
-            ix_metadata: None,
-            ix_scaled_ui_amount: None,
+    let initialize_mint_args = InitializeMintArgs {
+        ix_mint: MintArgs {
+            decimals: 6,
+            mint_authority: context.payer.pubkey(),
+            freeze_authority: freeze_authority_pda,
         },
-    });
+        ix_metadata_pointer: None,
+        ix_metadata: None,
+        ix_scaled_ui_amount: None,
+    };
 
-    let initialize_mint_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[initialize_mint_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &mint_keypair],
-        recent_blockhash,
-    );
+    initialize_mint(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        &initialize_mint_args,
+    )
+    .await;
 
-    let result = context
-        .banks_client
-        .process_transaction(initialize_mint_transaction)
+    // Prepare all verification configs
+    let instructions = vec![
+        MINT_DISCRIMINATOR,
+        BURN_DISCRIMINATOR,
+        FREEZE_DISCRIMINATOR,
+        THAW_DISCRIMINATOR,
+    ];
+
+    let mut verification_configs = vec![];
+    // NOTE: Move to fixture?
+    for discriminator in instructions {
+        let (verification_config_pda, _bump) = Pubkey::find_program_address(
+            &[
+                b"verification_config",
+                mint_keypair.pubkey().as_ref(),
+                &[discriminator],
+            ],
+            &SECURITY_TOKEN_PROGRAM_ID,
+        );
+
+        let initialize_verification_config_args = InitializeVerificationConfigArgs {
+            instruction_discriminator: discriminator,
+            program_addresses: vec![],
+        };
+
+        initialize_verification_config(
+            &mint_keypair,
+            &mut context,
+            mint_authority_pda,
+            verification_config_pda,
+            &initialize_verification_config_args,
+        )
         .await;
-    assert_transaction_success(result);
+        verification_configs.push(verification_config_pda);
+    }
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
@@ -125,7 +141,7 @@ async fn test_basic_t22_operations() {
             &context.payer.pubkey(),
             &context.payer.pubkey(),
             &mint_keypair.pubkey(),
-            &spl_token_2022_program,
+            &TOKEN_22_PROGRAM_ID,
         );
 
     let create_destination_account_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
@@ -139,60 +155,21 @@ async fn test_basic_t22_operations() {
         .banks_client
         .process_transaction(create_destination_account_tx)
         .await;
-    assert_transaction_success(result);
-
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[MINT_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
-
-    let init_config_instruction = InitializeVerificationConfig {
-        mint: mint_keypair.pubkey(),
-        verification_config_or_mint_authority: mint_authority_pda,
-        instructions_sysvar_or_creator: context.payer.pubkey(),
-        config_account: verification_config_pda,
-        payer: context.payer.pubkey(),
-        mint_account: mint_keypair.pubkey(),
-        system_program: solana_system_interface::program::ID,
-    }
-    .instruction(InitializeVerificationConfigInstructionArgs {
-        initialize_verification_config_args: InitializeVerificationConfigArgs {
-            instruction_discriminator: MINT_DISCRIMINATOR,
-            program_addresses: vec![],
-        },
-    });
-
-    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[init_config_instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(config_transaction)
-        .await;
 
     assert_transaction_success(result);
 
     let mint_state_before = get_mint_state(&mut context.banks_client, mint_keypair.pubkey()).await;
     assert_eq!(mint_state_before.base.supply, 0);
 
-    let mint_ix = Mint {
-        mint: mint_keypair.pubkey(),
-        verification_config: verification_config_pda,
-        instructions_sysvar: sysvar::instructions::ID,
-        mint_account: mint_keypair.pubkey(),
-        mint_authority: mint_authority_pda,
-        destination: destination_account,
-        token_program: spl_token_2022_program,
-    }
-    .instruction(MintInstructionArgs { amount: 1_000_000 });
+    let mint_ix = MintBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config(verification_configs[0])
+        .instructions_sysvar(sysvar::instructions::ID)
+        .mint_account(mint_keypair.pubkey())
+        .mint_authority(mint_authority_pda)
+        .destination(destination_account)
+        .amount(1_000_000)
+        .instruction();
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
@@ -216,60 +193,20 @@ async fn test_basic_t22_operations() {
         get_token_account_state(&mut context.banks_client, destination_account).await;
     assert_eq!(token_account_after.base.amount, 1_000_000);
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[BURN_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
-
     let (permanent_delegate_pda, _bump) = Pubkey::find_program_address(
         &[b"mint.permanent_delegate", mint_keypair.pubkey().as_ref()],
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    let init_config_instruction = InitializeVerificationConfig {
-        mint: mint_keypair.pubkey(),
-        verification_config_or_mint_authority: mint_authority_pda,
-        instructions_sysvar_or_creator: context.payer.pubkey(),
-        config_account: verification_config_pda,
-        payer: context.payer.pubkey(),
-        mint_account: mint_keypair.pubkey(),
-        system_program: solana_system_interface::program::ID,
-    }
-    .instruction(InitializeVerificationConfigInstructionArgs {
-        initialize_verification_config_args: InitializeVerificationConfigArgs {
-            instruction_discriminator: BURN_DISCRIMINATOR,
-            program_addresses: vec![],
-        },
-    });
-
-    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[init_config_instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(config_transaction)
-        .await;
-
-    assert_transaction_success(result);
-
-    let burn_ix = Burn {
-        mint: mint_keypair.pubkey(),
-        verification_config: verification_config_pda,
-        instructions_sysvar: sysvar::instructions::ID,
-        permanent_delegate: permanent_delegate_pda,
-        mint_account: mint_keypair.pubkey(),
-        token_account: destination_account,
-        token_program: spl_token_2022_program,
-    }
-    .instruction(BurnInstructionArgs { amount: 500_000 });
+    let burn_ix = BurnBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config(verification_configs[1])
+        .instructions_sysvar(sysvar::instructions::ID)
+        .permanent_delegate(permanent_delegate_pda)
+        .mint_account(mint_keypair.pubkey())
+        .token_account(destination_account)
+        .amount(500_000)
+        .instruction();
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
@@ -293,56 +230,15 @@ async fn test_basic_t22_operations() {
         get_token_account_state(&mut context.banks_client, destination_account).await;
     assert_eq!(token_account_after_burn.base.amount, 500_000);
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[FREEZE_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let freeze_ix = FreezeBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config(verification_configs[2])
+        .mint_account(mint_keypair.pubkey())
+        .freeze_authority(freeze_authority_pda)
+        .token_account(destination_account)
+        .instruction();
 
-    let init_config_instruction = InitializeVerificationConfig {
-        mint: mint_keypair.pubkey(),
-        verification_config_or_mint_authority: mint_authority_pda,
-        instructions_sysvar_or_creator: context.payer.pubkey(),
-        config_account: verification_config_pda,
-        payer: context.payer.pubkey(),
-        mint_account: mint_keypair.pubkey(),
-        system_program: solana_system_interface::program::ID,
-    }
-    .instruction(InitializeVerificationConfigInstructionArgs {
-        initialize_verification_config_args: InitializeVerificationConfigArgs {
-            instruction_discriminator: FREEZE_DISCRIMINATOR,
-            program_addresses: vec![],
-        },
-    });
-
-    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[init_config_instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(config_transaction)
-        .await;
-
-    assert_transaction_success(result);
-
-    let freeze_ix = Freeze {
-        mint: mint_keypair.pubkey(),
-        mint_account: mint_keypair.pubkey(),
-        verification_config: verification_config_pda,
-        freeze_authority: freeze_authority_pda,
-        token_account: destination_account,
-        token_program: spl_token_2022_program,
-        instructions_sysvar: sysvar::instructions::ID,
-    }
-    .instruction();
-
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let freeze_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[freeze_ix],
         Some(&context.payer.pubkey()),
@@ -359,55 +255,13 @@ async fn test_basic_t22_operations() {
         get_token_account_state(&mut context.banks_client, destination_account).await;
     assert_eq!(frozen_account.base.state, AccountState::Frozen);
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[THAW_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
-
-    let init_config_instruction = InitializeVerificationConfig {
-        mint: mint_keypair.pubkey(),
-        verification_config_or_mint_authority: mint_authority_pda,
-        instructions_sysvar_or_creator: context.payer.pubkey(),
-        config_account: verification_config_pda,
-        payer: context.payer.pubkey(),
-        mint_account: mint_keypair.pubkey(),
-        system_program: solana_system_interface::program::ID,
-    }
-    .instruction(InitializeVerificationConfigInstructionArgs {
-        initialize_verification_config_args: InitializeVerificationConfigArgs {
-            instruction_discriminator: THAW_DISCRIMINATOR,
-            program_addresses: vec![],
-        },
-    });
-
-    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[init_config_instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(config_transaction)
-        .await;
-
-    assert_transaction_success(result);
-
-    let thaw_ix = Thaw {
-        mint: mint_keypair.pubkey(),
-        mint_account: mint_keypair.pubkey(),
-        verification_config: verification_config_pda,
-        freeze_authority: freeze_authority_pda,
-        token_account: destination_account,
-        token_program: spl_token_2022_program,
-        instructions_sysvar: sysvar::instructions::ID,
-    }
-    .instruction();
+    let thaw_ix = ThawBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config(verification_configs[3])
+        .mint_account(mint_keypair.pubkey())
+        .freeze_authority(freeze_authority_pda)
+        .token_account(destination_account)
+        .instruction();
 
     let thaw_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[thaw_ix],
@@ -433,7 +287,6 @@ async fn test_t22_extension_operations() {
     let mint_keypair = Keypair::new();
 
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let (mint_authority_pda, _bump) = Pubkey::find_program_address(
         &[
             b"mint.authority",
@@ -448,42 +301,24 @@ async fn test_t22_extension_operations() {
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    let spl_token_2022_program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
-        .parse::<Pubkey>()
-        .unwrap();
-    let initialize_mint_ix = InitializeMint {
-        mint: mint_keypair.pubkey(),
-        payer: context.payer.pubkey(),
-        authority: mint_authority_pda,
-        token_program: spl_token_2022_program,
-        system_program: solana_system_interface::program::ID,
-        rent_sysvar: sysvar::rent::ID,
-    }
-    .instruction(InitializeMintInstructionArgs {
-        initialize_mint_args: InitializeMintArgs {
-            ix_mint: MintArgs {
-                decimals: 6,
-                mint_authority: context.payer.pubkey(),
-                freeze_authority: freeze_authority_pda,
-            },
-            ix_metadata_pointer: None,
-            ix_metadata: None,
-            ix_scaled_ui_amount: None,
+    let initialize_mint_args = InitializeMintArgs {
+        ix_mint: MintArgs {
+            decimals: 6,
+            mint_authority: context.payer.pubkey(),
+            freeze_authority: freeze_authority_pda,
         },
-    });
+        ix_metadata_pointer: None,
+        ix_metadata: None,
+        ix_scaled_ui_amount: None,
+    };
 
-    let initialize_mint_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[initialize_mint_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &mint_keypair],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(initialize_mint_transaction)
-        .await;
-    assert_transaction_success(result);
+    initialize_mint(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        &initialize_mint_args,
+    )
+    .await;
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
@@ -501,75 +336,25 @@ async fn test_t22_extension_operations() {
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    let init_config_instruction = InitializeVerificationConfig {
-        mint: mint_keypair.pubkey(),
-        verification_config_or_mint_authority: mint_authority_pda,
-        instructions_sysvar_or_creator: context.payer.pubkey(),
-        config_account: verification_config_pda,
-        payer: context.payer.pubkey(),
-        mint_account: mint_keypair.pubkey(),
-        system_program: solana_system_interface::program::ID,
-    }
-    .instruction(InitializeVerificationConfigInstructionArgs {
-        initialize_verification_config_args: InitializeVerificationConfigArgs {
-            instruction_discriminator: PAUSE_DISCRIMINATOR,
-            program_addresses: vec![],
-        },
-    });
+    let pause_verification_config_args = InitializeVerificationConfigArgs {
+        instruction_discriminator: PAUSE_DISCRIMINATOR,
+        program_addresses: vec![],
+    };
+    initialize_verification_config(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        verification_config_pda,
+        &pause_verification_config_args,
+    )
+    .await;
 
-    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[init_config_instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(config_transaction)
-        .await;
-
-    assert_transaction_success(result);
-
-    let init_config_instruction = InitializeVerificationConfig {
-        mint: mint_keypair.pubkey(),
-        verification_config_or_mint_authority: mint_authority_pda,
-        instructions_sysvar_or_creator: context.payer.pubkey(),
-        config_account: verification_config_pda,
-        payer: context.payer.pubkey(),
-        mint_account: mint_keypair.pubkey(),
-        system_program: solana_system_interface::program::ID,
-    }
-    .instruction(InitializeVerificationConfigInstructionArgs {
-        initialize_verification_config_args: InitializeVerificationConfigArgs {
-            instruction_discriminator: PAUSE_DISCRIMINATOR,
-            program_addresses: vec![],
-        },
-    });
-
-    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[init_config_instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(config_transaction)
-        .await;
-
-    assert_transaction_success(result);
-
-    let pause_ix = Pause {
-        mint: mint_keypair.pubkey(),
-        mint_account: mint_keypair.pubkey(),
-        verification_config: verification_config_pda,
-        pause_authority: pause_authority_pda,
-        token_program: spl_token_2022_program,
-        instructions_sysvar: sysvar::instructions::ID,
-    }
-    .instruction();
+    let pause_ix = PauseBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .mint_account(mint_keypair.pubkey())
+        .verification_config(verification_config_pda)
+        .pause_authority(pause_authority_pda)
+        .instruction();
 
     let pause_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[pause_ix],
@@ -600,45 +385,26 @@ async fn test_t22_extension_operations() {
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    let init_config_instruction = InitializeVerificationConfig {
-        mint: mint_keypair.pubkey(),
-        verification_config_or_mint_authority: mint_authority_pda,
-        instructions_sysvar_or_creator: context.payer.pubkey(),
-        config_account: verification_config_pda,
-        payer: context.payer.pubkey(),
-        mint_account: mint_keypair.pubkey(),
-        system_program: solana_system_interface::program::ID,
-    }
-    .instruction(InitializeVerificationConfigInstructionArgs {
-        initialize_verification_config_args: InitializeVerificationConfigArgs {
-            instruction_discriminator: RESUME_DISCRIMINATOR,
-            program_addresses: vec![],
-        },
-    });
+    let resume_verification_config_args = InitializeVerificationConfigArgs {
+        instruction_discriminator: RESUME_DISCRIMINATOR,
+        program_addresses: vec![],
+    };
 
-    let config_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[init_config_instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
+    initialize_verification_config(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        verification_config_pda,
+        &resume_verification_config_args,
+    )
+    .await;
 
-    let result = context
-        .banks_client
-        .process_transaction(config_transaction)
-        .await;
-
-    assert_transaction_success(result);
-
-    let resume_ix = Resume {
-        mint: mint_keypair.pubkey(),
-        mint_account: mint_keypair.pubkey(),
-        pause_authority: pause_authority_pda,
-        token_program: spl_token_2022_program,
-        verification_config: verification_config_pda,
-        instructions_sysvar: sysvar::instructions::ID,
-    }
-    .instruction();
+    let resume_ix = ResumeBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .mint_account(mint_keypair.pubkey())
+        .verification_config(verification_config_pda)
+        .pause_authority(pause_authority_pda)
+        .instruction();
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let resume_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
