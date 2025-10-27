@@ -1,0 +1,17 @@
+[package]
+name = "security-token-transfer-hook"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "security_token_transfer_hook"
+
+[dependencies]
+pinocchio = { workspace = true }
+pinocchio-log = { workspace = true }
+pinocchio-pubkey = { workspace = true }

@@ -186,7 +186,8 @@ mod idl_gen {
         #[account(4, name = "permanent_delegate_authority")]
         #[account(5, writable, name = "from_token_account")]
         #[account(6, writable, name = "to_token_account")]
-        #[account(7, name = "token_program")]
+        #[account(7, name = "transfer_hook_program")]
+        #[account(8, name = "token_program")]
         Transfer { amount: u64 } = 12,
     }
 }

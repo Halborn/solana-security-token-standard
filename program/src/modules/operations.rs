@@ -3,8 +3,8 @@
 //! Executes token operations after successful verification.
 //! All operations are wrappers around SPL Token 2022 instructions.
 
-use crate::constants::seeds;
-use crate::instructions::{CustomPause, CustomResume};
+use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
+use crate::instructions::{CustomPause, CustomResume, CustomTransferChecked};
 use crate::modules::{verify_owner, verify_token22_program};
 use crate::state::MintAuthority;
 use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda};
@@ -12,9 +12,7 @@ use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
 use pinocchio_log::log;
-use pinocchio_token_2022::instructions::{
-    BurnChecked, FreezeAccount, MintToChecked, ThawAccount, TransferChecked,
-};
+use pinocchio_token_2022::instructions::{BurnChecked, FreezeAccount, MintToChecked, ThawAccount};
 use pinocchio_token_2022::state::Mint;
 
 /// Operations Module - executes token operations
@@ -236,12 +234,16 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
-        let [mint_info, permanent_delegate_authority, from_token_account, to_token_account, token_program] =
+        let [mint_info, permanent_delegate_authority, from_token_account, to_token_account, transfer_hook_program, token_program] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+
+        if transfer_hook_program.key() != &TRANSFER_HOOK_PROGRAM_ID {
+            return Err(ProgramError::IncorrectProgramId);
+        }
 
         let (permanent_delegate_pda, bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
@@ -258,14 +260,15 @@ impl OperationsModule {
         let decimals = mint_account.decimals();
         drop(mint_account);
 
-        let transfer_instruction = TransferChecked {
-            mint: mint_info,
-            from: from_token_account,
-            to: to_token_account,
-            authority: permanent_delegate_authority,
+        let transfer_instruction = CustomTransferChecked::new(
+            mint_info,
+            from_token_account,
+            to_token_account,
+            permanent_delegate_authority,
             amount,
             decimals,
-        };
+            transfer_hook_program,
+        );
 
         let bump_seed = [bump];
         let seeds = [

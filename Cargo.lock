@@ -3739,6 +3739,7 @@ dependencies = [
  "borsh 0.10.4",
  "security-token-client",
  "security-token-program",
+ "security-token-transfer-hook",
  "solana-program",
  "solana-program-test",
  "solana-pubkey",
@@ -3749,6 +3750,15 @@ dependencies = [
  "spl-token-2022 9.0.0",
  "spl-token-metadata-interface",
  "tokio",
+]
+
+[[package]]
+name = "security-token-transfer-hook"
+version = "0.1.0"
+dependencies = [
+ "pinocchio",
+ "pinocchio-log",
+ "pinocchio-pubkey",
 ]
 
 [[package]]

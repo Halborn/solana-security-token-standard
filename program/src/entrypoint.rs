@@ -3,8 +3,11 @@
 #![allow(unexpected_cfgs)]
 
 use crate::processor::Processor;
-use pinocchio::{account_info::AccountInfo, entrypoint, pubkey::Pubkey, ProgramResult};
+use pinocchio::{
+    account_info::AccountInfo, entrypoint, pubkey::Pubkey, ProgramResult,
+};
 
+// default_allocator!();
 entrypoint!(process_instruction);
 
 /// The entrypoint to the Security Token program

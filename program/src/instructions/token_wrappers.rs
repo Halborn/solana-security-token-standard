@@ -1,10 +1,41 @@
 //! Token extension wrappers
 
+use core::mem::MaybeUninit;
+use core::slice::from_raw_parts;
 use pinocchio::account_info::AccountInfo;
 use pinocchio::cpi::invoke_signed;
 use pinocchio::instruction::{AccountMeta, Instruction, Signer};
 use pinocchio::ProgramResult;
 use pinocchio_token_2022::extensions::metadata::InitializeTokenMetadata;
+
+const UNINIT_BYTE: MaybeUninit<u8> = MaybeUninit::<u8>::uninit();
+
+/// Deserialize a type from a byte array.
+///
+/// # Safety
+///
+/// This function is unsafe because it transmutes the input data to the output type.
+pub unsafe fn from_bytes<T: Clone + Copy>(data: &[u8]) -> T {
+    assert_eq!(data.len(), core::mem::size_of::<T>());
+    *(data.as_ptr() as *const T)
+}
+
+/// Deserialize a type from a byte array into a reference.
+///
+/// # Safety
+///
+/// This function is unsafe because it transmutes the input data to the output type.
+pub unsafe fn from_bytes_ref<T: Clone + Copy>(data: &[u8]) -> &T {
+    assert_eq!(data.len(), core::mem::size_of::<T>());
+    &*(data.as_ptr() as *const T)
+}
+
+#[inline(always)]
+fn write_bytes(destination: &mut [MaybeUninit<u8>], source: &[u8]) {
+    for (d, s) in destination.iter_mut().zip(source.iter()) {
+        d.write(*s);
+    }
+}
 
 /// Wrapper for RemoveKey instruction
 pub struct CustomRemoveKey<'a> {
@@ -251,5 +282,96 @@ impl CustomResume<'_> {
         invoke_signed(&instruction, &[self.mint, self.pause_authority], signers)?;
 
         Ok(())
+    }
+}
+
+/// Wrapper for the TransferChecked instruction that supports passing remaining accounts.
+pub struct CustomTransferChecked<'a> {
+    /// The mint whose tokens are being transferred.
+    pub mint: &'a AccountInfo,
+    /// The source token account.
+    pub from: &'a AccountInfo,
+    /// The destination token account.
+    pub to: &'a AccountInfo,
+    /// Authority allowed to transfer tokens.
+    pub authority: &'a AccountInfo,
+    /// Amount of tokens to transfer (raw units).
+    pub amount: u64,
+    /// Mint decimals needed for checked transfer.
+    pub decimals: u8,
+    pub transfer_hook_program: &'a AccountInfo,
+}
+
+impl<'a> CustomTransferChecked<'a> {
+    /// Construct a new wrapper instance.
+    pub fn new(
+        mint: &'a AccountInfo,
+        from: &'a AccountInfo,
+        to: &'a AccountInfo,
+        authority: &'a AccountInfo,
+        amount: u64,
+        decimals: u8,
+        transfer_hook_program: &'a AccountInfo,
+    ) -> Self {
+        Self {
+            mint,
+            from,
+            to,
+            authority,
+            amount,
+            decimals,
+            transfer_hook_program,
+        }
+    }
+
+    /// Invoke the TransferChecked instruction.
+    #[inline(always)]
+    pub fn invoke(&self) -> ProgramResult {
+        self.invoke_signed(&[])
+    }
+
+    /// Invoke the TransferChecked instruction with signer seeds.
+    #[allow(clippy::cast_possible_truncation)]
+
+    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
+        // account metadata
+        let account_metas: [AccountMeta; 5] = [
+            AccountMeta::writable(self.from.key()),
+            AccountMeta::readonly(self.mint.key()),
+            AccountMeta::writable(self.to.key()),
+            AccountMeta::readonly_signer(self.authority.key()),
+            AccountMeta::readonly(self.transfer_hook_program.key()),
+        ];
+
+        // Instruction data layout:
+        // -  [0]: instruction discriminator (1 byte, u8)
+        // -  [1..9]: amount (8 bytes, u64)
+        // -  [9]: decimals (1 byte, u8)
+        let mut instruction_data = [UNINIT_BYTE; 10];
+
+        // Set discriminator as u8 at offset [0]
+        write_bytes(&mut instruction_data, &[12]);
+        // Set amount as u64 at offset [1..9]
+        write_bytes(&mut instruction_data[1..9], &self.amount.to_le_bytes());
+        // Set decimals as u8 at offset [9]
+        write_bytes(&mut instruction_data[9..], &[self.decimals]);
+
+        let instruction = Instruction {
+            program_id: &pinocchio_token_2022::ID,
+            accounts: &account_metas,
+            data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, 10) },
+        };
+
+        invoke_signed(
+            &instruction,
+            &[
+                self.from,
+                self.mint,
+                self.to,
+                self.authority,
+                self.transfer_hook_program,
+            ],
+            signers,
+        )
     }
 }

@@ -8,6 +8,11 @@ use security_token_client::types::{
     InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs,
 };
 
+use crate::helpers::{
+    assert_transaction_success, create_spl_account, initialize_mint,
+    initialize_verification_config, mint_to_account,
+};
+use security_token_transfer_hook;
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
 use solana_sdk::signature::Signer;
@@ -17,11 +22,6 @@ use spl_token_2022::extension::pausable::PausableConfig;
 use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
-
-use crate::helpers::{
-    assert_transaction_success, create_spl_account, initialize_mint,
-    initialize_verification_config, mint_to_account,
-};
 use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 
 async fn get_mint_state(
@@ -435,6 +435,11 @@ async fn test_t22_extension_operations() {
 async fn test_t22_transfer_operations() {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(true);
+    pt.add_program(
+        "security_token_transfer_hook",
+        Pubkey::from(security_token_transfer_hook::id()),
+        None,
+    );
 
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
 
@@ -523,6 +528,7 @@ async fn test_t22_transfer_operations() {
         .mint_account(mint_keypair.pubkey())
         .from_token_account(source_account)
         .to_token_account(destination_account)
+        .transfer_hook_program(Pubkey::from(security_token_transfer_hook::id()))
         .amount(100_000)
         .instruction();
 

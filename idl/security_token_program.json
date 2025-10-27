@@ -598,6 +598,11 @@
           "isSigner": false
         },
         {
+          "name": "transferHookProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false

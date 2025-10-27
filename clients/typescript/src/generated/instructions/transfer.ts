@@ -49,6 +49,7 @@ export type TransferInstruction<
     | AccountMeta<string> = string,
   TAccountFromTokenAccount extends string | AccountMeta<string> = string,
   TAccountToTokenAccount extends string | AccountMeta<string> = string,
+  TAccountTransferHookProgram extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
     | AccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
@@ -78,6 +79,9 @@ export type TransferInstruction<
       TAccountToTokenAccount extends string
         ? WritableAccount<TAccountToTokenAccount>
         : TAccountToTokenAccount,
+      TAccountTransferHookProgram extends string
+        ? ReadonlyAccount<TAccountTransferHookProgram>
+        : TAccountTransferHookProgram,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
@@ -124,6 +128,7 @@ export type TransferInput<
   TAccountPermanentDelegateAuthority extends string = string,
   TAccountFromTokenAccount extends string = string,
   TAccountToTokenAccount extends string = string,
+  TAccountTransferHookProgram extends string = string,
   TAccountTokenProgram extends string = string,
 > = {
   mint: Address<TAccountMint>;
@@ -133,6 +138,7 @@ export type TransferInput<
   permanentDelegateAuthority: Address<TAccountPermanentDelegateAuthority>;
   fromTokenAccount: Address<TAccountFromTokenAccount>;
   toTokenAccount: Address<TAccountToTokenAccount>;
+  transferHookProgram: Address<TAccountTransferHookProgram>;
   tokenProgram?: Address<TAccountTokenProgram>;
   amount: TransferInstructionDataArgs['amount'];
 };
@@ -145,6 +151,7 @@ export function getTransferInstruction<
   TAccountPermanentDelegateAuthority extends string,
   TAccountFromTokenAccount extends string,
   TAccountToTokenAccount extends string,
+  TAccountTransferHookProgram extends string,
   TAccountTokenProgram extends string,
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
@@ -157,6 +164,7 @@ export function getTransferInstruction<
     TAccountPermanentDelegateAuthority,
     TAccountFromTokenAccount,
     TAccountToTokenAccount,
+    TAccountTransferHookProgram,
     TAccountTokenProgram
   >,
   config?: { programAddress?: TProgramAddress }
@@ -169,6 +177,7 @@ export function getTransferInstruction<
   TAccountPermanentDelegateAuthority,
   TAccountFromTokenAccount,
   TAccountToTokenAccount,
+  TAccountTransferHookProgram,
   TAccountTokenProgram
 > {
   // Program address.
@@ -196,6 +205,10 @@ export function getTransferInstruction<
       isWritable: true,
     },
     toTokenAccount: { value: input.toTokenAccount ?? null, isWritable: true },
+    transferHookProgram: {
+      value: input.transferHookProgram ?? null,
+      isWritable: false,
+    },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -226,6 +239,7 @@ export function getTransferInstruction<
       getAccountMeta(accounts.permanentDelegateAuthority),
       getAccountMeta(accounts.fromTokenAccount),
       getAccountMeta(accounts.toTokenAccount),
+      getAccountMeta(accounts.transferHookProgram),
       getAccountMeta(accounts.tokenProgram),
     ],
     data: getTransferInstructionDataEncoder().encode(
@@ -241,6 +255,7 @@ export function getTransferInstruction<
     TAccountPermanentDelegateAuthority,
     TAccountFromTokenAccount,
     TAccountToTokenAccount,
+    TAccountTransferHookProgram,
     TAccountTokenProgram
   >);
 }
@@ -258,7 +273,8 @@ export type ParsedTransferInstruction<
     permanentDelegateAuthority: TAccountMetas[4];
     fromTokenAccount: TAccountMetas[5];
     toTokenAccount: TAccountMetas[6];
-    tokenProgram: TAccountMetas[7];
+    transferHookProgram: TAccountMetas[7];
+    tokenProgram: TAccountMetas[8];
   };
   data: TransferInstructionData;
 };
@@ -271,7 +287,7 @@ export function parseTransferInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
 ): ParsedTransferInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 8) {
+  if (instruction.accounts.length < 9) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -291,6 +307,7 @@ export function parseTransferInstruction<
       permanentDelegateAuthority: getNextAccount(),
       fromTokenAccount: getNextAccount(),
       toTokenAccount: getNextAccount(),
+      transferHookProgram: getNextAccount(),
       tokenProgram: getNextAccount(),
     },
     data: getTransferInstructionDataDecoder().decode(instruction.data),
