@@ -71,7 +71,8 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs
+        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
+        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -181,7 +182,6 @@ mod idl_gen {
         #[account(0, name = "mint")]
         #[account(1, name = "verification_config_or_mint_authority")]
         #[account(2, name = "instructions_sysvar_or_creator")]
-
         #[account(3, writable, name = "rate_account")]
         #[account(4, name = "rate_mint_account_1")]
         #[account(5, name = "rate_mint_account_2")]

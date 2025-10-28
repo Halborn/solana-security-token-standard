@@ -5,7 +5,9 @@
 
 use crate::constants::seeds;
 use crate::instructions::{CustomPause, CustomResume};
-use crate::modules::{verify_owner, verify_signer, verify_token22_program, verify_writable};
+use crate::modules::{
+    verify_owner, verify_signer, verify_system_program, verify_token22_program, verify_writable,
+};
 use crate::state::{AccountSerialize, MintAuthority, Rate, Rounding};
 use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda, find_rate_pda};
 use pinocchio::instruction::{Seed, Signer};
@@ -292,12 +294,14 @@ impl OperationsModule {
         denominator: u8,
         rounding: u8,
     ) -> ProgramResult {
-        let [rate_account, mint1_account, mint2_account, payer, _system_program] = accounts else {
+        let [rate_account, mint1_account, mint2_account, payer, system_program_info] = accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         verify_signer(payer)?;
         verify_writable(payer)?;
+        verify_system_program(system_program_info)?;
 
         let mint_account1 = Mint::from_account_info(mint1_account)?;
         let mint_account2 = Mint::from_account_info(mint2_account)?;

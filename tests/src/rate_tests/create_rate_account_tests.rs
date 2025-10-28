@@ -117,12 +117,6 @@ async fn test_create_rate_account_operation_split_mints() {
     let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
         create_security_token_mint(&mut context, &mint_keypair, decimals).await;
 
-    // Setup verification config for CreateRateAccount
-    // let verification_config_pda =
-    //     create_verification_config(&mut context, &mint_keypair, mint_authority_pda)
-    //         .await;
-
-    // Create rate account for split operation (same mint)
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
     let numerator = 3u8;
@@ -168,15 +162,11 @@ async fn test_create_rate_account_operation_split_mints() {
         rate_account.owner, SECURITY_TOKEN_PROGRAM_ID,
         "Rate account should be owned by security token program"
     );
-
-    // Verify account size
     assert_eq!(
         rate_account.data.len(),
         5,
         "Rate account should be 5 bytes (discriminator + rounding + numerator + denominator + bump)"
     );
-
-    // Verify discriminator
     assert_eq!(
         rate.discriminator, SecurityTokenDiscriminators::RateDiscriminator as u8,
         "Rate account discriminator should match"
@@ -186,8 +176,6 @@ async fn test_create_rate_account_operation_split_mints() {
     assert_eq!(rate.rounding as u8, rounding, "Rounding should match");
     assert_eq!(rate.numerator, numerator, "Numerator should match");
     assert_eq!(rate.denominator, denominator, "Denominator should match");
-
-    println!("✓ Test Case 1: Created rate account for split operation (same mint)");
 }
 
 #[tokio::test]
@@ -282,5 +270,119 @@ async fn test_create_rate_account_invalid_operation(
     assert!(result.is_err(), "{}", description);
 }
 
-// TODO: test duplicate rate account creation
-// TODO: test rate with both split and conversion mints creation
+#[tokio::test]
+async fn test_create_rate_account_twice() {
+    let mut context = &mut start_with_context().await;
+
+    let mint_keypair = Keypair::new();
+    let decimals = 6u8;
+    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
+        create_security_token_mint(&mut context, &mint_keypair, decimals).await;
+
+    let action_id = 42u64;
+    let rate_mint_pubkey = mint_keypair.pubkey();
+
+    let create_rate_args = CreateRateArgs {
+        action_id,
+        rate: RateArgs {
+            rounding: Rounding::Up as u8,
+            numerator: 3u8,
+            denominator: 2u8,
+        },
+    };
+
+    let (rate_pda, result) = create_rate_account(
+        context,
+        mint_keypair.pubkey(),
+        mint_authority_pda,
+        context.payer.pubkey(),
+        rate_mint_pubkey,
+        rate_mint_pubkey,
+        create_rate_args.clone()
+    ).await;
+    assert_transaction_success(result);
+
+    let _rate_account = context
+        .banks_client
+        .get_account(rate_pda)
+        .await
+        .unwrap()
+        .expect("Rate account should exist");
+
+    // Try creating the same Rate account again, should fail
+    let (_, result) = create_rate_account(
+        context,
+        mint_keypair.pubkey(),
+        mint_authority_pda,
+        context.payer.pubkey(),
+        rate_mint_pubkey,
+        rate_mint_pubkey,
+        create_rate_args.clone()
+    ).await;
+    assert!(result.is_err(), "Should not create the same Rate account again");
+}
+
+
+#[tokio::test]
+async fn test_create_both_split_and_conversion_rate_accounts() {
+    let mut context = &mut start_with_context().await;
+
+    let mint_keypair1 = Keypair::new();
+    let mint_keypair2 = Keypair::new();
+    let decimals = 6u8;
+    let (mint_authority_pda1, _, _) =
+        create_security_token_mint(&mut context, &mint_keypair1, decimals).await;
+    let (_mint_authority_pda2, _, _) =
+        create_security_token_mint(&mut context, &mint_keypair2, decimals).await;
+
+    let action_id = 42u64;
+    let rate_mint_pubkey1 = mint_keypair1.pubkey();
+    let rate_mint_pubkey2 = mint_keypair2.pubkey();
+
+    let create_rate_args = CreateRateArgs {
+        action_id,
+        rate: RateArgs {
+            rounding: Rounding::Up as u8,
+            numerator: 3u8,
+            denominator: 2u8,
+        },
+    };
+
+    // Rate account for split (the same mint)
+    let (rate_pda1, result1) = create_rate_account(
+        context,
+        mint_keypair1.pubkey(),
+        mint_authority_pda1,
+        context.payer.pubkey(),
+        rate_mint_pubkey1,
+        rate_mint_pubkey1,
+        create_rate_args.clone()
+    ).await;
+    assert_transaction_success(result1);
+
+    // Rate account for conversion (different mints)
+    let (rate_pda2, result2) = create_rate_account(
+        context,
+        mint_keypair1.pubkey(),
+        mint_authority_pda1,
+        context.payer.pubkey(),
+        rate_mint_pubkey1,
+        rate_mint_pubkey2,
+        create_rate_args.clone()
+    ).await;
+    assert_transaction_success(result2);
+
+    let _rate_account1 = context
+        .banks_client
+        .get_account(rate_pda1)
+        .await
+        .unwrap()
+        .expect("Rate account 1 should exist");
+
+    let _rate_account2 = context
+        .banks_client
+        .get_account(rate_pda2)
+        .await
+        .unwrap()
+        .expect("Rate account 2 should exist");
+}
