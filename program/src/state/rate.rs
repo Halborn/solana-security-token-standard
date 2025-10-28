@@ -65,7 +65,7 @@ impl AccountSerialize for Rate {
 
 impl AccountDeserialize for Rate {
     fn try_from_bytes_inner(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::LEN - 1 {
+        if data.len() != Self::LEN - 1 {
             return Err(ProgramError::InvalidAccountData);
         }
 

@@ -141,10 +141,25 @@ pub fn verify_operation_mint_info(
 ) -> Result<(), ProgramError> {
     if operation_mint_info.key().ne(verified_mint_info.key()) {
         log!(
-            "Mint of {} does not match expected verified Mint",
+            "Mint {} in the operation does not match verified Mint",
             acc_info_as_str!(operation_mint_info),
         );
         return Err(ProgramError::InvalidAccountData);
+    }
+    Ok(())
+}
+
+/// Verify account is not initialized.
+///
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_account_not_initialized(info: &AccountInfo) -> Result<(), ProgramError> {
+    if !info.data_is_empty() || info.lamports() > 0 || !info.is_owned_by(&pinocchio_system::id()) {
+        log!("Account {} already exists", acc_info_as_str!(info));
+        return Err(ProgramError::AccountAlreadyInitialized);
     }
     Ok(())
 }

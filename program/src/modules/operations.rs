@@ -6,15 +6,15 @@
 use crate::constants::seeds;
 use crate::instructions::{CustomPause, CustomResume};
 use crate::modules::{
-    verify_operation_mint_info, verify_owner, verify_signer, verify_system_program,
-    verify_token22_program, verify_writable,
+    verify_account_not_initialized, verify_operation_mint_info, verify_owner, verify_signer,
+    verify_system_program, verify_token22_program, verify_writable,
 };
 use crate::state::{AccountSerialize, MintAuthority, Rate, Rounding};
 use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda, find_rate_pda};
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
-use pinocchio::sysvars::fees::DEFAULT_BURN_PERCENT;
-use pinocchio::sysvars::rent::{Rent, DEFAULT_EXEMPTION_THRESHOLD, DEFAULT_LAMPORTS_PER_BYTE_YEAR};
+use pinocchio::sysvars::rent::Rent;
+use pinocchio::sysvars::Sysvar;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
 use pinocchio_log::log;
 use pinocchio_system::instructions::CreateAccount;
@@ -305,6 +305,8 @@ impl OperationsModule {
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_system_program(system_program_info)?;
+        verify_writable(rate_account)?;
+        verify_account_not_initialized(rate_account)?;
 
         let mint_account1 = Mint::from_account_info(mint1_account)?;
         let mint_account2 = Mint::from_account_info(mint2_account)?;
@@ -313,8 +315,8 @@ impl OperationsModule {
         drop(mint_account1);
         drop(mint_account2);
 
-        let mints = [mint1_key, mint2_key];
-        let (expected_rate_pda, bump) = find_rate_pda(action_id, &mints, program_id);
+        let (expected_rate_pda, bump) =
+            find_rate_pda(action_id, &mint1_key, &mint2_key, program_id);
 
         if rate_account.key().ne(&expected_rate_pda) {
             log!("Invalid Rate account PDA");
@@ -326,23 +328,11 @@ impl OperationsModule {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        if rate_account.data_len() > 0
-            || rate_account.lamports() > 0
-            || !rate_account.is_owned_by(&pinocchio_system::id())
-        {
-            log!("Rate account already exists for action_id: {}", action_id);
-            return Err(ProgramError::AccountAlreadyInitialized);
-        }
-
         // Calculate rent and create Rate account
         let rounding_enum = Rounding::try_from(rounding)?;
         let rate = Rate::new(rounding_enum, numerator, denominator, bump)?;
         let account_size = Rate::LEN;
-        let rent = Rent {
-            lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-            exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
-            burn_percent: DEFAULT_BURN_PERCENT,
-        };
+        let rent = Rent::get()?;
         let required_lamports = rent.minimum_balance(account_size);
 
         let create_account_instruction = CreateAccount {

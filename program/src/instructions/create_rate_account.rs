@@ -56,7 +56,7 @@ impl CreateRateArgs {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, ShankType)]
 pub struct RateArgs {
-    /// Rounding direction (Up or Down)
+    /// Rounding direction (0 = Up, Down = 1)
     pub rounding: u8,
     /// Rate numerator
     pub numerator: u8,
@@ -108,7 +108,6 @@ mod tests {
     #[case(42u64, 1u8, 5u8, 10u8)]
     #[case(1u64, 0u8, 44u8, 33u8)]
     #[case(u64::MAX, 1u8, u8::MAX, u8::MAX)]
-
     fn test_create_rate_args_to_bytes_inner_try_from_bytes(
         #[case] action_id: u64,
         #[case] rounding: u8,
@@ -139,7 +138,6 @@ mod tests {
     #[case(1u64, 3u8, 5u8, 10u8, "Rounding enum (3u8) should be invalid")]
     #[case(1u64, 0u8, 0u8, 10u8, "Zero numerator should be invalid")]
     #[case(1u64, 0u8, 2u8, 0u8, "Zero denominator should be invalid")]
-
     fn test_create_rate_args_validation(
         #[case] action_id: u64,
         #[case] rounding: u8,

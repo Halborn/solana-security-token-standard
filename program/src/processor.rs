@@ -248,7 +248,6 @@ impl Processor {
         args_data: &[u8],
     ) -> ProgramResult {
         let CreateRateArgs { action_id, rate } = CreateRateArgs::try_from_bytes(args_data)?;
-
         OperationsModule::execute_create_rate_account(
             program_id,
             mint_info,

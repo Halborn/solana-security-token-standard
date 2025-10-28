@@ -119,6 +119,5 @@ pub async fn initialize_verification_config(
 pub async fn start_with_context() -> ProgramTestContext {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(true);
-
     pt.start_with_context().await
 }
