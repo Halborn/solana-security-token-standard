@@ -15,3 +15,4 @@ name = "security_token_transfer_hook"
 pinocchio = { workspace = true }
 pinocchio-log = { workspace = true }
 pinocchio-pubkey = { workspace = true }
+pinocchio-token-2022 = { workspace = true }

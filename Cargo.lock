@@ -3759,6 +3759,7 @@ dependencies = [
  "pinocchio",
  "pinocchio-log",
  "pinocchio-pubkey",
+ "pinocchio-token-2022",
 ]
 
 [[package]]
