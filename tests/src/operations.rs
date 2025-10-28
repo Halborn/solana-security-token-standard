@@ -544,4 +544,7 @@ async fn test_t22_transfer_operations() {
         .process_transaction(transfer_transaction)
         .await;
     assert_transaction_success(result);
+    let destination_account_state =
+        get_token_account_state(&mut context.banks_client, destination_account).await;
+    assert_eq!(destination_account_state.base.amount, 100_000);
 }
