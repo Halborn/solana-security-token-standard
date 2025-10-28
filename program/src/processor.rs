@@ -2,9 +2,10 @@ use crate::{
     constants::INSTRUCTION_ACCOUNTS_OFFSET,
     instruction::SecurityTokenInstruction,
     instructions::{
-        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs
+        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
+        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     },
-    modules::{OperationsModule, VerificationProfile, verification::VerificationModule},
+    modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
 use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
@@ -29,29 +30,31 @@ impl Processor {
             | UpdateVerificationConfig
             | TrimVerificationConfig
             | UpdateMetadata => VerificationProgramsOrMintAuthority,
-            Burn | Mint | Pause | Resume | Freeze | Thaw => {
-                VerificationPrograms
-            }
+            Burn | Mint | Pause | Resume | Freeze | Thaw => VerificationPrograms,
         }
     }
 
     /// Runs the verification process for the given instruction
     /// Explicit cuts the verification overhead if needed
+    /// Returns mint AccountInfo and instruction accounts
     fn verify<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
         ix_discriminator: u8,
         verification_profile: VerificationProfile,
-    ) -> Result<&'a [AccountInfo], ProgramError> {
+    ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         match verification_profile {
-            VerificationProfile::None => Ok(accounts),
+            // FIXME: Not sure if this is ok for None verification, needs to be reviewed
+            VerificationProfile::None => Ok((&accounts[0], &accounts)),
             VerificationProfile::VerificationPrograms => {
-                VerificationModule::verify_by_programs(program_id, accounts, ix_discriminator)?;
-                Ok(&accounts[INSTRUCTION_ACCOUNTS_OFFSET..])
+                let mint_info =
+                    VerificationModule::verify_by_programs(program_id, accounts, ix_discriminator)?;
+                Ok((mint_info, &accounts[INSTRUCTION_ACCOUNTS_OFFSET..]))
             }
             VerificationProfile::VerificationProgramsOrMintAuthority => {
-                VerificationModule::verify_by_strategy(program_id, accounts, ix_discriminator)?;
-                Ok(&accounts[INSTRUCTION_ACCOUNTS_OFFSET..])
+                let mint_info =
+                    VerificationModule::verify_by_strategy(program_id, accounts, ix_discriminator)?;
+                Ok((mint_info, &accounts[INSTRUCTION_ACCOUNTS_OFFSET..]))
             }
         }
     }
@@ -66,7 +69,7 @@ impl Processor {
             SecurityTokenInstruction::parse_instruction(instruction_data)?;
 
         let verification_profile = Self::instruction_verification_profile(&instruction);
-        let instruction_accounts = Self::verify(
+        let (verified_mint_info, instruction_accounts) = Self::verify(
             program_id,
             accounts,
             instruction.discriminant(),
