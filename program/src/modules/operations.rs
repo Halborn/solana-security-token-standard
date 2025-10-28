@@ -6,7 +6,8 @@
 use crate::constants::seeds;
 use crate::instructions::{CustomPause, CustomResume};
 use crate::modules::{
-    verify_owner, verify_signer, verify_system_program, verify_token22_program, verify_writable,
+    verify_operation_mint_info, verify_owner, verify_signer, verify_system_program,
+    verify_token22_program, verify_writable,
 };
 use crate::state::{AccountSerialize, MintAuthority, Rate, Rounding};
 use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda, find_rate_pda};
@@ -288,6 +289,7 @@ impl OperationsModule {
     /// Create Rate account
     pub fn execute_create_rate_account(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         action_id: u64,
         numerator: u8,
@@ -299,6 +301,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_operation_mint_info(verified_mint_info, &mint1_account)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_system_program(system_program_info)?;

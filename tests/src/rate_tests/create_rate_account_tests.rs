@@ -109,7 +109,7 @@ fn find_rate_pda(
 }
 
 #[tokio::test]
-async fn test_create_rate_account_operation_split_mints() {
+async fn test_should_create_rate_account_operation_for_split_mints() {
     let mut context = &mut start_with_context().await;
 
     let mint_keypair = Keypair::new();
@@ -179,7 +179,7 @@ async fn test_create_rate_account_operation_split_mints() {
 }
 
 #[tokio::test]
-async fn test_create_rate_account_operation_conversion_mints() {
+async fn test_should_create_rate_account_operation_with_conversion_mints() {
     let mut context = &mut start_with_context().await;
 
     let mint_keypair1 = Keypair::new();
@@ -271,7 +271,7 @@ async fn test_create_rate_account_invalid_operation(
 }
 
 #[tokio::test]
-async fn test_create_rate_account_twice() {
+async fn test_should_not_create_rate_account_twice() {
     let mut context = &mut start_with_context().await;
 
     let mint_keypair = Keypair::new();
@@ -324,7 +324,7 @@ async fn test_create_rate_account_twice() {
 
 
 #[tokio::test]
-async fn test_create_both_split_and_conversion_rate_accounts() {
+async fn test_should_create_both_split_and_conversion_rate_accounts() {
     let mut context = &mut start_with_context().await;
 
     let mint_keypair1 = Keypair::new();
@@ -385,4 +385,42 @@ async fn test_create_both_split_and_conversion_rate_accounts() {
         .await
         .unwrap()
         .expect("Rate account 2 should exist");
+}
+
+
+#[tokio::test]
+async fn test_should_not_create_rate_account_for_not_initial_mint() {
+    let mut context = &mut start_with_context().await;
+
+    let initial_mint_keypair = Keypair::new();
+    let decimals = 6u8;
+    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
+    create_security_token_mint(&mut context, &initial_mint_keypair, decimals).await;
+
+    // Try to create Rate account by providing second mint
+    // Even though it belongs to the same payer, it is not the initial mint and tx should fail
+    let second_mint_keypair = Keypair::new();
+    create_security_token_mint(&mut context, &second_mint_keypair, decimals).await;
+    let rate_mint_pubkey = second_mint_keypair.pubkey();
+
+    let create_rate_args = CreateRateArgs {
+        action_id: 42u64,
+        rate: RateArgs {
+            rounding: Rounding::Up as u8,
+            numerator: 3u8,
+            denominator: 2u8,
+        },
+    };
+
+    // Try creating the same Rate account again, should fail
+    let (_, result) = create_rate_account(
+        context,
+        initial_mint_keypair.pubkey(),
+        mint_authority_pda,
+        context.payer.pubkey(),
+        rate_mint_pubkey,
+        rate_mint_pubkey,
+        create_rate_args
+    ).await;
+    assert!(result.is_err(), "Should not create Rate account for not initial mint");
 }

@@ -119,9 +119,12 @@ impl Processor {
                 Self::process_freeze(program_id, instruction_accounts)
             }
             SecurityTokenInstruction::Thaw => Self::process_thaw(program_id, instruction_accounts),
-            SecurityTokenInstruction::CreateRateAccount => {
-                Self::process_create_rate_account(program_id, instruction_accounts, args_data)
-            }
+            SecurityTokenInstruction::CreateRateAccount => Self::process_create_rate_account(
+                program_id,
+                verified_mint_info,
+                instruction_accounts,
+                args_data,
+            ),
         }
     }
 
@@ -240,6 +243,7 @@ impl Processor {
 
     fn process_create_rate_account(
         program_id: &Pubkey,
+        mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
@@ -247,6 +251,7 @@ impl Processor {
 
         OperationsModule::execute_create_rate_account(
             program_id,
+            mint_info,
             accounts,
             action_id,
             rate.numerator,
