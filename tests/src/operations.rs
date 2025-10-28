@@ -7,6 +7,8 @@ use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
 use security_token_client::types::{
     InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs,
 };
+use spl_tlv_account_resolution::account::ExtraAccountMeta;
+use spl_transfer_hook_interface::instruction::initialize_extra_account_meta_list;
 
 use crate::helpers::{
     assert_transaction_success, create_spl_account, initialize_mint,
@@ -23,6 +25,7 @@ use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
 use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
+use spl_transfer_hook_interface::{self, get_extra_account_metas_address};
 
 async fn get_mint_state(
     banks_client: &mut solana_program_test::BanksClient,
@@ -547,4 +550,161 @@ async fn test_t22_transfer_operations() {
     let destination_account_state =
         get_token_account_state(&mut context.banks_client, destination_account).await;
     assert_eq!(destination_account_state.base.amount, 100_000);
+}
+
+#[tokio::test]
+async fn test_p2p_transfer_direct_spl() {
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
+    pt.prefer_bpf(true);
+    pt.add_program(
+        "security_token_transfer_hook",
+        Pubkey::from(security_token_transfer_hook::id()),
+        None,
+    );
+    let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
+
+    let mint_keypair = Keypair::new();
+    let source_owner = Keypair::new();
+    let destination_owner = Keypair::new();
+
+    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"mint.authority",
+            &mint_keypair.pubkey().to_bytes(),
+            &context.payer.pubkey().to_bytes(),
+        ],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+
+    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
+        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+
+    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"verification_config",
+            mint_keypair.pubkey().as_ref(),
+            &[TRANSFER_DISCRIMINATOR],
+        ],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+
+    let initialize_mint_args = InitializeMintArgs {
+        ix_mint: MintArgs {
+            decimals: 6,
+            mint_authority: context.payer.pubkey(),
+            freeze_authority: freeze_authority_pda,
+        },
+        ix_metadata_pointer: None,
+        ix_metadata: None,
+        ix_scaled_ui_amount: None,
+    };
+
+    initialize_mint(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        &initialize_mint_args,
+    )
+    .await;
+
+    let initialize_verification_config_args = InitializeVerificationConfigArgs {
+        instruction_discriminator: TRANSFER_DISCRIMINATOR,
+        program_addresses: vec![],
+    };
+
+    initialize_verification_config(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        verification_config_pda,
+        &initialize_verification_config_args,
+    )
+    .await;
+
+    let (account_metas_pda, _bump) = Pubkey::find_program_address(
+        &[b"extra_account_metas", &mint_keypair.pubkey().to_bytes()],
+        &Pubkey::from(security_token_transfer_hook::id()),
+    );
+
+    let init_extra_metas_ix = initialize_extra_account_meta_list(
+        &Pubkey::from(security_token_transfer_hook::id()),
+        &account_metas_pda,
+        &mint_keypair.pubkey(),
+        &context.payer.pubkey(),
+        // Discriminator to tell whether this represents a standard
+        // `AccountMeta`, PDA, or pubkey data.
+        &[ExtraAccountMeta {
+            discriminator: 0,
+            is_writable: PodBool(0),
+            is_signer: PodBool(0),
+            address_config: verification_config_pda.to_bytes(),
+        }],
+    );
+
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let init_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[init_extra_metas_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        recent_blockhash,
+    );
+    let result = context.banks_client.process_transaction(init_tx).await;
+    assert_transaction_success(result);
+
+    // let source_account = create_spl_account(&mut context, &mint_keypair, &source_owner).await;
+    // let destination_account =
+    //     create_spl_account(&mut context, &mint_keypair, &destination_owner).await;
+
+    // mint_to_account(
+    //     &mint_keypair,
+    //     &mut context,
+    //     mint_authority_pda,
+    //     source_account,
+    //     250_000,
+    // )
+    // .await;
+
+    // let transfer_hook_program_id = Pubkey::from(security_token_transfer_hook::id());
+
+    // let mut spl_transfer_ix = spl_token_2022::instruction::transfer_checked(
+    //     &TOKEN_22_PROGRAM_ID,
+    //     &source_account,
+    //     &mint_keypair.pubkey(),
+    //     &destination_account,
+    //     &source_owner.pubkey(),
+    //     &[],
+    //     125_000,
+    //     6,
+    // )
+    // .expect("SPL transfer ix");
+
+    // spl_transfer_ix
+    //     .accounts
+    //     .push(AccountMeta::new_readonly(transfer_hook_program_id, false));
+    // spl_transfer_ix
+    //     .accounts
+    //     .push(AccountMeta::new_readonly(verification_config_pda, false));
+    // spl_transfer_ix
+    //     .accounts
+    //     .push(AccountMeta::new_readonly(sysvar::instructions::ID, false));
+
+    // let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    // let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+    //     &[spl_transfer_ix],
+    //     Some(&context.payer.pubkey()),
+    //     &[&context.payer, &source_owner],
+    //     recent_blockhash,
+    // );
+
+    // let result = context.banks_client.process_transaction(transaction).await;
+    // assert_transaction_success(result);
+
+    // let source_state = get_token_account_state(&mut context.banks_client, source_account).await;
+    // assert_eq!(source_state.base.amount, 125_000);
+
+    // let destination_state =
+    //     get_token_account_state(&mut context.banks_client, destination_account).await;
+    // assert_eq!(destination_state.base.amount, 125_000);
 }

@@ -6,14 +6,10 @@ use core::slice::from_raw_parts;
 use pinocchio::account_info::AccountInfo;
 use pinocchio::cpi::invoke_signed;
 use pinocchio::instruction::{AccountMeta, Instruction, Signer};
-use pinocchio::pubkey::Pubkey;
 use pinocchio::ProgramResult;
 use pinocchio_token_2022::extensions::metadata::InitializeTokenMetadata;
 
 const UNINIT_BYTE: MaybeUninit<u8> = MaybeUninit::<u8>::uninit();
-const EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR: [u8; 8] = [0x2b, 0x22, 0x0d, 0x31, 0xa7, 0x58, 0xeb, 0xeb];
-const EXTRA_ACCOUNT_META_KIND_PUBKEY: u8 = 0;
-const EXTRA_ACCOUNT_META_ENCODED_SIZE: usize = 35;
 
 /// Deserialize a type from a byte array.
 ///
@@ -378,84 +374,5 @@ impl<'a> CustomTransferChecked<'a> {
             ],
             signers,
         )
-    }
-}
-
-/// Extra account metadata descriptor passed to the transfer hook program.
-pub struct TransferHookExtraAccountMeta {
-    /// Account required by the hook.
-    pub pubkey: Pubkey,
-    /// Whether the account must sign the transfer.
-    pub is_signer: bool,
-    /// Whether the account must be writable.
-    pub is_writable: bool,
-}
-
-/// Wrapper for initializing the extra account meta list consumed by the transfer hook.
-pub struct CustomInitializeExtraAccountMetaList<'a> {
-    /// Account storing the extra account meta list (PDA derived by Token-2022).
-    pub extra_account_meta_account: &'a AccountInfo,
-    /// Mint whose hook configuration is being updated.
-    pub mint: &'a AccountInfo,
-    /// Mint authority allowed to configure transfer hooks.
-    pub mint_authority: &'a AccountInfo,
-    /// System program required by the underlying CPI.
-    pub system_program: &'a AccountInfo,
-    /// Extra accounts that should be injected into each hook execution.
-    pub extra_accounts: Vec<TransferHookExtraAccountMeta>,
-}
-
-impl CustomInitializeExtraAccountMetaList<'_> {
-    /// Invoke the InitializeExtraAccountMetaList instruction.
-    pub fn invoke(&self) -> ProgramResult {
-        self.invoke_signed(&[])
-    }
-
-    /// Invoke the InitializeExtraAccountMetaList instruction with PDA signers.
-    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
-        let account_metas: [AccountMeta; 4] = [
-            AccountMeta::writable(self.extra_account_meta_account.key()),
-            AccountMeta::readonly(self.mint.key()),
-            AccountMeta::readonly_signer(self.mint_authority.key()),
-            AccountMeta::readonly(self.system_program.key()),
-        ];
-
-        let mut instruction_data = Vec::with_capacity(
-            EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR.len()
-                + core::mem::size_of::<u32>()
-                + self.extra_accounts.len() * EXTRA_ACCOUNT_META_ENCODED_SIZE,
-        );
-        instruction_data.extend_from_slice(&EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR);
-        instruction_data.extend_from_slice(&(self.extra_accounts.len() as u32).to_le_bytes());
-
-        for meta in &self.extra_accounts {
-            instruction_data.extend_from_slice(&Self::encode_meta(&meta));
-        }
-
-        let instruction = Instruction {
-            program_id: &pinocchio_token_2022::ID,
-            accounts: &account_metas,
-            data: instruction_data.as_slice(),
-        };
-
-        invoke_signed(
-            &instruction,
-            &[
-                self.extra_account_meta_account,
-                self.mint,
-                self.mint_authority,
-                self.system_program,
-            ],
-            signers,
-        )
-    }
-
-    fn encode_meta(meta: &TransferHookExtraAccountMeta) -> [u8; EXTRA_ACCOUNT_META_ENCODED_SIZE] {
-        let mut bytes = [0u8; EXTRA_ACCOUNT_META_ENCODED_SIZE];
-        bytes[0] = EXTRA_ACCOUNT_META_KIND_PUBKEY;
-        bytes[1..33].copy_from_slice(meta.pubkey.as_ref());
-        bytes[33] = u8::from(meta.is_signer);
-        bytes[34] = u8::from(meta.is_writable);
-        bytes
     }
 }
