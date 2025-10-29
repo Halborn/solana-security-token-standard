@@ -20,5 +20,6 @@ pinocchio-system = { workspace = true }
 spl-tlv-account-resolution = "0.9.0"
 spl-transfer-hook-interface = "0.9.0"
 spl-discriminator = "0.4.0"
+spl-pod = "0.4.0"
 solana-pubkey = "2.4.0"
 bytemuck = "1.14"

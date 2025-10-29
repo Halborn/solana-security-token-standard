@@ -3747,7 +3747,7 @@ dependencies = [
  "solana-system-interface",
  "spl-associated-token-account",
  "spl-discriminator",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-tlv-account-resolution 0.9.0",
  "spl-token-2022 9.0.0",
  "spl-token-metadata-interface",
@@ -3768,6 +3768,7 @@ dependencies = [
  "pinocchio-token-2022",
  "solana-pubkey",
  "spl-discriminator",
+ "spl-pod 0.4.0",
  "spl-tlv-account-resolution 0.9.0",
  "spl-transfer-hook-interface 0.9.0",
 ]
@@ -7224,7 +7225,7 @@ dependencies = [
  "solana-system-interface",
  "solana-sysvar",
  "solana-zk-sdk",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-token-confidential-transfer-proof-extraction 0.3.0",
 ]
 
@@ -7248,7 +7249,7 @@ dependencies = [
  "solana-system-interface",
  "solana-sysvar",
  "solana-zk-sdk",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-token-confidential-transfer-proof-extraction 0.4.1",
 ]
 
@@ -7278,6 +7279,19 @@ dependencies = [
 
 [[package]]
 name = "spl-pod"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00e38c99f09d58df06ca9a29fc0211786a4c34f4d099c1df27b1abaa206569a4"
+dependencies = [
+ "bytemuck",
+ "bytemuck_derive",
+ "solana-program",
+ "solana-zk-sdk",
+ "spl-program-error 0.5.0",
+]
+
+[[package]]
+name = "spl-pod"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d994afaf86b779104b4a95ba9ca75b8ced3fdb17ee934e38cb69e72afbe17799"
@@ -7294,6 +7308,19 @@ dependencies = [
  "solana-pubkey",
  "solana-zk-sdk",
  "thiserror 2.0.16",
+]
+
+[[package]]
+name = "spl-program-error"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7b28bed65356558133751cc32b48a7a5ddfc59ac4e941314630bbed1ac10532"
+dependencies = [
+ "num-derive",
+ "num-traits",
+ "solana-program",
+ "spl-program-error-derive 0.4.1",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -7364,7 +7391,7 @@ dependencies = [
  "solana-program-error",
  "solana-pubkey",
  "spl-discriminator",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-program-error 0.6.0",
  "spl-type-length-value 0.7.0",
  "thiserror 1.0.69",
@@ -7386,7 +7413,7 @@ dependencies = [
  "solana-program-error",
  "solana-pubkey",
  "spl-discriminator",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-program-error 0.7.0",
  "spl-type-length-value 0.8.0",
  "thiserror 2.0.16",
@@ -7452,7 +7479,7 @@ dependencies = [
  "solana-zk-sdk",
  "spl-elgamal-registry 0.2.0",
  "spl-memo",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-token",
  "spl-token-confidential-transfer-ciphertext-arithmetic",
  "spl-token-confidential-transfer-proof-extraction 0.3.0",
@@ -7496,7 +7523,7 @@ dependencies = [
  "solana-zk-sdk",
  "spl-elgamal-registry 0.3.0",
  "spl-memo",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-token",
  "spl-token-confidential-transfer-ciphertext-arithmetic",
  "spl-token-confidential-transfer-proof-extraction 0.4.1",
@@ -7536,7 +7563,7 @@ dependencies = [
  "solana-pubkey",
  "solana-sdk-ids",
  "solana-zk-sdk",
- "spl-pod",
+ "spl-pod 0.5.1",
  "thiserror 2.0.16",
 ]
 
@@ -7556,7 +7583,7 @@ dependencies = [
  "solana-pubkey",
  "solana-sdk-ids",
  "solana-zk-sdk",
- "spl-pod",
+ "spl-pod 0.5.1",
  "thiserror 2.0.16",
 ]
 
@@ -7586,7 +7613,7 @@ dependencies = [
  "solana-program-error",
  "solana-pubkey",
  "spl-discriminator",
- "spl-pod",
+ "spl-pod 0.5.1",
  "thiserror 2.0.16",
 ]
 
@@ -7606,7 +7633,7 @@ dependencies = [
  "solana-program-error",
  "solana-pubkey",
  "spl-discriminator",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-type-length-value 0.8.0",
  "thiserror 2.0.16",
 ]
@@ -7629,7 +7656,7 @@ dependencies = [
  "solana-program-error",
  "solana-pubkey",
  "spl-discriminator",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-program-error 0.6.0",
  "spl-tlv-account-resolution 0.9.0",
  "spl-type-length-value 0.7.0",
@@ -7654,7 +7681,7 @@ dependencies = [
  "solana-program-error",
  "solana-pubkey",
  "spl-discriminator",
- "spl-pod",
+ "spl-pod 0.5.1",
  "spl-program-error 0.7.0",
  "spl-tlv-account-resolution 0.10.0",
  "spl-type-length-value 0.8.0",
@@ -7675,7 +7702,7 @@ dependencies = [
  "solana-msg",
  "solana-program-error",
  "spl-discriminator",
- "spl-pod",
+ "spl-pod 0.5.1",
  "thiserror 1.0.69",
 ]
 
@@ -7693,7 +7720,7 @@ dependencies = [
  "solana-msg",
  "solana-program-error",
  "spl-discriminator",
- "spl-pod",
+ "spl-pod 0.5.1",
  "thiserror 2.0.16",
 ]
 

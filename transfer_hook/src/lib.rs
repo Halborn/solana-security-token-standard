@@ -17,6 +17,7 @@ use pinocchio_system::instructions::Transfer;
 use pinocchio_system::instructions::{Allocate, Assign};
 use solana_pubkey::Pubkey as SolanaPubkey;
 use spl_discriminator::SplDiscriminate;
+use spl_pod::slice::PodSlice;
 use spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList};
 use spl_transfer_hook_interface::{
     get_extra_account_metas_address_and_bump_seed, instruction::ExecuteInstruction,
@@ -27,6 +28,8 @@ pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
 const PERMANENT_DELEGATE_SEED: &[u8] = b"mint.permanent_delegate";
 const TRANSFER_HOOK_SEED: &[u8] = b"mint.transfer_hook";
 const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
+const VERIFICATION_CONFIG_SEED: &[u8] = b"verification_config";
+const TRANSFER_DISCRIMINATOR: u8 = 12;
 
 // NOTE: Replace with the finalized program ID generated for the transfer hook deployment.
 declare_id!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
@@ -113,26 +116,6 @@ fn process_initialize_extra_account_meta_list(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    if rest.len() < core::mem::size_of::<u32>() {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    let count = u32::from_le_bytes(
-        rest[..core::mem::size_of::<u32>()]
-            .try_into()
-            .map_err(|_| ProgramError::InvalidInstructionData)?,
-    ) as usize;
-
-    let expected_payload_len = count
-        .checked_mul(core::mem::size_of::<ExtraAccountMeta>())
-        .ok_or(ProgramError::InvalidInstructionData)?
-        .checked_add(core::mem::size_of::<u32>())
-        .ok_or(ProgramError::InvalidInstructionData)?;
-
-    if expected_payload_len != rest.len() {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
     if !authority_info.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
@@ -150,27 +133,10 @@ fn process_initialize_extra_account_meta_list(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    // Parse ExtraAccountMeta list from instruction data
-    let extra_account_metas = {
-        let metas_slice = &rest[core::mem::size_of::<u32>()..];
-        let mut metas = Vec::with_capacity(count);
-        for i in 0..count {
-            let start = i * core::mem::size_of::<ExtraAccountMeta>();
-            let end = start + core::mem::size_of::<ExtraAccountMeta>();
-            if end > metas_slice.len() {
-                return Err(ProgramError::InvalidInstructionData);
-            }
-            let meta_bytes: &[u8; core::mem::size_of::<ExtraAccountMeta>()] = metas_slice
-                [start..end]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-            let meta = bytemuck::pod_read_unaligned::<ExtraAccountMeta>(meta_bytes);
-            metas.push(meta);
-        }
-        metas
-    };
-
-    // Calculate account size using ExtraAccountMetaList
+    let pod_slice = PodSlice::<ExtraAccountMeta>::unpack(rest)
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    let extra_account_metas = pod_slice.data().to_vec();
+    let count = extra_account_metas.len();
     let account_size =
         ExtraAccountMetaList::size_of(count).map_err(|_| ProgramError::InvalidAccountData)?;
 
