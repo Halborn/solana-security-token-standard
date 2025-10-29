@@ -12,6 +12,8 @@ use pinocchio::{
 use pinocchio_log::log;
 use pinocchio_pubkey::{declare_id, pubkey};
 use pinocchio_system::instructions::{Allocate, Assign};
+use spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList};
+use spl_transfer_hook_interface::instruction::ExecuteInstruction;
 
 // NOTE: Spl token array discriminator length
 // https://github.com/solana-program/libraries/blob/main/discriminator/src/discriminator.rs
@@ -32,8 +34,6 @@ pub const TRANSFER_HOOK_INITIALIZE_ACCOUNT_METAS_DISCRIMINATOR: [u8; 8] =
 const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
 const META_COUNT_LEN: usize = core::mem::size_of::<u32>();
 const EXTRA_ACCOUNT_META_LEN: usize = 35;
-const TLV_LENGTH_LEN: usize = core::mem::size_of::<u32>();
-const TLV_HEADER_LEN: usize = ARRAY_DISCRIMINATOR_LENGTH + TLV_LENGTH_LEN;
 
 // NOTE: Replace with the finalized program ID generated for the transfer hook deployment.
 declare_id!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
@@ -141,7 +141,28 @@ fn process_initialize_extra_account_meta_list(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let account_size = 2 * ARRAY_DISCRIMINATOR_LENGTH + TLV_LENGTH_LEN + rest.len();
+    // Parse ExtraAccountMeta list from instruction data
+    let extra_account_metas = {
+        let metas_slice = &rest[META_COUNT_LEN..];
+        let mut metas = Vec::with_capacity(count);
+        for i in 0..count {
+            let start = i * EXTRA_ACCOUNT_META_LEN;
+            let end = start + EXTRA_ACCOUNT_META_LEN;
+            if end > metas_slice.len() {
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            let meta_bytes: &[u8; EXTRA_ACCOUNT_META_LEN] = metas_slice[start..end]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            let meta = bytemuck::pod_read_unaligned::<ExtraAccountMeta>(meta_bytes);
+            metas.push(meta);
+        }
+        metas
+    };
+
+    // Calculate account size using ExtraAccountMetaList
+    let account_size =
+        ExtraAccountMetaList::size_of(count).map_err(|_| ProgramError::InvalidAccountData)?;
 
     if unsafe { *extra_meta_info.owner() } != *program_id {
         if unsafe { *extra_meta_info.owner() } != pinocchio_system::ID {
@@ -182,38 +203,14 @@ fn process_initialize_extra_account_meta_list(
         extra_meta_info.realloc(account_size, false)?;
     }
 
+    // Initialize ExtraAccountMetaList using the canonical method
     {
         let mut data = extra_meta_info.try_borrow_mut_data()?;
-        write_tlv_payload(&mut data, rest)?;
+        ExtraAccountMetaList::init::<ExecuteInstruction>(&mut data, &extra_account_metas)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
     }
 
     log!("Initialized extra account meta list with {} entries", count);
 
-    Ok(())
-}
-
-fn write_tlv_payload(destination: &mut [u8], rest: &[u8]) -> ProgramResult {
-    if destination.len() != 2 * ARRAY_DISCRIMINATOR_LENGTH + TLV_LENGTH_LEN + rest.len() {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    // Write array discriminator at the start
-    destination[..ARRAY_DISCRIMINATOR_LENGTH].copy_from_slice(&TRANSFER_HOOK_EXECUTE_DISCRIMINATOR);
-
-    // Write TLV type (using TRANSFER_HOOK_EXECUTE_DISCRIMINATOR)
-    let tlv_type_start = ARRAY_DISCRIMINATOR_LENGTH;
-    destination[tlv_type_start..tlv_type_start + ARRAY_DISCRIMINATOR_LENGTH]
-        .copy_from_slice(&TRANSFER_HOOK_EXECUTE_DISCRIMINATOR);
-
-    // Write TLV length
-    let length_start = tlv_type_start + ARRAY_DISCRIMINATOR_LENGTH;
-    let value_length =
-        u32::try_from(rest.len()).map_err(|_| ProgramError::InvalidInstructionData)?;
-    destination[length_start..length_start + TLV_LENGTH_LEN]
-        .copy_from_slice(&value_length.to_le_bytes());
-
-    // Write TLV value
-    let value_start = length_start + TLV_LENGTH_LEN;
-    destination[value_start..value_start + rest.len()].copy_from_slice(rest);
     Ok(())
 }

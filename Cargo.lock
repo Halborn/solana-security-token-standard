@@ -3760,11 +3760,14 @@ dependencies = [
 name = "security-token-transfer-hook"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "pinocchio",
  "pinocchio-log",
  "pinocchio-pubkey",
  "pinocchio-system",
  "pinocchio-token-2022",
+ "spl-tlv-account-resolution 0.9.0",
+ "spl-transfer-hook-interface 0.9.0",
 ]
 
 [[package]]

@@ -688,7 +688,6 @@ async fn test_p2p_transfer_direct_spl() {
         &context.payer.pubkey(),
         &extra_account_metas,
     );
-    println!("init extra metas data={:02X?}", init_extra_metas_ix.data);
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let init_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
@@ -713,14 +712,12 @@ async fn test_p2p_transfer_direct_spl() {
         ExecuteInstruction::SPL_DISCRIMINATOR_SLICE,
         "execute discriminator must be stored",
     );
-    let tlv_data = &account_meta_data[ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len()..];
-    println!("tlv_data bytes={:02X?}", tlv_data);
-    let tlv_state = TlvStateBorrowed::unpack(tlv_data).expect("tlv header should deserialize");
+    let tlv_state =
+        TlvStateBorrowed::unpack(&account_meta_data).expect("tlv header should deserialize");
     let mut expected_tlv =
         vec![0u8; ExtraAccountMetaList::size_of(extra_account_metas.len()).unwrap()];
     ExtraAccountMetaList::init::<ExecuteInstruction>(&mut expected_tlv, &extra_account_metas)
         .expect("expected tlv init");
-    println!("expected tlv data={:02X?}", expected_tlv);
     let meta_list = ExtraAccountMetaList::unpack_with_tlv_state::<ExecuteInstruction>(&tlv_state)
         .expect("extra meta list should deserialize");
     let meta_slice = meta_list.data();
@@ -751,20 +748,8 @@ async fn test_p2p_transfer_direct_spl() {
     )
     .expect("SPL transfer ix");
 
-    // spl_transfer_ix
-    //     .accounts
-    //     .push(solana_sdk::instruction::AccountMeta::new_readonly(
-    //         account_metas_pda,
-    //         false,
-    //     ));
-    // spl_transfer_ix
-    //     .accounts
-    //     .push(solana_sdk::instruction::AccountMeta::new_readonly(
-    //         verification_config_pda,
-    //         false,
-    //     ));
-
     let banks_client = context.banks_client.clone();
+
     add_extra_account_metas_for_execute(
         &mut spl_transfer_ix,
         &transfer_hook_program_id,
@@ -779,21 +764,19 @@ async fn test_p2p_transfer_direct_spl() {
                 banks_client
                     .get_account(address)
                     .await
-                    .map(|opt| opt.map(|acc| acc.data.get(8..).unwrap_or(&[]).to_vec()))
+                    .map(|opt| {
+                        if let Some(acc) = opt {
+                            Some(acc.data)
+                        } else {
+                            Some(vec![])
+                        }
+                    })
                     .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
             }
         },
     )
     .await
     .expect("add extra metas");
-
-    println!("Final transfer instruction accounts:");
-    for (i, acc) in spl_transfer_ix.accounts.iter().enumerate() {
-        println!(
-            "  {}: {} (signer={}, writable={})",
-            i, acc.pubkey, acc.is_signer, acc.is_writable
-        );
-    }
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
