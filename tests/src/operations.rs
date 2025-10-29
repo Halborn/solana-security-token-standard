@@ -7,6 +7,8 @@ use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
 use security_token_client::types::{
     InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs,
 };
+use solana_program::entrypoint::ProgramResult;
+use solana_sdk::account_info::AccountInfo;
 use spl_tlv_account_resolution::account::ExtraAccountMeta;
 use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 use spl_transfer_hook_interface::instruction::{
@@ -23,7 +25,7 @@ use security_token_transfer_hook;
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
 use solana_sdk::signature::Signer;
-use solana_sdk::system_instruction;
+use solana_sdk::{msg, system_instruction};
 use solana_sdk::{signature::Keypair, sysvar};
 use spl_discriminator::{ArrayDiscriminator, SplDiscriminate};
 use spl_pod::primitives::PodBool;
@@ -560,14 +562,34 @@ async fn test_t22_transfer_operations() {
     assert_eq!(destination_account_state.base.amount, 100_000);
 }
 
+fn dummy_program_1_processor(
+    _program_id: &Pubkey,
+    _accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    // The first byte determines instruction id
+    msg!(
+        "Dummy program 1 called with {} bytes - always succeeds",
+        instruction_data.len()
+    );
+    Ok(())
+}
+
 #[tokio::test]
 async fn test_p2p_transfer_direct_spl() {
+    let dummy_program_1_id = Pubkey::new_unique();
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(true);
+
     pt.add_program(
         "security_token_transfer_hook",
         Pubkey::from(security_token_transfer_hook::id()),
         None,
+    );
+    pt.prefer_bpf(false);
+    pt.add_program(
+        "dummy_program",
+        dummy_program_1_id,
+        processor!(dummy_program_1_processor),
     );
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
 
@@ -619,7 +641,7 @@ async fn test_p2p_transfer_direct_spl() {
 
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
-        program_addresses: vec![],
+        program_addresses: vec![dummy_program_1_id],
     };
 
     initialize_verification_config(

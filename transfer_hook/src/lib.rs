@@ -18,6 +18,7 @@ use pinocchio_system::instructions::{Allocate, Assign};
 use solana_pubkey::Pubkey as SolanaPubkey;
 use spl_discriminator::SplDiscriminate;
 use spl_pod::slice::PodSlice;
+use spl_pod::solana_program::config;
 use spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList};
 use spl_transfer_hook_interface::{
     get_extra_account_metas_address_and_bump_seed, instruction::ExecuteInstruction,
@@ -80,24 +81,70 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
         .map(u64::from_le_bytes)
         .ok_or(ProgramError::InvalidInstructionData)?;
 
-    let (transfer_hook_pda, _bump) = find_program_address(
-        &[TRANSFER_HOOK_SEED, mint.key().as_ref()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
-
-    if authority.key() == &transfer_hook_pda {
-        log!("P2P Transfer via Transfer Hook PDA for amount {}", amount);
-        return Err(ProgramError::UnsupportedSysvar);
-    }
-
     let (permanent_delegate_pda, _bump) = find_program_address(
         &[PERMANENT_DELEGATE_SEED, mint.key().as_ref()],
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    if authority.key() != &permanent_delegate_pda {
-        return Err(ProgramError::IllegalOwner);
+    // NOTE: No extra account and different authority mean a native spl call
+    if authority.key() == &permanent_delegate_pda && extra_accounts.len() == 0 {
+        return Ok(());
     }
+
+    // TODO: Split this into a separate function/module
+    let [_transfer_hook, verification_config] = extra_accounts else {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
+
+    let (verification_config_pda, _bump) = find_program_address(
+        &[
+            VERIFICATION_CONFIG_SEED,
+            mint.key().as_ref(),
+            &[TRANSFER_DISCRIMINATOR],
+        ],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+
+    if verification_config.key() != &verification_config_pda {
+        log!("Invalid verification config PDA");
+        return Err(ProgramError::InvalidSeeds);
+    }
+    // Reuse shared crate?
+    let config_data = verification_config.try_borrow_data()?;
+    let config_discriminator = config_data.get(0).ok_or(ProgramError::InvalidAccountData)?;
+    if (*config_discriminator) != 1 {
+        log!("Invalid verification config discriminator");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    let operation_discriminator = config_data.get(1).ok_or(ProgramError::InvalidAccountData)?;
+    if (*operation_discriminator) != TRANSFER_DISCRIMINATOR {
+        log!("Invalid transfer operation discriminator");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Parse verification programs (Vec<Pubkey>) from offset 2 to end of account
+    let verification_programs_data = &config_data[2..];
+    let verification_programs_count = verification_programs_data.len() / 32;
+    if verification_programs_count == 0 {
+        log!("No verification programs configured");
+        return Ok(());
+    }
+    let mut verification_programs = Vec::with_capacity(verification_programs_count);
+    for i in 0..verification_programs_count {
+        let start = i * 32;
+        let end = start + 32;
+        let pubkey_bytes: [u8; 32] = verification_programs_data[start..end]
+            .try_into()
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        verification_programs.push(pubkey_bytes);
+    }
+    log!(
+        "Loaded {} verification programs from config",
+        verification_programs.len()
+    );
+    // TODO: Validate that required verification programs were called in this transaction
+    // using Instructions sysvar
 
     log!("Transfer execute validated for amount {}", amount);
     Ok(())
