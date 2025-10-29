@@ -12,28 +12,17 @@ use pinocchio::{
 use pinocchio_log::log;
 use pinocchio_pubkey::{declare_id, pubkey};
 use pinocchio_system::instructions::{Allocate, Assign};
+use solana_pubkey::Pubkey as SolanaPubkey;
+use spl_discriminator::SplDiscriminate;
 use spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList};
-use spl_transfer_hook_interface::instruction::ExecuteInstruction;
+use spl_transfer_hook_interface::{
+    get_extra_account_metas_address_and_bump_seed, instruction::ExecuteInstruction,
+};
 
-// NOTE: Spl token array discriminator length
-// https://github.com/solana-program/libraries/blob/main/discriminator/src/discriminator.rs
-pub const ARRAY_DISCRIMINATOR_LENGTH: usize = 8;
 pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
     pubkey!("Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH");
 pub static PERMANENT_DELEGATE_SEED: &[u8] = b"mint.permanent_delegate";
-
-// From solana-program implementation
-// #[derive(SplDiscriminate)]
-// #[discriminator_hash_input("spl-transfer-hook-interface:execute")
-pub const TRANSFER_HOOK_EXECUTE_DISCRIMINATOR: [u8; 8] = [105, 37, 101, 197, 75, 251, 102, 26];
-// #[derive(SplDiscriminate)]
-// #[discriminator_hash_input("spl-transfer-hook-interface:initialize-extra-account-metas")]
-pub const TRANSFER_HOOK_INITIALIZE_ACCOUNT_METAS_DISCRIMINATOR: [u8; 8] =
-    [43, 34, 13, 49, 167, 88, 235, 235];
-
 const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
-const META_COUNT_LEN: usize = core::mem::size_of::<u32>();
-const EXTRA_ACCOUNT_META_LEN: usize = 35;
 
 // NOTE: Replace with the finalized program ID generated for the transfer hook deployment.
 declare_id!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
@@ -45,17 +34,22 @@ fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    if instruction_data.len() < ARRAY_DISCRIMINATOR_LENGTH {
+    use spl_transfer_hook_interface::instruction::{
+        ExecuteInstruction, InitializeExtraAccountMetaListInstruction,
+    };
+
+    if instruction_data.len() < ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len() {
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    let (discriminator, rest) = instruction_data.split_at(ARRAY_DISCRIMINATOR_LENGTH);
+    let (discriminator, rest) =
+        instruction_data.split_at(ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len());
 
-    if discriminator == TRANSFER_HOOK_EXECUTE_DISCRIMINATOR {
+    if discriminator == ExecuteInstruction::SPL_DISCRIMINATOR_SLICE {
         return process_execute(program_id, accounts, rest);
     }
 
-    if discriminator == TRANSFER_HOOK_INITIALIZE_ACCOUNT_METAS_DISCRIMINATOR {
+    if discriminator == InitializeExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE {
         return process_initialize_extra_account_meta_list(program_id, accounts, rest);
     }
 
@@ -66,7 +60,6 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
     let [_from, mint, _to, authority, extra_accounts @ ..] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-    log!("XXXXXXX!!!!");
     log!(
         "Transfer execute called with {} extra accounts",
         extra_accounts.len()
@@ -104,20 +97,20 @@ fn process_initialize_extra_account_meta_list(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    if rest.len() < META_COUNT_LEN {
+    if rest.len() < core::mem::size_of::<u32>() {
         return Err(ProgramError::InvalidInstructionData);
     }
 
     let count = u32::from_le_bytes(
-        rest[..META_COUNT_LEN]
+        rest[..core::mem::size_of::<u32>()]
             .try_into()
             .map_err(|_| ProgramError::InvalidInstructionData)?,
     ) as usize;
 
     let expected_payload_len = count
-        .checked_mul(EXTRA_ACCOUNT_META_LEN)
+        .checked_mul(core::mem::size_of::<ExtraAccountMeta>())
         .ok_or(ProgramError::InvalidInstructionData)?
-        .checked_add(META_COUNT_LEN)
+        .checked_add(core::mem::size_of::<u32>())
         .ok_or(ProgramError::InvalidInstructionData)?;
 
     if expected_payload_len != rest.len() {
@@ -132,26 +125,27 @@ fn process_initialize_extra_account_meta_list(
         return Err(ProgramError::IllegalOwner);
     }
 
-    let (expected_pda, bump) = find_program_address(
-        &[EXTRA_ACCOUNT_METAS_SEED, mint_info.key().as_ref()],
-        program_id,
+    let (expected_pda, bump) = get_extra_account_metas_address_and_bump_seed(
+        &SolanaPubkey::new_from_array(*mint_info.key()),
+        &SolanaPubkey::new_from_array(*program_id),
     );
 
-    if extra_meta_info.key() != &expected_pda {
+    if extra_meta_info.key() != &expected_pda.to_bytes() {
         return Err(ProgramError::InvalidSeeds);
     }
 
     // Parse ExtraAccountMeta list from instruction data
     let extra_account_metas = {
-        let metas_slice = &rest[META_COUNT_LEN..];
+        let metas_slice = &rest[core::mem::size_of::<u32>()..];
         let mut metas = Vec::with_capacity(count);
         for i in 0..count {
-            let start = i * EXTRA_ACCOUNT_META_LEN;
-            let end = start + EXTRA_ACCOUNT_META_LEN;
+            let start = i * core::mem::size_of::<ExtraAccountMeta>();
+            let end = start + core::mem::size_of::<ExtraAccountMeta>();
             if end > metas_slice.len() {
                 return Err(ProgramError::InvalidInstructionData);
             }
-            let meta_bytes: &[u8; EXTRA_ACCOUNT_META_LEN] = metas_slice[start..end]
+            let meta_bytes: &[u8; core::mem::size_of::<ExtraAccountMeta>()] = metas_slice
+                [start..end]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             let meta = bytemuck::pod_read_unaligned::<ExtraAccountMeta>(meta_bytes);
@@ -202,15 +196,11 @@ fn process_initialize_extra_account_meta_list(
     } else if extra_meta_info.data_len() != account_size {
         extra_meta_info.realloc(account_size, false)?;
     }
-
-    // Initialize ExtraAccountMetaList using the canonical method
     {
         let mut data = extra_meta_info.try_borrow_mut_data()?;
         ExtraAccountMetaList::init::<ExecuteInstruction>(&mut data, &extra_account_metas)
             .map_err(|_| ProgramError::InvalidAccountData)?;
     }
-
     log!("Initialized extra account meta list with {} entries", count);
-
     Ok(())
 }
