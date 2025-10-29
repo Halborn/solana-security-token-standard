@@ -141,7 +141,7 @@ fn process_initialize_extra_account_meta_list(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let account_size = ARRAY_DISCRIMINATOR_LENGTH + TLV_HEADER_LEN + rest.len();
+    let account_size = 2 * ARRAY_DISCRIMINATOR_LENGTH + TLV_LENGTH_LEN + rest.len();
 
     if unsafe { *extra_meta_info.owner() } != *program_id {
         if unsafe { *extra_meta_info.owner() } != pinocchio_system::ID {
@@ -193,22 +193,26 @@ fn process_initialize_extra_account_meta_list(
 }
 
 fn write_tlv_payload(destination: &mut [u8], rest: &[u8]) -> ProgramResult {
-    if destination.len() != ARRAY_DISCRIMINATOR_LENGTH + TLV_HEADER_LEN + rest.len() {
+    if destination.len() != 2 * ARRAY_DISCRIMINATOR_LENGTH + TLV_LENGTH_LEN + rest.len() {
         return Err(ProgramError::InvalidAccountData);
     }
 
+    // Write array discriminator at the start
     destination[..ARRAY_DISCRIMINATOR_LENGTH].copy_from_slice(&TRANSFER_HOOK_EXECUTE_DISCRIMINATOR);
 
+    // Write TLV type (using TRANSFER_HOOK_EXECUTE_DISCRIMINATOR)
     let tlv_type_start = ARRAY_DISCRIMINATOR_LENGTH;
     destination[tlv_type_start..tlv_type_start + ARRAY_DISCRIMINATOR_LENGTH]
         .copy_from_slice(&TRANSFER_HOOK_EXECUTE_DISCRIMINATOR);
 
+    // Write TLV length
     let length_start = tlv_type_start + ARRAY_DISCRIMINATOR_LENGTH;
     let value_length =
         u32::try_from(rest.len()).map_err(|_| ProgramError::InvalidInstructionData)?;
     destination[length_start..length_start + TLV_LENGTH_LEN]
         .copy_from_slice(&value_length.to_le_bytes());
 
+    // Write TLV value
     let value_start = length_start + TLV_LENGTH_LEN;
     destination[value_start..value_start + rest.len()].copy_from_slice(rest);
     Ok(())

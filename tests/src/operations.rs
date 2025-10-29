@@ -763,12 +763,6 @@ async fn test_p2p_transfer_direct_spl() {
     //         verification_config_pda,
     //         false,
     //     ));
-    spl_transfer_ix
-        .accounts
-        .push(solana_sdk::instruction::AccountMeta::new_readonly(
-            transfer_hook_program_id,
-            false,
-        ));
 
     let banks_client = context.banks_client.clone();
     add_extra_account_metas_for_execute(
@@ -785,13 +779,21 @@ async fn test_p2p_transfer_direct_spl() {
                 banks_client
                     .get_account(address)
                     .await
-                    .map(|opt| opt.map(|acc| acc.data))
+                    .map(|opt| opt.map(|acc| acc.data.get(8..).unwrap_or(&[]).to_vec()))
                     .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
             }
         },
     )
     .await
     .expect("add extra metas");
+
+    println!("Final transfer instruction accounts:");
+    for (i, acc) in spl_transfer_ix.accounts.iter().enumerate() {
+        println!(
+            "  {}: {} (signer={}, writable={})",
+            i, acc.pubkey, acc.is_signer, acc.is_writable
+        );
+    }
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
