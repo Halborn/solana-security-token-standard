@@ -642,32 +642,6 @@ async fn test_p2p_transfer_direct_spl() {
         is_signer: PodBool(0),
         address_config: verification_config_pda.to_bytes(),
     }];
-
-    let rent = context.banks_client.get_rent().await.unwrap();
-    let extra_metas_space = ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len()
-        + ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len()
-        + size_of::<u32>() * 2
-        + extra_account_metas.len() * size_of::<ExtraAccountMeta>();
-    let required_lamports = rent.minimum_balance(extra_metas_space);
-
-    if required_lamports > 0 {
-        let fund_ix = system_instruction::transfer(
-            &context.payer.pubkey(),
-            &account_metas_pda,
-            required_lamports,
-        );
-
-        let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-        let fund_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
-            &[fund_ix],
-            Some(&context.payer.pubkey()),
-            &[&context.payer],
-            recent_blockhash,
-        );
-        let result = context.banks_client.process_transaction(fund_tx).await;
-        assert_transaction_success(result);
-    }
-
     let source_account = create_spl_account(&mut context, &mint_keypair, &source_owner).await;
     let destination_account =
         create_spl_account(&mut context, &mint_keypair, &destination_owner).await;

@@ -1,6 +1,8 @@
 //! Security Token transfer hook implementation
 #![allow(unexpected_cfgs)]
 
+use pinocchio::sysvars::rent::Rent;
+use pinocchio::sysvars::Sysvar;
 use pinocchio::{
     account_info::AccountInfo,
     entrypoint,
@@ -11,6 +13,7 @@ use pinocchio::{
 };
 use pinocchio_log::log;
 use pinocchio_pubkey::{declare_id, pubkey};
+use pinocchio_system::instructions::Transfer;
 use pinocchio_system::instructions::{Allocate, Assign};
 use solana_pubkey::Pubkey as SolanaPubkey;
 use spl_discriminator::SplDiscriminate;
@@ -21,7 +24,8 @@ use spl_transfer_hook_interface::{
 
 pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
     pubkey!("Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH");
-pub static PERMANENT_DELEGATE_SEED: &[u8] = b"mint.permanent_delegate";
+const PERMANENT_DELEGATE_SEED: &[u8] = b"mint.permanent_delegate";
+const TRANSFER_HOOK_SEED: &[u8] = b"mint.transfer_hook";
 const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
 
 // NOTE: Replace with the finalized program ID generated for the transfer hook deployment.
@@ -60,6 +64,8 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
     let [_from, mint, _to, authority, extra_accounts @ ..] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
+
+    // NOTE: Check the stack height?
     log!(
         "Transfer execute called with {} extra accounts",
         extra_accounts.len()
@@ -71,12 +77,22 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
         .map(u64::from_le_bytes)
         .ok_or(ProgramError::InvalidInstructionData)?;
 
-    let (expected_pda, _bump) = find_program_address(
-        &[b"mint.permanent_delegate", mint.key().as_ref()],
+    let (transfer_hook_pda, _bump) = find_program_address(
+        &[TRANSFER_HOOK_SEED, mint.key().as_ref()],
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    if authority.key() != &expected_pda {
+    if authority.key() == &transfer_hook_pda {
+        log!("P2P Transfer via Transfer Hook PDA for amount {}", amount);
+        return Err(ProgramError::UnsupportedSysvar);
+    }
+
+    let (permanent_delegate_pda, _bump) = find_program_address(
+        &[PERMANENT_DELEGATE_SEED, mint.key().as_ref()],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+
+    if authority.key() != &permanent_delegate_pda {
         return Err(ProgramError::IllegalOwner);
     }
 
@@ -162,6 +178,15 @@ fn process_initialize_extra_account_meta_list(
         if unsafe { *extra_meta_info.owner() } != pinocchio_system::ID {
             return Err(ProgramError::IllegalOwner);
         }
+
+        let rent = Rent::get()?;
+        let required_lamports = rent.minimum_balance(account_size);
+        let transfer = Transfer {
+            from: authority_info,
+            to: extra_meta_info,
+            lamports: required_lamports,
+        };
+        transfer.invoke()?;
 
         let bump_seed = [bump];
         let seeds = [
