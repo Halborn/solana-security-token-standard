@@ -91,11 +91,6 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
         return Ok(());
     }
 
-    // TODO: Split this into a separate function/module
-    let [_transfer_hook, verification_config] = extra_accounts else {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    };
-
     let (verification_config_pda, _bump) = find_program_address(
         &[
             VERIFICATION_CONFIG_SEED,
@@ -105,10 +100,14 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    if verification_config.key() != &verification_config_pda {
-        log!("Invalid verification config PDA");
-        return Err(ProgramError::InvalidSeeds);
-    }
+    let verification_config = extra_accounts
+        .iter()
+        .find(|acc| acc.key() == &verification_config_pda)
+        .ok_or_else(|| {
+            log!("Verification config PDA not found in extra accounts");
+            ProgramError::InvalidSeeds
+        })?;
+
     // Reuse shared crate?
     let config_data = verification_config.try_borrow_data()?;
     let config_discriminator = config_data.get(0).ok_or(ProgramError::InvalidAccountData)?;
@@ -122,8 +121,6 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
         log!("Invalid transfer operation discriminator");
         return Err(ProgramError::InvalidAccountData);
     }
-
-    // Parse verification programs (Vec<Pubkey>) from offset 2 to end of account
     let verification_programs_data = &config_data[2..];
     let verification_programs_count = verification_programs_data.len() / 32;
     if verification_programs_count == 0 {
@@ -143,9 +140,49 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
         "Loaded {} verification programs from config",
         verification_programs.len()
     );
-    // TODO: Validate that required verification programs were called in this transaction
-    // using Instructions sysvar
 
+    let mut instruction_data = Vec::with_capacity(9);
+    instruction_data.push(TRANSFER_DISCRIMINATOR);
+    instruction_data.extend_from_slice(&amount.to_le_bytes());
+
+    let verification_account_metas = [
+        pinocchio::instruction::AccountMeta {
+            pubkey: accounts[0].key(),
+            is_signer: accounts[0].is_signer(),
+            is_writable: accounts[0].is_writable(),
+        },
+        pinocchio::instruction::AccountMeta {
+            pubkey: accounts[1].key(),
+            is_signer: accounts[1].is_signer(),
+            is_writable: accounts[1].is_writable(),
+        },
+        pinocchio::instruction::AccountMeta {
+            pubkey: accounts[2].key(),
+            is_signer: accounts[2].is_signer(),
+            is_writable: accounts[2].is_writable(),
+        },
+        pinocchio::instruction::AccountMeta {
+            pubkey: accounts[3].key(),
+            is_signer: accounts[3].is_signer(),
+            is_writable: accounts[3].is_writable(),
+        },
+    ];
+
+    for (i, program_id) in verification_programs.iter().enumerate() {
+        let verification_instruction = pinocchio::instruction::Instruction {
+            program_id,
+            accounts: &verification_account_metas,
+            data: &instruction_data,
+        };
+
+        let account_refs = [&accounts[0], &accounts[1], &accounts[2], &accounts[3]];
+        pinocchio::program::invoke(&verification_instruction, &account_refs)?;
+        log!("Verification program {} succeeded", i);
+    }
+    log!(
+        "All {} verification programs validated successfully",
+        verification_programs_count
+    );
     log!("Transfer execute validated for amount {}", amount);
     Ok(())
 }
