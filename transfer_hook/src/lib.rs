@@ -1,7 +1,6 @@
 //! Security Token transfer hook implementation
 #![allow(unexpected_cfgs)]
 
-use core::mem::size_of;
 use pinocchio::{
     account_info::AccountInfo,
     entrypoint,
@@ -30,9 +29,11 @@ pub const TRANSFER_HOOK_EXECUTE_DISCRIMINATOR: [u8; 8] = [105, 37, 101, 197, 75,
 pub const TRANSFER_HOOK_INITIALIZE_ACCOUNT_METAS_DISCRIMINATOR: [u8; 8] =
     [43, 34, 13, 49, 167, 88, 235, 235];
 
-const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra_account_metas";
+const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
 const META_COUNT_LEN: usize = core::mem::size_of::<u32>();
 const EXTRA_ACCOUNT_META_LEN: usize = 35;
+const TLV_LENGTH_LEN: usize = core::mem::size_of::<u32>();
+const TLV_HEADER_LEN: usize = ARRAY_DISCRIMINATOR_LENGTH + TLV_LENGTH_LEN;
 
 // NOTE: Replace with the finalized program ID generated for the transfer hook deployment.
 declare_id!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
@@ -62,9 +63,14 @@ fn process_instruction(
 }
 
 fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) -> ProgramResult {
-    let [_from, mint, _to, authority, ..] = accounts else {
+    let [_from, mint, _to, authority, extra_accounts @ ..] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
+    log!("XXXXXXX!!!!");
+    log!(
+        "Transfer execute called with {} extra accounts",
+        extra_accounts.len()
+    );
 
     let amount = rest
         .get(..8)
@@ -135,7 +141,7 @@ fn process_initialize_extra_account_meta_list(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let account_size = ARRAY_DISCRIMINATOR_LENGTH + rest.len();
+    let account_size = ARRAY_DISCRIMINATOR_LENGTH + TLV_HEADER_LEN + rest.len();
 
     if unsafe { *extra_meta_info.owner() } != *program_id {
         if unsafe { *extra_meta_info.owner() } != pinocchio_system::ID {
@@ -187,12 +193,23 @@ fn process_initialize_extra_account_meta_list(
 }
 
 fn write_tlv_payload(destination: &mut [u8], rest: &[u8]) -> ProgramResult {
-    if destination.len() != ARRAY_DISCRIMINATOR_LENGTH + rest.len() {
+    if destination.len() != ARRAY_DISCRIMINATOR_LENGTH + TLV_HEADER_LEN + rest.len() {
         return Err(ProgramError::InvalidAccountData);
     }
 
     destination[..ARRAY_DISCRIMINATOR_LENGTH].copy_from_slice(&TRANSFER_HOOK_EXECUTE_DISCRIMINATOR);
-    destination[ARRAY_DISCRIMINATOR_LENGTH..ARRAY_DISCRIMINATOR_LENGTH + rest.len()]
-        .copy_from_slice(rest);
+
+    let tlv_type_start = ARRAY_DISCRIMINATOR_LENGTH;
+    destination[tlv_type_start..tlv_type_start + ARRAY_DISCRIMINATOR_LENGTH]
+        .copy_from_slice(&TRANSFER_HOOK_EXECUTE_DISCRIMINATOR);
+
+    let length_start = tlv_type_start + ARRAY_DISCRIMINATOR_LENGTH;
+    let value_length =
+        u32::try_from(rest.len()).map_err(|_| ProgramError::InvalidInstructionData)?;
+    destination[length_start..length_start + TLV_LENGTH_LEN]
+        .copy_from_slice(&value_length.to_le_bytes());
+
+    let value_start = length_start + TLV_LENGTH_LEN;
+    destination[value_start..value_start + rest.len()].copy_from_slice(rest);
     Ok(())
 }

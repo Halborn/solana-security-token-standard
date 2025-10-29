@@ -3746,11 +3746,13 @@ dependencies = [
  "solana-sdk",
  "solana-system-interface",
  "spl-associated-token-account",
+ "spl-discriminator",
  "spl-pod",
  "spl-tlv-account-resolution 0.9.0",
  "spl-token-2022 9.0.0",
  "spl-token-metadata-interface",
  "spl-transfer-hook-interface 0.9.0",
+ "spl-type-length-value 0.7.0",
  "tokio",
 ]
 

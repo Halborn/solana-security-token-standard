@@ -8,7 +8,12 @@ use security_token_client::types::{
     InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs,
 };
 use spl_tlv_account_resolution::account::ExtraAccountMeta;
-use spl_transfer_hook_interface::instruction::initialize_extra_account_meta_list;
+use spl_tlv_account_resolution::state::ExtraAccountMetaList;
+use spl_transfer_hook_interface::instruction::{
+    initialize_extra_account_meta_list, ExecuteInstruction,
+};
+use spl_transfer_hook_interface::offchain::add_extra_account_metas_for_execute;
+use spl_type_length_value::state::TlvStateBorrowed;
 
 use crate::helpers::{
     assert_transaction_success, create_spl_account, initialize_mint,
@@ -18,14 +23,17 @@ use security_token_transfer_hook;
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
 use solana_sdk::signature::Signer;
+use solana_sdk::system_instruction;
 use solana_sdk::{signature::Keypair, sysvar};
+use spl_discriminator::{ArrayDiscriminator, SplDiscriminate};
 use spl_pod::primitives::PodBool;
 use spl_token_2022::extension::pausable::PausableConfig;
 use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
 use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
-use spl_transfer_hook_interface::{self, get_extra_account_metas_address};
+use spl_transfer_hook_interface::get_extra_account_metas_address;
+use std::mem::size_of;
 
 async fn get_mint_state(
     banks_client: &mut solana_program_test::BanksClient,
@@ -623,25 +631,64 @@ async fn test_p2p_transfer_direct_spl() {
     )
     .await;
 
-    let (account_metas_pda, _bump) = Pubkey::find_program_address(
-        &[b"extra_account_metas", &mint_keypair.pubkey().to_bytes()],
+    let account_metas_pda = get_extra_account_metas_address(
+        &mint_keypair.pubkey(),
         &Pubkey::from(security_token_transfer_hook::id()),
     );
+
+    let extra_account_metas = [ExtraAccountMeta {
+        discriminator: 0,
+        is_writable: PodBool(0),
+        is_signer: PodBool(0),
+        address_config: verification_config_pda.to_bytes(),
+    }];
+
+    let rent = context.banks_client.get_rent().await.unwrap();
+    let extra_metas_space = ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len()
+        + ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len()
+        + size_of::<u32>() * 2
+        + extra_account_metas.len() * size_of::<ExtraAccountMeta>();
+    let required_lamports = rent.minimum_balance(extra_metas_space);
+
+    if required_lamports > 0 {
+        let fund_ix = system_instruction::transfer(
+            &context.payer.pubkey(),
+            &account_metas_pda,
+            required_lamports,
+        );
+
+        let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+        let fund_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
+            &[fund_ix],
+            Some(&context.payer.pubkey()),
+            &[&context.payer],
+            recent_blockhash,
+        );
+        let result = context.banks_client.process_transaction(fund_tx).await;
+        assert_transaction_success(result);
+    }
+
+    let source_account = create_spl_account(&mut context, &mint_keypair, &source_owner).await;
+    let destination_account =
+        create_spl_account(&mut context, &mint_keypair, &destination_owner).await;
+
+    mint_to_account(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        source_account,
+        250_000,
+    )
+    .await;
 
     let init_extra_metas_ix = initialize_extra_account_meta_list(
         &Pubkey::from(security_token_transfer_hook::id()),
         &account_metas_pda,
         &mint_keypair.pubkey(),
         &context.payer.pubkey(),
-        // Discriminator to tell whether this represents a standard
-        // `AccountMeta`, PDA, or pubkey data.
-        &[ExtraAccountMeta {
-            discriminator: 0,
-            is_writable: PodBool(0),
-            is_signer: PodBool(0),
-            address_config: verification_config_pda.to_bytes(),
-        }],
+        &extra_account_metas,
     );
+    println!("init extra metas data={:02X?}", init_extra_metas_ix.data);
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let init_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
@@ -653,58 +700,114 @@ async fn test_p2p_transfer_direct_spl() {
     let result = context.banks_client.process_transaction(init_tx).await;
     assert_transaction_success(result);
 
-    // let source_account = create_spl_account(&mut context, &mint_keypair, &source_owner).await;
-    // let destination_account =
-    //     create_spl_account(&mut context, &mint_keypair, &destination_owner).await;
+    let account_metas_account = context
+        .banks_client
+        .get_account(account_metas_pda)
+        .await
+        .expect("extra meta account fetch")
+        .expect("extra meta account must exist");
 
-    // mint_to_account(
-    //     &mint_keypair,
-    //     &mut context,
-    //     mint_authority_pda,
-    //     source_account,
-    //     250_000,
-    // )
-    // .await;
+    let account_meta_data = account_metas_account.data;
+    assert_eq!(
+        &account_meta_data[..ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len()],
+        ExecuteInstruction::SPL_DISCRIMINATOR_SLICE,
+        "execute discriminator must be stored",
+    );
+    let tlv_data = &account_meta_data[ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len()..];
+    println!("tlv_data bytes={:02X?}", tlv_data);
+    let tlv_state = TlvStateBorrowed::unpack(tlv_data).expect("tlv header should deserialize");
+    let mut expected_tlv =
+        vec![0u8; ExtraAccountMetaList::size_of(extra_account_metas.len()).unwrap()];
+    ExtraAccountMetaList::init::<ExecuteInstruction>(&mut expected_tlv, &extra_account_metas)
+        .expect("expected tlv init");
+    println!("expected tlv data={:02X?}", expected_tlv);
+    let meta_list = ExtraAccountMetaList::unpack_with_tlv_state::<ExecuteInstruction>(&tlv_state)
+        .expect("extra meta list should deserialize");
+    let meta_slice = meta_list.data();
+    assert_eq!(meta_slice.len(), 1, "expected a single extra account meta");
+    let stored_meta = meta_slice
+        .get(0)
+        .expect("meta list should contain the verification config entry");
+    assert_eq!(
+        stored_meta.discriminator, 0,
+        "stored meta should be a raw pubkey"
+    );
+    assert_eq!(
+        stored_meta.address_config,
+        verification_config_pda.to_bytes()
+    );
 
-    // let transfer_hook_program_id = Pubkey::from(security_token_transfer_hook::id());
+    let transfer_hook_program_id = Pubkey::from(security_token_transfer_hook::id());
 
-    // let mut spl_transfer_ix = spl_token_2022::instruction::transfer_checked(
-    //     &TOKEN_22_PROGRAM_ID,
-    //     &source_account,
-    //     &mint_keypair.pubkey(),
-    //     &destination_account,
-    //     &source_owner.pubkey(),
-    //     &[],
-    //     125_000,
-    //     6,
-    // )
-    // .expect("SPL transfer ix");
+    let mut spl_transfer_ix = spl_token_2022::instruction::transfer_checked(
+        &TOKEN_22_PROGRAM_ID,
+        &source_account,
+        &mint_keypair.pubkey(),
+        &destination_account,
+        &source_owner.pubkey(),
+        &[],
+        125_000,
+        6,
+    )
+    .expect("SPL transfer ix");
 
     // spl_transfer_ix
     //     .accounts
-    //     .push(AccountMeta::new_readonly(transfer_hook_program_id, false));
+    //     .push(solana_sdk::instruction::AccountMeta::new_readonly(
+    //         account_metas_pda,
+    //         false,
+    //     ));
     // spl_transfer_ix
     //     .accounts
-    //     .push(AccountMeta::new_readonly(verification_config_pda, false));
-    // spl_transfer_ix
-    //     .accounts
-    //     .push(AccountMeta::new_readonly(sysvar::instructions::ID, false));
+    //     .push(solana_sdk::instruction::AccountMeta::new_readonly(
+    //         verification_config_pda,
+    //         false,
+    //     ));
+    spl_transfer_ix
+        .accounts
+        .push(solana_sdk::instruction::AccountMeta::new_readonly(
+            transfer_hook_program_id,
+            false,
+        ));
 
-    // let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    // let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-    //     &[spl_transfer_ix],
-    //     Some(&context.payer.pubkey()),
-    //     &[&context.payer, &source_owner],
-    //     recent_blockhash,
-    // );
+    let banks_client = context.banks_client.clone();
+    add_extra_account_metas_for_execute(
+        &mut spl_transfer_ix,
+        &transfer_hook_program_id,
+        &source_account,
+        &mint_keypair.pubkey(),
+        &destination_account,
+        &source_owner.pubkey(),
+        125_000,
+        |address| {
+            let banks_client = banks_client.clone();
+            async move {
+                banks_client
+                    .get_account(address)
+                    .await
+                    .map(|opt| opt.map(|acc| acc.data))
+                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+            }
+        },
+    )
+    .await
+    .expect("add extra metas");
 
-    // let result = context.banks_client.process_transaction(transaction).await;
-    // assert_transaction_success(result);
+    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[spl_transfer_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &source_owner],
+        recent_blockhash,
+    );
 
-    // let source_state = get_token_account_state(&mut context.banks_client, source_account).await;
-    // assert_eq!(source_state.base.amount, 125_000);
+    let result = context.banks_client.process_transaction(transaction).await;
+    assert_transaction_success(result);
 
-    // let destination_state =
-    //     get_token_account_state(&mut context.banks_client, destination_account).await;
-    // assert_eq!(destination_state.base.amount, 125_000);
+    let source_state = get_token_account_state(&mut context.banks_client, source_account).await;
+    assert_eq!(source_state.base.amount, 125_000);
+
+    let destination_state =
+        get_token_account_state(&mut context.banks_client, destination_account).await;
+    assert_eq!(destination_state.base.amount, 125_000);
 }

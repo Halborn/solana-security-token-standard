@@ -25,6 +25,8 @@ spl-token-2022 = { version = "9.0.0", features = ["no-entrypoint"] }
 spl-token-metadata-interface = "0.7.0"
 spl-tlv-account-resolution = "0.9.0"
 spl-transfer-hook-interface = "0.9.0"
+spl-type-length-value = "0.7.0"
+spl-discriminator = "0.4.0"
 spl-associated-token-account = { version = "7.0.0", features = [
     "no-entrypoint",
 ] }
