@@ -16,6 +16,7 @@ pub(crate) mod r#scaled_ui_amount_config_args;
 pub(crate) mod r#token_metadata_args;
 pub(crate) mod r#trim_verification_config_args;
 pub(crate) mod r#update_metadata_args;
+pub(crate) mod r#update_rate_args;
 pub(crate) mod r#update_verification_config_args;
 pub(crate) mod r#verify_args;
 
@@ -30,5 +31,6 @@ pub use self::r#scaled_ui_amount_config_args::*;
 pub use self::r#token_metadata_args::*;
 pub use self::r#trim_verification_config_args::*;
 pub use self::r#update_metadata_args::*;
+pub use self::r#update_rate_args::*;
 pub use self::r#update_verification_config_args::*;
 pub use self::r#verify_args::*;

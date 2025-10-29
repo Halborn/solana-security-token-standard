@@ -1,6 +1,6 @@
 //! Rate account state
-use pinocchio::account_info::AccountInfo;
 use pinocchio::program_error::ProgramError;
+use pinocchio::{account_info::AccountInfo, ProgramResult};
 use shank::{ShankAccount, ShankType};
 
 use crate::state::{
@@ -104,7 +104,16 @@ impl Rate {
         Ok(rate)
     }
 
-    /// Validate the rate account data
+    /// Update Rate data
+    pub fn update(&mut self, rounding: Rounding, numerator: u8, denominator: u8) -> ProgramResult {
+        self.rounding = rounding;
+        self.numerator = numerator;
+        self.denominator = denominator;
+        self.validate()?;
+        Ok(())
+    }
+
+    /// Validate the Rate account data
     pub fn validate(&self) -> Result<(), ProgramError> {
         if self.denominator == 0 || self.numerator == 0 {
             return Err(ProgramError::InvalidAccountData);

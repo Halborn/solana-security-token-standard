@@ -17,5 +17,6 @@ export * from './resume';
 export * from './thaw';
 export * from './trimVerificationConfig';
 export * from './updateMetadata';
+export * from './updateRateAccount';
 export * from './updateVerificationConfig';
 export * from './verify';

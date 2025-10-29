@@ -6,8 +6,9 @@
 use crate::constants::seeds;
 use crate::instructions::{CustomPause, CustomResume};
 use crate::modules::{
-    verify_account_not_initialized, verify_operation_mint_info, verify_owner, verify_signer,
-    verify_system_program, verify_token22_program, verify_writable,
+    verify_account_initialized, verify_account_not_initialized, verify_operation_mint_info,
+    verify_owner, verify_pda, verify_signer, verify_system_program, verify_token22_program,
+    verify_writable,
 };
 use crate::state::{AccountSerialize, MintAuthority, Rate, Rounding};
 use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda, find_rate_pda};
@@ -319,15 +320,7 @@ impl OperationsModule {
         let (expected_rate_pda, bump) =
             find_rate_pda(action_id, &mint_from_key, &mint_to_key, program_id);
 
-        if rate_account.key().ne(&expected_rate_pda) {
-            log!("Invalid Rate account PDA");
-            log!(
-                "Expected: {}, Provided: {}",
-                &expected_rate_pda,
-                rate_account.key()
-            );
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda(&rate_account.key(), &expected_rate_pda)?;
 
         // Calculate rent and create Rate account
         let rounding_enum = Rounding::try_from(rounding)?;
@@ -364,6 +357,48 @@ impl OperationsModule {
         data[..rate_bytes.len()].copy_from_slice(&rate_bytes);
 
         log!("Rate PDA account created: {}", rate_account.key());
+        Ok(())
+    }
+
+    /// Create Rate account
+    pub fn execute_update_rate_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+        numerator: u8,
+        denominator: u8,
+        rounding: u8,
+    ) -> ProgramResult {
+        let [rate_account_info, mint1_account, mint2_account] = accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_operation_mint_info(verified_mint_info, &mint1_account)?;
+        verify_writable(rate_account_info)?;
+        verify_owner(rate_account_info, program_id)?;
+        verify_account_initialized(rate_account_info)?;
+
+        let mint_account1 = Mint::from_account_info(mint1_account)?;
+        let mint_account2 = Mint::from_account_info(mint2_account)?;
+        let mint1_key = mint1_account.key();
+        let mint2_key = mint2_account.key();
+        drop(mint_account1);
+        drop(mint_account2);
+
+        let (expected_rate_pda, _) = find_rate_pda(action_id, &mint1_key, &mint2_key, program_id);
+
+        verify_pda(&rate_account_info.key(), &expected_rate_pda)?;
+
+        // Load and update Rate account
+        let mut rate_account = Rate::from_account_info(rate_account_info)?;
+        let rounding_enum = Rounding::try_from(rounding)?;
+        rate_account.update(rounding_enum, numerator, denominator)?;
+
+        log!(
+            "Rate account {} updated successfully",
+            rate_account_info.key()
+        );
         Ok(())
     }
 }

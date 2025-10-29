@@ -17,5 +17,6 @@ export * from './scaledUiAmountConfigArgs';
 export * from './tokenMetadataArgs';
 export * from './trimVerificationConfigArgs';
 export * from './updateMetadataArgs';
+export * from './updateRateArgs';
 export * from './updateVerificationConfigArgs';
 export * from './verifyArgs';
