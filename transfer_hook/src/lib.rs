@@ -65,12 +65,6 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    let amount = rest
-        .get(..8)
-        .and_then(|slice| slice.try_into().ok())
-        .map(u64::from_le_bytes)
-        .ok_or(ProgramError::InvalidInstructionData)?;
-
     if is_permanent_delegate_transfer(mint, authority, extra_accounts)? {
         return Ok(());
     }
@@ -80,6 +74,11 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
     if verification_programs.is_empty() {
         return Ok(());
     }
+    let amount = rest
+        .get(..8)
+        .and_then(|slice| slice.try_into().ok())
+        .map(u64::from_le_bytes)
+        .ok_or(ProgramError::InvalidInstructionData)?;
     execute_verification_programs(&verification_programs, accounts, amount)?;
     Ok(())
 }
