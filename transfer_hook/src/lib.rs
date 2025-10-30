@@ -199,7 +199,7 @@ fn process_initialize_extra_account_meta_list(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    if unsafe { *mint_info.owner() } != pinocchio_token_2022::ID {
+    if !mint_info.is_owned_by(&pinocchio_token_2022::ID) {
         return Err(ProgramError::IllegalOwner);
     }
 
