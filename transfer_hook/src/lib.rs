@@ -5,7 +5,6 @@ use pinocchio::sysvars::rent::Rent;
 use pinocchio::sysvars::Sysvar;
 use pinocchio::{
     account_info::AccountInfo,
-    entrypoint,
     instruction::{Seed, Signer},
     program_error::ProgramError,
     pubkey::{find_program_address, Pubkey},
@@ -33,7 +32,12 @@ const TRANSFER_VERIFICATION_CONFIG_DISCRIMINATOR: u8 = 1;
 // NOTE: Replace with the finalized program ID generated for the transfer hook deployment.
 declare_id!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
 
-entrypoint!(process_instruction);
+#[cfg(not(feature = "no-entrypoint"))]
+mod init {
+    use crate::process_instruction;
+    use pinocchio::entrypoint;
+    entrypoint!(process_instruction);
+}
 
 fn process_instruction(
     program_id: &Pubkey,
