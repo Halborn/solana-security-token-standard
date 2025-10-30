@@ -1,7 +1,5 @@
 //! Token extension wrappers
 
-use core::mem::MaybeUninit;
-use core::slice::from_raw_parts;
 use pinocchio::account_info::AccountInfo;
 use pinocchio::cpi::invoke_signed;
 use pinocchio::instruction::{AccountMeta, Instruction, Signer};
