@@ -157,7 +157,6 @@ fn execute_verification_programs(
 
     let verification_account_metas: Vec<pinocchio::instruction::AccountMeta> = accounts
         .iter()
-        .take(4)
         .map(|acc| pinocchio::instruction::AccountMeta {
             pubkey: acc.key(),
             is_signer: acc.is_signer(),
@@ -165,7 +164,7 @@ fn execute_verification_programs(
         })
         .collect();
 
-    let account_refs: Vec<_> = accounts.iter().take(4).collect();
+    let account_refs: Vec<_> = accounts.iter().collect();
 
     for program_id in verification_programs.iter() {
         let verification_instruction = pinocchio::instruction::Instruction {
