@@ -725,7 +725,6 @@ async fn test_p2p_transfer_direct_spl() {
     let meta_list = ExtraAccountMetaList::unpack_with_tlv_state::<ExecuteInstruction>(&tlv_state)
         .expect("extra meta list should deserialize");
     let meta_slice = meta_list.data();
-    // assert_eq!(meta_slice.len(), 1, "expected 1 extra account meta");
     let stored_meta = meta_slice
         .get(0)
         .expect("meta list should contain the verification config entry");

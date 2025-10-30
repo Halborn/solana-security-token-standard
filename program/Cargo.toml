@@ -27,7 +27,6 @@ num-derive = { workspace = true }
 num-traits = { workspace = true }
 bs58 = { workspace = true }
 shank = { workspace = true }
-# security-token-transfer-hook = { path = "../transfer_hook" }
 
 [dev-dependencies]
 rand = "0.8.5"

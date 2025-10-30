@@ -271,21 +271,12 @@ fn process_initialize_extra_account_meta_list(
             account: extra_meta_info,
             space: account_size as u64,
         };
-        allocate.invoke_signed(&[signer])?;
-
-        let bump_seed = [bump];
-        let assign_seeds = [
-            Seed::from(EXTRA_ACCOUNT_METAS_SEED),
-            Seed::from(mint_info.key().as_ref()),
-            Seed::from(bump_seed.as_ref()),
-        ];
-        let assign_signer = Signer::from(&assign_seeds);
-
+        allocate.invoke_signed(&[signer.clone()])?;
         let assign = Assign {
             account: extra_meta_info,
             owner: program_id,
         };
-        assign.invoke_signed(&[assign_signer])?;
+        assign.invoke_signed(&[signer])?;
         if extra_meta_info.data_len() != account_size {
             extra_meta_info.realloc(account_size, false)?;
         }
