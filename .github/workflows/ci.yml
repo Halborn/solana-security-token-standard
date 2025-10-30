@@ -41,9 +41,9 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target/debug/deps
-            target/debug/build
-            target/debug/.fingerprint
+            target/sbf-solana-solana/release/deps
+            target/sbf-solana-solana/release/build
+            target/sbf-solana-solana/release/.fingerprint
           key: ${{ runner.os }}-cargo-sbf-${{ hashFiles('program/Cargo.toml', 'transfer_hook/Cargo.toml', 'Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-sbf-
