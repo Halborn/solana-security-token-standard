@@ -126,3 +126,40 @@ pub fn verify_rent_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
 
     Ok(())
 }
+
+/// Verify mint info in the operation. It must match the verified mint info.
+///
+/// # Arguments
+/// * `verified_mint_info` - The initial verified Mint account.
+/// * `operation_mint_info` - The Mint account from instruction operation.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_operation_mint_info(
+    verified_mint_info: &AccountInfo,
+    operation_mint_info: &&AccountInfo,
+) -> Result<(), ProgramError> {
+    if operation_mint_info.key().ne(verified_mint_info.key()) {
+        log!(
+            "Mint {} in the operation does not match verified Mint",
+            acc_info_as_str!(operation_mint_info),
+        );
+        return Err(ProgramError::InvalidAccountData);
+    }
+    Ok(())
+}
+
+/// Verify account is not initialized.
+///
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_account_not_initialized(info: &AccountInfo) -> Result<(), ProgramError> {
+    if !info.data_is_empty() || info.lamports() > 0 || !info.is_owned_by(&pinocchio_system::id()) {
+        log!("Account {} already exists", acc_info_as_str!(info));
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+    Ok(())
+}

@@ -5,10 +5,13 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
+pub(crate) mod r#create_rate_args;
 pub(crate) mod r#initialize_mint_args;
 pub(crate) mod r#initialize_verification_config_args;
 pub(crate) mod r#metadata_pointer_args;
 pub(crate) mod r#mint_args;
+pub(crate) mod r#rate_args;
+pub(crate) mod r#rounding;
 pub(crate) mod r#scaled_ui_amount_config_args;
 pub(crate) mod r#token_metadata_args;
 pub(crate) mod r#trim_verification_config_args;
@@ -16,10 +19,13 @@ pub(crate) mod r#update_metadata_args;
 pub(crate) mod r#update_verification_config_args;
 pub(crate) mod r#verify_args;
 
+pub use self::r#create_rate_args::*;
 pub use self::r#initialize_mint_args::*;
 pub use self::r#initialize_verification_config_args::*;
 pub use self::r#metadata_pointer_args::*;
 pub use self::r#mint_args::*;
+pub use self::r#rate_args::*;
+pub use self::r#rounding::*;
 pub use self::r#scaled_ui_amount_config_args::*;
 pub use self::r#token_metadata_args::*;
 pub use self::r#trim_verification_config_args::*;

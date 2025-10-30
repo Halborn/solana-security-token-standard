@@ -6,10 +6,13 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './createRateArgs';
 export * from './initializeMintArgs';
 export * from './initializeVerificationConfigArgs';
 export * from './metadataPointerArgs';
 export * from './mintArgs';
+export * from './rateArgs';
+export * from './rounding';
 export * from './scaledUiAmountConfigArgs';
 export * from './tokenMetadataArgs';
 export * from './trimVerificationConfigArgs';
