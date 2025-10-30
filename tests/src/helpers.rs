@@ -1,9 +1,7 @@
 use security_token_client::{
-    errors::SecurityTokenProgramError,
-    instructions::{InitializeMintBuilder, InitializeVerificationConfigBuilder},
-    types::{InitializeMintArgs, InitializeVerificationConfigArgs},
+    errors::SecurityTokenProgramError, instructions::{InitializeMintBuilder, InitializeVerificationConfigBuilder}, programs::SECURITY_TOKEN_PROGRAM_ID, types::{InitializeMintArgs, InitializeVerificationConfigArgs}
 };
-use solana_program_test::{BanksClientError, ProgramTestContext};
+use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
 use solana_sdk::{
     instruction::InstructionError,
     pubkey::Pubkey,
@@ -116,4 +114,10 @@ pub async fn initialize_verification_config(
     let result = context.banks_client.process_transaction(transaction).await;
 
     assert_transaction_success(result);
+}
+
+pub async fn start_with_context() -> ProgramTestContext {
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
+    pt.prefer_bpf(true);
+    pt.start_with_context().await
 }

@@ -14,6 +14,7 @@ import {
 } from '@solana/kit';
 import {
   type ParsedBurnInstruction,
+  type ParsedCreateRateAccountInstruction,
   type ParsedFreezeInstruction,
   type ParsedInitializeMintInstruction,
   type ParsedInitializeVerificationConfigInstruction,
@@ -32,6 +33,7 @@ export const SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS =
 
 export enum SecurityTokenProgramAccount {
   MintAuthority,
+  Rate,
   VerificationConfig,
 }
 
@@ -48,6 +50,7 @@ export enum SecurityTokenProgramInstruction {
   Resume,
   Freeze,
   Thaw,
+  CreateRateAccount,
 }
 
 export function identifySecurityTokenProgramInstruction(
@@ -89,6 +92,9 @@ export function identifySecurityTokenProgramInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(11), 0)) {
     return SecurityTokenProgramInstruction.Thaw;
+  }
+  if (containsBytes(data, getU8Encoder().encode(12), 0)) {
+    return SecurityTokenProgramInstruction.CreateRateAccount;
   }
   throw new Error(
     'The provided instruction could not be identified as a securityTokenProgram instruction.'
@@ -133,4 +139,7 @@ export type ParsedSecurityTokenProgramInstruction<
     } & ParsedFreezeInstruction<TProgram>)
   | ({
       instructionType: SecurityTokenProgramInstruction.Thaw;
-    } & ParsedThawInstruction<TProgram>);
+    } & ParsedThawInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.CreateRateAccount;
+    } & ParsedCreateRateAccountInstruction<TProgram>);

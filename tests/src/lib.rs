@@ -11,3 +11,6 @@ pub mod helpers;
 
 #[cfg(test)]
 pub mod operations;
+
+#[cfg(test)]
+pub mod rate_tests;

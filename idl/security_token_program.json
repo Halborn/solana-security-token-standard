@@ -558,6 +558,63 @@
         "type": "u8",
         "value": 11
       }
+    },
+    {
+      "name": "CreateRateAccount",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfigOrMintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvarOrCreator",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rateAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mintFrom",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintTo",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "createRateArgs",
+          "type": {
+            "defined": "CreateRateArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 12
+      }
     }
   ],
   "accounts": [
@@ -573,6 +630,32 @@
           {
             "name": "mintCreator",
             "type": "publicKey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Rate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "rounding",
+            "type": {
+              "defined": "Rounding"
+            }
+          },
+          {
+            "name": "numerator",
+            "type": "u8"
+          },
+          {
+            "name": "denominator",
+            "type": "u8"
           },
           {
             "name": "bump",
@@ -601,6 +684,44 @@
     }
   ],
   "types": [
+    {
+      "name": "CreateRateArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "actionId",
+            "type": "u64"
+          },
+          {
+            "name": "rate",
+            "type": {
+              "defined": "RateArgs"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RateArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "rounding",
+            "type": "u8"
+          },
+          {
+            "name": "numerator",
+            "type": "u8"
+          },
+          {
+            "name": "denominator",
+            "type": "u8"
+          }
+        ]
+      }
+    },
     {
       "name": "TokenMetadataArgs",
       "type": {
@@ -823,6 +944,20 @@
           {
             "name": "ix",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Rounding",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Up"
+          },
+          {
+            "name": "Down"
           }
         ]
       }

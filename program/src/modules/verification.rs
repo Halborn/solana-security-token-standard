@@ -695,11 +695,11 @@ impl VerificationModule {
 
     /// Verify specific operation either through configured verification programs or mint authority
     /// Decides which method to use based on the PDA account provided in accounts[1]
-    pub fn verify_by_strategy(
+    pub fn verify_by_strategy<'a>(
         program_id: &Pubkey,
-        accounts: &[AccountInfo],
+        accounts: &'a [AccountInfo],
         ix_discriminator: u8,
-    ) -> ProgramResult {
+    ) -> Result<&'a AccountInfo, ProgramError> {
         let [mint_info, verification_config_or_mint_authority, instructions_sysvar_or_signer, _instruction_accounts @ ..] =
             accounts
         else {
@@ -712,7 +712,7 @@ impl VerificationModule {
         let disc = SecurityTokenDiscriminators::try_from(*state_discriminator)?;
         match disc {
             SecurityTokenDiscriminators::VerificationConfigDiscriminator => {
-                Self::verify_by_programs(program_id, accounts, ix_discriminator)?;
+                Self::verify_by_programs(program_id, accounts, ix_discriminator)
             }
             SecurityTokenDiscriminators::MintAuthorityDiscriminator => {
                 let mint_authority_account = verification_config_or_mint_authority;
@@ -722,19 +722,21 @@ impl VerificationModule {
                     mint_info,
                     mint_authority_account,
                     mint_creator_info,
-                )?;
+                )
+            }
+            _ => {
+                return Err(ProgramError::InvalidAccountData);
             }
         }
-        Ok(())
     }
 
     /// Verify that the provided signer corresponds to the original mint authority PDA.
-    pub fn verify_by_mint_authority(
+    pub fn verify_by_mint_authority<'a>(
         program_id: &Pubkey,
-        mint_info: &AccountInfo,
-        mint_authority: &AccountInfo,
-        candidate_authority: &AccountInfo,
-    ) -> Result<(), ProgramError> {
+        mint_info: &'a AccountInfo,
+        mint_authority: &'a AccountInfo,
+        candidate_authority: &'a AccountInfo,
+    ) -> Result<&'a AccountInfo, ProgramError> {
         verify_signer(candidate_authority)?;
         verify_owner(mint_authority, program_id)?;
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
@@ -765,15 +767,15 @@ impl VerificationModule {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        Ok(())
+        Ok(mint_info)
     }
 
     /// Verify specific operation against configured verification programs
-    pub fn verify_by_programs(
+    pub fn verify_by_programs<'a>(
         program_id: &Pubkey,
-        accounts: &[AccountInfo],
+        accounts: &'a [AccountInfo],
         ix_discriminator: u8,
-    ) -> ProgramResult {
+    ) -> Result<&'a AccountInfo, ProgramError> {
         let [mint_info, verification_config, instructions_sysvar, instruction_accounts @ ..] =
             accounts
         else {
@@ -801,7 +803,7 @@ impl VerificationModule {
         }
         if config_data.verification_programs.is_empty() {
             // If no verification programs configured, allow
-            return Ok(());
+            return Ok(mint_info);
         }
         Self::execute_verification(
             &config_data,
@@ -810,7 +812,7 @@ impl VerificationModule {
             ix_discriminator,
         )?;
 
-        Ok(())
+        Ok(mint_info)
     }
 
     /// Execute instruction and verification programs validation

@@ -26,3 +26,4 @@ spl-associated-token-account = { version = "7.0.0", features = [
     "no-entrypoint",
 ] }
 spl-pod = "0.5.1"
+rstest = "0.18"

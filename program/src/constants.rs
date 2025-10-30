@@ -14,6 +14,8 @@ pub mod seeds {
     pub const ACCOUNT_DELEGATE: &[u8] = b"account.delegate";
     /// Seed for verification config
     pub const VERIFICATION_CONFIG: &[u8] = b"verification_config";
+    /// Seed for rate account PDA
+    pub const RATE_ACCOUNT: &[u8] = b"rate";
 }
 
 pub const INSTRUCTION_ACCOUNTS_OFFSET: usize = 3;

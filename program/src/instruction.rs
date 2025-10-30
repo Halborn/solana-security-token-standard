@@ -16,6 +16,7 @@ pub enum SecurityTokenInstruction {
     Resume = 9,
     Freeze = 10,
     Thaw = 11,
+    CreateRateAccount = 12,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -35,6 +36,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             9 => Ok(SecurityTokenInstruction::Resume),
             10 => Ok(SecurityTokenInstruction::Freeze),
             11 => Ok(SecurityTokenInstruction::Thaw),
+            12 => Ok(SecurityTokenInstruction::CreateRateAccount),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -69,8 +71,8 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
-        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
+        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -176,5 +178,15 @@ mod idl_gen {
         #[account(5, writable, name = "token_account")]
         #[account(6, name = "token_program")]
         Thaw = 11,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, writable, name = "rate_account")]
+        #[account(4, name = "mint_from")]
+        #[account(5, name = "mint_to")]
+        #[account(6, writable, signer, name = "payer")]
+        #[account(7, name = "system_program")]
+        CreateRateAccount(CreateRateArgs) = 12,
     }
 }

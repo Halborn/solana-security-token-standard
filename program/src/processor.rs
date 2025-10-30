@@ -2,8 +2,8 @@ use crate::{
     constants::INSTRUCTION_ACCOUNTS_OFFSET,
     instruction::SecurityTokenInstruction,
     instructions::{
-        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
-        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
+        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     },
     modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
@@ -25,7 +25,8 @@ impl Processor {
 
         match instruction {
             InitializeMint | Verify => None,
-            InitializeVerificationConfig
+            CreateRateAccount
+            | InitializeVerificationConfig
             | UpdateVerificationConfig
             | TrimVerificationConfig
             | UpdateMetadata => VerificationProgramsOrMintAuthority,
@@ -35,21 +36,24 @@ impl Processor {
 
     /// Runs the verification process for the given instruction
     /// Explicit cuts the verification overhead if needed
+    /// Returns mint AccountInfo and instruction accounts
     fn verify<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
         ix_discriminator: u8,
         verification_profile: VerificationProfile,
-    ) -> Result<&'a [AccountInfo], ProgramError> {
+    ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         match verification_profile {
-            VerificationProfile::None => Ok(accounts),
+            VerificationProfile::None => Ok((&accounts[0], &accounts)),
             VerificationProfile::VerificationPrograms => {
-                VerificationModule::verify_by_programs(program_id, accounts, ix_discriminator)?;
-                Ok(&accounts[INSTRUCTION_ACCOUNTS_OFFSET..])
+                let mint_info =
+                    VerificationModule::verify_by_programs(program_id, accounts, ix_discriminator)?;
+                Ok((mint_info, &accounts[INSTRUCTION_ACCOUNTS_OFFSET..]))
             }
             VerificationProfile::VerificationProgramsOrMintAuthority => {
-                VerificationModule::verify_by_strategy(program_id, accounts, ix_discriminator)?;
-                Ok(&accounts[INSTRUCTION_ACCOUNTS_OFFSET..])
+                let mint_info =
+                    VerificationModule::verify_by_strategy(program_id, accounts, ix_discriminator)?;
+                Ok((mint_info, &accounts[INSTRUCTION_ACCOUNTS_OFFSET..]))
             }
         }
     }
@@ -64,7 +68,7 @@ impl Processor {
             SecurityTokenInstruction::parse_instruction(instruction_data)?;
 
         let verification_profile = Self::instruction_verification_profile(&instruction);
-        let instruction_accounts = Self::verify(
+        let (verified_mint_info, instruction_accounts) = Self::verify(
             program_id,
             accounts,
             instruction.discriminant(),
@@ -114,6 +118,12 @@ impl Processor {
                 Self::process_freeze(program_id, instruction_accounts)
             }
             SecurityTokenInstruction::Thaw => Self::process_thaw(program_id, instruction_accounts),
+            SecurityTokenInstruction::CreateRateAccount => Self::process_create_rate_account(
+                program_id,
+                verified_mint_info,
+                instruction_accounts,
+                args_data,
+            ),
         }
     }
 
@@ -227,6 +237,25 @@ impl Processor {
 
     fn process_thaw(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         OperationsModule::execute_thaw_account(program_id, accounts)?;
+        Ok(())
+    }
+
+    fn process_create_rate_account(
+        program_id: &Pubkey,
+        mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let CreateRateArgs { action_id, rate } = CreateRateArgs::try_from_bytes(args_data)?;
+        OperationsModule::execute_create_rate_account(
+            program_id,
+            mint_info,
+            accounts,
+            action_id,
+            rate.numerator,
+            rate.denominator,
+            rate.rounding,
+        )?;
         Ok(())
     }
 }
