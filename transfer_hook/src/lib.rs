@@ -219,8 +219,8 @@ fn process_initialize_extra_account_meta_list(
     let account_size =
         ExtraAccountMetaList::size_of(count).map_err(|_| ProgramError::InvalidAccountData)?;
 
-    if unsafe { *extra_meta_info.owner() } != *program_id {
-        if unsafe { *extra_meta_info.owner() } != pinocchio_system::ID {
+    if !extra_meta_info.is_owned_by(&program_id) {
+        if !extra_meta_info.is_owned_by(&pinocchio_system::ID) {
             return Err(ProgramError::IllegalOwner);
         }
 
