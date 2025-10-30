@@ -18,7 +18,6 @@ use pinocchio_system::instructions::{Allocate, Assign};
 use solana_pubkey::Pubkey as SolanaPubkey;
 use spl_discriminator::SplDiscriminate;
 use spl_pod::slice::PodSlice;
-use spl_pod::solana_program::config;
 use spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList};
 use spl_transfer_hook_interface::{
     get_extra_account_metas_address_and_bump_seed, instruction::ExecuteInstruction,
@@ -69,28 +68,49 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    // NOTE: Check the stack height?
-    log!(
-        "Transfer execute called with {} extra accounts",
-        extra_accounts.len()
-    );
-
     let amount = rest
         .get(..8)
         .and_then(|slice| slice.try_into().ok())
         .map(u64::from_le_bytes)
         .ok_or(ProgramError::InvalidInstructionData)?;
 
+    if is_permanent_delegate_transfer(mint, authority, extra_accounts)? {
+        return Ok(());
+    }
+
+    let verification_programs = load_verification_programs(mint, extra_accounts)?;
+
+    if verification_programs.is_empty() {
+        log!("No verification programs configured");
+        return Ok(());
+    }
+
+    // Execute verification program CPIs
+    execute_verification_programs(&verification_programs, accounts, amount)?;
+
+    log!("Transfer execute validated for amount {}", amount);
+    Ok(())
+}
+
+fn is_permanent_delegate_transfer(
+    mint: &AccountInfo,
+    authority: &AccountInfo,
+    extra_accounts: &[AccountInfo],
+) -> Result<bool, ProgramError> {
     let (permanent_delegate_pda, _bump) = find_program_address(
         &[PERMANENT_DELEGATE_SEED, mint.key().as_ref()],
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    // NOTE: No extra account and different authority mean a native spl call
-    if authority.key() == &permanent_delegate_pda && extra_accounts.len() == 0 {
-        return Ok(());
-    }
+    // Permanent delegate with no extra accounts means native SPL call
+    Ok(authority.key() == &permanent_delegate_pda && extra_accounts.is_empty())
+}
 
+/// Load and parse verification programs from verification config
+fn load_verification_programs(
+    mint: &AccountInfo,
+    extra_accounts: &[AccountInfo],
+) -> Result<Vec<[u8; 32]>, ProgramError> {
     let (verification_config_pda, _bump) = find_program_address(
         &[
             VERIFICATION_CONFIG_SEED,
@@ -108,26 +128,23 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
             ProgramError::InvalidSeeds
         })?;
 
-    // Reuse shared crate?
     let config_data = verification_config.try_borrow_data()?;
+
     let config_discriminator = config_data.get(0).ok_or(ProgramError::InvalidAccountData)?;
-    if (*config_discriminator) != 1 {
+    if *config_discriminator != 1 {
         log!("Invalid verification config discriminator");
         return Err(ProgramError::InvalidAccountData);
     }
 
     let operation_discriminator = config_data.get(1).ok_or(ProgramError::InvalidAccountData)?;
-    if (*operation_discriminator) != TRANSFER_DISCRIMINATOR {
+    if *operation_discriminator != TRANSFER_DISCRIMINATOR {
         log!("Invalid transfer operation discriminator");
         return Err(ProgramError::InvalidAccountData);
     }
 
     let verification_programs_data = &config_data[6..];
     let verification_programs_count = verification_programs_data.len() / 32;
-    if verification_programs_count == 0 {
-        log!("No verification programs configured");
-        return Ok(());
-    }
+
     let mut verification_programs = Vec::with_capacity(verification_programs_count);
     for i in 0..verification_programs_count {
         let start = i * 32;
@@ -135,16 +152,22 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
         let pubkey_bytes: [u8; 32] = verification_programs_data[start..end]
             .try_into()
             .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        log!("Verification program {} loaded", i);
-
         verification_programs.push(pubkey_bytes);
     }
+
     log!(
         "Loaded {} verification programs from config",
         verification_programs.len()
     );
 
+    Ok(verification_programs)
+}
+
+fn execute_verification_programs(
+    verification_programs: &[[u8; 32]],
+    accounts: &[AccountInfo],
+    amount: u64,
+) -> ProgramResult {
     let mut instruction_data = Vec::with_capacity(9);
     instruction_data.push(TRANSFER_DISCRIMINATOR);
     instruction_data.extend_from_slice(&amount.to_le_bytes());
@@ -171,7 +194,8 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
             is_writable: accounts[3].is_writable(),
         },
     ];
-    for (i, program_id) in verification_programs.iter().enumerate() {
+
+    for (_i, program_id) in verification_programs.iter().enumerate() {
         let verification_instruction = pinocchio::instruction::Instruction {
             program_id,
             accounts: &verification_account_metas,
@@ -180,13 +204,7 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
 
         let account_refs = [&accounts[0], &accounts[1], &accounts[2], &accounts[3]];
         pinocchio::program::invoke(&verification_instruction, &account_refs)?;
-        log!("Verification program {} succeeded", i);
     }
-    log!(
-        "All {} verification programs validated successfully",
-        verification_programs_count
-    );
-    log!("Transfer execute validated for amount {}", amount);
     Ok(())
 }
 
