@@ -47,8 +47,12 @@ jobs:
             ${{ runner.os }}-cargo-sbf-
             ${{ runner.os }}-cargo-
 
-      - name: Build SBF program
-        working-directory: .
+      - name: Build Security Token SBF program
+        working-directory: ./program
+        run: cargo build-sbf
+
+      - name: Build Security Token Transfer Hook SBF program
+        working-directory: ./transfer_hook
         run: cargo build-sbf
 
       - name: Upload SBF artifacts
