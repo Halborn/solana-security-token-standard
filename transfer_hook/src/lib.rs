@@ -26,10 +26,10 @@ use spl_transfer_hook_interface::{
 pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
     pubkey!("Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH");
 const PERMANENT_DELEGATE_SEED: &[u8] = b"mint.permanent_delegate";
-// const TRANSFER_HOOK_SEED: &[u8] = b"mint.transfer_hook";
 const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
 const VERIFICATION_CONFIG_SEED: &[u8] = b"verification_config";
 const TRANSFER_DISCRIMINATOR: u8 = 12;
+const TRANSFER_VERIFICATION_CONFIG_DISCRIMINATOR: u8 = 1;
 
 // NOTE: Replace with the finalized program ID generated for the transfer hook deployment.
 declare_id!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
@@ -102,7 +102,7 @@ fn is_permanent_delegate_transfer(
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    // Permanent delegate with no extra accounts means native SPL call
+    // NOTE: Permanent delegate with no extra accounts means native SPL call
     Ok(authority.key() == &permanent_delegate_pda && extra_accounts.is_empty())
 }
 
@@ -130,8 +130,10 @@ fn load_verification_programs(
 
     let config_data = verification_config.try_borrow_data()?;
 
-    let config_discriminator = config_data.get(0).ok_or(ProgramError::InvalidAccountData)?;
-    if *config_discriminator != 1 {
+    let config_discriminator = config_data
+        .first()
+        .ok_or(ProgramError::InvalidAccountData)?;
+    if *config_discriminator != TRANSFER_VERIFICATION_CONFIG_DISCRIMINATOR {
         log!("Invalid verification config discriminator");
         return Err(ProgramError::InvalidAccountData);
     }
