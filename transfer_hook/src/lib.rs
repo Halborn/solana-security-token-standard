@@ -157,28 +157,17 @@ fn execute_verification_programs(
     instruction_data.push(TRANSFER_DISCRIMINATOR);
     instruction_data.extend_from_slice(&amount.to_le_bytes());
 
-    let verification_account_metas = [
-        pinocchio::instruction::AccountMeta {
-            pubkey: accounts[0].key(),
-            is_signer: accounts[0].is_signer(),
-            is_writable: accounts[0].is_writable(),
-        },
-        pinocchio::instruction::AccountMeta {
-            pubkey: accounts[1].key(),
-            is_signer: accounts[1].is_signer(),
-            is_writable: accounts[1].is_writable(),
-        },
-        pinocchio::instruction::AccountMeta {
-            pubkey: accounts[2].key(),
-            is_signer: accounts[2].is_signer(),
-            is_writable: accounts[2].is_writable(),
-        },
-        pinocchio::instruction::AccountMeta {
-            pubkey: accounts[3].key(),
-            is_signer: accounts[3].is_signer(),
-            is_writable: accounts[3].is_writable(),
-        },
-    ];
+    let verification_account_metas: Vec<pinocchio::instruction::AccountMeta> = accounts
+        .iter()
+        .take(4)
+        .map(|acc| pinocchio::instruction::AccountMeta {
+            pubkey: acc.key(),
+            is_signer: acc.is_signer(),
+            is_writable: acc.is_writable(),
+        })
+        .collect();
+
+    let account_refs: Vec<_> = accounts.iter().take(4).collect();
 
     for program_id in verification_programs.iter() {
         let verification_instruction = pinocchio::instruction::Instruction {
@@ -186,9 +175,8 @@ fn execute_verification_programs(
             accounts: &verification_account_metas,
             data: &instruction_data,
         };
-
-        let account_refs = [&accounts[0], &accounts[1], &accounts[2], &accounts[3]];
-        pinocchio::program::invoke(&verification_instruction, &account_refs)?;
+        // Use slice_invoke to handle the future variable number of accounts
+        pinocchio::program::slice_invoke(&verification_instruction, &account_refs)?;
     }
     Ok(())
 }
