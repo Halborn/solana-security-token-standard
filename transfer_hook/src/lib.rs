@@ -195,7 +195,7 @@ fn execute_verification_programs(
         },
     ];
 
-    for (_i, program_id) in verification_programs.iter().enumerate() {
+    for program_id in verification_programs.iter() {
         let verification_instruction = pinocchio::instruction::Instruction {
             program_id,
             accounts: &verification_account_metas,
