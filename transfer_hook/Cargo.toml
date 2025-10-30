@@ -11,6 +11,9 @@ edition.workspace = true
 crate-type = ["cdylib", "lib"]
 name = "security_token_transfer_hook"
 
+[features]
+no-entrypoint = []
+
 [dependencies]
 pinocchio = { workspace = true }
 pinocchio-log = { workspace = true }
