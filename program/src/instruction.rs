@@ -183,8 +183,8 @@ mod idl_gen {
         #[account(1, name = "verification_config_or_mint_authority")]
         #[account(2, name = "instructions_sysvar_or_creator")]
         #[account(3, writable, name = "rate_account")]
-        #[account(4, name = "rate_mint_account_1")]
-        #[account(5, name = "rate_mint_account_2")]
+        #[account(4, name = "mint_from")]
+        #[account(5, name = "mint_to")]
         #[account(6, writable, signer, name = "payer")]
         #[account(7, name = "system_program")]
         CreateRateAccount(CreateRateArgs) = 12,

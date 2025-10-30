@@ -11,17 +11,17 @@ use crate::{helpers::{assert_transaction_success, start_with_context}, rate_test
 async fn test_should_create_rate_account_operation_for_split_mints() {
     let mut context = &mut start_with_context().await;
 
-    let mint_keypair = Keypair::new();
+    let mint_from_keypair = Keypair::new();
     let decimals = 6u8;
     let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &mint_keypair, decimals).await;
+        create_security_token_mint(&mut context, &mint_from_keypair, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
     let numerator = 3u8;
     let denominator = 2u8;
     // Split operation (single mint)
-    let rate_mint_pubkey = mint_keypair.pubkey();
+    let mint_from = mint_from_keypair.pubkey();
 
     let create_rate_args = CreateRateArgs {
         action_id,
@@ -34,11 +34,11 @@ async fn test_should_create_rate_account_operation_for_split_mints() {
 
     let (rate_pda, result) = create_rate_account(
         context,
-        mint_keypair.pubkey(),
+        mint_from,
         mint_authority_pda,
         context.payer.pubkey(),
-        rate_mint_pubkey,
-        rate_mint_pubkey,
+        mint_from,
+        mint_from,
         create_rate_args
     ).await;
     assert_transaction_success(result);
@@ -81,13 +81,13 @@ async fn test_should_create_rate_account_operation_for_split_mints() {
 async fn test_should_create_rate_account_operation_with_conversion_mints() {
     let mut context = &mut start_with_context().await;
 
-    let mint_keypair1 = Keypair::new();
-    let mint_keypair2 = Keypair::new();
+    let mint_from_keypair = Keypair::new();
+    let mint_to_keypair = Keypair::new();
     let decimals = 6u8;
 
     // Conversion operation (different mints)
-    let (mint_authority_pda1, _, _) = create_security_token_mint(&mut context, &mint_keypair1, decimals).await;
-    let (_mint_authority_pda2, _, _) = create_security_token_mint(&mut context, &mint_keypair2, decimals).await;
+    let (mint_authority_pda, _, _) = create_security_token_mint(&mut context, &mint_from_keypair, decimals).await;
+    create_security_token_mint(&mut context, &mint_to_keypair, decimals).await;
 
     let action_id = 100u64;
     let rounding = Rounding::Down as u8;
@@ -105,11 +105,11 @@ async fn test_should_create_rate_account_operation_with_conversion_mints() {
 
     let (rate_pda, result) = create_rate_account(
         context,
-        mint_keypair1.pubkey(),
-        mint_authority_pda1,
+        mint_from_keypair.pubkey(),
+        mint_authority_pda,
         context.payer.pubkey(),
-        mint_keypair1.pubkey(),
-        mint_keypair2.pubkey(),
+        mint_from_keypair.pubkey(),
+        mint_to_keypair.pubkey(),
         create_rate_args
     ).await;
     assert_transaction_success(result);
@@ -173,13 +173,14 @@ async fn test_should_fail_invalid_create_rate_account_instruction(
 async fn test_should_not_create_rate_account_twice() {
     let mut context = &mut start_with_context().await;
 
-    let mint_keypair = Keypair::new();
+    let mint_from_keypair = Keypair::new();
     let decimals = 6u8;
     let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &mint_keypair, decimals).await;
+        create_security_token_mint(&mut context, &mint_from_keypair, decimals).await;
 
     let action_id = 42u64;
-    let rate_mint_pubkey = mint_keypair.pubkey();
+    let mint_from = mint_from_keypair.pubkey();
+    let mint_to = mint_from.clone();
 
     let create_rate_args = CreateRateArgs {
         action_id,
@@ -192,11 +193,11 @@ async fn test_should_not_create_rate_account_twice() {
 
     let (rate_pda, result) = create_rate_account(
         context,
-        mint_keypair.pubkey(),
+        mint_from,
         mint_authority_pda,
         context.payer.pubkey(),
-        rate_mint_pubkey,
-        rate_mint_pubkey,
+        mint_from,
+        mint_to,
         create_rate_args.clone()
     ).await;
     assert_transaction_success(result);
@@ -211,11 +212,11 @@ async fn test_should_not_create_rate_account_twice() {
     // Try creating the same Rate account again, should fail
     let (_, result) = create_rate_account(
         context,
-        mint_keypair.pubkey(),
+        mint_from,
         mint_authority_pda,
         context.payer.pubkey(),
-        rate_mint_pubkey,
-        rate_mint_pubkey,
+        mint_from,
+        mint_to,
         create_rate_args.clone()
     ).await;
     assert!(result.is_err(), "Should not create the same Rate account again");
@@ -225,17 +226,17 @@ async fn test_should_not_create_rate_account_twice() {
 async fn test_should_create_both_split_and_conversion_rate_accounts() {
     let mut context = &mut start_with_context().await;
 
-    let mint_keypair1 = Keypair::new();
-    let mint_keypair2 = Keypair::new();
+    let mint_from_keypair = Keypair::new();
+    let mint_to_keypair = Keypair::new();
     let decimals = 6u8;
     let (mint_authority_pda1, _, _) =
-        create_security_token_mint(&mut context, &mint_keypair1, decimals).await;
+        create_security_token_mint(&mut context, &mint_from_keypair, decimals).await;
     let (_mint_authority_pda2, _, _) =
-        create_security_token_mint(&mut context, &mint_keypair2, decimals).await;
+        create_security_token_mint(&mut context, &mint_to_keypair, decimals).await;
 
     let action_id = 42u64;
-    let rate_mint_pubkey1 = mint_keypair1.pubkey();
-    let rate_mint_pubkey2 = mint_keypair2.pubkey();
+    let mint_from = mint_from_keypair.pubkey();
+    let mint_to = mint_to_keypair.pubkey();
 
     let create_rate_args = CreateRateArgs {
         action_id,
@@ -249,11 +250,11 @@ async fn test_should_create_both_split_and_conversion_rate_accounts() {
     // Rate account for split (the same mint)
     let (rate_pda1, result1) = create_rate_account(
         context,
-        mint_keypair1.pubkey(),
+        mint_from,
         mint_authority_pda1,
         context.payer.pubkey(),
-        rate_mint_pubkey1,
-        rate_mint_pubkey1,
+        mint_from,
+        mint_from,
         create_rate_args.clone()
     ).await;
     assert_transaction_success(result1);
@@ -261,11 +262,11 @@ async fn test_should_create_both_split_and_conversion_rate_accounts() {
     // Rate account for conversion (different mints)
     let (rate_pda2, result2) = create_rate_account(
         context,
-        mint_keypair1.pubkey(),
+        mint_from,
         mint_authority_pda1,
         context.payer.pubkey(),
-        rate_mint_pubkey1,
-        rate_mint_pubkey2,
+        mint_from,
+        mint_to,
         create_rate_args.clone()
     ).await;
     assert_transaction_success(result2);
@@ -298,7 +299,8 @@ async fn test_should_not_create_rate_account_for_not_initial_mint() {
     // Even though it belongs to the same payer, it is not the initial mint and tx should fail
     let second_mint_keypair = Keypair::new();
     create_security_token_mint(&mut context, &second_mint_keypair, decimals).await;
-    let rate_mint_pubkey = second_mint_keypair.pubkey();
+    let mint_from = second_mint_keypair.pubkey();
+    let mint_to = mint_from.clone();
 
     let create_rate_args = CreateRateArgs {
         action_id: 42u64,
@@ -314,8 +316,8 @@ async fn test_should_not_create_rate_account_for_not_initial_mint() {
         initial_mint_keypair.pubkey(),
         mint_authority_pda,
         context.payer.pubkey(),
-        rate_mint_pubkey,
-        rate_mint_pubkey,
+        mint_from,
+        mint_to,
         create_rate_args
     ).await;
     assert!(result.is_err(), "Should not create Rate account for not initial mint");

@@ -296,27 +296,28 @@ impl OperationsModule {
         denominator: u8,
         rounding: u8,
     ) -> ProgramResult {
-        let [rate_account, mint1_account, mint2_account, payer, system_program_info] = accounts
+        let [rate_account, mint_from_account, mint_to_account, payer, system_program_info] =
+            accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint1_account)?;
+        verify_operation_mint_info(verified_mint_info, &mint_from_account)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_system_program(system_program_info)?;
         verify_writable(rate_account)?;
         verify_account_not_initialized(rate_account)?;
 
-        let mint_account1 = Mint::from_account_info(mint1_account)?;
-        let mint_account2 = Mint::from_account_info(mint2_account)?;
-        let mint1_key = mint1_account.key();
-        let mint2_key = mint2_account.key();
-        drop(mint_account1);
-        drop(mint_account2);
+        let mint_from = Mint::from_account_info(mint_from_account)?;
+        let mint_to = Mint::from_account_info(mint_to_account)?;
+        let mint_from_key = mint_from_account.key();
+        let mint_to_key = mint_to_account.key();
+        drop(mint_from);
+        drop(mint_to);
 
         let (expected_rate_pda, bump) =
-            find_rate_pda(action_id, &mint1_key, &mint2_key, program_id);
+            find_rate_pda(action_id, &mint_from_key, &mint_to_key, program_id);
 
         if rate_account.key().ne(&expected_rate_pda) {
             log!("Invalid Rate account PDA");
@@ -348,8 +349,8 @@ impl OperationsModule {
         let seeds = [
             Seed::from(seeds::RATE_ACCOUNT),
             Seed::from(action_id_seed.as_ref()),
-            Seed::from(mint1_key.as_ref()),
-            Seed::from(mint2_key.as_ref()),
+            Seed::from(mint_from_key.as_ref()),
+            Seed::from(mint_to_key.as_ref()),
             Seed::from(bump_seed.as_ref()),
         ];
         let signer = Signer::from(&seeds);

@@ -51,14 +51,14 @@ pub async fn create_rate_account(
     security_token_mint: Pubkey,
     verification_config_or_mint_authority: Pubkey,
     instructions_sysvar_or_creator: Pubkey,
-    rate_mint_pubkey1: Pubkey,
-    rate_mint_pubkey2: Pubkey,
+    mint_from: Pubkey,
+    mint_to: Pubkey,
     create_rate_args: CreateRateArgs,
 ) -> (Pubkey, Result<(), BanksClientError>) {
     let (rate_pda, _bump) = find_rate_pda(
         create_rate_args.action_id,
-        &rate_mint_pubkey1,
-        &rate_mint_pubkey2,
+        &mint_from,
+        &mint_to,
     );
 
     let create_rate_ix = CreateRateAccount {
@@ -66,8 +66,8 @@ pub async fn create_rate_account(
         verification_config_or_mint_authority,
         instructions_sysvar_or_creator,
         rate_account: rate_pda,
-        rate_mint_account1: rate_mint_pubkey1,
-        rate_mint_account2: rate_mint_pubkey2,
+        mint_from: mint_from,
+        mint_to: mint_to,
         payer: context.payer.pubkey(),
         system_program: solana_system_interface::program::ID,
     }
@@ -96,7 +96,7 @@ pub fn find_rate_pda(
 ) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
-            b"security_token.accounts.rate",
+            b"rate",
             action_id.to_le_bytes().as_ref(),
             mint_pubkey1.as_ref(),
             mint_pubkey2.as_ref(),

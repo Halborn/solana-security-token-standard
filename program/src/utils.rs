@@ -69,19 +69,19 @@ pub fn find_account_delegate_pda(account: &Pubkey, program_id: &Pubkey) -> (Pubk
 }
 
 /// Derive rate PDA
-/// Seeds: ["security_token.accounts.rate", action_id, mint1, mint2]
+/// Seeds: ["security_token.accounts.rate", action_id, mint_from, mint_to]
 pub fn find_rate_pda(
     action_id: u64,
-    mint1: &Pubkey,
-    mint2: &Pubkey,
+    mint_from: &Pubkey,
+    mint_to: &Pubkey,
     program_id: &Pubkey,
 ) -> (Pubkey, u8) {
     find_program_address(
         &[
             seeds::RATE_ACCOUNT,
             action_id.to_le_bytes().as_ref(),
-            mint1.as_ref(),
-            mint2.as_ref(),
+            mint_from.as_ref(),
+            mint_to.as_ref(),
         ],
         program_id,
     )

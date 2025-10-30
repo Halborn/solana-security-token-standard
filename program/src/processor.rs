@@ -44,7 +44,6 @@ impl Processor {
         verification_profile: VerificationProfile,
     ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         match verification_profile {
-            // FIXME: Not sure if this is ok for None verification, needs to be reviewed
             VerificationProfile::None => Ok((&accounts[0], &accounts)),
             VerificationProfile::VerificationPrograms => {
                 let mint_info =
