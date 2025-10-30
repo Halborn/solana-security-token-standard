@@ -27,7 +27,7 @@ use spl_transfer_hook_interface::{
 pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
     pubkey!("Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH");
 const PERMANENT_DELEGATE_SEED: &[u8] = b"mint.permanent_delegate";
-const TRANSFER_HOOK_SEED: &[u8] = b"mint.transfer_hook";
+// const TRANSFER_HOOK_SEED: &[u8] = b"mint.transfer_hook";
 const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
 const VERIFICATION_CONFIG_SEED: &[u8] = b"verification_config";
 const TRANSFER_DISCRIMINATOR: u8 = 12;
@@ -121,7 +121,8 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
         log!("Invalid transfer operation discriminator");
         return Err(ProgramError::InvalidAccountData);
     }
-    let verification_programs_data = &config_data[2..];
+
+    let verification_programs_data = &config_data[6..];
     let verification_programs_count = verification_programs_data.len() / 32;
     if verification_programs_count == 0 {
         log!("No verification programs configured");
@@ -134,6 +135,9 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
         let pubkey_bytes: [u8; 32] = verification_programs_data[start..end]
             .try_into()
             .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        log!("Verification program {} loaded", i);
+
         verification_programs.push(pubkey_bytes);
     }
     log!(
@@ -167,7 +171,6 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
             is_writable: accounts[3].is_writable(),
         },
     ];
-
     for (i, program_id) in verification_programs.iter().enumerate() {
         let verification_instruction = pinocchio::instruction::Instruction {
             program_id,
