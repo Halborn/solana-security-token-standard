@@ -44,7 +44,7 @@ impl Processor {
         verification_profile: VerificationProfile,
     ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         match verification_profile {
-            VerificationProfile::None => Ok((&accounts[0], &accounts)),
+            VerificationProfile::None => Ok((&accounts[0], accounts)),
             VerificationProfile::VerificationPrograms => {
                 let mint_info =
                     VerificationModule::verify_by_programs(program_id, accounts, ix_discriminator)?;

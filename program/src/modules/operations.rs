@@ -364,7 +364,7 @@ impl OperationsModule {
         drop(mint_to);
 
         let (expected_rate_pda, bump) =
-            find_rate_pda(action_id, &mint_from_key, &mint_to_key, program_id);
+            find_rate_pda(action_id, mint_from_key, mint_to_key, program_id);
 
         if rate_account.key().ne(&expected_rate_pda) {
             log!("Invalid Rate account PDA");
