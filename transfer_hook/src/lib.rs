@@ -262,9 +262,6 @@ fn process_initialize_extra_account_meta_list(
             owner: program_id,
         };
         assign.invoke_signed(&[signer])?;
-        if extra_meta_info.data_len() != account_size {
-            extra_meta_info.realloc(account_size, false)?;
-        }
     } else if extra_meta_info.data_len() != account_size {
         extra_meta_info.realloc(account_size, false)?;
     }
