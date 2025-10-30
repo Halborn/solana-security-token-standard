@@ -2,9 +2,9 @@ use crate::{
     constants::INSTRUCTION_ACCOUNTS_OFFSET,
     instruction::SecurityTokenInstruction,
     instructions::{
-        update_rate_account::UpdateRateArgs, CreateRateArgs, InitializeMintArgs,
-        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
-        UpdateVerificationConfigArgs, VerifyArgs,
+        close_rate_account::CloseRateArgs, update_rate_account::UpdateRateArgs, CreateRateArgs,
+        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     },
     modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
@@ -28,6 +28,7 @@ impl Processor {
             InitializeMint | Verify => None,
             CreateRateAccount
             | UpdateRateAccount
+            | CloseRateAccount
             | InitializeVerificationConfig
             | UpdateVerificationConfig
             | TrimVerificationConfig
@@ -127,6 +128,12 @@ impl Processor {
                 args_data,
             ),
             SecurityTokenInstruction::UpdateRateAccount => Self::process_update_rate_account(
+                program_id,
+                verified_mint_info,
+                instruction_accounts,
+                args_data,
+            ),
+            SecurityTokenInstruction::CloseRateAccount => Self::process_close_rate_account(
                 program_id,
                 verified_mint_info,
                 instruction_accounts,
@@ -283,6 +290,17 @@ impl Processor {
             rate.denominator,
             rate.rounding,
         )?;
+        Ok(())
+    }
+
+    fn process_close_rate_account(
+        program_id: &Pubkey,
+        mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let CloseRateArgs { action_id } = CloseRateArgs::try_from_bytes(args_data)?;
+        OperationsModule::execute_close_rate_account(program_id, mint_info, accounts, action_id)?;
         Ok(())
     }
 }

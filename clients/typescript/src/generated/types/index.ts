@@ -6,6 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './closeRateArgs';
 export * from './createRateArgs';
 export * from './initializeMintArgs';
 export * from './initializeVerificationConfigArgs';

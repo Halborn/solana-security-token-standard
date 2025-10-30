@@ -1,10 +1,10 @@
 use security_token_client::{
     instructions::{
-        CreateRateAccount, CreateRateAccountInstructionArgs, UpdateRateAccount,
-        UpdateRateAccountInstructionArgs,
+        CloseRateAccount, CloseRateAccountInstructionArgs, CreateRateAccount,
+        CreateRateAccountInstructionArgs, UpdateRateAccount, UpdateRateAccountInstructionArgs,
     },
     programs::SECURITY_TOKEN_PROGRAM_ID,
-    types::{CreateRateArgs, InitializeMintArgs, MintArgs, UpdateRateArgs},
+    types::{CloseRateArgs, CreateRateArgs, InitializeMintArgs, MintArgs, UpdateRateArgs},
 };
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
@@ -103,6 +103,42 @@ pub async fn create_rate_account(
     (rate_pda, result)
 }
 
+pub async fn close_rate_account(
+    context: &mut solana_program_test::ProgramTestContext,
+    security_token_mint: Pubkey,
+    verification_config_or_mint_authority: Pubkey,
+    instructions_sysvar_or_creator: Pubkey,
+    rate_mint_pubkey1: Pubkey,
+    rate_mint_pubkey2: Pubkey,
+    close_rate_args: CloseRateArgs,
+) -> Result<(), BanksClientError> {
+    let (rate_pda, _bump) = find_rate_pda(
+        close_rate_args.action_id,
+        &rate_mint_pubkey1,
+        &rate_mint_pubkey2,
+    );
+
+    let close_rate_ix = CloseRateAccount {
+        mint: security_token_mint,
+        verification_config_or_mint_authority,
+        instructions_sysvar_or_creator,
+        rate_account: rate_pda,
+        rate_mint_account1: rate_mint_pubkey1,
+        rate_mint_account2: rate_mint_pubkey2,
+        destination: context.payer.pubkey(),
+    }
+    .instruction(CloseRateAccountInstructionArgs { close_rate_args });
+
+    let payer = &context.payer;
+    send_tx(
+        &context.banks_client,
+        vec![close_rate_ix],
+        &payer.pubkey(),
+        vec![&payer],
+    )
+    .await
+}
+
 pub async fn update_rate_account(
     context: &mut solana_program_test::ProgramTestContext,
     security_token_mint: Pubkey,
@@ -129,15 +165,13 @@ pub async fn update_rate_account(
     .instruction(UpdateRateAccountInstructionArgs { update_rate_args });
 
     let payer = &context.payer;
-    let result = send_tx(
+    send_tx(
         &context.banks_client,
         vec![update_rate_ix],
         &payer.pubkey(),
         vec![&payer],
     )
-    .await;
-
-    result
+    .await
 }
 
 pub fn find_rate_pda(action_id: u64, mint_pubkey1: &Pubkey, mint_pubkey2: &Pubkey) -> (Pubkey, u8) {

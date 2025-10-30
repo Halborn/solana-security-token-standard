@@ -7,6 +7,7 @@
  */
 
 export * from './burn';
+export * from './closeRateAccount';
 export * from './createRateAccount';
 export * from './freeze';
 export * from './initializeMint';

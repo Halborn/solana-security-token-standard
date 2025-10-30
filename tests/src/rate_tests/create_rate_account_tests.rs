@@ -1,7 +1,10 @@
 use borsh::BorshDeserialize;
 use rstest::rstest;
 use security_token_client::{
-    accounts::Rate, instructions::{CreateRateAccount, CreateRateAccountInstructionArgs}, programs::SECURITY_TOKEN_PROGRAM_ID, types::{CreateRateArgs, RateArgs, Rounding}
+    accounts::Rate,
+    instructions::{CreateRateAccount, CreateRateAccountInstructionArgs},
+    programs::SECURITY_TOKEN_PROGRAM_ID,
+    types::{CloseRateArgs, CreateRateArgs, RateArgs, Rounding},
 };
 use security_token_program::state::SecurityTokenDiscriminators;
 use solana_program_test::*;
@@ -9,8 +12,10 @@ use solana_pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 
 use crate::{
-    helpers::{assert_transaction_success, send_tx, start_with_context},
-    rate_tests::rate_helpers::{create_rate_account, create_security_token_mint, find_rate_pda},
+    helpers::{assert_account_exists, assert_transaction_success, send_tx, start_with_context},
+    rate_tests::rate_helpers::{
+        close_rate_account, create_rate_account, create_security_token_mint, find_rate_pda,
+    },
 };
 
 #[tokio::test]
@@ -52,12 +57,9 @@ async fn test_should_create_rate_account_operation_for_split_mints() {
     assert_transaction_success(result);
 
     // Verify the rate account was created
-    let rate_account = context
-        .banks_client
-        .get_account(rate_pda)
+    let rate_account = assert_account_exists(context, rate_pda, true)
         .await
-        .unwrap()
-        .expect("Rate account should exist");
+        .unwrap();
 
     let len = rate_account.data.len();
     println!("Rate account data length: {}", len);
@@ -126,13 +128,9 @@ async fn test_should_create_rate_account_operation_with_conversion_mints() {
     )
     .await;
     assert_transaction_success(result);
-
-    let rate_account = context
-        .banks_client
-        .get_account(rate_pda)
+    let rate_account = assert_account_exists(context, rate_pda, true)
         .await
-        .unwrap()
-        .expect("Rate account should exist");
+        .unwrap();
 
     let rate = Rate::try_from_slice(&rate_account.data).expect("Should deserialize Rate state");
 
@@ -219,13 +217,7 @@ async fn test_should_not_create_rate_account_twice() {
     )
     .await;
     assert_transaction_success(result);
-
-    let _rate_account = context
-        .banks_client
-        .get_account(rate_pda)
-        .await
-        .unwrap()
-        .expect("Rate account should exist");
+    assert_account_exists(context, rate_pda, true).await;
 
     // Try creating the same Rate account again, should fail
     let (_, result) = create_rate_account(
@@ -298,19 +290,8 @@ async fn test_should_create_both_split_and_conversion_rate_accounts() {
     .await;
     assert_transaction_success(result2);
 
-    let _rate_account1 = context
-        .banks_client
-        .get_account(rate_pda1)
-        .await
-        .unwrap()
-        .expect("Rate account 1 should exist");
-
-    let _rate_account2 = context
-        .banks_client
-        .get_account(rate_pda2)
-        .await
-        .unwrap()
-        .expect("Rate account 2 should exist");
+    assert_account_exists(context, rate_pda1, true).await;
+    assert_account_exists(context, rate_pda2, true).await;
 }
 
 #[tokio::test]
@@ -455,3 +436,67 @@ async fn test_should_not_create_rate_account_with_invalid_system_program_id() {
     );
 }
 
+#[tokio::test]
+async fn test_should_re_create_closed_rate_account() {
+    let mut context = &mut start_with_context().await;
+
+    let mint_keypair = Keypair::new();
+    let decimals = 6u8;
+    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
+        create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
+
+    let action_id = 42u64;
+    let rate_mint_pubkey = mint_keypair.pubkey();
+
+    let create_rate_args = CreateRateArgs {
+        action_id,
+        rate: RateArgs {
+            rounding: Rounding::Up as u8,
+            numerator: 3u8,
+            denominator: 2u8,
+        },
+    };
+
+    let (rate_pda, result) = create_rate_account(
+        context,
+        mint_keypair.pubkey(),
+        mint_authority_pda,
+        context.payer.pubkey(),
+        rate_mint_pubkey,
+        rate_mint_pubkey,
+        create_rate_args.clone(),
+        None,
+    )
+    .await;
+    assert_transaction_success(result);
+    assert_account_exists(context, rate_pda, true).await;
+
+    // Close and then try to re-create it
+    let result = close_rate_account(
+        context,
+        mint_keypair.pubkey(),
+        mint_authority_pda,
+        context.payer.pubkey(),
+        rate_mint_pubkey,
+        rate_mint_pubkey,
+        CloseRateArgs { action_id },
+    )
+    .await;
+    assert_transaction_success(result);
+    assert_account_exists(context, rate_pda, false).await;
+
+    // Create Rate account with the same params again
+    let (rate_pda, result) = create_rate_account(
+        context,
+        mint_keypair.pubkey(),
+        mint_authority_pda,
+        context.payer.pubkey(),
+        rate_mint_pubkey,
+        rate_mint_pubkey,
+        create_rate_args.clone(),
+        None,
+    )
+    .await;
+    assert_transaction_success(result);
+    assert_account_exists(context, rate_pda, true).await;
+}

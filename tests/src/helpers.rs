@@ -4,7 +4,10 @@ use security_token_client::{
     programs::SECURITY_TOKEN_PROGRAM_ID,
     types::{InitializeMintArgs, InitializeVerificationConfigArgs},
 };
-use solana_program_test::{BanksClient, BanksClientError, ProgramTest, ProgramTestContext};
+use solana_program_test::{
+    BanksClient, BanksClientError, BanksTransactionResultWithMetadata, ProgramTest,
+    ProgramTestContext,
+};
 use solana_sdk::{
     account::Account,
     instruction::InstructionError,
@@ -12,6 +15,8 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::TransactionError,
 };
+
+pub const TX_FEE: u64 = 5000;
 
 /// Helper function to assert that a transaction failed with a specific SecurityTokenError
 pub fn assert_security_token_error(
@@ -64,6 +69,35 @@ pub fn assert_transaction_failure(result: Result<(), BanksClientError>) {
         }
         Ok(_) => panic!("Expected transaction to fail, but it succeeded"),
     }
+}
+
+pub async fn assert_account_exists(
+    context: &mut ProgramTestContext,
+    account_pubkey: Pubkey,
+    should_check_existance: bool,
+) -> Option<Account> {
+    let account_info = context
+        .banks_client
+        .get_account(account_pubkey)
+        .await
+        .unwrap();
+
+    if should_check_existance {
+        assert!(
+            account_info.is_some(),
+            "Expected account {} to exist",
+            account_pubkey
+        );
+    } else {
+        assert!(
+            account_info.is_none(),
+            "Expected account {} to not exist",
+            account_pubkey
+        );
+    }
+
+    println!("Test passed: Account {} exists", account_pubkey);
+    account_info
 }
 
 pub async fn initialize_mint(
@@ -172,7 +206,6 @@ pub async fn start_with_context_and_accounts(
 
     pt.start_with_context().await
 }
-
 
 pub async fn send_tx(
     banks_client: &BanksClient,

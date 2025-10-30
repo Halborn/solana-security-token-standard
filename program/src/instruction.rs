@@ -18,6 +18,7 @@ pub enum SecurityTokenInstruction {
     Thaw = 11,
     CreateRateAccount = 12,
     UpdateRateAccount = 13,
+    CloseRateAccount = 14,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -39,6 +40,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             11 => Ok(SecurityTokenInstruction::Thaw),
             12 => Ok(SecurityTokenInstruction::CreateRateAccount),
             13 => Ok(SecurityTokenInstruction::UpdateRateAccount),
+            14 => Ok(SecurityTokenInstruction::CloseRateAccount),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -73,9 +75,9 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        update_rate_account::UpdateRateArgs, CreateRateArgs, InitializeMintArgs,
-        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
-        UpdateVerificationConfigArgs, VerifyArgs,
+        close_rate_account::CloseRateArgs, update_rate_account::UpdateRateArgs, CreateRateArgs,
+        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -200,5 +202,14 @@ mod idl_gen {
         #[account(4, name = "rate_mint_account_1")]
         #[account(5, name = "rate_mint_account_2")]
         UpdateRateAccount(UpdateRateArgs) = 13,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, writable, name = "rate_account")]
+        #[account(4, name = "rate_mint_account_1")]
+        #[account(5, name = "rate_mint_account_2")]
+        #[account(6, writable, name = "destination")]
+        CloseRateAccount(CloseRateArgs) = 14,
     }
 }

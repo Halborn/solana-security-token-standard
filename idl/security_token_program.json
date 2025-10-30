@@ -667,6 +667,58 @@
         "type": "u8",
         "value": 13
       }
+    },
+    {
+      "name": "CloseRateAccount",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfigOrMintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvarOrCreator",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rateAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rateMintAccount1",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rateMintAccount2",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "destination",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "closeRateArgs",
+          "type": {
+            "defined": "CloseRateArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 14
+      }
     }
   ],
   "accounts": [
@@ -872,6 +924,18 @@
                 "defined": "ScaledUiAmountConfigArgs"
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CloseRateArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "actionId",
+            "type": "u64"
           }
         ]
       }

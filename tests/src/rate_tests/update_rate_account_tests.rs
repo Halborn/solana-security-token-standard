@@ -2,7 +2,7 @@ use borsh::BorshDeserialize;
 use rstest::rstest;
 use security_token_client::{
     accounts::Rate,
-    types::{CreateRateArgs, RateArgs, Rounding, UpdateRateArgs},
+    types::{CloseRateArgs, CreateRateArgs, RateArgs, Rounding, UpdateRateArgs},
 };
 use solana_program_test::*;
 use solana_sdk::{
@@ -10,7 +10,12 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
-use crate::rate_tests::rate_helpers::{create_rate_account, create_security_token_mint, find_rate_pda};
+use crate::{
+    helpers::assert_account_exists,
+    rate_tests::rate_helpers::{
+        close_rate_account, create_rate_account, create_security_token_mint, find_rate_pda,
+    },
+};
 use crate::{
     helpers::{
         assert_transaction_success, find_mint_authority_pda, start_with_context,
@@ -176,7 +181,7 @@ async fn test_should_not_update_not_owned_rate_account() {
 
     // First mint, context.payer is the authority
     let mint_keypair1 = Keypair::new();
-    let mint_creator1 = context.payer.pubkey().clone();
+    let mint_creator1 = context.payer.pubkey();
     let decimals = 6u8;
     let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
         create_security_token_mint(&mut context, &mint_keypair1, None, decimals).await;
@@ -310,20 +315,10 @@ async fn test_should_not_update_not_existed_rate_account() {
 
     // Random Rate account
     let action_id = 123u64;
-     let (rate_pda, _bump) = find_rate_pda(
-        action_id,
-        &rate_mint_pubkey,
-        &rate_mint_pubkey,
-    );
+    let (rate_pda, _bump) = find_rate_pda(action_id, &rate_mint_pubkey, &rate_mint_pubkey);
 
     // Verify Rate account does not exist
-    let rate_acc = context
-        .banks_client
-        .get_account(rate_pda)
-        .await
-        .unwrap();
-
-    assert!(rate_acc.is_none(), "Rate account should not exist");
+    assert_account_exists(context, rate_pda, false).await;
 
     let update_args = UpdateRateArgs {
         action_id,
@@ -348,4 +343,78 @@ async fn test_should_not_update_not_existed_rate_account() {
         result.is_err(),
         "Should not update not existed Rate account"
     );
+}
+
+#[tokio::test]
+async fn test_should_not_update_closed_rate_account() {
+    let mut context = &mut start_with_context().await;
+
+    let mint_keypair = Keypair::new();
+    let mint_creator = context.payer.pubkey().clone();
+    let rate_mint_pubkey = mint_keypair.pubkey();
+    let decimals = 6u8;
+    let (mint_authority_pda, _, _) =
+        create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
+
+    let action_id = 42u64;
+    let rounding = Rounding::Down as u8;
+    let numerator = 4u8;
+    let denominator = 3u8;
+
+    let create_rate_args = CreateRateArgs {
+        action_id,
+        rate: RateArgs {
+            rounding,
+            numerator,
+            denominator,
+        },
+    };
+
+    let (rate_pda, result) = create_rate_account(
+        context,
+        mint_keypair.pubkey(),
+        mint_authority_pda,
+        mint_creator,
+        mint_keypair.pubkey(),
+        mint_keypair.pubkey(),
+        create_rate_args,
+        None,
+    )
+    .await;
+    assert_transaction_success(result);
+
+    // Close and then try to update it
+    let result = close_rate_account(
+        context,
+        mint_keypair.pubkey(),
+        mint_authority_pda,
+        context.payer.pubkey(),
+        rate_mint_pubkey,
+        rate_mint_pubkey,
+        CloseRateArgs { action_id },
+    )
+    .await;
+    assert_transaction_success(result);
+    assert_account_exists(context, rate_pda, false).await;
+
+    let update_args = UpdateRateArgs {
+        action_id,
+        rate: RateArgs {
+            rounding: Rounding::Down as u8,
+            numerator: 5,
+            denominator: 20,
+        },
+    };
+
+    let result = update_rate_account(
+        context,
+        mint_keypair.pubkey(),
+        mint_authority_pda,
+        mint_creator,
+        mint_keypair.pubkey(),
+        mint_keypair.pubkey(),
+        update_args.clone(),
+    )
+    .await;
+    assert!(result.is_err(), "Should not update closed Rate account");
 }

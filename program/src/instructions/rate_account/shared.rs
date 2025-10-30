@@ -22,7 +22,7 @@ impl RateArgs {
     pub const LEN: usize = 1 + 1 + 1;
 
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() != Self::LEN {
+        if data.len() < Self::LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -54,7 +54,20 @@ impl RateArgs {
 
 /// Parse bytes into (action_id, RateArgs)
 pub fn parse_action_and_rate(data: &[u8]) -> Result<(u64, RateArgs), ProgramError> {
-    if data.len() != ACTION_AND_RATE_ARGS_LEN {
+    if data.len() < ACTION_AND_RATE_ARGS_LEN {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    let action_id = parse_action_id(&data[..ACTION_ID_LEN])?;
+
+    let rate_args_data = &data[ACTION_ID_LEN..];
+    let rate_args = RateArgs::try_from_bytes(rate_args_data)?;
+
+    Ok((action_id, rate_args))
+}
+
+pub fn parse_action_id(data: &[u8]) -> Result<u64, ProgramError> {
+    if data.len() < ACTION_ID_LEN {
         return Err(ProgramError::InvalidInstructionData);
     }
 
@@ -68,13 +81,10 @@ pub fn parse_action_and_rate(data: &[u8]) -> Result<(u64, RateArgs), ProgramErro
         return Err(ProgramError::InvalidArgument);
     }
 
-    let rate_args_data = &data[ACTION_ID_LEN..];
-    let rate_args = RateArgs::try_from_bytes(rate_args_data)?;
-
-    Ok((action_id, rate_args))
+    Ok(action_id)
 }
 
-/// Serialize (action_id, RateArgs) to bytes
+/// Serialize (action_id, Rate arguments) to bytes
 pub fn serialize_action_and_rate(action_id: u64, rate: &RateArgs) -> Vec<u8> {
     let mut data = Vec::with_capacity(ACTION_AND_RATE_ARGS_LEN);
     data.extend_from_slice(action_id.to_le_bytes().as_ref());

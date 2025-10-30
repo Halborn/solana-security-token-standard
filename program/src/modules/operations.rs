@@ -360,7 +360,7 @@ impl OperationsModule {
         Ok(())
     }
 
-    /// Create Rate account
+    /// Update Rate account
     pub fn execute_update_rate_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -399,6 +399,54 @@ impl OperationsModule {
             "Rate account {} updated successfully",
             rate_account_info.key()
         );
+        Ok(())
+    }
+
+    /// Close Rate account
+    pub fn execute_close_rate_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+    ) -> ProgramResult {
+        let [rate_account, mint1_account, mint2_account, destination_account] = accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_operation_mint_info(verified_mint_info, &mint1_account)?;
+        verify_writable(destination_account)?;
+        verify_writable(rate_account)?;
+        verify_account_initialized(rate_account)?;
+        verify_owner(rate_account, program_id)?;
+
+        let mint_account1 = Mint::from_account_info(mint1_account)?;
+        let mint_account2 = Mint::from_account_info(mint2_account)?;
+        let mint1_key = mint1_account.key();
+        let mint2_key = mint2_account.key();
+        drop(mint_account1);
+        drop(mint_account2);
+
+        let (expected_rate_pda, _) = find_rate_pda(action_id, &mint1_key, &mint2_key, program_id);
+
+        verify_pda(&rate_account.key(), &expected_rate_pda)?;
+
+        // Transfer lamports to destination
+        let rate_lamports = rate_account.lamports();
+        let mut dest_lamports = destination_account.try_borrow_mut_lamports()?;
+        *dest_lamports = dest_lamports
+            .checked_add(rate_lamports)
+            .ok_or(ProgramError::InvalidAccountData)?;
+
+        // Remove lamports from Rate account
+        // Make sure the account is not borrowed so it can be closed
+        {
+            let mut rate_lamports_mut = rate_account.try_borrow_mut_lamports()?;
+            *rate_lamports_mut = 0;
+        }
+        // Close Rate account
+        rate_account.close()?;
+
+        log!("Rate Account closed: {}", rate_account.key());
         Ok(())
     }
 }
