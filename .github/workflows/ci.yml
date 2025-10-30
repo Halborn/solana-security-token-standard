@@ -41,6 +41,9 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            target/debug/deps
+            target/debug/build
+            target/debug/.fingerprint
           key: ${{ runner.os }}-cargo-sbf-${{ hashFiles('program/Cargo.toml', 'transfer_hook/Cargo.toml', 'Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-sbf-
@@ -115,6 +118,9 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            target/debug/deps
+            target/debug/build
+            target/debug/.fingerprint
           key: ${{ runner.os }}-cargo-test-${{ hashFiles('tests/Cargo.toml', 'transfer_hook/Cargo.toml', 'client/rust/Cargo.toml', 'program/Cargo.toml', 'Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-test-
