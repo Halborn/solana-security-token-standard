@@ -567,17 +567,21 @@ fn dummy_program_1_processor(
     _accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    // The first byte determines instruction id
-    msg!(
-        "Dummy program 1 called with {} bytes - always succeeds",
-        instruction_data.len()
-    );
+    // Processor logic for transfer verification program
+    let instruction_byte = instruction_data[0];
+    let amount = instruction_data[1..]
+        .try_into()
+        .map(u64::from_le_bytes)
+        .unwrap();
+    assert_eq!(instruction_byte, TRANSFER_DISCRIMINATOR);
+    assert_eq!(amount, 125_000);
     Ok(())
 }
 
 #[tokio::test]
 async fn test_p2p_transfer_direct_spl() {
     let dummy_program_1_id = Pubkey::new_unique();
+    let dummy_program_2_id = Pubkey::new_unique();
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
 
     pt.add_program(
@@ -591,6 +595,12 @@ async fn test_p2p_transfer_direct_spl() {
         dummy_program_1_id,
         processor!(dummy_program_1_processor),
     );
+    pt.add_program(
+        "dummy_program_2",
+        dummy_program_2_id,
+        processor!(dummy_program_1_processor),
+    );
+
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
 
     let mint_keypair = Keypair::new();
@@ -641,7 +651,7 @@ async fn test_p2p_transfer_direct_spl() {
 
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
-        program_addresses: vec![dummy_program_1_id],
+        program_addresses: vec![dummy_program_1_id, dummy_program_2_id],
     };
 
     initialize_verification_config(
@@ -670,6 +680,12 @@ async fn test_p2p_transfer_direct_spl() {
             is_writable: PodBool(0),
             is_signer: PodBool(0),
             address_config: dummy_program_1_id.to_bytes(),
+        },
+        ExtraAccountMeta {
+            discriminator: 0,
+            is_writable: PodBool(0),
+            is_signer: PodBool(0),
+            address_config: dummy_program_2_id.to_bytes(),
         },
     ];
     let source_account = create_spl_account(&mut context, &mint_keypair, &source_owner).await;
