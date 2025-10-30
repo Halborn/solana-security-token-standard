@@ -42,13 +42,13 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-cargo-sbf-${{ hashFiles('program/Cargo.toml', 'Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-sbf-${{ hashFiles('program/Cargo.toml', 'transfer_hook/Cargo.toml', 'Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-sbf-
             ${{ runner.os }}-cargo-
 
       - name: Build SBF program
-        working-directory: ./program
+        working-directory: .
         run: cargo build-sbf
 
       - name: Upload SBF artifacts
