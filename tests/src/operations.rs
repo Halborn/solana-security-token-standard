@@ -19,7 +19,7 @@ use spl_type_length_value::state::TlvStateBorrowed;
 
 use crate::helpers::{
     assert_transaction_success, create_spl_account, initialize_mint,
-    initialize_verification_config, mint_to_account,
+    initialize_mint_verification_and_mint_to_account, initialize_verification_config,
 };
 use security_token_transfer_hook;
 use solana_program_test::*;
@@ -525,7 +525,7 @@ async fn test_t22_transfer_operations() {
     let destination_account =
         create_spl_account(&mut context, &mint_keypair, &destination_keypair).await;
 
-    mint_to_account(
+    initialize_mint_verification_and_mint_to_account(
         &mint_keypair,
         &mut context,
         mint_authority_pda,
@@ -692,7 +692,7 @@ async fn test_p2p_transfer_direct_spl() {
     let destination_account =
         create_spl_account(&mut context, &mint_keypair, &destination_owner).await;
 
-    mint_to_account(
+    initialize_mint_verification_and_mint_to_account(
         &mint_keypair,
         &mut context,
         mint_authority_pda,

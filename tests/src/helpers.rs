@@ -159,8 +159,7 @@ pub async fn create_spl_account(
     account
 }
 
-// TODO: Change the naming it also creates verification config
-pub async fn mint_to_account(
+pub async fn initialize_mint_verification_and_mint_to_account(
     mint_keypair: &Keypair,
     context: &mut ProgramTestContext,
     mint_authority_pda: Pubkey,
