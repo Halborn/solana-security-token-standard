@@ -51,15 +51,13 @@ fn process_instruction(
     let (discriminator, rest) =
         instruction_data.split_at(ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len());
 
-    if discriminator == ExecuteInstruction::SPL_DISCRIMINATOR_SLICE {
-        return process_execute(program_id, accounts, rest);
+    match discriminator {
+        ExecuteInstruction::SPL_DISCRIMINATOR_SLICE => process_execute(program_id, accounts, rest),
+        InitializeExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE => {
+            process_initialize_extra_account_meta_list(program_id, accounts, rest)
+        }
+        _ => Err(ProgramError::InvalidInstructionData),
     }
-
-    if discriminator == InitializeExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE {
-        return process_initialize_extra_account_meta_list(program_id, accounts, rest);
-    }
-
-    Err(ProgramError::InvalidInstructionData)
 }
 
 fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) -> ProgramResult {
