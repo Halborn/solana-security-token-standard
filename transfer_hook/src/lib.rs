@@ -28,6 +28,7 @@ const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
 const VERIFICATION_CONFIG_SEED: &[u8] = b"verification_config";
 const TRANSFER_DISCRIMINATOR: u8 = 12;
 const TRANSFER_VERIFICATION_CONFIG_DISCRIMINATOR: u8 = 1;
+const MAX_VERIFICATION_PROGRAMS: usize = 10;
 
 // NOTE: Replace with the finalized program ID generated for the transfer hook deployment.
 declare_id!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
@@ -102,7 +103,6 @@ fn is_permanent_delegate_transfer(
     Ok(authority.key() == &permanent_delegate_pda && extra_accounts.is_empty())
 }
 
-/// Load and parse verification programs from verification config
 fn load_verification_programs(
     mint: &AccountInfo,
     extra_accounts: &[AccountInfo],
@@ -121,6 +121,10 @@ fn load_verification_programs(
         .find(|acc| acc.key() == &verification_config_pda)
         .ok_or(ProgramError::InvalidSeeds)?;
 
+    if !verification_config.is_owned_by(&SECURITY_TOKEN_PROGRAM_ID) {
+        return Err(ProgramError::IllegalOwner);
+    }
+
     let config_data = verification_config.try_borrow_data()?;
 
     let config_discriminator = config_data
@@ -135,8 +139,16 @@ fn load_verification_programs(
         return Err(ProgramError::InvalidAccountData);
     }
 
+    if config_data.len() < 6 {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
     let verification_programs_data = &config_data[6..];
     let verification_programs_count = verification_programs_data.len() / 32;
+    // Anti CPI DDOS
+    if verification_programs_count > MAX_VERIFICATION_PROGRAMS {
+        return Err(ProgramError::InvalidAccountData);
+    }
 
     let mut verification_programs = Vec::with_capacity(verification_programs_count);
     for i in 0..verification_programs_count {
