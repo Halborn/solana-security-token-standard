@@ -5,7 +5,7 @@ use security_token_client::{
     types::{InitializeMintArgs, InitializeVerificationConfigArgs},
 };
 use solana_program_test::{
-    BanksClient, BanksClientError, BanksTransactionResultWithMetadata, ProgramTest,
+    BanksClient, BanksClientError, ProgramTest,
     ProgramTestContext,
 };
 use solana_sdk::{
