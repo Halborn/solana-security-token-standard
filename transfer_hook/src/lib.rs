@@ -17,8 +17,9 @@ use solana_pubkey::Pubkey as SolanaPubkey;
 use spl_discriminator::SplDiscriminate;
 use spl_pod::slice::PodSlice;
 use spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList};
-use spl_transfer_hook_interface::{
-    get_extra_account_metas_address_and_bump_seed, instruction::ExecuteInstruction,
+use spl_transfer_hook_interface::get_extra_account_metas_address_and_bump_seed;
+use spl_transfer_hook_interface::instruction::{
+    ExecuteInstruction, InitializeExtraAccountMetaListInstruction,
 };
 
 pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
@@ -34,21 +35,15 @@ const MAX_VERIFICATION_PROGRAMS: usize = 10;
 declare_id!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
 
 #[cfg(not(feature = "no-entrypoint"))]
-mod init {
-    use crate::process_instruction;
-    use pinocchio::entrypoint;
-    entrypoint!(process_instruction);
-}
+use pinocchio::entrypoint;
+#[cfg(not(feature = "no-entrypoint"))]
+entrypoint!(process_instruction);
 
-fn process_instruction(
+pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    use spl_transfer_hook_interface::instruction::{
-        ExecuteInstruction, InitializeExtraAccountMetaListInstruction,
-    };
-
     if instruction_data.len() < ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len() {
         return Err(ProgramError::InvalidInstructionData);
     }
@@ -98,7 +93,6 @@ fn is_permanent_delegate_transfer(
         &[PERMANENT_DELEGATE_SEED, mint.key().as_ref()],
         &SECURITY_TOKEN_PROGRAM_ID,
     );
-
     // NOTE: Permanent delegate with no extra accounts means native SPL call
     Ok(authority.key() == &permanent_delegate_pda && extra_accounts.is_empty())
 }
@@ -203,10 +197,16 @@ fn process_initialize_extra_account_meta_list(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
+    if extra_meta_info.is_owned_by(program_id) {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
     if system_program_info.key() != &pinocchio_system::ID {
         return Err(ProgramError::IncorrectProgramId);
     }
 
+    // NOTE: In our case the authority must be a signer
+    // We can't sign as a program offchain, clarify this
     if !authority_info.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
@@ -231,41 +231,34 @@ fn process_initialize_extra_account_meta_list(
     let account_size =
         ExtraAccountMetaList::size_of(count).map_err(|_| ProgramError::InvalidAccountData)?;
 
-    if !extra_meta_info.is_owned_by(&program_id) {
-        if !extra_meta_info.is_owned_by(&pinocchio_system::ID) {
-            return Err(ProgramError::IllegalOwner);
-        }
+    let rent = Rent::get()?;
+    let required_lamports = rent.minimum_balance(account_size);
+    let transfer = Transfer {
+        from: authority_info,
+        to: extra_meta_info,
+        lamports: required_lamports,
+    };
+    transfer.invoke()?;
 
-        let rent = Rent::get()?;
-        let required_lamports = rent.minimum_balance(account_size);
-        let transfer = Transfer {
-            from: authority_info,
-            to: extra_meta_info,
-            lamports: required_lamports,
-        };
-        transfer.invoke()?;
+    let bump_seed = [bump];
+    let seeds = [
+        Seed::from(EXTRA_ACCOUNT_METAS_SEED),
+        Seed::from(mint_info.key().as_ref()),
+        Seed::from(bump_seed.as_ref()),
+    ];
+    let signer = Signer::from(&seeds);
 
-        let bump_seed = [bump];
-        let seeds = [
-            Seed::from(EXTRA_ACCOUNT_METAS_SEED),
-            Seed::from(mint_info.key().as_ref()),
-            Seed::from(bump_seed.as_ref()),
-        ];
-        let signer = Signer::from(&seeds);
+    let allocate = Allocate {
+        account: extra_meta_info,
+        space: account_size as u64,
+    };
+    allocate.invoke_signed(&[signer.clone()])?;
+    let assign = Assign {
+        account: extra_meta_info,
+        owner: program_id,
+    };
+    assign.invoke_signed(&[signer])?;
 
-        let allocate = Allocate {
-            account: extra_meta_info,
-            space: account_size as u64,
-        };
-        allocate.invoke_signed(&[signer.clone()])?;
-        let assign = Assign {
-            account: extra_meta_info,
-            owner: program_id,
-        };
-        assign.invoke_signed(&[signer])?;
-    } else if extra_meta_info.data_len() != account_size {
-        extra_meta_info.realloc(account_size, false)?;
-    }
     {
         let mut data = extra_meta_info.try_borrow_mut_data()?;
         ExtraAccountMetaList::init::<ExecuteInstruction>(&mut data, &extra_account_metas)

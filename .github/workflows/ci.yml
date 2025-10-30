@@ -41,9 +41,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target/sbf-solana-solana/release/deps
-            target/sbf-solana-solana/release/build
-            target/sbf-solana-solana/release/.fingerprint
+            target/
           key: ${{ runner.os }}-cargo-sbf-${{ hashFiles('program/Cargo.toml', 'transfer_hook/Cargo.toml', 'Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-sbf-
@@ -91,7 +89,7 @@ jobs:
         run: cargo fmt -p security-token-program -p security-token-transfer-hook -- --check
 
       - name: Clippy
-        run: cargo clippy -p security-token-program -p security-token-transfer-hook
+        run: cargo clippy -p security-token-program -p security-token-transfer-hook -- -D warnings
 
   test:
     name: Test
@@ -118,9 +116,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target/debug/deps
-            target/debug/build
-            target/debug/.fingerprint
+            target/
           key: ${{ runner.os }}-cargo-test-${{ hashFiles('tests/Cargo.toml', 'transfer_hook/Cargo.toml', 'client/rust/Cargo.toml', 'program/Cargo.toml', 'Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-test-
