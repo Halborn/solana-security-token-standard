@@ -300,8 +300,6 @@ impl<'a> CustomTransferChecked<'a> {
     }
 
     /// Invoke the TransferChecked instruction with signer seeds.
-    #[allow(clippy::cast_possible_truncation)]
-
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         // account metadata
         let account_metas: [AccountMeta; 5] = [
