@@ -137,22 +137,26 @@ fn load_verification_programs(
     }
 
     let verification_programs_data = &config_data[6..];
+
+    if verification_programs_data.len() % 32 != 0 {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
     let verification_programs_count = verification_programs_data.len() / 32;
+
     // Anti CPI DDOS
     if verification_programs_count > MAX_VERIFICATION_PROGRAMS {
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let mut verification_programs = Vec::with_capacity(verification_programs_count);
-    for i in 0..verification_programs_count {
-        let start = i * 32;
-        let end = start + 32;
-        let pubkey_bytes: [u8; 32] = verification_programs_data[start..end]
-            .try_into()
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-        verification_programs.push(pubkey_bytes);
-    }
-    Ok(verification_programs)
+    verification_programs_data
+        .chunks_exact(32)
+        .map(|chunk| {
+            chunk
+                .try_into()
+                .map_err(|_| ProgramError::InvalidAccountData)
+        })
+        .collect()
 }
 
 fn execute_verification_programs(
@@ -160,9 +164,10 @@ fn execute_verification_programs(
     accounts: &[AccountInfo],
     amount: u64,
 ) -> ProgramResult {
-    let mut instruction_data = Vec::with_capacity(9);
-    instruction_data.push(TRANSFER_DISCRIMINATOR);
-    instruction_data.extend_from_slice(&amount.to_le_bytes());
+    // Build instruction data: [discriminator (1 byte) | amount (8 bytes)]
+    let mut instruction_data = [0u8; 9];
+    instruction_data[0] = TRANSFER_DISCRIMINATOR;
+    instruction_data[1..9].copy_from_slice(&amount.to_le_bytes());
 
     let verification_account_metas: Vec<pinocchio::instruction::AccountMeta> = accounts
         .iter()
