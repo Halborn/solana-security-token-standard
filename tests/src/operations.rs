@@ -567,12 +567,18 @@ fn dummy_program_1_processor(
     _accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    // Processor logic for transfer verification program
+    // Example of transfer verification program
+    // (1 byte discriminator + 8 bytes amount)
+    if instruction_data.len() != 9 {
+        return Err(solana_program::program_error::ProgramError::InvalidInstructionData);
+    }
+
     let instruction_byte = instruction_data[0];
-    let amount = instruction_data[1..]
+    let amount_bytes: [u8; 8] = instruction_data[1..9]
         .try_into()
-        .map(u64::from_le_bytes)
-        .unwrap();
+        .map_err(|_| solana_program::program_error::ProgramError::InvalidInstructionData)?;
+    let amount = u64::from_le_bytes(amount_bytes);
+
     assert_eq!(instruction_byte, TRANSFER_DISCRIMINATOR);
     assert_eq!(amount, 125_000);
     Ok(())
