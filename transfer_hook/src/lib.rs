@@ -115,7 +115,7 @@ fn load_verification_programs(
     let verification_config = extra_accounts
         .iter()
         .find(|acc| acc.key() == &verification_config_pda)
-        .ok_or_else(|| ProgramError::InvalidSeeds)?;
+        .ok_or(ProgramError::InvalidSeeds)?;
 
     let config_data = verification_config.try_borrow_data()?;
 

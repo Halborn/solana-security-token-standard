@@ -1,6 +1,5 @@
 //! Token extension wrappers
 
-// use alloc::vec::Vec;
 use core::mem::MaybeUninit;
 use core::slice::from_raw_parts;
 use pinocchio::account_info::AccountInfo;
@@ -10,26 +9,6 @@ use pinocchio::ProgramResult;
 use pinocchio_token_2022::extensions::metadata::InitializeTokenMetadata;
 
 const UNINIT_BYTE: MaybeUninit<u8> = MaybeUninit::<u8>::uninit();
-
-/// Deserialize a type from a byte array.
-///
-/// # Safety
-///
-/// This function is unsafe because it transmutes the input data to the output type.
-pub unsafe fn from_bytes<T: Clone + Copy>(data: &[u8]) -> T {
-    assert_eq!(data.len(), core::mem::size_of::<T>());
-    *(data.as_ptr() as *const T)
-}
-
-/// Deserialize a type from a byte array into a reference.
-///
-/// # Safety
-///
-/// This function is unsafe because it transmutes the input data to the output type.
-pub unsafe fn from_bytes_ref<T: Clone + Copy>(data: &[u8]) -> &T {
-    assert_eq!(data.len(), core::mem::size_of::<T>());
-    &*(data.as_ptr() as *const T)
-}
 
 #[inline(always)]
 fn write_bytes(destination: &mut [MaybeUninit<u8>], source: &[u8]) {
