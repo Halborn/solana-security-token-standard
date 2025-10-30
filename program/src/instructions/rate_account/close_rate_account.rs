@@ -1,13 +1,13 @@
 use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
-use crate::instructions::rate_account::parse_action_id;
+use crate::instructions::rate_account::shared::parse_action_id;
 
 /// Arguments to close Rate account
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, ShankType)]
 pub struct CloseRateArgs {
-    /// Action ID of the rate
+    /// Action ID of the Rate
     pub action_id: u64,
 }
 

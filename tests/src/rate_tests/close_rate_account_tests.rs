@@ -19,19 +19,20 @@ use crate::{
 async fn test_should_close_rate_account() {
     let mut context = &mut start_with_context().await;
 
-    let mint_keypair1 = Keypair::new();
-    let mint_keypair2 = Keypair::new();
+    let mint_from_keypair = Keypair::new();
+    let mint_to_keypair = Keypair::new();
     let decimals = 6u8;
     let (mint_authority_pda1, _, _) =
-        create_security_token_mint(&mut context, &mint_keypair1, None, decimals).await;
-    let (_, _, _) = create_security_token_mint(&mut context, &mint_keypair2, None, decimals).await;
+        create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
+    let (_, _, _) =
+        create_security_token_mint(&mut context, &mint_to_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
     let numerator = 3u8;
     let denominator = 2u8;
-    let rate_mint_pubkey1 = mint_keypair1.pubkey();
-    let rate_mint_pubkey2 = mint_keypair2.pubkey();
+    let mint_from_pubkey = mint_from_keypair.pubkey();
+    let mint_to_pubkey = mint_to_keypair.pubkey();
 
     let create_rate_args = CreateRateArgs {
         action_id,
@@ -45,11 +46,11 @@ async fn test_should_close_rate_account() {
     // For split (same mint)
     let (rate_pda1, result1) = create_rate_account(
         context,
-        mint_keypair1.pubkey(),
+        mint_from_keypair.pubkey(),
         mint_authority_pda1,
         context.payer.pubkey(),
-        rate_mint_pubkey1,
-        rate_mint_pubkey1,
+        mint_from_pubkey,
+        mint_from_pubkey,
         create_rate_args.clone(),
         None,
     )
@@ -59,11 +60,11 @@ async fn test_should_close_rate_account() {
     // For conversion (different mints)
     let (rate_pda2, result2) = create_rate_account(
         context,
-        mint_keypair1.pubkey(),
+        mint_from_keypair.pubkey(),
         mint_authority_pda1,
         context.payer.pubkey(),
-        rate_mint_pubkey1,
-        rate_mint_pubkey2,
+        mint_from_pubkey,
+        mint_to_pubkey,
         create_rate_args.clone(),
         None,
     )
@@ -86,11 +87,11 @@ async fn test_should_close_rate_account() {
     // Close Rate account 1
     let result = close_rate_account(
         context,
-        mint_keypair1.pubkey(),
+        mint_from_keypair.pubkey(),
         mint_authority_pda1,
         context.payer.pubkey(),
-        rate_mint_pubkey1,
-        rate_mint_pubkey1,
+        mint_from_pubkey,
+        mint_from_pubkey,
         CloseRateArgs { action_id },
     )
     .await;
@@ -116,11 +117,11 @@ async fn test_should_close_rate_account() {
     // Close Rate account 2
     let result = close_rate_account(
         context,
-        mint_keypair1.pubkey(),
+        mint_from_keypair.pubkey(),
         mint_authority_pda1,
         context.payer.pubkey(),
-        rate_mint_pubkey1,
-        rate_mint_pubkey2,
+        mint_from_pubkey,
+        mint_to_pubkey,
         CloseRateArgs { action_id },
     )
     .await;
@@ -145,11 +146,11 @@ async fn test_should_close_rate_account() {
     // Try closing already closed Rate account
     let result = close_rate_account(
         context,
-        mint_keypair1.pubkey(),
+        mint_from_keypair.pubkey(),
         mint_authority_pda1,
         context.payer.pubkey(),
-        rate_mint_pubkey1,
-        rate_mint_pubkey1,
+        mint_from_pubkey,
+        mint_from_pubkey,
         CloseRateArgs { action_id },
     )
     .await;
@@ -167,17 +168,17 @@ async fn test_should_not_close_not_owned_rate_account() {
     let mut context = &mut start_with_context_and_accounts(additional_accounts).await;
 
     // context.payer is the creator for mint1
-    let mint_keypair1 = Keypair::new();
+    let mint_from_keypair = Keypair::new();
     let mint_creator1 = context.payer.pubkey();
     let decimals = 6u8;
     let (mint_authority_pda1, _, _) =
-        create_security_token_mint(&mut context, &mint_keypair1, None, decimals).await;
+        create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
     let numerator = 3u8;
     let denominator = 2u8;
-    let rate_mint_pubkey1 = mint_keypair1.pubkey();
+    let mint_from_pubkey = mint_from_keypair.pubkey();
 
     let create_rate_args = CreateRateArgs {
         action_id,
@@ -190,11 +191,11 @@ async fn test_should_not_close_not_owned_rate_account() {
 
     let (_, result) = create_rate_account(
         context,
-        mint_keypair1.pubkey(),
+        mint_from_keypair.pubkey(),
         mint_authority_pda1,
         mint_creator1,
-        rate_mint_pubkey1,
-        rate_mint_pubkey1,
+        mint_from_pubkey,
+        mint_from_pubkey,
         create_rate_args,
         None,
     )
@@ -212,12 +213,12 @@ async fn test_should_not_close_not_owned_rate_account() {
     assert_eq!(bal, payer2_balance, "Payer2 should have enough balance");
 
     // payer2 is the creator for mint2
-    let mint_keypair2 = Keypair::new();
+    let mint_to_keypair = Keypair::new();
     let mint_creator2 = payer2.pubkey();
 
     let decimals = 6u8;
     let (mint_authority_pda2, _, _) =
-        create_security_token_mint(&mut context, &mint_keypair2, Some(&payer2), decimals).await;
+        create_security_token_mint(&mut context, &mint_to_keypair, Some(&payer2), decimals).await;
 
     let create_rate_args2 = CreateRateArgs {
         action_id,
@@ -227,15 +228,15 @@ async fn test_should_not_close_not_owned_rate_account() {
             denominator,
         },
     };
-    let rate_mint_pubkey2 = mint_keypair2.pubkey();
+    let mint_to_pubkey = mint_to_keypair.pubkey();
 
     let (_rate_pda, result) = create_rate_account(
         context,
-        mint_keypair2.pubkey(),
+        mint_to_keypair.pubkey(),
         mint_authority_pda2,
         mint_creator2,
-        rate_mint_pubkey2,
-        rate_mint_pubkey2,
+        mint_to_pubkey,
+        mint_to_pubkey,
         create_rate_args2,
         Some(&payer2),
     )
@@ -245,11 +246,11 @@ async fn test_should_not_close_not_owned_rate_account() {
     // context.payer tries to close payer2 Rate account
     let result = close_rate_account(
         context,
-        mint_keypair2.pubkey(),
+        mint_to_keypair.pubkey(),
         mint_authority_pda2,
         context.payer.pubkey(),
-        rate_mint_pubkey2,
-        rate_mint_pubkey2,
+        mint_to_pubkey,
+        mint_to_pubkey,
         CloseRateArgs { action_id },
     )
     .await;
@@ -257,11 +258,11 @@ async fn test_should_not_close_not_owned_rate_account() {
     // Try different invalid variations
     let result = close_rate_account(
         context,
-        mint_keypair2.pubkey(),
+        mint_to_keypair.pubkey(),
         mint_authority_pda1,
         context.payer.pubkey(),
-        rate_mint_pubkey2,
-        rate_mint_pubkey2,
+        mint_to_pubkey,
+        mint_to_pubkey,
         CloseRateArgs { action_id },
     )
     .await;
@@ -271,11 +272,11 @@ async fn test_should_not_close_not_owned_rate_account() {
     );
     let result = close_rate_account(
         context,
-        mint_keypair2.pubkey(),
+        mint_to_keypair.pubkey(),
         mint_authority_pda1,
         context.payer.pubkey(),
-        rate_mint_pubkey1,
-        rate_mint_pubkey1,
+        mint_from_pubkey,
+        mint_from_pubkey,
         CloseRateArgs { action_id },
     )
     .await;
@@ -285,11 +286,11 @@ async fn test_should_not_close_not_owned_rate_account() {
     );
     let result = close_rate_account(
         context,
-        mint_keypair1.pubkey(),
+        mint_from_keypair.pubkey(),
         mint_authority_pda1,
         context.payer.pubkey(),
-        rate_mint_pubkey1,
-        rate_mint_pubkey1,
+        mint_from_pubkey,
+        mint_from_pubkey,
         CloseRateArgs { action_id: 999u64 },
     )
     .await;

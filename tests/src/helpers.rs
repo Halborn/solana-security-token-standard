@@ -4,10 +4,7 @@ use security_token_client::{
     programs::SECURITY_TOKEN_PROGRAM_ID,
     types::{InitializeMintArgs, InitializeVerificationConfigArgs},
 };
-use solana_program_test::{
-    BanksClient, BanksClientError, ProgramTest,
-    ProgramTestContext,
-};
+use solana_program_test::{BanksClient, BanksClientError, ProgramTest, ProgramTestContext};
 use solana_sdk::{
     account::Account,
     instruction::InstructionError,
@@ -74,7 +71,7 @@ pub fn assert_transaction_failure(result: Result<(), BanksClientError>) {
 pub async fn assert_account_exists(
     context: &mut ProgramTestContext,
     account_pubkey: Pubkey,
-    should_check_existance: bool,
+    should_check_existence: bool,
 ) -> Option<Account> {
     let account_info = context
         .banks_client
@@ -82,7 +79,7 @@ pub async fn assert_account_exists(
         .await
         .unwrap();
 
-    if should_check_existance {
+    if should_check_existence {
         assert!(
             account_info.is_some(),
             "Expected account {} to exist",

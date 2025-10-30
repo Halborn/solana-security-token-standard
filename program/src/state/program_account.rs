@@ -10,10 +10,10 @@ use pinocchio_system::instructions::CreateAccount;
 use crate::state::{AccountDeserialize, AccountSerialize};
 
 pub trait ProgramAccount: AccountDeserialize + AccountSerialize {
-    /// Calculate and return account space for Account initialization
+    /// Calculate and return space for Account initialization
     fn space(&self) -> u64;
 
-    /// Create new Program Account
+    /// Cpi call to create new Program Account
     fn init<'a>(
         &self,
         payer: &AccountInfo,
@@ -29,7 +29,8 @@ pub trait ProgramAccount: AccountDeserialize + AccountSerialize {
             lamports,
             space: self.space(),
             owner: &crate::ID,
-        }.invoke_signed(&signer)?;
+        }
+        .invoke_signed(&signer)?;
 
         Ok(())
     }
@@ -37,13 +38,12 @@ pub trait ProgramAccount: AccountDeserialize + AccountSerialize {
     /// Close Program Account
     fn close(account: &AccountInfo, destination_account: &AccountInfo) -> ProgramResult {
         {
-            let mut account_lamports = account.try_borrow_mut_lamports()?;
+            let account_lamports = account.try_borrow_mut_lamports()?;
             let mut destination_lamports = destination_account.try_borrow_mut_lamports()?;
-
+            // Transfer all lamports to destination account
             *destination_lamports = destination_lamports
                 .checked_add(*account_lamports)
                 .ok_or(ProgramError::ArithmeticOverflow)?;
-            *account_lamports = 0;
 
             let mut data = account.try_borrow_mut_data()?;
             data[0] = 0xff;
@@ -56,7 +56,7 @@ pub trait ProgramAccount: AccountDeserialize + AccountSerialize {
     /// Write serialized bytes to account data. Uses [AccountSerialize::to_bytes]
     fn write_data(&self, to_account: &AccountInfo) -> ProgramResult {
         let mut data = to_account.try_borrow_mut_data()?;
-        let account_bytes = &self.to_bytes();
+        let account_bytes = self.to_bytes();
         data[..account_bytes.len()].copy_from_slice(&account_bytes);
 
         Ok(())

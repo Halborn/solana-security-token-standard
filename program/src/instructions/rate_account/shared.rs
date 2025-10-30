@@ -9,7 +9,7 @@ pub const ACTION_AND_RATE_ARGS_LEN: usize = ACTION_ID_LEN + RateArgs::LEN;
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, ShankType)]
 pub struct RateArgs {
-    /// Rounding direction (0 = Up, Down = 1)
+    /// Rounding direction (0 = Up, 1 = Down)
     pub rounding: u8,
     /// Rate numerator
     pub numerator: u8,
@@ -52,9 +52,9 @@ impl RateArgs {
     }
 }
 
-/// Parse bytes into (action_id, RateArgs)
+/// Parse (action_id, RateArgs) from bytes
 pub fn parse_action_and_rate(data: &[u8]) -> Result<(u64, RateArgs), ProgramError> {
-    if data.len() < ACTION_AND_RATE_ARGS_LEN {
+    if data.len() != ACTION_AND_RATE_ARGS_LEN {
         return Err(ProgramError::InvalidInstructionData);
     }
 
@@ -66,8 +66,9 @@ pub fn parse_action_and_rate(data: &[u8]) -> Result<(u64, RateArgs), ProgramErro
     Ok((action_id, rate_args))
 }
 
+/// Parse action_id from bytes
 pub fn parse_action_id(data: &[u8]) -> Result<u64, ProgramError> {
-    if data.len() < ACTION_ID_LEN {
+    if data.len() != ACTION_ID_LEN {
         return Err(ProgramError::InvalidInstructionData);
     }
 
@@ -84,7 +85,7 @@ pub fn parse_action_id(data: &[u8]) -> Result<u64, ProgramError> {
     Ok(action_id)
 }
 
-/// Serialize (action_id, Rate arguments) to bytes
+/// Serialize (action_id, Rate arguments) into bytes
 pub fn serialize_action_and_rate(action_id: u64, rate: &RateArgs) -> Vec<u8> {
     let mut data = Vec::with_capacity(ACTION_AND_RATE_ARGS_LEN);
     data.extend_from_slice(action_id.to_le_bytes().as_ref());

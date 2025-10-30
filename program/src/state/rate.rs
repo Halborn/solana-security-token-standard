@@ -180,7 +180,7 @@ impl Rate {
     ) -> [Seed<'a>; 5] {
         [
             Seed::from(RATE_ACCOUNT),
-            Seed::from(action_id_seed.as_ref()),
+            Seed::from(action_id_seed),
             Seed::from(mint_from.as_ref()),
             Seed::from(mint_to.as_ref()),
             Seed::from(bump_seed.as_ref()),

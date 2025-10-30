@@ -50,8 +50,8 @@ export type CloseRateAccountInstruction<
     | string
     | AccountMeta<string> = string,
   TAccountRateAccount extends string | AccountMeta<string> = string,
-  TAccountRateMintAccount1 extends string | AccountMeta<string> = string,
-  TAccountRateMintAccount2 extends string | AccountMeta<string> = string,
+  TAccountMintFrom extends string | AccountMeta<string> = string,
+  TAccountMintTo extends string | AccountMeta<string> = string,
   TAccountDestination extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
@@ -70,12 +70,12 @@ export type CloseRateAccountInstruction<
       TAccountRateAccount extends string
         ? WritableAccount<TAccountRateAccount>
         : TAccountRateAccount,
-      TAccountRateMintAccount1 extends string
-        ? ReadonlyAccount<TAccountRateMintAccount1>
-        : TAccountRateMintAccount1,
-      TAccountRateMintAccount2 extends string
-        ? ReadonlyAccount<TAccountRateMintAccount2>
-        : TAccountRateMintAccount2,
+      TAccountMintFrom extends string
+        ? ReadonlyAccount<TAccountMintFrom>
+        : TAccountMintFrom,
+      TAccountMintTo extends string
+        ? ReadonlyAccount<TAccountMintTo>
+        : TAccountMintTo,
       TAccountDestination extends string
         ? WritableAccount<TAccountDestination>
         : TAccountDestination,
@@ -124,16 +124,16 @@ export type CloseRateAccountInput<
   TAccountVerificationConfigOrMintAuthority extends string = string,
   TAccountInstructionsSysvarOrCreator extends string = string,
   TAccountRateAccount extends string = string,
-  TAccountRateMintAccount1 extends string = string,
-  TAccountRateMintAccount2 extends string = string,
+  TAccountMintFrom extends string = string,
+  TAccountMintTo extends string = string,
   TAccountDestination extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
   instructionsSysvarOrCreator: Address<TAccountInstructionsSysvarOrCreator>;
   rateAccount: Address<TAccountRateAccount>;
-  rateMintAccount1: Address<TAccountRateMintAccount1>;
-  rateMintAccount2: Address<TAccountRateMintAccount2>;
+  mintFrom: Address<TAccountMintFrom>;
+  mintTo: Address<TAccountMintTo>;
   destination: Address<TAccountDestination>;
   closeRateArgs: CloseRateAccountInstructionDataArgs['closeRateArgs'];
 };
@@ -143,8 +143,8 @@ export function getCloseRateAccountInstruction<
   TAccountVerificationConfigOrMintAuthority extends string,
   TAccountInstructionsSysvarOrCreator extends string,
   TAccountRateAccount extends string,
-  TAccountRateMintAccount1 extends string,
-  TAccountRateMintAccount2 extends string,
+  TAccountMintFrom extends string,
+  TAccountMintTo extends string,
   TAccountDestination extends string,
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
@@ -154,8 +154,8 @@ export function getCloseRateAccountInstruction<
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
     TAccountRateAccount,
-    TAccountRateMintAccount1,
-    TAccountRateMintAccount2,
+    TAccountMintFrom,
+    TAccountMintTo,
     TAccountDestination
   >,
   config?: { programAddress?: TProgramAddress }
@@ -165,8 +165,8 @@ export function getCloseRateAccountInstruction<
   TAccountVerificationConfigOrMintAuthority,
   TAccountInstructionsSysvarOrCreator,
   TAccountRateAccount,
-  TAccountRateMintAccount1,
-  TAccountRateMintAccount2,
+  TAccountMintFrom,
+  TAccountMintTo,
   TAccountDestination
 > {
   // Program address.
@@ -185,14 +185,8 @@ export function getCloseRateAccountInstruction<
       isWritable: false,
     },
     rateAccount: { value: input.rateAccount ?? null, isWritable: true },
-    rateMintAccount1: {
-      value: input.rateMintAccount1 ?? null,
-      isWritable: false,
-    },
-    rateMintAccount2: {
-      value: input.rateMintAccount2 ?? null,
-      isWritable: false,
-    },
+    mintFrom: { value: input.mintFrom ?? null, isWritable: false },
+    mintTo: { value: input.mintTo ?? null, isWritable: false },
     destination: { value: input.destination ?? null, isWritable: true },
   };
   const accounts = originalAccounts as Record<
@@ -210,8 +204,8 @@ export function getCloseRateAccountInstruction<
       getAccountMeta(accounts.verificationConfigOrMintAuthority),
       getAccountMeta(accounts.instructionsSysvarOrCreator),
       getAccountMeta(accounts.rateAccount),
-      getAccountMeta(accounts.rateMintAccount1),
-      getAccountMeta(accounts.rateMintAccount2),
+      getAccountMeta(accounts.mintFrom),
+      getAccountMeta(accounts.mintTo),
       getAccountMeta(accounts.destination),
     ],
     data: getCloseRateAccountInstructionDataEncoder().encode(
@@ -224,8 +218,8 @@ export function getCloseRateAccountInstruction<
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
     TAccountRateAccount,
-    TAccountRateMintAccount1,
-    TAccountRateMintAccount2,
+    TAccountMintFrom,
+    TAccountMintTo,
     TAccountDestination
   >);
 }
@@ -240,8 +234,8 @@ export type ParsedCloseRateAccountInstruction<
     verificationConfigOrMintAuthority: TAccountMetas[1];
     instructionsSysvarOrCreator: TAccountMetas[2];
     rateAccount: TAccountMetas[3];
-    rateMintAccount1: TAccountMetas[4];
-    rateMintAccount2: TAccountMetas[5];
+    mintFrom: TAccountMetas[4];
+    mintTo: TAccountMetas[5];
     destination: TAccountMetas[6];
   };
   data: CloseRateAccountInstructionData;
@@ -272,8 +266,8 @@ export function parseCloseRateAccountInstruction<
       verificationConfigOrMintAuthority: getNextAccount(),
       instructionsSysvarOrCreator: getNextAccount(),
       rateAccount: getNextAccount(),
-      rateMintAccount1: getNextAccount(),
-      rateMintAccount2: getNextAccount(),
+      mintFrom: getNextAccount(),
+      mintTo: getNextAccount(),
       destination: getNextAccount(),
     },
     data: getCloseRateAccountInstructionDataDecoder().decode(instruction.data),

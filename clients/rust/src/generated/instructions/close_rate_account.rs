@@ -22,9 +22,9 @@ pub struct CloseRateAccount {
 
     pub rate_account: solana_pubkey::Pubkey,
 
-    pub rate_mint_account1: solana_pubkey::Pubkey,
+    pub mint_from: solana_pubkey::Pubkey,
 
-    pub rate_mint_account2: solana_pubkey::Pubkey,
+    pub mint_to: solana_pubkey::Pubkey,
 
     pub destination: solana_pubkey::Pubkey,
 }
@@ -60,11 +60,11 @@ impl CloseRateAccount {
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.rate_mint_account1,
+            self.mint_from,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.rate_mint_account2,
+            self.mint_to,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
@@ -116,8 +116,8 @@ pub struct CloseRateAccountInstructionArgs {
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
 ///   3. `[writable]` rate_account
-///   4. `[]` rate_mint_account1
-///   5. `[]` rate_mint_account2
+///   4. `[]` mint_from
+///   5. `[]` mint_to
 ///   6. `[writable]` destination
 #[derive(Clone, Debug, Default)]
 pub struct CloseRateAccountBuilder {
@@ -125,8 +125,8 @@ pub struct CloseRateAccountBuilder {
     verification_config_or_mint_authority: Option<solana_pubkey::Pubkey>,
     instructions_sysvar_or_creator: Option<solana_pubkey::Pubkey>,
     rate_account: Option<solana_pubkey::Pubkey>,
-    rate_mint_account1: Option<solana_pubkey::Pubkey>,
-    rate_mint_account2: Option<solana_pubkey::Pubkey>,
+    mint_from: Option<solana_pubkey::Pubkey>,
+    mint_to: Option<solana_pubkey::Pubkey>,
     destination: Option<solana_pubkey::Pubkey>,
     close_rate_args: Option<CloseRateArgs>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
@@ -163,13 +163,13 @@ impl CloseRateAccountBuilder {
         self
     }
     #[inline(always)]
-    pub fn rate_mint_account1(&mut self, rate_mint_account1: solana_pubkey::Pubkey) -> &mut Self {
-        self.rate_mint_account1 = Some(rate_mint_account1);
+    pub fn mint_from(&mut self, mint_from: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_from = Some(mint_from);
         self
     }
     #[inline(always)]
-    pub fn rate_mint_account2(&mut self, rate_mint_account2: solana_pubkey::Pubkey) -> &mut Self {
-        self.rate_mint_account2 = Some(rate_mint_account2);
+    pub fn mint_to(&mut self, mint_to: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_to = Some(mint_to);
         self
     }
     #[inline(always)]
@@ -208,12 +208,8 @@ impl CloseRateAccountBuilder {
                 .instructions_sysvar_or_creator
                 .expect("instructions_sysvar_or_creator is not set"),
             rate_account: self.rate_account.expect("rate_account is not set"),
-            rate_mint_account1: self
-                .rate_mint_account1
-                .expect("rate_mint_account1 is not set"),
-            rate_mint_account2: self
-                .rate_mint_account2
-                .expect("rate_mint_account2 is not set"),
+            mint_from: self.mint_from.expect("mint_from is not set"),
+            mint_to: self.mint_to.expect("mint_to is not set"),
             destination: self.destination.expect("destination is not set"),
         };
         let args = CloseRateAccountInstructionArgs {
@@ -237,9 +233,9 @@ pub struct CloseRateAccountCpiAccounts<'a, 'b> {
 
     pub rate_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub rate_mint_account1: &'b solana_account_info::AccountInfo<'a>,
+    pub mint_from: &'b solana_account_info::AccountInfo<'a>,
 
-    pub rate_mint_account2: &'b solana_account_info::AccountInfo<'a>,
+    pub mint_to: &'b solana_account_info::AccountInfo<'a>,
 
     pub destination: &'b solana_account_info::AccountInfo<'a>,
 }
@@ -257,9 +253,9 @@ pub struct CloseRateAccountCpi<'a, 'b> {
 
     pub rate_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub rate_mint_account1: &'b solana_account_info::AccountInfo<'a>,
+    pub mint_from: &'b solana_account_info::AccountInfo<'a>,
 
-    pub rate_mint_account2: &'b solana_account_info::AccountInfo<'a>,
+    pub mint_to: &'b solana_account_info::AccountInfo<'a>,
 
     pub destination: &'b solana_account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
@@ -278,8 +274,8 @@ impl<'a, 'b> CloseRateAccountCpi<'a, 'b> {
             verification_config_or_mint_authority: accounts.verification_config_or_mint_authority,
             instructions_sysvar_or_creator: accounts.instructions_sysvar_or_creator,
             rate_account: accounts.rate_account,
-            rate_mint_account1: accounts.rate_mint_account1,
-            rate_mint_account2: accounts.rate_mint_account2,
+            mint_from: accounts.mint_from,
+            mint_to: accounts.mint_to,
             destination: accounts.destination,
             __args: args,
         }
@@ -325,11 +321,11 @@ impl<'a, 'b> CloseRateAccountCpi<'a, 'b> {
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.rate_mint_account1.key,
+            *self.mint_from.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.rate_mint_account2.key,
+            *self.mint_to.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
@@ -358,8 +354,8 @@ impl<'a, 'b> CloseRateAccountCpi<'a, 'b> {
         account_infos.push(self.verification_config_or_mint_authority.clone());
         account_infos.push(self.instructions_sysvar_or_creator.clone());
         account_infos.push(self.rate_account.clone());
-        account_infos.push(self.rate_mint_account1.clone());
-        account_infos.push(self.rate_mint_account2.clone());
+        account_infos.push(self.mint_from.clone());
+        account_infos.push(self.mint_to.clone());
         account_infos.push(self.destination.clone());
         remaining_accounts
             .iter()
@@ -381,8 +377,8 @@ impl<'a, 'b> CloseRateAccountCpi<'a, 'b> {
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
 ///   3. `[writable]` rate_account
-///   4. `[]` rate_mint_account1
-///   5. `[]` rate_mint_account2
+///   4. `[]` mint_from
+///   5. `[]` mint_to
 ///   6. `[writable]` destination
 #[derive(Clone, Debug)]
 pub struct CloseRateAccountCpiBuilder<'a, 'b> {
@@ -397,8 +393,8 @@ impl<'a, 'b> CloseRateAccountCpiBuilder<'a, 'b> {
             verification_config_or_mint_authority: None,
             instructions_sysvar_or_creator: None,
             rate_account: None,
-            rate_mint_account1: None,
-            rate_mint_account2: None,
+            mint_from: None,
+            mint_to: None,
             destination: None,
             close_rate_args: None,
             __remaining_accounts: Vec::new(),
@@ -436,19 +432,13 @@ impl<'a, 'b> CloseRateAccountCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn rate_mint_account1(
-        &mut self,
-        rate_mint_account1: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.rate_mint_account1 = Some(rate_mint_account1);
+    pub fn mint_from(&mut self, mint_from: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.mint_from = Some(mint_from);
         self
     }
     #[inline(always)]
-    pub fn rate_mint_account2(
-        &mut self,
-        rate_mint_account2: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.rate_mint_account2 = Some(rate_mint_account2);
+    pub fn mint_to(&mut self, mint_to: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.mint_to = Some(mint_to);
         self
     }
     #[inline(always)]
@@ -525,15 +515,9 @@ impl<'a, 'b> CloseRateAccountCpiBuilder<'a, 'b> {
                 .rate_account
                 .expect("rate_account is not set"),
 
-            rate_mint_account1: self
-                .instruction
-                .rate_mint_account1
-                .expect("rate_mint_account1 is not set"),
+            mint_from: self.instruction.mint_from.expect("mint_from is not set"),
 
-            rate_mint_account2: self
-                .instruction
-                .rate_mint_account2
-                .expect("rate_mint_account2 is not set"),
+            mint_to: self.instruction.mint_to.expect("mint_to is not set"),
 
             destination: self
                 .instruction
@@ -555,8 +539,8 @@ struct CloseRateAccountCpiBuilderInstruction<'a, 'b> {
     verification_config_or_mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar_or_creator: Option<&'b solana_account_info::AccountInfo<'a>>,
     rate_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-    rate_mint_account1: Option<&'b solana_account_info::AccountInfo<'a>>,
-    rate_mint_account2: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_from: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_to: Option<&'b solana_account_info::AccountInfo<'a>>,
     destination: Option<&'b solana_account_info::AccountInfo<'a>>,
     close_rate_args: Option<CloseRateArgs>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

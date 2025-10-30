@@ -37,7 +37,8 @@ async fn test_should_update_existing_rate_account() {
     let rounding = Rounding::Up as u8;
     let numerator = 3u8;
     let denominator = 2u8;
-    let rate_mint_pubkey = mint_keypair.pubkey();
+    let mint_from_pubkey = mint_keypair.pubkey();
+    let mint_to_pubkey = mint_from_pubkey.clone();
 
     let create_rate_args = CreateRateArgs {
         action_id,
@@ -53,20 +54,24 @@ async fn test_should_update_existing_rate_account() {
         mint_keypair.pubkey(),
         mint_authority_pda,
         context.payer.pubkey(),
-        rate_mint_pubkey,
-        rate_mint_pubkey,
+        mint_from_pubkey,
+        mint_to_pubkey,
         create_rate_args,
         None,
     )
     .await;
     assert_transaction_success(result);
 
-    let update_args = UpdateRateArgs {
+    let new_rounding = Rounding::Down as u8;
+    let new_numerator = 4u8;
+    let new_denominator = 3u8;
+
+    let update_rate_args = UpdateRateArgs {
         action_id,
         rate: RateArgs {
-            rounding: Rounding::Down as u8,
-            numerator: 5,
-            denominator: 20,
+            rounding: new_rounding,
+            numerator: new_numerator,
+            denominator: new_denominator,
         },
     };
 
@@ -75,9 +80,9 @@ async fn test_should_update_existing_rate_account() {
         mint_keypair.pubkey(),
         mint_authority_pda,
         context.payer.pubkey(),
-        mint_keypair.pubkey(),
-        mint_keypair.pubkey(),
-        update_args,
+        mint_from_pubkey,
+        mint_to_pubkey,
+        update_rate_args,
     )
     .await;
 
@@ -96,12 +101,15 @@ async fn test_should_update_existing_rate_account() {
     .unwrap();
 
     assert_eq!(
-        rate_account.rounding as u8, rounding,
+        rate_account.rounding as u8, new_rounding,
         "Rounding should match"
     );
-    assert_eq!(rate_account.numerator, numerator, "Numerator should match");
     assert_eq!(
-        rate_account.denominator, denominator,
+        rate_account.numerator, new_numerator,
+        "Numerator should match"
+    );
+    assert_eq!(
+        rate_account.denominator, new_denominator,
         "Denominator should match"
     );
 }
@@ -124,7 +132,8 @@ async fn test_should_fail_invalid_update_rate_account(
     let decimals = 6u8;
     let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
         create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
-    let rate_mint_pubkey = mint_keypair.pubkey();
+    let mint_from_pubkey = mint_keypair.pubkey();
+    let mint_to_pubkey = mint_from_pubkey.clone();
 
     let create_rate_args = CreateRateArgs {
         action_id,
@@ -140,8 +149,8 @@ async fn test_should_fail_invalid_update_rate_account(
         mint_keypair.pubkey(),
         mint_authority_pda,
         context.payer.pubkey(),
-        rate_mint_pubkey,
-        rate_mint_pubkey,
+        mint_from_pubkey,
+        mint_to_pubkey,
         create_rate_args,
         None,
     )
@@ -149,7 +158,7 @@ async fn test_should_fail_invalid_update_rate_account(
     assert_transaction_success(result);
 
     // Try update with invalid args
-    let update_args = UpdateRateArgs {
+    let update_rate_args = UpdateRateArgs {
         action_id,
         rate: RateArgs {
             rounding,
@@ -163,9 +172,9 @@ async fn test_should_fail_invalid_update_rate_account(
         mint_keypair.pubkey(),
         mint_authority_pda,
         context.payer.pubkey(),
-        mint_keypair.pubkey(),
-        mint_keypair.pubkey(),
-        update_args,
+        mint_from_pubkey,
+        mint_to_pubkey,
+        update_rate_args,
     )
     .await;
 
@@ -180,17 +189,18 @@ async fn test_should_not_update_not_owned_rate_account() {
     let mut context = &mut start_with_context_and_accounts(additional_accounts).await;
 
     // First mint, context.payer is the authority
-    let mint_keypair1 = Keypair::new();
+    let mint_from_keypair = Keypair::new();
     let mint_creator1 = context.payer.pubkey();
     let decimals = 6u8;
     let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &mint_keypair1, None, decimals).await;
+        create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
     let numerator = 3u8;
     let denominator = 2u8;
-    let rate_mint_pubkey = mint_keypair1.pubkey();
+    let mint_from_pubkey = mint_from_keypair.pubkey();
+    let mint_to_pubkey = mint_from_pubkey.clone();
 
     let create_rate_args = CreateRateArgs {
         action_id,
@@ -203,11 +213,11 @@ async fn test_should_not_update_not_owned_rate_account() {
 
     let (_, result) = create_rate_account(
         context,
-        mint_keypair1.pubkey(),
+        mint_from_keypair.pubkey(),
         mint_authority_pda,
         mint_creator1,
-        rate_mint_pubkey,
-        rate_mint_pubkey,
+        mint_from_pubkey,
+        mint_to_pubkey,
         create_rate_args,
         None,
     )
@@ -259,7 +269,7 @@ async fn test_should_not_update_not_owned_rate_account() {
     .await;
     assert_transaction_success(result);
 
-    let update_args = UpdateRateArgs {
+    let update_rate_args = UpdateRateArgs {
         action_id,
         rate: RateArgs {
             rounding: Rounding::Down as u8,
@@ -276,13 +286,10 @@ async fn test_should_not_update_not_owned_rate_account() {
         mint_creator1,
         mint_keypair2.pubkey(),
         mint_keypair2.pubkey(),
-        update_args.clone(),
+        update_rate_args.clone(),
     )
     .await;
-    assert!(
-        result.is_err(),
-        "Should not create Rate account for not owned mint"
-    );
+    assert!(result.is_err(), "Should not update not owned Rate account");
 
     let invalid_mint_authority_pda =
         find_mint_authority_pda(&mint_keypair2.pubkey(), &mint_creator1).0;
@@ -293,13 +300,10 @@ async fn test_should_not_update_not_owned_rate_account() {
         mint_creator1,
         mint_keypair2.pubkey(),
         mint_keypair2.pubkey(),
-        update_args.clone(),
+        update_rate_args.clone(),
     )
     .await;
-    assert!(
-        result.is_err(),
-        "Should not create Rate account for not owned mint"
-    );
+    assert!(result.is_err(), "Should not update not owned Rate account");
 }
 
 #[tokio::test]
@@ -308,19 +312,20 @@ async fn test_should_not_update_not_existed_rate_account() {
 
     let mint_keypair = Keypair::new();
     let mint_creator = context.payer.pubkey().clone();
-    let rate_mint_pubkey = mint_keypair.pubkey();
+    let mint_from_pubkey = mint_keypair.pubkey();
+    let mint_to_pubkey = mint_from_pubkey.clone();
     let decimals = 6u8;
     let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
         create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
 
     // Random Rate account
     let action_id = 123u64;
-    let (rate_pda, _bump) = find_rate_pda(action_id, &rate_mint_pubkey, &rate_mint_pubkey);
+    let (rate_pda, _bump) = find_rate_pda(action_id, &mint_from_pubkey, &mint_to_pubkey);
 
-    // Verify Rate account does not exist
+    // Rate account should not exist
     assert_account_exists(context, rate_pda, false).await;
 
-    let update_args = UpdateRateArgs {
+    let update_rate_args = UpdateRateArgs {
         action_id,
         rate: RateArgs {
             rounding: Rounding::Down as u8,
@@ -334,9 +339,9 @@ async fn test_should_not_update_not_existed_rate_account() {
         mint_keypair.pubkey(),
         mint_authority_pda,
         mint_creator,
-        mint_keypair.pubkey(),
-        mint_keypair.pubkey(),
-        update_args.clone(),
+        mint_from_pubkey,
+        mint_to_pubkey,
+        update_rate_args.clone(),
     )
     .await;
     assert!(
@@ -351,7 +356,8 @@ async fn test_should_not_update_closed_rate_account() {
 
     let mint_keypair = Keypair::new();
     let mint_creator = context.payer.pubkey().clone();
-    let rate_mint_pubkey = mint_keypair.pubkey();
+    let mint_from_pubkey = mint_keypair.pubkey();
+    let mint_to_pubkey = mint_keypair.pubkey();
     let decimals = 6u8;
     let (mint_authority_pda, _, _) =
         create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
@@ -375,8 +381,8 @@ async fn test_should_not_update_closed_rate_account() {
         mint_keypair.pubkey(),
         mint_authority_pda,
         mint_creator,
-        mint_keypair.pubkey(),
-        mint_keypair.pubkey(),
+        mint_from_pubkey,
+        mint_to_pubkey,
         create_rate_args,
         None,
     )
@@ -389,15 +395,15 @@ async fn test_should_not_update_closed_rate_account() {
         mint_keypair.pubkey(),
         mint_authority_pda,
         context.payer.pubkey(),
-        rate_mint_pubkey,
-        rate_mint_pubkey,
+        mint_from_pubkey,
+        mint_to_pubkey,
         CloseRateArgs { action_id },
     )
     .await;
     assert_transaction_success(result);
     assert_account_exists(context, rate_pda, false).await;
 
-    let update_args = UpdateRateArgs {
+    let update_rate_args = UpdateRateArgs {
         action_id,
         rate: RateArgs {
             rounding: Rounding::Down as u8,
@@ -411,9 +417,9 @@ async fn test_should_not_update_closed_rate_account() {
         mint_keypair.pubkey(),
         mint_authority_pda,
         mint_creator,
-        mint_keypair.pubkey(),
-        mint_keypair.pubkey(),
-        update_args.clone(),
+        mint_from_pubkey,
+        mint_to_pubkey,
+        update_rate_args.clone(),
     )
     .await;
     assert!(result.is_err(), "Should not update closed Rate account");

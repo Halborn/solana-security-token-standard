@@ -645,12 +645,12 @@
           "isSigner": false
         },
         {
-          "name": "rateMintAccount1",
+          "name": "mintFrom",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "rateMintAccount2",
+          "name": "mintTo",
           "isMut": false,
           "isSigner": false
         }
@@ -692,12 +692,12 @@
           "isSigner": false
         },
         {
-          "name": "rateMintAccount1",
+          "name": "mintFrom",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "rateMintAccount2",
+          "name": "mintTo",
           "isMut": false,
           "isSigner": false
         },

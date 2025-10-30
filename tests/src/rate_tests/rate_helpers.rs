@@ -68,11 +68,7 @@ pub async fn create_rate_account(
     create_rate_args: CreateRateArgs,
     payer: Option<&Keypair>,
 ) -> (Pubkey, Result<(), BanksClientError>) {
-    let (rate_pda, _bump) = find_rate_pda(
-        create_rate_args.action_id,
-        &mint_from,
-        &mint_to,
-    );
+    let (rate_pda, _bump) = find_rate_pda(create_rate_args.action_id, &mint_from, &mint_to);
 
     let payer_keypair = match payer {
         Some(p) => p,
@@ -108,23 +104,19 @@ pub async fn close_rate_account(
     security_token_mint: Pubkey,
     verification_config_or_mint_authority: Pubkey,
     instructions_sysvar_or_creator: Pubkey,
-    rate_mint_pubkey1: Pubkey,
-    rate_mint_pubkey2: Pubkey,
+    mint_from: Pubkey,
+    mint_to: Pubkey,
     close_rate_args: CloseRateArgs,
 ) -> Result<(), BanksClientError> {
-    let (rate_pda, _bump) = find_rate_pda(
-        close_rate_args.action_id,
-        &rate_mint_pubkey1,
-        &rate_mint_pubkey2,
-    );
+    let (rate_pda, _bump) = find_rate_pda(close_rate_args.action_id, &mint_from, &mint_to);
 
     let close_rate_ix = CloseRateAccount {
         mint: security_token_mint,
         verification_config_or_mint_authority,
         instructions_sysvar_or_creator,
         rate_account: rate_pda,
-        rate_mint_account1: rate_mint_pubkey1,
-        rate_mint_account2: rate_mint_pubkey2,
+        mint_from,
+        mint_to,
         destination: context.payer.pubkey(),
     }
     .instruction(CloseRateAccountInstructionArgs { close_rate_args });
@@ -144,23 +136,19 @@ pub async fn update_rate_account(
     security_token_mint: Pubkey,
     verification_config_or_mint_authority: Pubkey,
     instructions_sysvar_or_creator: Pubkey,
-    rate_mint_pubkey1: Pubkey,
-    rate_mint_pubkey2: Pubkey,
+    mint_from: Pubkey,
+    mint_to: Pubkey,
     update_rate_args: UpdateRateArgs,
 ) -> Result<(), BanksClientError> {
-    let (rate_pda, _bump) = find_rate_pda(
-        update_rate_args.action_id,
-        &rate_mint_pubkey1,
-        &rate_mint_pubkey2,
-    );
+    let (rate_pda, _bump) = find_rate_pda(update_rate_args.action_id, &mint_from, &mint_to);
 
     let update_rate_ix = UpdateRateAccount {
         mint: security_token_mint,
         verification_config_or_mint_authority,
         instructions_sysvar_or_creator,
         rate_account: rate_pda,
-        rate_mint_account1: rate_mint_pubkey1,
-        rate_mint_account2: rate_mint_pubkey2,
+        mint_from,
+        mint_to,
     }
     .instruction(UpdateRateAccountInstructionArgs { update_rate_args });
 

@@ -1,15 +1,15 @@
 use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
-use crate::instructions::rate_account::{
-    serialize_action_and_rate, shared::parse_action_and_rate, RateArgs, ACTION_AND_RATE_ARGS_LEN,
+use crate::instructions::rate_account::shared::{
+    parse_action_and_rate, serialize_action_and_rate, RateArgs, ACTION_AND_RATE_ARGS_LEN,
 };
 
 /// Arguments to update Rate account
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, ShankType)]
 pub struct UpdateRateArgs {
-    /// Action ID for the rate update
+    /// Action ID of the Rate
     pub action_id: u64,
     /// Rate configuration arguments
     pub rate: RateArgs,
