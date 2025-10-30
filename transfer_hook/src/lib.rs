@@ -11,7 +11,6 @@ use pinocchio::{
     pubkey::{find_program_address, Pubkey},
     ProgramResult,
 };
-use pinocchio_log::log;
 use pinocchio_pubkey::{declare_id, pubkey};
 use pinocchio_system::instructions::Transfer;
 use pinocchio_system::instructions::{Allocate, Assign};
@@ -81,14 +80,9 @@ fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) 
     let verification_programs = load_verification_programs(mint, extra_accounts)?;
 
     if verification_programs.is_empty() {
-        log!("No verification programs configured");
         return Ok(());
     }
-
-    // Execute verification program CPIs
     execute_verification_programs(&verification_programs, accounts, amount)?;
-
-    log!("Transfer execute validated for amount {}", amount);
     Ok(())
 }
 
@@ -123,10 +117,7 @@ fn load_verification_programs(
     let verification_config = extra_accounts
         .iter()
         .find(|acc| acc.key() == &verification_config_pda)
-        .ok_or_else(|| {
-            log!("Verification config PDA not found in extra accounts");
-            ProgramError::InvalidSeeds
-        })?;
+        .ok_or_else(|| ProgramError::InvalidSeeds)?;
 
     let config_data = verification_config.try_borrow_data()?;
 
@@ -134,13 +125,11 @@ fn load_verification_programs(
         .first()
         .ok_or(ProgramError::InvalidAccountData)?;
     if *config_discriminator != TRANSFER_VERIFICATION_CONFIG_DISCRIMINATOR {
-        log!("Invalid verification config discriminator");
         return Err(ProgramError::InvalidAccountData);
     }
 
     let operation_discriminator = config_data.get(1).ok_or(ProgramError::InvalidAccountData)?;
     if *operation_discriminator != TRANSFER_DISCRIMINATOR {
-        log!("Invalid transfer operation discriminator");
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -156,12 +145,6 @@ fn load_verification_programs(
             .map_err(|_| ProgramError::InvalidAccountData)?;
         verification_programs.push(pubkey_bytes);
     }
-
-    log!(
-        "Loaded {} verification programs from config",
-        verification_programs.len()
-    );
-
     Ok(verification_programs)
 }
 
@@ -290,6 +273,5 @@ fn process_initialize_extra_account_meta_list(
         ExtraAccountMetaList::init::<ExecuteInstruction>(&mut data, &extra_account_metas)
             .map_err(|_| ProgramError::InvalidAccountData)?;
     }
-    log!("Initialized extra account meta list with {} entries", count);
     Ok(())
 }
