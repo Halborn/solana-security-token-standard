@@ -53,6 +53,7 @@ export type UpdateMetadataInstruction<
     | string
     | AccountMeta<string> = string,
   TAccountMintAccount extends string | AccountMeta<string> = string,
+  TAccountMintAuthority extends string | AccountMeta<string> = string,
   TAccountPayer extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
@@ -77,6 +78,9 @@ export type UpdateMetadataInstruction<
       TAccountMintAccount extends string
         ? WritableAccount<TAccountMintAccount>
         : TAccountMintAccount,
+      TAccountMintAuthority extends string
+        ? ReadonlyAccount<TAccountMintAuthority>
+        : TAccountMintAuthority,
       TAccountPayer extends string
         ? WritableSignerAccount<TAccountPayer> &
             AccountSignerMeta<TAccountPayer>
@@ -132,6 +136,7 @@ export type UpdateMetadataInput<
   TAccountVerificationConfigOrMintAuthority extends string = string,
   TAccountInstructionsSysvarOrCreator extends string = string,
   TAccountMintAccount extends string = string,
+  TAccountMintAuthority extends string = string,
   TAccountPayer extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
@@ -140,6 +145,7 @@ export type UpdateMetadataInput<
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
   instructionsSysvarOrCreator: Address<TAccountInstructionsSysvarOrCreator>;
   mintAccount: Address<TAccountMintAccount>;
+  mintAuthority: Address<TAccountMintAuthority>;
   payer: TransactionSigner<TAccountPayer>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
@@ -151,6 +157,7 @@ export function getUpdateMetadataInstruction<
   TAccountVerificationConfigOrMintAuthority extends string,
   TAccountInstructionsSysvarOrCreator extends string,
   TAccountMintAccount extends string,
+  TAccountMintAuthority extends string,
   TAccountPayer extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
@@ -162,6 +169,7 @@ export function getUpdateMetadataInstruction<
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
     TAccountMintAccount,
+    TAccountMintAuthority,
     TAccountPayer,
     TAccountTokenProgram,
     TAccountSystemProgram
@@ -173,6 +181,7 @@ export function getUpdateMetadataInstruction<
   TAccountVerificationConfigOrMintAuthority,
   TAccountInstructionsSysvarOrCreator,
   TAccountMintAccount,
+  TAccountMintAuthority,
   TAccountPayer,
   TAccountTokenProgram,
   TAccountSystemProgram
@@ -193,6 +202,7 @@ export function getUpdateMetadataInstruction<
       isWritable: false,
     },
     mintAccount: { value: input.mintAccount ?? null, isWritable: true },
+    mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
     payer: { value: input.payer ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
@@ -222,6 +232,7 @@ export function getUpdateMetadataInstruction<
       getAccountMeta(accounts.verificationConfigOrMintAuthority),
       getAccountMeta(accounts.instructionsSysvarOrCreator),
       getAccountMeta(accounts.mintAccount),
+      getAccountMeta(accounts.mintAuthority),
       getAccountMeta(accounts.payer),
       getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.systemProgram),
@@ -236,6 +247,7 @@ export function getUpdateMetadataInstruction<
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
     TAccountMintAccount,
+    TAccountMintAuthority,
     TAccountPayer,
     TAccountTokenProgram,
     TAccountSystemProgram
@@ -252,9 +264,10 @@ export type ParsedUpdateMetadataInstruction<
     verificationConfigOrMintAuthority: TAccountMetas[1];
     instructionsSysvarOrCreator: TAccountMetas[2];
     mintAccount: TAccountMetas[3];
-    payer: TAccountMetas[4];
-    tokenProgram: TAccountMetas[5];
-    systemProgram: TAccountMetas[6];
+    mintAuthority: TAccountMetas[4];
+    payer: TAccountMetas[5];
+    tokenProgram: TAccountMetas[6];
+    systemProgram: TAccountMetas[7];
   };
   data: UpdateMetadataInstructionData;
 };
@@ -267,7 +280,7 @@ export function parseUpdateMetadataInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
 ): ParsedUpdateMetadataInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 7) {
+  if (instruction.accounts.length < 8) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -284,6 +297,7 @@ export function parseUpdateMetadataInstruction<
       verificationConfigOrMintAuthority: getNextAccount(),
       instructionsSysvarOrCreator: getNextAccount(),
       mintAccount: getNextAccount(),
+      mintAuthority: getNextAccount(),
       payer: getNextAccount(),
       tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),

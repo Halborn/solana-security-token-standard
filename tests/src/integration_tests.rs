@@ -474,6 +474,7 @@ async fn test_update_metadata() {
         .verification_config_or_mint_authority(verification_config_pda)
         .instructions_sysvar_or_creator(sysvar::instructions::ID)
         .mint_account(mint_keypair.pubkey())
+        .mint_authority(mint_authority_pda)
         .payer(context.payer.pubkey())
         .update_metadata_args(update_metadata_args)
         .instruction();

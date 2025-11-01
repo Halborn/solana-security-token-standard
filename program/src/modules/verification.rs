@@ -357,12 +357,6 @@ impl VerificationModule {
             utils::parse_additional_metadata(
                 metadata.additional_metadata.as_slice(),
                 |key, value| {
-                    let mint_authority_seeds = [
-                        Seed::from(seeds::MINT_AUTHORITY),
-                        Seed::from(mint_info.key().as_ref()),
-                        Seed::from(creator_info.key().as_ref()),
-                        Seed::from(bump_seed.as_ref()),
-                    ];
                     let mint_authority_signer = Signer::from(&mint_authority_seeds);
                     let update_field_instruction = UpdateField {
                         metadata: &metadata_account_info,
@@ -386,18 +380,22 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &UpdateMetadataArgs,
     ) -> ProgramResult {
-        log!("Processing UpdateMetadata instruction");
-
         // Validate arguments
         args.validate()?;
 
-        let [mint_info, authority_info, token_program_info, system_program_info] = accounts else {
+        let [mint_info, mint_authority, payer, token_program_info, system_program_info] = accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
-        verify_signer(authority_info)?;
+        verify_signer(payer)?;
+
+        let mint_authority_data = MintAuthority::from_account_info(mint_authority)?;
+        if &mint_authority_data.mint != mint_info.key() {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
         // Get metadata account address from MetadataPointer extension
         let metadata_address: Option<Pubkey> = {
@@ -420,20 +418,8 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Update base metadata fields using SPL Token Metadata Interface
-        log!("Updating base metadata fields (name, symbol, URI)");
-
-        // Calculate additional space needed for metadata updates and transfer rent if needed
-
-        log!("Calculating additional rent for metadata updates");
-
         // Calculate current and new metadata sizes
         let new_metadata_size = utils::calculate_metadata_tlv_size(&args.metadata)?;
-        let current_account_size = metadata_account_info.data_len();
-
-        log!("Current account size: {} bytes", current_account_size);
-        log!("New metadata TLV size needed: {} bytes", new_metadata_size);
-
         // Get current metadata size to calculate the difference
         let current_metadata_size = {
             let mint_data = metadata_account_info.try_borrow_data()?;
@@ -456,56 +442,52 @@ impl VerificationModule {
             let rent = Rent::get()?;
             let additional_rent = rent.minimum_balance(additional_metadata_space);
             let transfer = Transfer {
-                from: authority_info,       // from (authority pays)
+                from: payer,                // from (authority pays)
                 to: &metadata_account_info, // to (metadata account)
                 lamports: additional_rent,  // amount
             };
-
             transfer.invoke()?;
-
-            log!(
-                "Transferred {} lamports for additional metadata space",
-                additional_rent
-            );
         }
+
+        let bump_seed = [mint_authority_data.bump];
+        let mint_authority_seeds = [
+            Seed::from(seeds::MINT_AUTHORITY),
+            Seed::from(mint_authority_data.mint.as_ref()),
+            Seed::from(mint_authority_data.mint_creator.as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+        let mint_authority_signer = Signer::from(&mint_authority_seeds);
 
         let update_field_instruction = UpdateField {
             metadata: &metadata_account_info,
-            update_authority: authority_info,
+            update_authority: mint_authority,
             field: Field::Name,
             value: &args.metadata.name,
         };
 
-        update_field_instruction.invoke()?;
+        update_field_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
 
         // Update symbol
         let update_symbol_instruction = UpdateField {
             metadata: &metadata_account_info,
-            update_authority: authority_info,
+            update_authority: mint_authority,
             field: Field::Symbol,
             value: &args.metadata.symbol,
         };
 
-        update_symbol_instruction.invoke()?;
+        update_symbol_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
 
         // Update URI
         let update_uri_instruction = UpdateField {
             metadata: &metadata_account_info,
-            update_authority: authority_info,
+            update_authority: mint_authority,
             field: Field::Uri,
             value: &args.metadata.uri,
         };
 
-        update_uri_instruction.invoke()?;
+        update_uri_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
 
         // Handle additional metadata fields atomically
-        // Step 1: Read all existing additional metadata fields and remove them
-        // Step 2: Add new additional metadata fields
-        log!("Processing additional metadata fields atomically");
-
-        // Step 1: Read current metadata to get all existing additional fields
-        log!("Reading existing metadata to find all additional fields");
-
         let existing_additional_fields = {
             // Create a temporary AccountInfo wrapper for the metadata account to use from_account_info
             let metadata_account_clone = metadata_account_info.clone();
@@ -513,8 +495,6 @@ impl VerificationModule {
             // Try to parse existing metadata using pinocchio's from_account_info
             if let Ok(existing_metadata) = TokenMetadata::from_account_info(metadata_account_clone)
             {
-                log!("Successfully parsed existing metadata");
-
                 let mut fields_buffer: [[u8; 64]; 16] = [[0u8; 64]; 16]; // Static buffer for field names
                 let mut field_lengths: [usize; 16] = [0; 16];
                 let mut field_count = 0;
@@ -530,9 +510,6 @@ impl VerificationModule {
                                 .copy_from_slice(key_bytes);
                             field_lengths[field_count] = key_bytes.len();
                             field_count += 1;
-                            log!("Found existing additional metadata field: {}", key);
-                        } else {
-                            log!("Skipping field (buffer full or key too long): {}", key);
                         }
                         Ok(())
                     },
@@ -545,7 +522,6 @@ impl VerificationModule {
 
                 (fields_buffer, field_lengths, field_count)
             } else {
-                log!("No existing metadata found or failed to parse - assuming no existing additional fields");
                 let fields_buffer: [[u8; 64]; 16] = [[0u8; 64]; 16];
                 let field_lengths: [usize; 16] = [0; 16];
                 let field_count = 0;
@@ -557,8 +533,6 @@ impl VerificationModule {
 
         // Step 2: Remove only existing fields that are NOT in the new metadata
         if field_count > 0 {
-            log!("Checking {} existing fields for removal", field_count);
-
             for i in 0..field_count {
                 let key_bytes = &fields_buffer[i][..field_lengths[i]];
                 if let Ok(existing_key) = core::str::from_utf8(key_bytes) {
@@ -578,27 +552,15 @@ impl VerificationModule {
                     }
 
                     if !found_in_new {
-                        log!(
-                            "Removing existing metadata field not in update: {}",
-                            existing_key
-                        );
                         let remove_field_instruction = CustomRemoveKey::new(
                             &metadata_account_info,
-                            authority_info,
+                            mint_authority,
                             existing_key,
                             true, // idempotent - don't error if key doesn't exist
                         );
 
-                        let remove_result = remove_field_instruction.invoke();
-                        if remove_result.is_ok() {
-                            log!("Removed existing metadata field: {}", existing_key);
-                        }
+                        remove_field_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
                         // Ignore errors since we're using idempotent flag
-                    } else {
-                        log!(
-                            "Keeping existing metadata field (will be updated): {}",
-                            existing_key
-                        );
                     }
                 }
             }
@@ -607,41 +569,24 @@ impl VerificationModule {
         }
 
         // Step 4: Add/update new additional metadata fields
-        if !args.metadata.additional_metadata.is_empty() {
-            let additional_metadata_len = args.metadata.additional_metadata.len();
-            log!(
-                "Adding/updating {} bytes of new additional metadata",
-                additional_metadata_len
-            );
-
-            let result = utils::parse_additional_metadata(
-                args.metadata.additional_metadata.as_slice(),
-                |key, value| {
-                    log!(
-                        "Adding/updating additional metadata field: {} = {}",
-                        key,
-                        value
-                    );
-                    let update_field_instruction = UpdateField {
-                        metadata: &metadata_account_info,
-                        update_authority: authority_info,
-                        field: Field::Key(key),
-                        value,
-                    };
-                    update_field_instruction.invoke()
-                },
-            );
-
-            result.map_err(|_e| ProgramError::InvalidInstructionData)?;
-            log!("All additional metadata fields added/updated successfully");
-        } else {
-            log!("No new additional metadata fields to add/update");
+        if args.metadata.additional_metadata.is_empty() {
+            return Ok(());
         }
-
-        log!(
-            "Metadata updated successfully for mint: {}",
-            mint_info.key()
+        let result = utils::parse_additional_metadata(
+            args.metadata.additional_metadata.as_slice(),
+            |key, value| {
+                let mint_authority_signer = Signer::from(&mint_authority_seeds);
+                let update_field_instruction = UpdateField {
+                    metadata: &metadata_account_info,
+                    update_authority: mint_authority,
+                    field: Field::Key(key),
+                    value,
+                };
+                update_field_instruction.invoke_signed(&[mint_authority_signer])?;
+                Ok(())
+            },
         );
+        result.map_err(|_e| ProgramError::InvalidInstructionData)?;
         Ok(())
     }
 

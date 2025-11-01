@@ -73,6 +73,11 @@
           "isSigner": false
         },
         {
+          "name": "mintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "payer",
           "isMut": true,
           "isSigner": true
