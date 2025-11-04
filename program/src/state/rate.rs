@@ -1,7 +1,7 @@
 //! Rate account state
 use pinocchio::instruction::Seed;
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::pubkey::{create_program_address, Pubkey};
 use pinocchio::{account_info::AccountInfo, ProgramResult};
 use shank::{ShankAccount, ShankType};
 
@@ -185,6 +185,25 @@ impl Rate {
             Seed::from(mint_to.as_ref()),
             Seed::from(bump_seed.as_ref()),
         ]
+    }
+
+    /// Optimized PDA derivation with known bump seed
+    pub fn derive_pda(
+        &self,
+        action_id: u64,
+        mint_from: &Pubkey,
+        mint_to: &Pubkey,
+    ) -> Result<Pubkey, ProgramError> {
+        create_program_address(
+            &[
+                RATE_ACCOUNT,
+                action_id.to_le_bytes().as_ref(),
+                mint_from,
+                mint_to,
+                &self.bump_seed(),
+            ],
+            &crate::id(),
+        )
     }
 }
 

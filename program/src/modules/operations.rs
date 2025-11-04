@@ -353,20 +353,15 @@ impl OperationsModule {
         verify_owner(rate_account_info, program_id)?;
         verify_account_initialized(rate_account_info)?;
 
-        let mint_from = Mint::from_account_info(mint_from_account)?;
-        let mint_to = Mint::from_account_info(mint_to_info_account)?;
+        Mint::from_account_info(mint_from_account)?;
+        Mint::from_account_info(mint_to_info_account)?;
         let mint_from_key = mint_from_account.key();
         let mint_to_key = mint_to_info_account.key();
-        drop(mint_from);
-        drop(mint_to);
 
-        let (expected_rate_pda, _) =
-            find_rate_pda(action_id, mint_from_key, mint_to_key, program_id);
-
+        let mut rate_account = Rate::from_account_info(rate_account_info)?;
+        let expected_rate_pda = rate_account.derive_pda(action_id, mint_from_key, mint_to_key)?;
         verify_pda(rate_account_info.key(), &expected_rate_pda)?;
 
-        // Load and update Rate account
-        let mut rate_account = Rate::from_account_info(rate_account_info)?;
         let rounding_enum = Rounding::try_from(rounding)?;
         rate_account.update(rounding_enum, numerator, denominator)?;
         rate_account.write_data(rate_account_info)?;
@@ -397,18 +392,15 @@ impl OperationsModule {
         verify_account_initialized(rate_account_info)?;
         verify_owner(rate_account_info, program_id)?;
 
-        let mint_from = Mint::from_account_info(mint_from_account)?;
-        let mint_to = Mint::from_account_info(mint_to_info_account)?;
+        Mint::from_account_info(mint_from_account)?;
+        Mint::from_account_info(mint_to_info_account)?;
         let mint_from_key = mint_from_account.key();
         let mint_to_key = mint_to_info_account.key();
-        drop(mint_from);
-        drop(mint_to);
 
-        let (expected_rate_pda, _) =
-            find_rate_pda(action_id, mint_from_key, mint_to_key, program_id);
-        verify_pda(rate_account_info.key(), &expected_rate_pda)?;
         // Deserialize to ensure it's valid Rate account before closing
-        Rate::from_account_info(rate_account_info)?;
+        let rate = Rate::from_account_info(rate_account_info)?;
+        let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
+        verify_pda(rate_account_info.key(), &expected_rate_pda)?;
 
         Rate::close(rate_account_info, destination_account)?;
 
