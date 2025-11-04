@@ -234,7 +234,7 @@ impl Processor {
             .and_then(|slice| slice.try_into().ok())
             .map(u64::from_le_bytes)
             .ok_or(ProgramError::InvalidInstructionData)?;
-        OperationsModule::execute_mint(program_id, verified_mint_info,accounts, amount)?;
+        OperationsModule::execute_mint(program_id, verified_mint_info, accounts, amount)?;
         Ok(())
     }
 
@@ -259,7 +259,7 @@ impl Processor {
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
     ) -> ProgramResult {
-        OperationsModule::execute_pause(program_id, verified_mint_info,accounts)?;
+        OperationsModule::execute_pause(program_id, verified_mint_info, accounts)?;
         Ok(())
     }
 
