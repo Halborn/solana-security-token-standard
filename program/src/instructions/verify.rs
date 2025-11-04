@@ -14,7 +14,7 @@ pub struct VerifyArgs {
 }
 
 impl VerifyArgs {
-    /// Parse VerifyArgs from instruction data 
+    /// Parse VerifyArgs from instruction data
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         if data.len() < 5 {
             return Err(ProgramError::InvalidInstructionData);
