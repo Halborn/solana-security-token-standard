@@ -690,7 +690,7 @@ impl VerificationModule {
         args: &VerifyArgs,
     ) -> ProgramResult {
         let mut instruction_data = vec![args.ix];
-        instruction_data.extend_from_slice(&args.instruction_data.as_slice());
+        instruction_data.extend_from_slice(&args.instruction_data);
         Self::verify_by_programs(program_id, accounts, args.ix, &instruction_data)?;
         Ok(())
     }
@@ -872,16 +872,6 @@ impl VerificationModule {
                             }
 
                             if instruction_data != target_instruction_data {
-                                log!(
-                                    "instruction data mismatch {} != {}",
-                                    instruction_data.len(),
-                                    target_instruction_data.len()
-                                );
-                                log!("Instruction byte {}", instruction_data[0]);
-                                log!("Expected byte {}", target_instruction_data[0]);
-
-                                log!("Instruction second byte {}", instruction_data[1]);
-                                log!("Expected second byte {}", target_instruction_data[1]);
                                 // NOTE: This might be more flexible - allow partial match like instruction data starts_with expected data
                                 continue;
                             }
