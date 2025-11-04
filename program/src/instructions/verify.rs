@@ -9,6 +9,8 @@ use shank::ShankType;
 pub struct VerifyArgs {
     /// The Security Token instruction discriminant to verify
     pub ix: u8,
+    /// The instruction data to verify
+    pub instruction_data: Vec<u8>,
 }
 
 impl VerifyArgs {
@@ -22,6 +24,9 @@ impl VerifyArgs {
         SecurityTokenInstruction::from_discriminant(discriminant)
             .ok_or(ProgramError::InvalidInstructionData)?;
 
-        Ok(VerifyArgs { ix: discriminant })
+        Ok(VerifyArgs {
+            ix: discriminant,
+            instruction_data: data[1..].to_vec(),
+        })
     }
 }

@@ -689,7 +689,9 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &VerifyArgs,
     ) -> ProgramResult {
-        Self::verify_by_programs(program_id, accounts, args.ix)?;
+        let mut instruction_data = vec![args.ix];
+        instruction_data.extend_from_slice(&args.instruction_data.as_slice());
+        Self::verify_by_programs(program_id, accounts, args.ix, &instruction_data)?;
         Ok(())
     }
 
@@ -699,6 +701,7 @@ impl VerificationModule {
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
         ix_discriminator: u8,
+        instruction_data: &[u8],
     ) -> Result<&'a AccountInfo, ProgramError> {
         let [mint_info, verification_config_or_mint_authority, instructions_sysvar_or_signer, _instruction_accounts @ ..] =
             accounts
@@ -712,7 +715,7 @@ impl VerificationModule {
         let disc = SecurityTokenDiscriminators::try_from(*state_discriminator)?;
         match disc {
             SecurityTokenDiscriminators::VerificationConfigDiscriminator => {
-                Self::verify_by_programs(program_id, accounts, ix_discriminator)
+                Self::verify_by_programs(program_id, accounts, ix_discriminator, instruction_data)
             }
             SecurityTokenDiscriminators::MintAuthorityDiscriminator => {
                 let mint_authority_account = verification_config_or_mint_authority;
@@ -775,6 +778,7 @@ impl VerificationModule {
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
         ix_discriminator: u8,
+        instruction_data: &[u8],
     ) -> Result<&'a AccountInfo, ProgramError> {
         let [mint_info, verification_config, instructions_sysvar, instruction_accounts @ ..] =
             accounts
@@ -809,7 +813,7 @@ impl VerificationModule {
             &config_data,
             instructions_sysvar,
             instruction_accounts,
-            ix_discriminator,
+            instruction_data,
         )?;
 
         Ok(mint_info)
@@ -821,16 +825,12 @@ impl VerificationModule {
         config: &VerificationConfig,
         instructions_sysvar: &AccountInfo,
         instruction_accounts: &[AccountInfo],
-        target_instruction_discriminator: u8,
+        target_instruction_data: &[u8],
     ) -> ProgramResult {
         // Get current instruction index
         let instructions = Instructions::try_from(instructions_sysvar)?;
         let current_index = instructions.load_current_index() as usize;
-        log!("Current instruction index: {}", current_index);
-        log!(
-            "Current instruction has {} accounts",
-            instruction_accounts.len()
-        );
+
         let mut collected_accounts: Vec<Option<Vec<Pubkey>>> =
             vec![None; config.verification_programs.len()];
         let mut remaining_indices: HashSet<usize> =
@@ -868,28 +868,23 @@ impl VerificationModule {
                             let instruction_data = instruction.get_instruction_data();
 
                             if instruction_data.is_empty() {
-                                log!("Skipping instruction {} - empty data", instr_idx);
                                 continue;
                             }
 
-                            let verification_discriminator = instruction_data[0];
-
-                            if verification_discriminator != target_instruction_discriminator {
+                            if instruction_data != target_instruction_data {
                                 log!(
-                                    "Skipping verification program {} at instruction {} due to discriminator mismatch (expected {}, got {})",
-                                    config_idx,
-                                    instr_idx,
-                                    target_instruction_discriminator,
-                                    verification_discriminator
+                                    "instruction data mismatch {} != {}",
+                                    instruction_data.len(),
+                                    target_instruction_data.len()
                                 );
+                                log!("Instruction byte {}", instruction_data[0]);
+                                log!("Expected byte {}", target_instruction_data[0]);
+
+                                log!("Instruction second byte {}", instruction_data[1]);
+                                log!("Expected second byte {}", target_instruction_data[1]);
+                                // NOTE: This might be more flexible - allow partial match like instruction data starts_with expected data
                                 continue;
                             }
-
-                            log!(
-                                "Found verification program {} at instruction {}",
-                                config_idx,
-                                instr_idx
-                            );
 
                             let mut accounts = Vec::new();
                             let mut account_idx = 0;

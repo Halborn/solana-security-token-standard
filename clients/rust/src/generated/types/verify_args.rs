@@ -12,4 +12,5 @@ use borsh::BorshSerialize;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VerifyArgs {
     pub ix: u8,
+    pub instruction_data: Vec<u8>,
 }

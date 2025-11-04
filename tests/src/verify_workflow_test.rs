@@ -2,6 +2,7 @@ use crate::helpers::{
     assert_security_token_error, assert_transaction_success, initialize_mint,
     initialize_verification_config,
 };
+use borsh::BorshSerialize;
 use security_token_client::{
     errors::SecurityTokenProgramError,
     instructions::{UpdateMetadataBuilder, VerifyBuilder, UPDATE_METADATA_DISCRIMINATOR},
@@ -158,6 +159,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         .verification_config(verification_config_pda)
         .verify_args(VerifyArgs {
             ix: UPDATE_METADATA_DISCRIMINATOR,
+            instruction_data: vec![],
         })
         .instruction();
 
@@ -198,17 +200,18 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         },
     ];
 
+    // Test 2: Verify with proper prior instruction calls (should succeed)
     let success_verify_accounts = vec![
         AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
         AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
     ];
 
-    // Test 2: Verify with proper prior instruction calls (should succeed)
     let verify_instruction_success = VerifyBuilder::new()
         .mint(mint_keypair.pubkey())
         .verification_config(verification_config_pda)
         .verify_args(VerifyArgs {
             ix: UPDATE_METADATA_DISCRIMINATOR,
+            instruction_data: vec![1u8],
         })
         .add_remaining_accounts(&success_verify_accounts)
         .instruction();
@@ -251,6 +254,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         .verification_config(verification_config_pda)
         .verify_args(VerifyArgs {
             ix: UPDATE_METADATA_DISCRIMINATOR,
+            instruction_data: vec![],
         })
         .add_remaining_accounts(&success_verify_accounts)
         .instruction();
@@ -305,6 +309,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         .verification_config(verification_config_pda)
         .verify_args(VerifyArgs {
             ix: UPDATE_METADATA_DISCRIMINATOR,
+            instruction_data: vec![1u8],
         })
         .add_remaining_accounts(&success_verify_accounts)
         .instruction();
@@ -439,8 +444,13 @@ async fn test_update_metadata_under_verification() {
         .instructions_sysvar_or_creator(sysvar::instructions::ID)
         .mint_account(mint_keypair.pubkey())
         .payer(context.payer.pubkey())
-        .update_metadata_args(update_metadata_args)
+        .update_metadata_args(update_metadata_args.clone())
         .instruction();
+
+    // Prepare metadata args
+    let mut metadata_instruction_data = vec![UPDATE_METADATA_DISCRIMINATOR];
+    metadata_instruction_data
+        .extend_from_slice(update_metadata_args.try_to_vec().unwrap().as_slice());
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
@@ -472,7 +482,7 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
             ],
-            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+            data: metadata_instruction_data.clone(),
         },
         Instruction {
             program_id: dummy_program_2_id,
@@ -480,7 +490,7 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
             ],
-            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+            data: metadata_instruction_data.clone(),
         },
     ];
 
@@ -516,7 +526,7 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
-            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+            data: metadata_instruction_data.clone(),
         },
         Instruction {
             program_id: dummy_program_2_id,
@@ -526,7 +536,7 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
-            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+            data: metadata_instruction_data.clone(),
         },
     ];
 
