@@ -54,7 +54,7 @@ impl InitializeVerificationConfigArgs {
         // Write instruction discriminator (1 byte)
         data.push(self.instruction_discriminator);
         // Write cpi_mode (1 byte)
-        data.push(if self.cpi_mode { 1 } else { 0 });
+        data.push(self.cpi_mode as u8);
 
         // Write program count (4 bytes)
         data.extend(&(self.program_addresses.len() as u32).to_le_bytes());
@@ -154,7 +154,7 @@ impl UpdateVerificationConfigArgs {
         data.push(self.instruction_discriminator);
 
         // Write cpi_mode (1 byte)
-        data.push(if self.cpi_mode { 1 } else { 0 });
+        data.push(self.cpi_mode as u8);
 
         // Write offset (1 byte)
         data.push(self.offset);

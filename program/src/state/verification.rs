@@ -30,7 +30,7 @@ impl AccountSerialize for VerificationConfig {
         data.push(self.instruction_discriminator);
 
         // Write cpi_mode (1 byte)
-        data.push(if self.cpi_mode { 1 } else { 0 });
+        data.push(self.cpi_mode as u8);
 
         // Write program count (4 bytes)
         data.extend(&(self.verification_programs.len() as u32).to_le_bytes());
