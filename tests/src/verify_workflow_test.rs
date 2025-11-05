@@ -19,7 +19,6 @@ use solana_program::{
 };
 use solana_program_test::*;
 use solana_sdk::{
-    hash::Hash,
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::Keypair,
@@ -73,7 +72,6 @@ struct VerificationTestContext {
     dummy_program_2_id: Pubkey,
     mint_keypair: Keypair,
     verification_config_pda: Pubkey,
-    recent_blockhash: Hash,
 }
 
 #[fixture]
@@ -95,7 +93,6 @@ async fn verification_test_setup() -> VerificationTestContext {
     );
 
     let mut context = pt.start_with_context().await;
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let mint_keypair = Keypair::new();
 
     let (mint_authority_pda, _) = Pubkey::find_program_address(
@@ -161,7 +158,6 @@ async fn verification_test_setup() -> VerificationTestContext {
         dummy_program_2_id,
         mint_keypair,
         verification_config_pda,
-        recent_blockhash,
     }
 }
 
@@ -171,6 +167,12 @@ async fn test_verify_without_prior_verification_calls(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
     let setup = verification_test_setup.await;
+    let recent_blockhash = setup
+        .context
+        .banks_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
 
     let verify_only_ix = VerifyBuilder::new()
         .mint(setup.mint_keypair.pubkey())
@@ -185,7 +187,7 @@ async fn test_verify_without_prior_verification_calls(
         &[verify_only_ix],
         Some(&setup.context.payer.pubkey()),
         &[&setup.context.payer],
-        setup.recent_blockhash,
+        recent_blockhash,
     );
 
     let result = setup
@@ -206,6 +208,12 @@ async fn test_verify_with_proper_prior_calls_succeeds(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
     let setup = verification_test_setup.await;
+    let recent_blockhash = setup
+        .context
+        .banks_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
 
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
@@ -251,7 +259,7 @@ async fn test_verify_with_proper_prior_calls_succeeds(
         &success_tx_instructions,
         Some(&setup.context.payer.pubkey()),
         &[&setup.context.payer],
-        setup.recent_blockhash,
+        recent_blockhash,
     );
 
     let result = setup
@@ -269,6 +277,12 @@ async fn test_verify_with_wrong_discriminator_fails(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
     let setup = verification_test_setup.await;
+    let recent_blockhash = setup
+        .context
+        .banks_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
 
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
@@ -314,7 +328,7 @@ async fn test_verify_with_wrong_discriminator_fails(
         &tx_instructions,
         Some(&setup.context.payer.pubkey()),
         &[&setup.context.payer],
-        setup.recent_blockhash,
+        recent_blockhash,
     );
 
     let result = setup
@@ -335,6 +349,12 @@ async fn test_verify_with_system_instructions_succeeds(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
     let setup = verification_test_setup.await;
+    let recent_blockhash = setup
+        .context
+        .banks_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
 
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
@@ -398,7 +418,7 @@ async fn test_verify_with_system_instructions_succeeds(
         &tx_instructions,
         Some(&setup.context.payer.pubkey()),
         &[&setup.context.payer],
-        setup.recent_blockhash,
+        recent_blockhash,
     );
 
     let result = setup
@@ -416,6 +436,12 @@ async fn test_verify_with_correct_accounts_but_wrong_data_fails(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
     let setup = verification_test_setup.await;
+    let recent_blockhash = setup
+        .context
+        .banks_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
 
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
@@ -463,7 +489,7 @@ async fn test_verify_with_correct_accounts_but_wrong_data_fails(
         &tx_instructions,
         Some(&setup.context.payer.pubkey()),
         &[&setup.context.payer],
-        setup.recent_blockhash,
+        recent_blockhash,
     );
 
     let result = setup
