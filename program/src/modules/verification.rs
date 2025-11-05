@@ -276,7 +276,7 @@ impl VerificationModule {
         ];
         let mint_authority_signer = Signer::from(&mint_authority_seeds);
 
-        create_mint_authority_instruction.invoke_signed(&[mint_authority_signer])?;
+        create_mint_authority_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
         {
             let mut data = mint_authority_account.try_borrow_mut_data()?;
             let config_bytes = mint_authority_config.to_bytes();
@@ -314,16 +314,6 @@ impl VerificationModule {
             // No metadata pointer, shouldn't happen if we have metadata
             return Err(ProgramError::InvalidInstructionData);
         };
-
-        // Build signer for mint_authority PDA
-        let bump_seed = [mint_authority_bump];
-        let mint_authority_seeds = [
-            Seed::from(seeds::MINT_AUTHORITY),
-            Seed::from(mint_info.key().as_ref()),
-            Seed::from(creator_info.key().as_ref()),
-            Seed::from(bump_seed.as_ref()),
-        ];
-        let mint_authority_signer = Signer::from(&mint_authority_seeds);
 
         let metadata_init_instruction = CustomInitializeTokenMetadata::new(
             &metadata_account_info,
