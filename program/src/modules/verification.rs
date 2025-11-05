@@ -569,14 +569,13 @@ impl VerificationModule {
         let result = utils::parse_additional_metadata(
             args.metadata.additional_metadata.as_slice(),
             |key, value| {
-                let mint_authority_signer = Signer::from(&mint_authority_seeds);
                 let update_field_instruction = UpdateField {
                     metadata: &metadata_account_info,
                     update_authority: mint_authority,
                     field: Field::Key(key),
                     value,
                 };
-                update_field_instruction.invoke_signed(&[mint_authority_signer])?;
+                update_field_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
                 Ok(())
             },
         );
