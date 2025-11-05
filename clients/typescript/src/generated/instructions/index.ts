@@ -7,6 +7,7 @@
  */
 
 export * from './burn';
+export * from './closeRateAccount';
 export * from './createRateAccount';
 export * from './freeze';
 export * from './initializeMint';
@@ -17,5 +18,6 @@ export * from './resume';
 export * from './thaw';
 export * from './trimVerificationConfig';
 export * from './updateMetadata';
+export * from './updateRateAccount';
 export * from './updateVerificationConfig';
 export * from './verify';
