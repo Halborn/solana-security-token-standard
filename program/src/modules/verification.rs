@@ -8,12 +8,7 @@ use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
 use pinocchio::sysvars::Sysvar;
-use pinocchio::sysvars::{
-    instructions::Instructions,
-    rent::{
-        Rent, DEFAULT_BURN_PERCENT, DEFAULT_EXEMPTION_THRESHOLD, DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-    },
-};
+use pinocchio::sysvars::{instructions::Instructions, rent::Rent};
 use pinocchio::ProgramResult;
 use pinocchio_log::log;
 use pinocchio_system::instructions::{CreateAccount, Transfer};
@@ -41,8 +36,8 @@ use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomR
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
-    verify_instructions_sysvar, verify_owner, verify_rent_sysvar, verify_signer,
-    verify_system_program, verify_token22_program, verify_writable,
+    verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_rent_sysvar,
+    verify_signer, verify_system_program, verify_token22_program, verify_writable,
 };
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
@@ -361,6 +356,7 @@ impl VerificationModule {
     /// Wrapper for Metadata token program extension
     pub fn update_metadata(
         _program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &UpdateMetadataArgs,
     ) -> ProgramResult {
@@ -372,6 +368,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
@@ -846,13 +843,14 @@ impl VerificationModule {
     /// Each instruction (burn, transfer, mint, etc.) gets its own config.
     pub fn initialize_verification_config(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &crate::instructions::InitializeVerificationConfigArgs,
     ) -> ProgramResult {
         let [mint_account, config_account, payer, system_program_info] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
@@ -867,13 +865,11 @@ impl VerificationModule {
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
-            log!("Invalid config account");
             return Err(ProgramError::InvalidAccountData);
         }
 
         // Check if account already exists
         if config_account.data_len() > 0 {
-            log!("VerificationConfig account already exists");
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
@@ -883,11 +879,7 @@ impl VerificationModule {
         let account_size = config.serialized_size();
 
         // Calculate rent for the account
-        let rent = Rent {
-            lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-            exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
-            burn_percent: DEFAULT_BURN_PERCENT,
-        };
+        let rent = Rent::get()?;
         let required_lamports = rent.minimum_balance(account_size);
 
         // Create the PDA account
@@ -929,6 +921,7 @@ impl VerificationModule {
     /// Update verification configuration for an instruction
     pub fn update_verification_config(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &crate::instructions::UpdateVerificationConfigArgs,
     ) -> ProgramResult {
@@ -936,6 +929,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
         verify_owner(config_account, program_id)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
@@ -996,11 +990,7 @@ impl VerificationModule {
 
         if new_size > current_size {
             let additional_space = new_size - current_size;
-            let rent = Rent {
-                lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-                exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
-                burn_percent: DEFAULT_BURN_PERCENT,
-            };
+            let rent = Rent::get()?;
             let additional_rent = rent.minimum_balance(additional_space);
 
             log!(
@@ -1037,6 +1027,7 @@ impl VerificationModule {
     /// Trim verification configuration to recover rent
     pub fn trim_verification_config(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &TrimVerificationConfigArgs,
     ) -> ProgramResult {
@@ -1044,6 +1035,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_system_program(system_program_info)?;
@@ -1058,13 +1050,11 @@ impl VerificationModule {
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
-            log!("Invalid config account");
             return Err(ProgramError::InvalidAccountData);
         }
 
         // Check if account exists
         if config_account.data_len() == 0 {
-            log!("VerificationConfig account does not exist");
             return Err(ProgramError::UninitializedAccount);
         }
 
@@ -1077,7 +1067,6 @@ impl VerificationModule {
 
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
-            log!("Discriminator mismatch");
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -1086,13 +1075,11 @@ impl VerificationModule {
 
         // Validate new size
         if new_size > current_program_count {
-            log!("Cannot trim to a larger size");
             return Err(ProgramError::InvalidArgument);
         }
 
         if args.close {
             // Close the account completely - transfer all lamports to recipient
-            log!("Closing VerificationConfig account completely");
 
             let config_lamports = config_account.lamports();
 
@@ -1128,11 +1115,7 @@ impl VerificationModule {
             if new_account_size < current_account_size {
                 // Calculate recovered rent
                 let space_recovered = current_account_size - new_account_size;
-                let rent = Rent {
-                    lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-                    exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
-                    burn_percent: DEFAULT_BURN_PERCENT,
-                };
+                let rent = Rent::get()?;
                 let recovered_rent = rent.minimum_balance(space_recovered);
 
                 log!("Recovering {} bytes of space", space_recovered);
@@ -1166,11 +1149,7 @@ impl VerificationModule {
                 new_size,
                 if new_account_size < current_account_size {
                     let space_recovered = current_account_size - new_account_size;
-                    let rent = Rent {
-                        lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-                        exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
-                        burn_percent: DEFAULT_BURN_PERCENT,
-                    };
+                    let rent = Rent::get()?;
                     rent.minimum_balance(space_recovered)
                 } else {
                     0

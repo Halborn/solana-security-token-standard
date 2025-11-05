@@ -27,12 +27,15 @@ impl OperationsModule {
     /// Wrapper for SPL Token MintToChecked instruction
     pub fn execute_mint(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
         let [mint_info, mint_authority, destination_account_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
         verify_owner(mint_authority, program_id)?;
 
@@ -70,6 +73,7 @@ impl OperationsModule {
     /// Wrapper for SPL Token BurnChecked instruction
     pub fn execute_burn(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
@@ -78,6 +82,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (permanent_delegate_pda, bump) =
@@ -112,10 +117,16 @@ impl OperationsModule {
 
     /// Pause all activity within a mint
     /// Wrapper for SPL Token Pause instruction
-    pub fn execute_pause(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    pub fn execute_pause(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
         let [mint_info, pause_authority, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
@@ -143,10 +154,15 @@ impl OperationsModule {
 
     /// Resume all activity within a mint
     /// Wrapper for SPL Token Resume instruction
-    pub fn execute_resume(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    pub fn execute_resume(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
         let [mint_info, pause_authority, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
@@ -173,10 +189,16 @@ impl OperationsModule {
 
     /// Freeze a token account
     /// Wrapper for SPL Token FreezeAccount instruction
-    pub fn execute_freeze_account(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    pub fn execute_freeze_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
         let [mint_info, freeze_authority, token_account, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
@@ -203,10 +225,16 @@ impl OperationsModule {
 
     /// Thaw a token account
     /// Wrapper for SPL Token ThawAccount instruction
-    pub fn execute_thaw_account(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    pub fn execute_thaw_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
         let [mint_info, freeze_authority, token_account, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
