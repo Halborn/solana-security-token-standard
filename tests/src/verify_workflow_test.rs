@@ -445,7 +445,7 @@ async fn test_verify_with_correct_accounts_but_wrong_data_fails(
         AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
     ];
 
-    // Verify instruction has wrong data (2u8 instead of 1u8)
+    // Verify instruction has wrong data (more arguments for the target instruction)
     let verify_ix = VerifyBuilder::new()
         .mint(setup.mint_keypair.pubkey())
         .verification_config(setup.verification_config_pda)

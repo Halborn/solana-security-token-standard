@@ -689,7 +689,8 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &VerifyArgs,
     ) -> ProgramResult {
-        let mut instruction_data = vec![args.ix];
+        let mut instruction_data = Vec::with_capacity(1 + args.instruction_data.len());
+        instruction_data.push(args.ix);
         instruction_data.extend_from_slice(&args.instruction_data);
         Self::verify_by_programs(program_id, accounts, args.ix, &instruction_data)?;
         Ok(())
@@ -866,13 +867,7 @@ impl VerificationModule {
                             })
                         {
                             let instruction_data = instruction.get_instruction_data();
-
-                            if instruction_data.is_empty() {
-                                continue;
-                            }
-
                             if instruction_data != target_instruction_data {
-                                // NOTE: This might be more flexible - allow partial match like instruction data starts_with expected data
                                 continue;
                             }
 
