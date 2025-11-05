@@ -8,12 +8,7 @@ use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
 use pinocchio::sysvars::Sysvar;
-use pinocchio::sysvars::{
-    instructions::Instructions,
-    rent::{
-        Rent, DEFAULT_BURN_PERCENT, DEFAULT_EXEMPTION_THRESHOLD, DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-    },
-};
+use pinocchio::sysvars::{instructions::Instructions, rent::Rent};
 use pinocchio::ProgramResult;
 use pinocchio_log::log;
 use pinocchio_system::instructions::{CreateAccount, Transfer};
