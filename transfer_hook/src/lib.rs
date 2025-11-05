@@ -92,7 +92,7 @@ fn is_permanent_delegate_transfer(
         &[PERMANENT_DELEGATE_SEED, mint.key().as_ref()],
         &SECURITY_TOKEN_PROGRAM_ID,
     );
-    // NOTE: Permanent delegate with no extra accounts means native SPL call
+    // NOTE: Permanent delegate with no extra accounts means security token program call
     Ok(authority.key() == &permanent_delegate_pda && extra_accounts.is_empty())
 }
 
