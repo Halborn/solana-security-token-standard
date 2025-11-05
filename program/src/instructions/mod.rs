@@ -2,8 +2,20 @@
 //!
 //! Contains optimized wrappers for SPL Token 2022 operations
 
+mod rate_account;
+
+/// Update Rate account instruction arguments and implementations
+pub mod update_rate_account {
+    pub use super::rate_account::update_rate_account::*;
+}
 /// Create Rate account instruction arguments and implementations
-pub mod create_rate_account;
+pub mod create_rate_account {
+    pub use super::rate_account::create_rate_account::*;
+}
+/// Close Rate account instruction arguments and implementations
+pub mod close_rate_account {
+    pub use super::rate_account::close_rate_account::*;
+}
 /// Initialize mint instruction arguments and implementations
 pub mod initialize_mint;
 /// Token wrapper utilities

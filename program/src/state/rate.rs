@@ -1,10 +1,14 @@
 //! Rate account state
-use pinocchio::account_info::AccountInfo;
+use pinocchio::instruction::Seed;
 use pinocchio::program_error::ProgramError;
+use pinocchio::pubkey::{create_program_address, Pubkey};
+use pinocchio::{account_info::AccountInfo, ProgramResult};
 use shank::{ShankAccount, ShankType};
 
+use crate::constants::seeds::RATE_ACCOUNT;
 use crate::state::{
-    AccountDeserialize, AccountSerialize, Discriminator, SecurityTokenDiscriminators,
+    AccountDeserialize, AccountSerialize, Discriminator, ProgramAccount,
+    SecurityTokenDiscriminators,
 };
 
 #[repr(u8)]
@@ -83,6 +87,12 @@ impl AccountDeserialize for Rate {
     }
 }
 
+impl ProgramAccount for Rate {
+    fn space(&self) -> u64 {
+        Self::LEN as u64
+    }
+}
+
 impl Rate {
     /// Serialized size of the account data (discriminator + rounding enum + numerator + denominator + bump)
     pub const LEN: usize = 1 + 1 + 1 + 1 + 1;
@@ -104,7 +114,16 @@ impl Rate {
         Ok(rate)
     }
 
-    /// Validate the rate account data
+    /// Update Rate data
+    pub fn update(&mut self, rounding: Rounding, numerator: u8, denominator: u8) -> ProgramResult {
+        self.rounding = rounding;
+        self.numerator = numerator;
+        self.denominator = denominator;
+        self.validate()?;
+        Ok(())
+    }
+
+    /// Validate the Rate account data
     pub fn validate(&self) -> Result<(), ProgramError> {
         if self.denominator == 0 || self.numerator == 0 {
             return Err(ProgramError::InvalidAccountData);
@@ -146,6 +165,45 @@ impl Rate {
         let data_ref = account_info.try_borrow_data()?;
         let rate = Self::try_from_bytes(&data_ref)?;
         Ok(rate)
+    }
+
+    pub fn bump_seed(&self) -> [u8; 1] {
+        [self.bump]
+    }
+
+    pub fn seeds<'a>(
+        &'a self,
+        action_id_seed: &'a [u8],
+        mint_from: &'a Pubkey,
+        mint_to: &'a Pubkey,
+        bump_seed: &'a [u8; 1],
+    ) -> [Seed<'a>; 5] {
+        [
+            Seed::from(RATE_ACCOUNT),
+            Seed::from(action_id_seed),
+            Seed::from(mint_from.as_ref()),
+            Seed::from(mint_to.as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ]
+    }
+
+    /// Optimized PDA derivation with known bump seed
+    pub fn derive_pda(
+        &self,
+        action_id: u64,
+        mint_from: &Pubkey,
+        mint_to: &Pubkey,
+    ) -> Result<Pubkey, ProgramError> {
+        create_program_address(
+            &[
+                RATE_ACCOUNT,
+                action_id.to_le_bytes().as_ref(),
+                mint_from,
+                mint_to,
+                &self.bump_seed(),
+            ],
+            &crate::id(),
+        )
     }
 }
 
