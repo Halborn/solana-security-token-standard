@@ -12,6 +12,8 @@ import {
   getAddressEncoder,
   getArrayDecoder,
   getArrayEncoder,
+  getBooleanDecoder,
+  getBooleanEncoder,
   getStructDecoder,
   getStructEncoder,
   getU8Decoder,
@@ -24,6 +26,7 @@ import {
 
 export type UpdateVerificationConfigArgs = {
   instructionDiscriminator: number;
+  cpiMode: boolean;
   offset: number;
   programAddresses: Array<Address>;
 };
@@ -33,6 +36,7 @@ export type UpdateVerificationConfigArgsArgs = UpdateVerificationConfigArgs;
 export function getUpdateVerificationConfigArgsEncoder(): Encoder<UpdateVerificationConfigArgsArgs> {
   return getStructEncoder([
     ['instructionDiscriminator', getU8Encoder()],
+    ['cpiMode', getBooleanEncoder()],
     ['offset', getU8Encoder()],
     ['programAddresses', getArrayEncoder(getAddressEncoder())],
   ]);
@@ -41,6 +45,7 @@ export function getUpdateVerificationConfigArgsEncoder(): Encoder<UpdateVerifica
 export function getUpdateVerificationConfigArgsDecoder(): Decoder<UpdateVerificationConfigArgs> {
   return getStructDecoder([
     ['instructionDiscriminator', getU8Decoder()],
+    ['cpiMode', getBooleanDecoder()],
     ['offset', getU8Decoder()],
     ['programAddresses', getArrayDecoder(getAddressDecoder())],
   ]);

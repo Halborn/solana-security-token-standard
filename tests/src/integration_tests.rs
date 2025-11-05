@@ -428,6 +428,7 @@ async fn test_update_metadata() {
 
     let verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: vec![],
     };
 
@@ -812,6 +813,7 @@ async fn test_verification_config() {
 
     let verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: verification_programs.clone(),
     };
 
@@ -867,6 +869,7 @@ async fn test_verification_config() {
     let offset = 1u8; // Start replacing at index 1
     let update_verification_config_args = UpdateVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: new_verification_programs.clone(),
         offset,
     };

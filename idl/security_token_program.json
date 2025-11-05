@@ -778,6 +778,10 @@
             "type": "u8"
           },
           {
+            "name": "cpiMode",
+            "type": "bool"
+          },
+          {
             "name": "verificationPrograms",
             "type": {
               "vec": "publicKey"
@@ -1020,6 +1024,10 @@
             "type": "u8"
           },
           {
+            "name": "cpiMode",
+            "type": "bool"
+          },
+          {
             "name": "programAddresses",
             "type": {
               "vec": "publicKey"
@@ -1036,6 +1044,10 @@
           {
             "name": "instructionDiscriminator",
             "type": "u8"
+          },
+          {
+            "name": "cpiMode",
+            "type": "bool"
           },
           {
             "name": "offset",

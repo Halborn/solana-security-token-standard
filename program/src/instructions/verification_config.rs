@@ -9,6 +9,8 @@ use shank::ShankType;
 pub struct InitializeVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
     pub instruction_discriminator: u8,
+    /// 1-byte CPI mode
+    pub cpi_mode: bool,
     /// Vector of verification program addresses
     pub program_addresses: Vec<Pubkey>,
 }
@@ -19,6 +21,8 @@ pub struct InitializeVerificationConfigArgs {
 pub struct UpdateVerificationConfigArgs {
     /// 1-byte instruction discriminator (e.g., MINT_TOKENS, BURN_TOKENS, etc.)
     pub instruction_discriminator: u8,
+    /// 1-byte CPI mode
+    pub cpi_mode: bool,
     /// Offset at which to start replacement/insertion (0-based index)
     pub offset: u8,
     /// Vector of new verification program addresses to add/replace
@@ -29,6 +33,7 @@ impl InitializeVerificationConfigArgs {
     /// Create new InitializeVerificationConfigArgs
     pub fn new(
         instruction_discriminator: u8,
+        cpi_mode: bool,
         program_addresses: &[Pubkey],
     ) -> Result<Self, ProgramError> {
         if program_addresses.len() > 16 {
@@ -37,6 +42,7 @@ impl InitializeVerificationConfigArgs {
 
         Ok(Self {
             instruction_discriminator,
+            cpi_mode,
             program_addresses: program_addresses.to_vec(),
         })
     }
@@ -47,6 +53,8 @@ impl InitializeVerificationConfigArgs {
 
         // Write instruction discriminator (1 byte)
         data.push(self.instruction_discriminator);
+        // Write cpi_mode (1 byte)
+        data.push(self.cpi_mode as u8);
 
         // Write program count (4 bytes)
         data.extend(&(self.program_addresses.len() as u32).to_le_bytes());
@@ -70,6 +78,10 @@ impl InitializeVerificationConfigArgs {
 
         // Read instruction discriminator (1 byte)
         let instruction_discriminator = data[offset];
+        offset += 1;
+
+        // Read cpi_mode (1 byte)
+        let cpi_mode = data[offset];
         offset += 1;
 
         // Read program count (4 bytes)
@@ -97,6 +109,7 @@ impl InitializeVerificationConfigArgs {
 
         Ok(Self {
             instruction_discriminator,
+            cpi_mode: cpi_mode != 0,
             program_addresses,
         })
     }
@@ -121,11 +134,13 @@ impl UpdateVerificationConfigArgs {
     /// Create new UpdateVerificationConfigArgs
     pub fn new(
         instruction_discriminator: u8,
+        cpi_mode: bool,
         program_addresses: &[Pubkey],
         offset: u8,
     ) -> Result<Self, ProgramError> {
         Ok(Self {
             instruction_discriminator,
+            cpi_mode,
             program_addresses: program_addresses.to_vec(),
             offset,
         })
@@ -137,6 +152,9 @@ impl UpdateVerificationConfigArgs {
 
         // Write instruction discriminator (1 byte)
         data.push(self.instruction_discriminator);
+
+        // Write cpi_mode (1 byte)
+        data.push(self.cpi_mode as u8);
 
         // Write offset (1 byte)
         data.push(self.offset);
@@ -154,8 +172,8 @@ impl UpdateVerificationConfigArgs {
 
     /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 6 {
-            // Minimum: 1 byte discriminator + 1 byte offset + 4 bytes count
+        if data.len() < 7 {
+            // Minimum: 1 byte discriminator + 1 byte cpi_mode + 1 byte offset + 4 bytes count
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -163,6 +181,10 @@ impl UpdateVerificationConfigArgs {
 
         // Read instruction discriminator (1 byte)
         let instruction_discriminator = data[offset_pos];
+        offset_pos += 1;
+
+        // Read cpi_mode (1 byte)
+        let cpi_mode = data[offset_pos];
         offset_pos += 1;
 
         // Read offset (1 byte)
@@ -194,6 +216,7 @@ impl UpdateVerificationConfigArgs {
 
         Ok(Self {
             instruction_discriminator,
+            cpi_mode: cpi_mode != 0,
             program_addresses,
             offset,
         })
@@ -294,6 +317,7 @@ mod tests {
         // Test with UpdateMetadata discriminator
         let original = InitializeVerificationConfigArgs::new(
             SecurityTokenInstruction::UpdateMetadata.discriminant(),
+            false,
             &program_addresses,
         )
         .unwrap();
@@ -305,6 +329,7 @@ mod tests {
             original.instruction_discriminator,
             deserialized.instruction_discriminator
         );
+        assert_eq!(original.cpi_mode, deserialized.cpi_mode);
         assert_eq!(original.program_count(), deserialized.program_count());
 
         let original_addresses = original.program_addresses();
@@ -319,6 +344,7 @@ mod tests {
         let max_programs: Vec<Pubkey> = (0..16).map(|_| random_pubkey()).collect();
         let max_args = InitializeVerificationConfigArgs::new(
             SecurityTokenInstruction::InitializeMint.discriminant(),
+            false,
             &max_programs,
         )
         .unwrap();
@@ -328,6 +354,7 @@ mod tests {
         let too_many_programs: Vec<Pubkey> = (0..17).map(|_| random_pubkey()).collect();
         let result = InitializeVerificationConfigArgs::new(
             SecurityTokenInstruction::UpdateMetadata.discriminant(),
+            false,
             &too_many_programs,
         );
         assert!(result.is_err());
@@ -335,6 +362,7 @@ mod tests {
         // Test with empty programs list
         let empty_args = InitializeVerificationConfigArgs::new(
             SecurityTokenInstruction::InitializeVerificationConfig.discriminant(),
+            false,
             &[],
         )
         .unwrap();

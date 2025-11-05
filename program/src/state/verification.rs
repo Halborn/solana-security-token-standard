@@ -13,6 +13,7 @@ use shank::ShankAccount;
 pub struct VerificationConfig {
     /// Instruction discriminator this config applies to
     pub instruction_discriminator: u8,
+    pub cpi_mode: bool,
     /// Required verification programs
     pub verification_programs: Vec<Pubkey>,
 }
@@ -28,6 +29,9 @@ impl AccountSerialize for VerificationConfig {
         // Write instruction discriminator (1 byte)
         data.push(self.instruction_discriminator);
 
+        // Write cpi_mode (1 byte)
+        data.push(self.cpi_mode as u8);
+
         // Write program count (4 bytes)
         data.extend(&(self.verification_programs.len() as u32).to_le_bytes());
 
@@ -42,8 +46,8 @@ impl AccountSerialize for VerificationConfig {
 
 impl AccountDeserialize for VerificationConfig {
     fn try_from_bytes_inner(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 5 {
-            // Minimum: 1 byte discriminator + 4 bytes count
+        if data.len() < 6 {
+            // Minimum: 1 byte discriminator + 1 byte cpi_mode + 4 bytes count
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -51,6 +55,9 @@ impl AccountDeserialize for VerificationConfig {
 
         // Read instruction discriminator (1 byte)
         let instruction_discriminator = data[offset];
+        offset += 1;
+
+        let cpi_mode = data[offset] != 0;
         offset += 1;
 
         // Read program count (4 bytes)
@@ -78,6 +85,7 @@ impl AccountDeserialize for VerificationConfig {
 
         let config = Self {
             instruction_discriminator,
+            cpi_mode,
             verification_programs,
         };
 
@@ -92,10 +100,12 @@ impl VerificationConfig {
     /// Create new VerificationConfig
     pub fn new(
         instruction_discriminator: u8,
+        cpi_mode: bool,
         verification_program_addresses: &[Pubkey],
     ) -> Result<Self, ProgramError> {
         Ok(Self {
             instruction_discriminator,
+            cpi_mode,
             verification_programs: verification_program_addresses.to_vec(),
         })
     }
@@ -118,6 +128,7 @@ impl VerificationConfig {
     pub fn serialized_size(&self) -> usize {
         1 // account discriminator
             + 1 // instruction discriminator
+            + 1 // cpi_mode
             + 4 // vector length prefix
             + (self.verification_programs.len() * PUBKEY_BYTES)
     }
