@@ -1,7 +1,9 @@
 use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
-use crate::state::Rounding;
+use crate::instructions::rate_account::shared::{
+    parse_action_and_rate, serialize_action_and_rate, RateArgs, ACTION_AND_RATE_ARGS_LEN,
+};
 
 /// Arguments to create Rate account
 #[repr(C)]
@@ -14,88 +16,16 @@ pub struct CreateRateArgs {
 }
 
 impl CreateRateArgs {
-    /// action_id + rate arguments
-    pub const LEN: usize = 8 + RateArgs::LEN;
+    /// action_id + rate arguments (rounding + numerator + denominator)
+    pub const LEN: usize = ACTION_AND_RATE_ARGS_LEN;
 
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::LEN {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        let action_id = data
-            .get(..8)
-            .and_then(|slice| slice.try_into().ok())
-            .map(u64::from_le_bytes)
-            .ok_or(ProgramError::InvalidArgument)?;
-
-        if action_id == 0 {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        let rate_args_data = data.get(8..).ok_or(ProgramError::InvalidInstructionData)?;
-        let rate_args = RateArgs::try_from_bytes(rate_args_data)?;
-
-        let create_rate_args = Self {
-            action_id,
-            rate: rate_args,
-        };
-
-        Ok(create_rate_args)
+        let (action_id, rate) = parse_action_and_rate(data)?;
+        Ok(Self { action_id, rate })
     }
 
     pub fn to_bytes_inner(&self) -> Vec<u8> {
-        let mut data = Vec::with_capacity(Self::LEN);
-
-        data.extend_from_slice(self.action_id.to_le_bytes().as_ref());
-        data.extend_from_slice(self.rate.to_bytes_inner().as_ref());
-
-        data
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Debug, PartialEq, ShankType)]
-pub struct RateArgs {
-    /// Rounding direction (0 = Up, Down = 1)
-    pub rounding: u8,
-    /// Rate numerator
-    pub numerator: u8,
-    /// Rate denominator
-    pub denominator: u8,
-}
-
-impl RateArgs {
-    /// rounding + numerator + denominator
-    pub const LEN: usize = 1 + 1 + 1;
-
-    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::LEN {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        let rounding = Rounding::try_from(data[0]).map_err(|_| ProgramError::InvalidArgument)?;
-        let numerator = data[1];
-        let denominator = data[2];
-
-        if denominator == 0 || numerator == 0 {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        Ok(Self {
-            rounding: rounding.into(),
-            numerator,
-            denominator,
-        })
-    }
-
-    pub fn to_bytes_inner(&self) -> Vec<u8> {
-        let mut data = Vec::with_capacity(Self::LEN);
-
-        data.push(self.rounding);
-        data.push(self.numerator);
-        data.push(self.denominator);
-
-        data
+        serialize_action_and_rate(self.action_id, &self.rate)
     }
 }
 

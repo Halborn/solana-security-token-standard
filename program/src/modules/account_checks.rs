@@ -163,3 +163,35 @@ pub fn verify_account_not_initialized(info: &AccountInfo) -> Result<(), ProgramE
     }
     Ok(())
 }
+
+/// Verify account is initialized.
+///
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_account_initialized(info: &AccountInfo) -> Result<(), ProgramError> {
+    if info.data_is_empty() || info.lamports() == 0 || info.is_owned_by(&pinocchio_system::id()) {
+        log!("Account {} is not initialized", acc_info_as_str!(info));
+        return Err(ProgramError::UninitializedAccount);
+    }
+    Ok(())
+}
+
+/// Verify PDA accounts pubkeys match.
+///
+/// # Arguments
+/// * `provided_pda` - The account provided in the instruction.
+/// * `expected_pda` - The account derived and expected by the program.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_pda(provided_pda: &Pubkey, expected_pda: &Pubkey) -> Result<(), ProgramError> {
+    if provided_pda.ne(expected_pda) {
+        log!("Invalid PDA account");
+        log!("Expected: {}, Provided: {}", expected_pda, provided_pda);
+        return Err(ProgramError::InvalidSeeds);
+    }
+    Ok(())
+}

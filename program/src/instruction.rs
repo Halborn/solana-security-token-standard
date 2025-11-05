@@ -17,6 +17,8 @@ pub enum SecurityTokenInstruction {
     Freeze = 10,
     Thaw = 11,
     CreateRateAccount = 12,
+    UpdateRateAccount = 13,
+    CloseRateAccount = 14,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -37,6 +39,8 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             10 => Ok(SecurityTokenInstruction::Freeze),
             11 => Ok(SecurityTokenInstruction::Thaw),
             12 => Ok(SecurityTokenInstruction::CreateRateAccount),
+            13 => Ok(SecurityTokenInstruction::UpdateRateAccount),
+            14 => Ok(SecurityTokenInstruction::CloseRateAccount),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -71,8 +75,9 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
-        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        close_rate_account::CloseRateArgs, update_rate_account::UpdateRateArgs, CreateRateArgs,
+        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -189,5 +194,22 @@ mod idl_gen {
         #[account(6, writable, signer, name = "payer")]
         #[account(7, name = "system_program")]
         CreateRateAccount(CreateRateArgs) = 12,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, writable, name = "rate_account")]
+        #[account(4, name = "mint_from")]
+        #[account(5, name = "mint_to")]
+        UpdateRateAccount(UpdateRateArgs) = 13,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, writable, name = "rate_account")]
+        #[account(4, name = "mint_from")]
+        #[account(5, name = "mint_to")]
+        #[account(6, writable, name = "destination")]
+        CloseRateAccount(CloseRateArgs) = 14,
     }
 }

@@ -9,6 +9,7 @@
   "scripts": {
     "generate-idl": "shank idl -r program -o idl",
     "generate-clients": "node ./scripts/generate-clients.js",
+    "build-all": "cargo-build-sbf && pnpm generate-idl && pnpm generate-clients",
     "test": "cargo-build-sbf && SBF_OUT_DIR=$(pwd)/target/deploy cargo test"
   },
   "repository": {
