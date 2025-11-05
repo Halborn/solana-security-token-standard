@@ -20,11 +20,11 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: '1.87.0'
+          toolchain: "1.87.0"
 
       - name: Install Solana CLI
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          sh -c "$(curl -sSfL https://release.anza.xyz/v2.2.0/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Cache Solana dependencies
@@ -66,7 +66,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: '1.87.0'
+          toolchain: "1.87.0"
           components: rustfmt, clippy
 
       - name: Cache dependencies
@@ -99,11 +99,11 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: '1.87.0'
+          toolchain: "1.87.0"
 
       - name: Install Solana CLI
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          sh -c "$(curl -sSfL https://release.anza.xyz/v2.2.0/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Cache dependencies
