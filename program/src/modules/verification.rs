@@ -7,6 +7,7 @@ use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
+use pinocchio::sysvars::Sysvar;
 use pinocchio::sysvars::{
     instructions::Instructions,
     rent::{
@@ -141,21 +142,9 @@ impl VerificationModule {
             0
         };
 
-        log!("Mint size: {} bytes", mint_size);
-        log!("Metadata size: {} bytes", metadata_size);
-        log!("Total account size: {} bytes", mint_size + metadata_size);
-
         let total_size = mint_size + metadata_size;
-
         let rent = Rent::from_account_info(rent_info)?;
         let required_lamports = rent.minimum_balance(total_size);
-
-        log!(
-            "Creating mint account with {} lamports for {} bytes",
-            required_lamports,
-            total_size
-        );
-
         let create_account_instruction = CreateAccount {
             from: creator_info,              // from (payer)
             to: mint_info,                   // to (new account)
@@ -166,17 +155,12 @@ impl VerificationModule {
 
         create_account_instruction.invoke()?;
 
-        log!("Mint account created successfully");
-
         // Calculate all PDAs that will be used for extensions and mint initialization
         let (transfer_hook_pda, _bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
         let (permanent_delegate_pda, _bump) =
             utils::find_permanent_delegate_pda(mint_info.key(), program_id);
         let (pause_authority_pda, _bump) =
             utils::find_pause_authority_pda(mint_info.key(), program_id);
-
-        // Initialize extensions BEFORE base mint initialization
-        log!("Extensions setup - initializing extensions BEFORE basic mint");
 
         let permanent_delegate_initialize = InitializePermanentDelegate {
             mint: mint_info,
@@ -244,11 +228,6 @@ impl VerificationModule {
             log!("ScaledUiAmount extension initialized");
         }
 
-        log!("All security token extensions initialized successfully");
-
-        // Now initialize the basic mint AFTER extensions
-        log!("Initializing basic mint AFTER extensions");
-
         // Use client-provided authorities for base initialize to match client expectations/tests
         let initialize_mint_instruction = InitializeMint2 {
             mint: mint_info,
@@ -259,95 +238,16 @@ impl VerificationModule {
 
         initialize_mint_instruction.invoke()?;
 
-        log!(
-            "Basic mint initialized successfully with {} decimals",
-            decimals
-        );
-
-        if let Some(metadata) = &metadata_opt {
-            log!("Preparing to initialize token metadata through SPL Token Metadata Interface");
-
-            // Determine which account to use for metadata
-            let metadata_account_info = if let Some(metadata_addr) = metadata_account_address {
-                if metadata_addr == *mint_info.key() {
-                    // Metadata is stored in mint account (in-mint storage)
-                    log!("Using mint account for metadata");
-                    mint_info.clone()
-                } else {
-                    // Metadata is stored in external account - find it in accounts list
-                    accounts
-                        .iter()
-                        .find(|acc| acc.key() == &metadata_addr)
-                        .ok_or(ProgramError::InvalidAccountData)?
-                        .clone()
-                }
-            } else {
-                // No metadata pointer, shouldn't happen if we have metadata
-                return Err(ProgramError::InvalidInstructionData);
-            };
-
-            log!("Initializing token metadata");
-            let metadata_init_instruction = CustomInitializeTokenMetadata::new(
-                &metadata_account_info,
-                creator_info,
-                mint_info,
-                creator_info,
-                &metadata.name,
-                &metadata.symbol,
-                &metadata.uri,
-            );
-            let invoke_result = metadata_init_instruction.invoke();
-
-            if let Err(err) = &invoke_result {
-                let err_str = format!("{:?}", err);
-                log!(
-                    "CustomInitializeTokenMetadata invoke failed with error: {}",
-                    err_str.as_str()
-                );
-                return Err(err.clone());
-            }
-
-            log!("TokenMetadata invoke succeeded");
-            // Add additional metadata fields if present - each field requires separate instruction
-            if !metadata.additional_metadata.is_empty() {
-                let additional_metadata_len = metadata.additional_metadata.len();
-                log!(
-                    "Adding {} bytes of additional metadata",
-                    additional_metadata_len
-                );
-
-                // Parse additional metadata from raw bytes and process each field
-                utils::parse_additional_metadata(
-                    metadata.additional_metadata.as_slice(),
-                    |key, value| {
-                        let update_field_instruction = UpdateField {
-                            metadata: &metadata_account_info,
-                            update_authority: creator_info,
-                            field: Field::Key(key),
-                            value,
-                        };
-                        update_field_instruction.invoke()?;
-                        Ok(())
-                    },
-                )?;
-            }
-            log!("All metadata initialized successfully");
-        } else {
-            log!("No metadata provided, skipping metadata initialization");
-        }
-
         // NOTE: Transfer mint authority to PDA, review it
         // Get mint authority PDA - this will be the mint authority for the token
         let (mint_authority_pda, mint_authority_bump) =
             utils::find_mint_authority_pda(mint_info.key(), creator_info.key(), program_id);
 
         if mint_authority_account.key() != &mint_authority_pda {
-            log!("Mint authority PDA mismatch");
             return Err(ProgramError::InvalidSeeds);
         }
 
         if !mint_authority_account.data_is_empty() || mint_authority_account.lamports() > 0 {
-            log!("Mint authority PDA already initialized");
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
@@ -376,8 +276,7 @@ impl VerificationModule {
         ];
         let mint_authority_signer = Signer::from(&mint_authority_seeds);
 
-        create_mint_authority_instruction.invoke_signed(&[mint_authority_signer])?;
-        log!("Mint authority PDA account created successfully");
+        create_mint_authority_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
         {
             let mut data = mint_authority_account.try_borrow_mut_data()?;
             let config_bytes = mint_authority_config.to_bytes();
@@ -392,7 +291,69 @@ impl VerificationModule {
         };
 
         set_authority_instruction.invoke()?;
-        log!("Security token mint initialization completed successfully");
+
+        let Some(metadata) = metadata_opt else {
+            return Ok(());
+        };
+
+        // Determine which account to use for metadata
+        let metadata_account_info = if let Some(metadata_addr) = metadata_account_address {
+            if metadata_addr == *mint_info.key() {
+                // Metadata is stored in mint account (in-mint storage)
+                log!("Using mint account for metadata");
+                mint_info.clone()
+            } else {
+                // Metadata is stored in external account - find it in accounts list
+                accounts
+                    .iter()
+                    .find(|acc| acc.key() == &metadata_addr)
+                    .ok_or(ProgramError::InvalidAccountData)?
+                    .clone()
+            }
+        } else {
+            // No metadata pointer, shouldn't happen if we have metadata
+            return Err(ProgramError::InvalidInstructionData);
+        };
+
+        let metadata_init_instruction = CustomInitializeTokenMetadata::new(
+            &metadata_account_info,
+            mint_authority_account,
+            mint_info,
+            mint_authority_account,
+            &metadata.name,
+            &metadata.symbol,
+            &metadata.uri,
+        );
+        let invoke_result =
+            metadata_init_instruction.invoke_signed(&[mint_authority_signer.clone()]);
+
+        if let Err(err) = &invoke_result {
+            let err_str = format!("{:?}", err);
+            log!(
+                "CustomInitializeTokenMetadata invoke failed with error: {}",
+                err_str.as_str()
+            );
+            return Err(err.clone());
+        }
+
+        // Add additional metadata fields if present - each field requires separate instruction
+        if !metadata.additional_metadata.is_empty() {
+            // Parse additional metadata from raw bytes and process each field
+            utils::parse_additional_metadata(
+                metadata.additional_metadata.as_slice(),
+                |key, value| {
+                    let update_field_instruction = UpdateField {
+                        metadata: &metadata_account_info,
+                        update_authority: mint_authority_account,
+                        field: Field::Key(key),
+                        value,
+                    };
+                    update_field_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
+                    Ok(())
+                },
+            )?;
+        }
+
         Ok(())
     }
 
@@ -403,18 +364,22 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &UpdateMetadataArgs,
     ) -> ProgramResult {
-        log!("Processing UpdateMetadata instruction");
-
         // Validate arguments
         args.validate()?;
 
-        let [mint_info, authority_info, token_program_info, system_program_info] = accounts else {
+        let [mint_info, mint_authority, payer, token_program_info, system_program_info] = accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
-        verify_signer(authority_info)?;
+        verify_signer(payer)?;
+
+        let mint_authority_data = MintAuthority::from_account_info(mint_authority)?;
+        if &mint_authority_data.mint != mint_info.key() {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
         // Get metadata account address from MetadataPointer extension
         let metadata_address: Option<Pubkey> = {
@@ -437,20 +402,8 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Update base metadata fields using SPL Token Metadata Interface
-        log!("Updating base metadata fields (name, symbol, URI)");
-
-        // Calculate additional space needed for metadata updates and transfer rent if needed
-
-        log!("Calculating additional rent for metadata updates");
-
         // Calculate current and new metadata sizes
         let new_metadata_size = utils::calculate_metadata_tlv_size(&args.metadata)?;
-        let current_account_size = metadata_account_info.data_len();
-
-        log!("Current account size: {} bytes", current_account_size);
-        log!("New metadata TLV size needed: {} bytes", new_metadata_size);
-
         // Get current metadata size to calculate the difference
         let current_metadata_size = {
             let mint_data = metadata_account_info.try_borrow_data()?;
@@ -468,76 +421,57 @@ impl VerificationModule {
             }
         };
 
-        log!("Current metadata TLV size: {} bytes", current_metadata_size);
-
         if new_metadata_size > current_metadata_size {
             let additional_metadata_space = new_metadata_size - current_metadata_size;
-            let rent = Rent {
-                lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-                exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
-                burn_percent: DEFAULT_BURN_PERCENT,
-            };
+            let rent = Rent::get()?;
             let additional_rent = rent.minimum_balance(additional_metadata_space);
-
-            log!(
-                "Additional metadata space needed: {} bytes",
-                additional_metadata_space
-            );
-            log!("Additional rent needed: {} lamports", additional_rent);
-
             let transfer = Transfer {
-                from: authority_info,       // from (authority pays)
+                from: payer,                // from (authority pays)
                 to: &metadata_account_info, // to (metadata account)
                 lamports: additional_rent,  // amount
             };
-
             transfer.invoke()?;
-
-            log!(
-                "Transferred {} lamports for additional metadata space",
-                additional_rent
-            );
-        } else {
-            log!("No additional rent needed - current metadata space is sufficient");
         }
+
+        let bump_seed = [mint_authority_data.bump];
+        let mint_authority_seeds = [
+            Seed::from(seeds::MINT_AUTHORITY),
+            Seed::from(mint_authority_data.mint.as_ref()),
+            Seed::from(mint_authority_data.mint_creator.as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+        let mint_authority_signer = Signer::from(&mint_authority_seeds);
 
         let update_field_instruction = UpdateField {
             metadata: &metadata_account_info,
-            update_authority: authority_info,
+            update_authority: mint_authority,
             field: Field::Name,
             value: &args.metadata.name,
         };
 
-        update_field_instruction.invoke()?;
+        update_field_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
 
         // Update symbol
         let update_symbol_instruction = UpdateField {
             metadata: &metadata_account_info,
-            update_authority: authority_info,
+            update_authority: mint_authority,
             field: Field::Symbol,
             value: &args.metadata.symbol,
         };
 
-        update_symbol_instruction.invoke()?;
+        update_symbol_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
 
         // Update URI
         let update_uri_instruction = UpdateField {
             metadata: &metadata_account_info,
-            update_authority: authority_info,
+            update_authority: mint_authority,
             field: Field::Uri,
             value: &args.metadata.uri,
         };
 
-        update_uri_instruction.invoke()?;
+        update_uri_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
 
         // Handle additional metadata fields atomically
-        // Step 1: Read all existing additional metadata fields and remove them
-        // Step 2: Add new additional metadata fields
-        log!("Processing additional metadata fields atomically");
-
-        // Step 1: Read current metadata to get all existing additional fields
-        log!("Reading existing metadata to find all additional fields");
-
         let existing_additional_fields = {
             // Create a temporary AccountInfo wrapper for the metadata account to use from_account_info
             let metadata_account_clone = metadata_account_info.clone();
@@ -545,8 +479,6 @@ impl VerificationModule {
             // Try to parse existing metadata using pinocchio's from_account_info
             if let Ok(existing_metadata) = TokenMetadata::from_account_info(metadata_account_clone)
             {
-                log!("Successfully parsed existing metadata");
-
                 let mut fields_buffer: [[u8; 64]; 16] = [[0u8; 64]; 16]; // Static buffer for field names
                 let mut field_lengths: [usize; 16] = [0; 16];
                 let mut field_count = 0;
@@ -562,9 +494,6 @@ impl VerificationModule {
                                 .copy_from_slice(key_bytes);
                             field_lengths[field_count] = key_bytes.len();
                             field_count += 1;
-                            log!("Found existing additional metadata field: {}", key);
-                        } else {
-                            log!("Skipping field (buffer full or key too long): {}", key);
                         }
                         Ok(())
                     },
@@ -577,7 +506,6 @@ impl VerificationModule {
 
                 (fields_buffer, field_lengths, field_count)
             } else {
-                log!("No existing metadata found or failed to parse - assuming no existing additional fields");
                 let fields_buffer: [[u8; 64]; 16] = [[0u8; 64]; 16];
                 let field_lengths: [usize; 16] = [0; 16];
                 let field_count = 0;
@@ -589,8 +517,6 @@ impl VerificationModule {
 
         // Step 2: Remove only existing fields that are NOT in the new metadata
         if field_count > 0 {
-            log!("Checking {} existing fields for removal", field_count);
-
             for i in 0..field_count {
                 let key_bytes = &fields_buffer[i][..field_lengths[i]];
                 if let Ok(existing_key) = core::str::from_utf8(key_bytes) {
@@ -610,27 +536,15 @@ impl VerificationModule {
                     }
 
                     if !found_in_new {
-                        log!(
-                            "Removing existing metadata field not in update: {}",
-                            existing_key
-                        );
                         let remove_field_instruction = CustomRemoveKey::new(
                             &metadata_account_info,
-                            authority_info,
+                            mint_authority,
                             existing_key,
                             true, // idempotent - don't error if key doesn't exist
                         );
 
-                        let remove_result = remove_field_instruction.invoke();
-                        if remove_result.is_ok() {
-                            log!("Removed existing metadata field: {}", existing_key);
-                        }
+                        remove_field_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
                         // Ignore errors since we're using idempotent flag
-                    } else {
-                        log!(
-                            "Keeping existing metadata field (will be updated): {}",
-                            existing_key
-                        );
                     }
                 }
             }
@@ -639,41 +553,23 @@ impl VerificationModule {
         }
 
         // Step 4: Add/update new additional metadata fields
-        if !args.metadata.additional_metadata.is_empty() {
-            let additional_metadata_len = args.metadata.additional_metadata.len();
-            log!(
-                "Adding/updating {} bytes of new additional metadata",
-                additional_metadata_len
-            );
-
-            let result = utils::parse_additional_metadata(
-                args.metadata.additional_metadata.as_slice(),
-                |key, value| {
-                    log!(
-                        "Adding/updating additional metadata field: {} = {}",
-                        key,
-                        value
-                    );
-                    let update_field_instruction = UpdateField {
-                        metadata: &metadata_account_info,
-                        update_authority: authority_info,
-                        field: Field::Key(key),
-                        value,
-                    };
-                    update_field_instruction.invoke()
-                },
-            );
-
-            result.map_err(|_e| ProgramError::InvalidInstructionData)?;
-            log!("All additional metadata fields added/updated successfully");
-        } else {
-            log!("No new additional metadata fields to add/update");
+        if args.metadata.additional_metadata.is_empty() {
+            return Ok(());
         }
-
-        log!(
-            "Metadata updated successfully for mint: {}",
-            mint_info.key()
+        let result = utils::parse_additional_metadata(
+            args.metadata.additional_metadata.as_slice(),
+            |key, value| {
+                let update_field_instruction = UpdateField {
+                    metadata: &metadata_account_info,
+                    update_authority: mint_authority,
+                    field: Field::Key(key),
+                    value,
+                };
+                update_field_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
+                Ok(())
+            },
         );
+        result.map_err(|_e| ProgramError::InvalidInstructionData)?;
         Ok(())
     }
 
