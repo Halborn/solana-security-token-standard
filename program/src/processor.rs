@@ -44,18 +44,27 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
         ix_discriminator: u8,
+        instruction_data: &[u8],
         verification_profile: VerificationProfile,
     ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         match verification_profile {
             VerificationProfile::None => Ok((&accounts[0], &accounts)),
             VerificationProfile::VerificationPrograms => {
-                let mint_info =
-                    VerificationModule::verify_by_programs(program_id, accounts, ix_discriminator)?;
+                let mint_info = VerificationModule::verify_by_programs(
+                    program_id,
+                    accounts,
+                    ix_discriminator,
+                    instruction_data,
+                )?;
                 Ok((mint_info, &accounts[INSTRUCTION_ACCOUNTS_OFFSET..]))
             }
             VerificationProfile::VerificationProgramsOrMintAuthority => {
-                let mint_info =
-                    VerificationModule::verify_by_strategy(program_id, accounts, ix_discriminator)?;
+                let mint_info = VerificationModule::verify_by_strategy(
+                    program_id,
+                    accounts,
+                    ix_discriminator,
+                    instruction_data,
+                )?;
                 Ok((mint_info, &accounts[INSTRUCTION_ACCOUNTS_OFFSET..]))
             }
         }
@@ -75,6 +84,7 @@ impl Processor {
             program_id,
             accounts,
             instruction.discriminant(),
+            instruction_data,
             verification_profile,
         )?;
 

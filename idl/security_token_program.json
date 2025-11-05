@@ -1078,6 +1078,10 @@
           {
             "name": "ix",
             "type": "u8"
+          },
+          {
+            "name": "instructionData",
+            "type": "bytes"
           }
         ]
       }
