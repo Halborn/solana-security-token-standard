@@ -282,8 +282,8 @@ async fn test_initialize_mint_with_all_extensions() {
             // Verify update authority is set to creator (not PDA) since PDA can't sign initialization
             assert_eq!(
                 Option::<Pubkey>::from(metadata.update_authority),
-                Some(context.payer.pubkey()),
-                "Metadata update authority should be creator (payer) during initialization"
+                Some(mint_authority_pda),
+                "Metadata update authority should be mint authority PDA"
             );
 
             // Verify mint field points to correct mint
@@ -474,6 +474,7 @@ async fn test_update_metadata() {
         .verification_config_or_mint_authority(verification_config_pda)
         .instructions_sysvar_or_creator(sysvar::instructions::ID)
         .mint_account(mint_keypair.pubkey())
+        .mint_authority(mint_authority_pda)
         .payer(context.payer.pubkey())
         .update_metadata_args(update_metadata_args)
         .instruction();

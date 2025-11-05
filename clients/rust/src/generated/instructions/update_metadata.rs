@@ -22,6 +22,8 @@ pub struct UpdateMetadata {
 
     pub mint_account: solana_pubkey::Pubkey,
 
+    pub mint_authority: solana_pubkey::Pubkey,
+
     pub payer: solana_pubkey::Pubkey,
 
     pub token_program: solana_pubkey::Pubkey,
@@ -43,7 +45,7 @@ impl UpdateMetadata {
         args: UpdateMetadataInstructionArgs,
         remaining_accounts: &[solana_instruction::AccountMeta],
     ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint, false,
         ));
@@ -57,6 +59,10 @@ impl UpdateMetadata {
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             self.mint_account,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.mint_authority,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
@@ -113,15 +119,17 @@ pub struct UpdateMetadataInstructionArgs {
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
 ///   3. `[writable]` mint_account
-///   4. `[writable, signer]` payer
-///   5. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
-///   6. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   4. `[]` mint_authority
+///   5. `[writable, signer]` payer
+///   6. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
+///   7. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct UpdateMetadataBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config_or_mint_authority: Option<solana_pubkey::Pubkey>,
     instructions_sysvar_or_creator: Option<solana_pubkey::Pubkey>,
     mint_account: Option<solana_pubkey::Pubkey>,
+    mint_authority: Option<solana_pubkey::Pubkey>,
     payer: Option<solana_pubkey::Pubkey>,
     token_program: Option<solana_pubkey::Pubkey>,
     system_program: Option<solana_pubkey::Pubkey>,
@@ -157,6 +165,11 @@ impl UpdateMetadataBuilder {
     #[inline(always)]
     pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
         self.mint_account = Some(mint_account);
+        self
+    }
+    #[inline(always)]
+    pub fn mint_authority(&mut self, mint_authority: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_authority = Some(mint_authority);
         self
     }
     #[inline(always)]
@@ -207,6 +220,7 @@ impl UpdateMetadataBuilder {
                 .instructions_sysvar_or_creator
                 .expect("instructions_sysvar_or_creator is not set"),
             mint_account: self.mint_account.expect("mint_account is not set"),
+            mint_authority: self.mint_authority.expect("mint_authority is not set"),
             payer: self.payer.expect("payer is not set"),
             token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
                 "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
@@ -236,6 +250,8 @@ pub struct UpdateMetadataCpiAccounts<'a, 'b> {
 
     pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
+    pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
+
     pub payer: &'b solana_account_info::AccountInfo<'a>,
 
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
@@ -255,6 +271,8 @@ pub struct UpdateMetadataCpi<'a, 'b> {
     pub instructions_sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>,
 
     pub mint_account: &'b solana_account_info::AccountInfo<'a>,
+
+    pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
 
     pub payer: &'b solana_account_info::AccountInfo<'a>,
 
@@ -277,6 +295,7 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
             verification_config_or_mint_authority: accounts.verification_config_or_mint_authority,
             instructions_sysvar_or_creator: accounts.instructions_sysvar_or_creator,
             mint_account: accounts.mint_account,
+            mint_authority: accounts.mint_authority,
             payer: accounts.payer,
             token_program: accounts.token_program,
             system_program: accounts.system_program,
@@ -306,7 +325,7 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
         remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
     ) -> solana_program_error::ProgramResult {
-        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint.key,
             false,
@@ -321,6 +340,10 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             *self.mint_account.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.mint_authority.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
@@ -348,12 +371,13 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(8 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(9 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config_or_mint_authority.clone());
         account_infos.push(self.instructions_sysvar_or_creator.clone());
         account_infos.push(self.mint_account.clone());
+        account_infos.push(self.mint_authority.clone());
         account_infos.push(self.payer.clone());
         account_infos.push(self.token_program.clone());
         account_infos.push(self.system_program.clone());
@@ -377,9 +401,10 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
 ///   3. `[writable]` mint_account
-///   4. `[writable, signer]` payer
-///   5. `[]` token_program
-///   6. `[]` system_program
+///   4. `[]` mint_authority
+///   5. `[writable, signer]` payer
+///   6. `[]` token_program
+///   7. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct UpdateMetadataCpiBuilder<'a, 'b> {
     instruction: Box<UpdateMetadataCpiBuilderInstruction<'a, 'b>>,
@@ -393,6 +418,7 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
             verification_config_or_mint_authority: None,
             instructions_sysvar_or_creator: None,
             mint_account: None,
+            mint_authority: None,
             payer: None,
             token_program: None,
             system_program: None,
@@ -429,6 +455,14 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
         mint_account: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.mint_account = Some(mint_account);
+        self
+    }
+    #[inline(always)]
+    pub fn mint_authority(
+        &mut self,
+        mint_authority: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.mint_authority = Some(mint_authority);
         self
     }
     #[inline(always)]
@@ -518,6 +552,11 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
                 .mint_account
                 .expect("mint_account is not set"),
 
+            mint_authority: self
+                .instruction
+                .mint_authority
+                .expect("mint_authority is not set"),
+
             payer: self.instruction.payer.expect("payer is not set"),
 
             token_program: self
@@ -545,6 +584,7 @@ struct UpdateMetadataCpiBuilderInstruction<'a, 'b> {
     verification_config_or_mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar_or_creator: Option<&'b solana_account_info::AccountInfo<'a>>,
     mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     payer: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
