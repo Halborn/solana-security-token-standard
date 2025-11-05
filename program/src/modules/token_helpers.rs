@@ -7,6 +7,7 @@ use pinocchio_token_2022::instructions::{BurnChecked, MintToChecked};
 
 use crate::{constants::seeds, state::MintAuthority};
 
+/// Burn tokens from token account using permanent delegate authority
 pub fn burn_checked(
     amount: u64,
     decimals: u8,
@@ -32,6 +33,7 @@ pub fn burn_checked(
     .invoke_signed(&[permanent_delegate_signer])
 }
 
+/// Mint tokens to token account using mint authority PDA
 pub fn mint_to_checked(
     amount: u64,
     decimals: u8,

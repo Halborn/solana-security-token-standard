@@ -18,7 +18,7 @@ use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
 use pinocchio_log::log;
-use pinocchio_token_2022::instructions::{BurnChecked, FreezeAccount, MintToChecked, ThawAccount};
+use pinocchio_token_2022::instructions::{FreezeAccount, ThawAccount};
 use pinocchio_token_2022::state::{Mint, TokenAccount};
 
 /// Operations Module - executes token operations
@@ -47,27 +47,17 @@ impl OperationsModule {
         let decimals = mint_account.decimals();
         drop(mint_account);
 
-        let instruction = MintToChecked {
-            mint: mint_info,
-            account: destination_account_info,
-            mint_authority,
-            amount,
-            decimals,
-        };
-
         let mint_authority_state = MintAuthority::from_account_info(mint_authority)?;
 
-        let bump_seed = [mint_authority_state.bump];
-        let seeds = [
-            Seed::from(seeds::MINT_AUTHORITY),
-            Seed::from(mint_authority_state.mint.as_ref()),
-            Seed::from(mint_authority_state.mint_creator.as_ref()),
-            Seed::from(bump_seed.as_ref()),
-        ];
+        mint_to_checked(
+            amount,
+            decimals,
+            mint_info,
+            destination_account_info,
+            mint_authority,
+            &mint_authority_state,
+        )?;
 
-        let mint_authority_signer = Signer::from(&seeds);
-
-        instruction.invoke_signed(&[mint_authority_signer])?;
         Ok(())
     }
 
@@ -99,21 +89,15 @@ impl OperationsModule {
         let decimals = mint_account.decimals();
         drop(mint_account);
 
-        let instruction = BurnChecked {
-            mint: mint_info,
-            account: token_account,
-            authority: permanent_delegate_authority,
+        burn_checked(
             amount,
             decimals,
-        };
-        let bump_seed = [bump];
-        let seeds = [
-            Seed::from(seeds::PERMANENT_DELEGATE),
-            Seed::from(mint_info.key().as_ref()),
-            Seed::from(bump_seed.as_ref()),
-        ];
-        let permanent_delegate_signer = Signer::from(&seeds);
-        instruction.invoke_signed(&[permanent_delegate_signer])?;
+            mint_info,
+            token_account,
+            permanent_delegate_authority,
+            bump,
+        )?;
+
         Ok(())
     }
 
@@ -442,7 +426,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Verify splitted Mint
+        // Verify split Mint
         verify_operation_mint_info(verified_mint_info, &mint_account)?;
         let mint_split = Mint::from_account_info(mint_account)?;
         let mint_decimals = mint_split.decimals();
@@ -481,15 +465,14 @@ impl OperationsModule {
         let rate = Rate::from_account_info(rate_account)?;
         verify_owner(rate_account, program_id)?;
         let new_amount = rate.calculate(current_amount)?;
-        // TODO: derive optimized via rate.derive
-        let (expected_rate_pda, _) =
-            find_rate_pda(action_id, mint_split_key, mint_split_key, program_id);
+        let expected_rate_pda = rate.derive_pda(action_id, mint_split_key, mint_split_key)?;
         verify_pda(rate_account.key(), &expected_rate_pda)?;
 
         // Verify Receipt account
         verify_writable(receipt_account)?;
         verify_account_not_initialized(receipt_account)?;
-        let (expected_receipt_pda, receipt_bump) = find_receipt_pda(mint_split_key, action_id, program_id);
+        let (expected_receipt_pda, receipt_bump) =
+            find_receipt_pda(mint_split_key, action_id, program_id);
         verify_pda(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify System program
@@ -500,12 +483,9 @@ impl OperationsModule {
         verify_writable(payer)?;
 
         if current_amount.eq(&new_amount) {
-            // TODO: Consider returning error instead?
+            // Just log the message but create Receipt to prevent duplicate split attempts
             log!("No change in amount after split");
-            return Ok(());
-        }
-
-        if new_amount.gt(&current_amount) {
+        } else if new_amount.gt(&current_amount) {
             // Mint additional tokens
             let amount_diff = new_amount
                 .checked_sub(current_amount)
@@ -536,9 +516,15 @@ impl OperationsModule {
         }
 
         // Create Receipt PDA account for Split operation
-        Self::issue_receipt(receipt_account, payer, mint_split_key, action_id, receipt_bump)?;
+        Self::issue_receipt(
+            receipt_account,
+            payer,
+            mint_split_key,
+            action_id,
+            receipt_bump,
+        )?;
 
-        log!("Account successfully split");
+        log!("Token successfully split");
         Ok(())
     }
 

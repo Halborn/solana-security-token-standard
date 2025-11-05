@@ -1,7 +1,7 @@
 use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
-use crate::{constants::ACTION_ID_LEN, state::Rounding, utils::parse_action_id};
+use crate::{constants::ACTION_ID_LEN, state::Rounding, utils::parse_action_id_bytes};
 
 pub const ACTION_AND_RATE_ARGS_LEN: usize = ACTION_ID_LEN + RateArgs::LEN;
 
@@ -71,7 +71,7 @@ pub fn parse_action_id_argument(data: &[u8]) -> Result<u64, ProgramError> {
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    let action_id = parse_action_id(data).ok_or(ProgramError::InvalidArgument)?;
+    let action_id = parse_action_id_bytes(data).ok_or(ProgramError::InvalidArgument)?;
 
     if action_id == 0 {
         return Err(ProgramError::InvalidArgument);

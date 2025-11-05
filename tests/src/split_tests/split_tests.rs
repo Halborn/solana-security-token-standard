@@ -1,7 +1,6 @@
 use rstest::*;
 use security_token_client::{
     accounts::Receipt,
-    instructions::{MINT_DISCRIMINATOR, SPLIT_DISCRIMINATOR},
     types::{CreateRateArgs, RateArgs, Rounding},
 };
 use solana_pubkey::Pubkey;
@@ -10,106 +9,17 @@ use solana_sdk::{native_token::sol_str_to_lamports, signature::Keypair, signer::
 use crate::{
     helpers::{
         assert_account_exists, assert_transaction_success, create_token_account,
-        find_permanent_delegate_pda, find_receipt_pda, find_verification_config_pda,
-        from_ui_amount, get_token_account_state, initialize_verification_config_for_payer,
+        find_permanent_delegate_pda, find_receipt_pda, from_ui_amount, get_token_account_state,
         mint_tokens_to, start_with_context, start_with_context_and_accounts,
     },
     rate_tests::rate_helpers::{
         calculate_rate_amount, create_rate_account, create_security_token_mint,
     },
-    split_tests::split_helpers::execute_split,
+    split_tests::split_helpers::{
+        create_mint_verification_config, create_mint_verification_config_for_owner,
+        create_split_verification_config, execute_split, uniq_pubkey,
+    },
 };
-
-fn random_pubkey() -> Option<Pubkey> {
-    Some(Keypair::new().pubkey())
-}
-
-pub fn find_split_verification_config_pda(mint: Pubkey) -> (Pubkey, u8) {
-    find_verification_config_pda(mint, SPLIT_DISCRIMINATOR)
-}
-
-pub async fn create_verification_config(
-    context: &mut solana_program_test::ProgramTestContext,
-    mint_keypair: &Keypair,
-    mint_authority_pda: Pubkey,
-    instruction_discriminator: u8,
-    program_addresses: Vec<Pubkey>,
-    owner: Option<&Keypair>,
-) -> Pubkey {
-    let mint_pubkey = mint_keypair.pubkey();
-    let (verification_config_pda, _vc_bump) =
-        find_verification_config_pda(mint_pubkey, instruction_discriminator);
-
-    let init_vc_args = security_token_client::types::InitializeVerificationConfigArgs {
-        instruction_discriminator,
-        program_addresses,
-    };
-    let payer = owner.unwrap_or(&context.payer);
-    let result = initialize_verification_config_for_payer(
-        &context.banks_client,
-        &payer,
-        mint_keypair,
-        mint_authority_pda,
-        verification_config_pda,
-        &init_vc_args,
-    )
-    .await;
-
-    assert_transaction_success(result);
-    verification_config_pda
-}
-
-pub async fn create_split_verification_config(
-    context: &mut solana_program_test::ProgramTestContext,
-    mint_keypair: &Keypair,
-    mint_authority_pda: Pubkey,
-    program_addresses: Vec<Pubkey>,
-) -> Pubkey {
-    create_verification_config(
-        context,
-        mint_keypair,
-        mint_authority_pda,
-        SPLIT_DISCRIMINATOR,
-        program_addresses,
-        None,
-    )
-    .await
-}
-
-pub async fn create_mint_verification_config(
-    context: &mut solana_program_test::ProgramTestContext,
-    mint_keypair: &Keypair,
-    mint_authority_pda: Pubkey,
-    program_addresses: Vec<Pubkey>,
-) -> Pubkey {
-    create_verification_config(
-        context,
-        mint_keypair,
-        mint_authority_pda,
-        MINT_DISCRIMINATOR,
-        program_addresses,
-        None,
-    )
-    .await
-}
-
-pub async fn create_mint_verification_config_for_owner(
-    context: &mut solana_program_test::ProgramTestContext,
-    mint_keypair: &Keypair,
-    mint_authority_pda: Pubkey,
-    program_addresses: Vec<Pubkey>,
-    owner: &Keypair,
-) -> Pubkey {
-    create_verification_config(
-        context,
-        mint_keypair,
-        mint_authority_pda,
-        MINT_DISCRIMINATOR,
-        program_addresses,
-        Some(owner),
-    )
-    .await
-}
 
 #[tokio::test]
 async fn test_should_split_with_mint_successfully() {
@@ -227,6 +137,7 @@ async fn test_should_split_with_mint_successfully() {
         "Receipt action_id mismatch"
     );
     assert_eq!(receipt_state.bump, receipt_bump, "Receipt bump mismatch");
+    assert_eq!(receipt_state.mint, mint_pubkey, "Receipt mint mismatch");
 }
 
 #[tokio::test]
@@ -324,7 +235,7 @@ async fn test_should_split_with_burn_successfully() {
     .await;
     assert_transaction_success(split_result);
 
-    // Verify token account balance increased according to rate
+    // Verify token account balance decreased according to rate
     let expected_amount = calculate_rate_amount(numerator, denominator, rounding, amount).unwrap();
     let token_account_after =
         get_token_account_state(&mut context.banks_client, token_account_pubkey).await;
@@ -345,6 +256,7 @@ async fn test_should_split_with_burn_successfully() {
         "Receipt action_id mismatch"
     );
     assert_eq!(receipt_state.bump, receipt_bump, "Receipt bump mismatch");
+    assert_eq!(receipt_state.mint, mint_pubkey, "Receipt mint mismatch");
 }
 
 #[tokio::test]
@@ -396,7 +308,6 @@ async fn test_should_not_split_twice() {
     .await;
     assert_transaction_success(result);
 
-    // Create Rate (split: same mint, -50% burn is expected)
     let action_id = 77u64;
     let rounding = Rounding::Down as u8;
     let numerator = 1u8;
@@ -422,7 +333,6 @@ async fn test_should_not_split_twice() {
     .await;
     assert_transaction_success(rate_create_result);
 
-    // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey);
     let (receipt_pda, _receipt_bump) = find_receipt_pda(&mint_pubkey, action_id);
 
@@ -529,7 +439,6 @@ async fn test_should_not_split_token_zero_amount() {
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey);
     let (receipt_pda, _receipt_bump) = find_receipt_pda(&mint_pubkey, action_id);
 
-    // Execute split
     let split_result = execute_split(
         &context.banks_client,
         split_verification_config_pda,
@@ -550,18 +459,18 @@ async fn test_should_not_split_token_zero_amount() {
 }
 
 #[rstest]
-// Option<mint>, mint_authority, permament_delegate, token_account, rate, recept
+// mint, mint_authority, permanent_delegate, token_account, rate, receipt
 #[case(
-    random_pubkey(),
+    Some(uniq_pubkey()),
     None,
     None,
     None,
     None,
-    "Should faile with invalid mint account"
+    "Should fail with invalid mint account"
 )]
 #[case(
     None,
-    random_pubkey(),
+    Some(uniq_pubkey()),
     None,
     None,
     None,
@@ -570,7 +479,7 @@ async fn test_should_not_split_token_zero_amount() {
 #[case(
     None,
     None,
-    random_pubkey(),
+    Some(uniq_pubkey()),
     None,
     None,
     "Should fail with invalid permanent delegate"
@@ -579,20 +488,20 @@ async fn test_should_not_split_token_zero_amount() {
     None,
     None,
     None,
-    random_pubkey(),
+    Some(uniq_pubkey()),
     None,
-    "Should fail with invalid rate"
+    "Should fail with invalid rate account"
 )]
 #[case(
     None,
     None,
     None,
     None,
-    random_pubkey(),
+    Some(uniq_pubkey()),
     "Should fail with invalid receipt"
 )]
 #[tokio::test]
-async fn test_should_not_split_with_invalid_accounts(
+async fn test_should_not_split_with_invalid_random_accounts(
     #[case] invalid_mint: Option<Pubkey>,
     #[case] invalid_mint_authority: Option<Pubkey>,
     #[case] invalid_permanent_delegate: Option<Pubkey>,
@@ -703,7 +612,7 @@ async fn test_should_not_split_with_invalid_accounts(
 }
 
 #[tokio::test]
-async fn test_should_not_split_with_not_owned_mint_or_token_account() {
+async fn test_should_not_split_not_owned_mint_or_token_account() {
     let mint_creator2 = Keypair::new();
     let mint_creator2_balance = sol_str_to_lamports("10").unwrap();
     let context =
@@ -794,13 +703,6 @@ async fn test_should_not_split_with_not_owned_mint_or_token_account() {
         create_security_token_mint(context, &mint_keypair2, Some(&mint_creator2), decimals).await;
 
     let (_permanent_delegate_pda2, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey2);
-
-    // let _split_verification_config_pda2 = create_split_verification_config(
-    //     context,
-    //     &mint_keypair2,
-    //     mint_authority_pda2.clone(),
-    //     vec![],
-    // ).await;
 
     let mint_verification_config_pda2 = create_mint_verification_config_for_owner(
         context,

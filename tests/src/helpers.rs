@@ -251,7 +251,6 @@ pub fn find_mint_freeze_authority_pda(mint: &Pubkey) -> (Pubkey, u8) {
 }
 
 pub fn find_permanent_delegate_pda(mint: &Pubkey) -> (Pubkey, u8) {
-    // Seed must match program utils (assumed "mint.permanent_delegate")
     Pubkey::find_program_address(
         &[b"mint.permanent_delegate", mint.as_ref()],
         &SECURITY_TOKEN_PROGRAM_ID,
@@ -259,7 +258,6 @@ pub fn find_permanent_delegate_pda(mint: &Pubkey) -> (Pubkey, u8) {
 }
 
 pub fn find_receipt_pda(mint: &Pubkey, action_id: u64) -> (Pubkey, u8) {
-    // Seed must match program utils (assumed "receipt")
     Pubkey::find_program_address(
         &[b"receipt", &mint.as_ref(), &action_id.to_le_bytes()],
         &SECURITY_TOKEN_PROGRAM_ID,
@@ -322,6 +320,7 @@ pub async fn create_minimal_security_token_mint(
     )
 }
 
+/// Create associated token account for owner and mint
 pub async fn create_token_account(
     banks_client: &BanksClient,
     owner: &Pubkey,
@@ -355,6 +354,7 @@ pub async fn create_token_account(
     (result, token_account_pubkey)
 }
 
+/// Mint tokens to destination token account
 pub async fn mint_tokens_to(
     banks_client: &BanksClient,
     amount: u64,
@@ -379,11 +379,14 @@ pub async fn mint_tokens_to(
     send_tx(banks_client, vec![mint_ix], &payer.pubkey(), signers).await
 }
 
+/// Convert UI amount to raw amount based on decimals
+/// E.g. 1000 UI amount (3 deciamls) = 1_000_000 raw amount
 pub fn from_ui_amount(amount: u64, decimals: u8) -> u64 {
     let factor = 10u64.pow(decimals as u32);
     amount * factor
 }
 
+/// Fetch and deserialize mint account state with extensions
 pub async fn get_mint_state(
     banks_client: &mut BanksClient,
     mint: Pubkey,
@@ -398,6 +401,7 @@ pub async fn get_mint_state(
         .expect("mint state should deserialize")
 }
 
+/// Fetch and deserialize token account state
 pub async fn get_token_account_state(
     banks_client: &mut BanksClient,
     token_account: Pubkey,

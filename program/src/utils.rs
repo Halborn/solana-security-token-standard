@@ -2,7 +2,7 @@
 
 use pinocchio::{
     program_error::ProgramError,
-    pubkey::{Pubkey, find_program_address},
+    pubkey::{find_program_address, Pubkey},
 };
 use pinocchio_token::state::Mint;
 use pinocchio_token_2022::extensions::ExtensionType;
@@ -93,7 +93,11 @@ pub fn find_rate_pda(
 /// Seeds: ["receipt", mint, action_id]
 pub fn find_receipt_pda(mint: &Pubkey, action_id: u64, program_id: &Pubkey) -> (Pubkey, u8) {
     find_program_address(
-        &[seeds::RECEIPT_ACCOUNT, mint.as_ref(), action_id.to_le_bytes().as_ref()],
+        &[
+            seeds::RECEIPT_ACCOUNT,
+            mint.as_ref(),
+            action_id.to_le_bytes().as_ref(),
+        ],
         program_id,
     )
 }
@@ -229,7 +233,7 @@ pub fn calculate_metadata_tlv_size(metadata: &TokenMetadataArgs) -> Result<usize
 }
 
 /// Parse action_id from bytes
-pub fn parse_action_id(data: &[u8]) -> Option<u64> {
+pub fn parse_action_id_bytes(data: &[u8]) -> Option<u64> {
     data.get(..ACTION_ID_LEN)
         .and_then(|slice| slice.try_into().ok())
         .map(u64::from_le_bytes)

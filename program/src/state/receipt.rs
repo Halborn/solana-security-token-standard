@@ -1,6 +1,9 @@
 //! Receipt account state
 use pinocchio::{
-    ProgramResult, instruction::Seed, program_error::ProgramError, pubkey::{PUBKEY_BYTES, Pubkey, create_program_address}
+    instruction::Seed,
+    program_error::ProgramError,
+    pubkey::{create_program_address, Pubkey, PUBKEY_BYTES},
+    ProgramResult,
 };
 use shank::ShankAccount;
 
@@ -10,7 +13,7 @@ use crate::{
         AccountDeserialize, AccountSerialize, Discriminator, ProgramAccount,
         SecurityTokenDiscriminators,
     },
-    utils::parse_action_id,
+    utils::parse_action_id_bytes,
 };
 
 #[repr(C)]
@@ -31,6 +34,7 @@ impl Discriminator for Receipt {
 impl AccountSerialize for Receipt {
     fn to_bytes_inner(&self) -> Vec<u8> {
         let mut data = Vec::with_capacity(Self::LEN);
+        data.extend_from_slice(self.mint.as_ref());
         data.extend_from_slice(self.action_id.to_le_bytes().as_ref());
         data.push(self.bump);
         data
@@ -39,7 +43,7 @@ impl AccountSerialize for Receipt {
 
 impl AccountDeserialize for Receipt {
     fn try_from_bytes_inner(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::LEN - 1 {
+        if data.len() != Self::LEN - 1 {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -48,11 +52,16 @@ impl AccountDeserialize for Receipt {
             .map_err(|_| ProgramError::InvalidAccountData)?;
         let mint = Pubkey::from(mint_bytes);
 
-        let action_id =
-            parse_action_id(&data[..ACTION_ID_LEN]).ok_or(ProgramError::InvalidAccountData)?;
-        let bump = data[ACTION_ID_LEN];
+        let offset = PUBKEY_BYTES + ACTION_ID_LEN;
+        let action_id = parse_action_id_bytes(&data[PUBKEY_BYTES..offset])
+            .ok_or(ProgramError::InvalidAccountData)?;
+        let bump = data[offset];
 
-        Ok(Self { mint, action_id, bump })
+        Ok(Self {
+            mint,
+            action_id,
+            bump,
+        })
     }
 }
 
@@ -67,7 +76,11 @@ impl Receipt {
     pub const LEN: usize = 1 + PUBKEY_BYTES + ACTION_ID_LEN + 1;
 
     pub fn new(mint: Pubkey, action_id: u64, bump: u8) -> Result<Self, ProgramError> {
-        let receipt = Self { mint, action_id, bump };
+        let receipt = Self {
+            mint,
+            action_id,
+            bump,
+        };
         receipt.validate()?;
         Ok(receipt)
     }
@@ -103,29 +116,46 @@ impl Receipt {
 
     pub fn derive_pda(&self) -> Result<Pubkey, ProgramError> {
         create_program_address(
-            &[RECEIPT_ACCOUNT, &self.mint.as_ref(), &self.action_id_seed(), &self.bump_seed()],
+            &[
+                RECEIPT_ACCOUNT,
+                self.mint.as_ref(),
+                &self.action_id_seed(),
+                &self.bump_seed(),
+            ],
             &crate::id(),
         )
     }
 }
 
 #[cfg(test)]
-fn random_pubkey() -> Pubkey {
-    use pinocchio::pubkey::PUBKEY_BYTES;
-    rand::random::<[u8; PUBKEY_BYTES]>()
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::random_pubkey;
     use rstest::rstest;
 
     #[rstest]
     #[case(random_pubkey(), 12u64, 5u8)]
     #[case(random_pubkey(), u64::MAX, u8::MAX)]
-    fn test_create_receipt(#[case] mint: Pubkey, #[case] action_id: u64, #[case] bump: u8) {
+    fn test_receipt_create(#[case] mint: Pubkey, #[case] action_id: u64, #[case] bump: u8) {
         let receipt = Receipt::new(mint, action_id, bump).expect("Should create receipt");
         receipt.validate().expect("Should be valid receipt");
+    }
+
+    #[test]
+    fn test_receipt_serialize_deserialize() {
+        let mint = random_pubkey();
+        let action_id = 12u64;
+        let bump = 5u8;
+        let receipt = Receipt::new(mint, action_id, bump).expect("Should create receipt");
+
+        let serialized = receipt.to_bytes();
+        assert_eq!(serialized.len(), Receipt::LEN);
+        let deserialized =
+            Receipt::try_from_bytes(&serialized).expect("Should deserialize receipt");
+
+        assert_eq!(deserialized.mint, mint);
+        assert_eq!(deserialized.action_id, action_id);
+        assert_eq!(deserialized.bump, bump);
     }
 
     #[rstest]
@@ -133,7 +163,8 @@ mod tests {
     #[case(random_pubkey(), 0u64, 0u8)]
     #[case(Pubkey::default(), 0u64, 0u8)]
     fn test_create_invalid_receipt(#[case] mint: Pubkey, #[case] action_id: u64, #[case] bump: u8) {
-        let receipt_error = Receipt::new(mint, action_id, bump).expect_err("Should not create receipt");
+        let receipt_error =
+            Receipt::new(mint, action_id, bump).expect_err("Should not create receipt");
         assert_eq!(receipt_error, ProgramError::InvalidAccountData);
     }
 }

@@ -476,12 +476,7 @@ impl InitializeMintArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[cfg(test)]
-    fn random_pubkey() -> Pubkey {
-        use pinocchio::pubkey::PUBKEY_BYTES;
-        rand::random::<[u8; PUBKEY_BYTES]>()
-    }
+    use crate::test_utils::random_pubkey;
 
     #[test]
     fn test_initialize_mint_args_to_bytes_inner_try_from_bytes() {

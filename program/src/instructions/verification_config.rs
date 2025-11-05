@@ -297,15 +297,10 @@ impl TrimVerificationConfigArgs {
 }
 
 #[cfg(test)]
-fn random_pubkey() -> Pubkey {
-    use pinocchio::pubkey::PUBKEY_BYTES;
-    rand::random::<[u8; PUBKEY_BYTES]>()
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use crate::instruction::SecurityTokenInstruction;
+    use crate::test_utils::random_pubkey;
 
     #[test]
     fn test_initialize_verification_config_args_to_bytes_inner_try_from_bytes() {
