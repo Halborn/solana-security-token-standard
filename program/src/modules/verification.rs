@@ -334,7 +334,8 @@ impl VerificationModule {
             &metadata.symbol,
             &metadata.uri,
         );
-        let invoke_result = metadata_init_instruction.invoke_signed(&[mint_authority_signer]);
+        let invoke_result =
+            metadata_init_instruction.invoke_signed(&[mint_authority_signer.clone()]);
 
         if let Err(err) = &invoke_result {
             let err_str = format!("{:?}", err);
@@ -347,24 +348,17 @@ impl VerificationModule {
 
         // Add additional metadata fields if present - each field requires separate instruction
         if !metadata.additional_metadata.is_empty() {
-            let additional_metadata_len = metadata.additional_metadata.len();
-            log!(
-                "Adding {} bytes of additional metadata",
-                additional_metadata_len
-            );
-
             // Parse additional metadata from raw bytes and process each field
             utils::parse_additional_metadata(
                 metadata.additional_metadata.as_slice(),
                 |key, value| {
-                    let mint_authority_signer = Signer::from(&mint_authority_seeds);
                     let update_field_instruction = UpdateField {
                         metadata: &metadata_account_info,
                         update_authority: mint_authority_account,
                         field: Field::Key(key),
                         value,
                     };
-                    update_field_instruction.invoke_signed(&[mint_authority_signer])?;
+                    update_field_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
                     Ok(())
                 },
             )?;
