@@ -8,12 +8,7 @@ use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
 use pinocchio::sysvars::Sysvar;
-use pinocchio::sysvars::{
-    instructions::Instructions,
-    rent::{
-        Rent, DEFAULT_BURN_PERCENT, DEFAULT_EXEMPTION_THRESHOLD, DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-    },
-};
+use pinocchio::sysvars::{instructions::Instructions, rent::Rent};
 use pinocchio::ProgramResult;
 use pinocchio_log::log;
 use pinocchio_system::instructions::{CreateAccount, Transfer};
@@ -41,8 +36,8 @@ use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomR
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
-    verify_instructions_sysvar, verify_owner, verify_rent_sysvar, verify_signer,
-    verify_system_program, verify_token22_program, verify_writable,
+    verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_rent_sysvar,
+    verify_signer, verify_system_program, verify_token22_program, verify_writable,
 };
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
@@ -361,6 +356,7 @@ impl VerificationModule {
     /// Wrapper for Metadata token program extension
     pub fn update_metadata(
         _program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &UpdateMetadataArgs,
     ) -> ProgramResult {
@@ -372,6 +368,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
@@ -585,7 +582,10 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &VerifyArgs,
     ) -> ProgramResult {
-        Self::verify_by_programs(program_id, accounts, args.ix)?;
+        let mut instruction_data = Vec::with_capacity(1 + args.instruction_data.len());
+        instruction_data.push(args.ix);
+        instruction_data.extend_from_slice(&args.instruction_data);
+        Self::verify_by_programs(program_id, accounts, args.ix, &instruction_data)?;
         Ok(())
     }
 
@@ -595,6 +595,7 @@ impl VerificationModule {
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
         ix_discriminator: u8,
+        instruction_data: &[u8],
     ) -> Result<&'a AccountInfo, ProgramError> {
         let [mint_info, verification_config_or_mint_authority, instructions_sysvar_or_signer, _instruction_accounts @ ..] =
             accounts
@@ -608,7 +609,7 @@ impl VerificationModule {
         let disc = SecurityTokenDiscriminators::try_from(*state_discriminator)?;
         match disc {
             SecurityTokenDiscriminators::VerificationConfigDiscriminator => {
-                Self::verify_by_programs(program_id, accounts, ix_discriminator)
+                Self::verify_by_programs(program_id, accounts, ix_discriminator, instruction_data)
             }
             SecurityTokenDiscriminators::MintAuthorityDiscriminator => {
                 let mint_authority_account = verification_config_or_mint_authority;
@@ -671,6 +672,7 @@ impl VerificationModule {
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
         ix_discriminator: u8,
+        instruction_data: &[u8],
     ) -> Result<&'a AccountInfo, ProgramError> {
         let [mint_info, verification_config, instructions_sysvar, instruction_accounts @ ..] =
             accounts
@@ -705,7 +707,7 @@ impl VerificationModule {
             &config_data,
             instructions_sysvar,
             instruction_accounts,
-            ix_discriminator,
+            instruction_data,
         )?;
 
         Ok(mint_info)
@@ -717,16 +719,12 @@ impl VerificationModule {
         config: &VerificationConfig,
         instructions_sysvar: &AccountInfo,
         instruction_accounts: &[AccountInfo],
-        target_instruction_discriminator: u8,
+        target_instruction_data: &[u8],
     ) -> ProgramResult {
         // Get current instruction index
         let instructions = Instructions::try_from(instructions_sysvar)?;
         let current_index = instructions.load_current_index() as usize;
-        log!("Current instruction index: {}", current_index);
-        log!(
-            "Current instruction has {} accounts",
-            instruction_accounts.len()
-        );
+
         let mut collected_accounts: Vec<Option<Vec<Pubkey>>> =
             vec![None; config.verification_programs.len()];
         let mut remaining_indices: HashSet<usize> =
@@ -762,30 +760,9 @@ impl VerificationModule {
                             })
                         {
                             let instruction_data = instruction.get_instruction_data();
-
-                            if instruction_data.is_empty() {
-                                log!("Skipping instruction {} - empty data", instr_idx);
+                            if instruction_data != target_instruction_data {
                                 continue;
                             }
-
-                            let verification_discriminator = instruction_data[0];
-
-                            if verification_discriminator != target_instruction_discriminator {
-                                log!(
-                                    "Skipping verification program {} at instruction {} due to discriminator mismatch (expected {}, got {})",
-                                    config_idx,
-                                    instr_idx,
-                                    target_instruction_discriminator,
-                                    verification_discriminator
-                                );
-                                continue;
-                            }
-
-                            log!(
-                                "Found verification program {} at instruction {}",
-                                config_idx,
-                                instr_idx
-                            );
 
                             let mut accounts = Vec::new();
                             let mut account_idx = 0;
@@ -846,13 +823,14 @@ impl VerificationModule {
     /// Each instruction (burn, transfer, mint, etc.) gets its own config.
     pub fn initialize_verification_config(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &crate::instructions::InitializeVerificationConfigArgs,
     ) -> ProgramResult {
         let [mint_account, config_account, payer, system_program_info] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
@@ -867,13 +845,11 @@ impl VerificationModule {
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
-            log!("Invalid config account");
             return Err(ProgramError::InvalidAccountData);
         }
 
         // Check if account already exists
         if config_account.data_len() > 0 {
-            log!("VerificationConfig account already exists");
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
@@ -884,11 +860,7 @@ impl VerificationModule {
         let account_size = config.serialized_size();
 
         // Calculate rent for the account
-        let rent = Rent {
-            lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-            exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
-            burn_percent: DEFAULT_BURN_PERCENT,
-        };
+        let rent = Rent::get()?;
         let required_lamports = rent.minimum_balance(account_size);
 
         // Create the PDA account
@@ -930,6 +902,7 @@ impl VerificationModule {
     /// Update verification configuration for an instruction
     pub fn update_verification_config(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &crate::instructions::UpdateVerificationConfigArgs,
     ) -> ProgramResult {
@@ -937,6 +910,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
         verify_owner(config_account, program_id)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
@@ -1000,11 +974,7 @@ impl VerificationModule {
 
         if new_size > current_size {
             let additional_space = new_size - current_size;
-            let rent = Rent {
-                lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-                exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
-                burn_percent: DEFAULT_BURN_PERCENT,
-            };
+            let rent = Rent::get()?;
             let additional_rent = rent.minimum_balance(additional_space);
 
             log!(
@@ -1041,6 +1011,7 @@ impl VerificationModule {
     /// Trim verification configuration to recover rent
     pub fn trim_verification_config(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &TrimVerificationConfigArgs,
     ) -> ProgramResult {
@@ -1048,6 +1019,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_system_program(system_program_info)?;
@@ -1062,13 +1034,11 @@ impl VerificationModule {
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
-            log!("Invalid config account");
             return Err(ProgramError::InvalidAccountData);
         }
 
         // Check if account exists
         if config_account.data_len() == 0 {
-            log!("VerificationConfig account does not exist");
             return Err(ProgramError::UninitializedAccount);
         }
 
@@ -1081,7 +1051,6 @@ impl VerificationModule {
 
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
-            log!("Discriminator mismatch");
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -1090,13 +1059,11 @@ impl VerificationModule {
 
         // Validate new size
         if new_size > current_program_count {
-            log!("Cannot trim to a larger size");
             return Err(ProgramError::InvalidArgument);
         }
 
         if args.close {
             // Close the account completely - transfer all lamports to recipient
-            log!("Closing VerificationConfig account completely");
 
             let config_lamports = config_account.lamports();
 
@@ -1132,11 +1099,7 @@ impl VerificationModule {
             if new_account_size < current_account_size {
                 // Calculate recovered rent
                 let space_recovered = current_account_size - new_account_size;
-                let rent = Rent {
-                    lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-                    exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
-                    burn_percent: DEFAULT_BURN_PERCENT,
-                };
+                let rent = Rent::get()?;
                 let recovered_rent = rent.minimum_balance(space_recovered);
 
                 log!("Recovering {} bytes of space", space_recovered);
@@ -1170,11 +1133,7 @@ impl VerificationModule {
                 new_size,
                 if new_account_size < current_account_size {
                     let space_recovered = current_account_size - new_account_size;
-                    let rent = Rent {
-                        lamports_per_byte_year: DEFAULT_LAMPORTS_PER_BYTE_YEAR,
-                        exemption_threshold: DEFAULT_EXEMPTION_THRESHOLD,
-                        burn_percent: DEFAULT_BURN_PERCENT,
-                    };
+                    let rent = Rent::get()?;
                     rent.minimum_balance(space_recovered)
                 } else {
                     0

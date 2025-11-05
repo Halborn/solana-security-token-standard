@@ -7,31 +7,47 @@
  */
 
 import {
+  addDecoderSizePrefix,
+  addEncoderSizePrefix,
   combineCodec,
+  getBytesDecoder,
+  getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
+  getU32Decoder,
+  getU32Encoder,
   getU8Decoder,
   getU8Encoder,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
+  type Codec,
+  type Decoder,
+  type Encoder,
+  type ReadonlyUint8Array,
 } from '@solana/kit';
 
-export type VerifyArgs = { ix: number };
+export type VerifyArgs = { ix: number; instructionData: ReadonlyUint8Array };
 
 export type VerifyArgsArgs = VerifyArgs;
 
-export function getVerifyArgsEncoder(): FixedSizeEncoder<VerifyArgsArgs> {
-  return getStructEncoder([['ix', getU8Encoder()]]);
+export function getVerifyArgsEncoder(): Encoder<VerifyArgsArgs> {
+  return getStructEncoder([
+    ['ix', getU8Encoder()],
+    [
+      'instructionData',
+      addEncoderSizePrefix(getBytesEncoder(), getU32Encoder()),
+    ],
+  ]);
 }
 
-export function getVerifyArgsDecoder(): FixedSizeDecoder<VerifyArgs> {
-  return getStructDecoder([['ix', getU8Decoder()]]);
+export function getVerifyArgsDecoder(): Decoder<VerifyArgs> {
+  return getStructDecoder([
+    ['ix', getU8Decoder()],
+    [
+      'instructionData',
+      addDecoderSizePrefix(getBytesDecoder(), getU32Decoder()),
+    ],
+  ]);
 }
 
-export function getVerifyArgsCodec(): FixedSizeCodec<
-  VerifyArgsArgs,
-  VerifyArgs
-> {
+export function getVerifyArgsCodec(): Codec<VerifyArgsArgs, VerifyArgs> {
   return combineCodec(getVerifyArgsEncoder(), getVerifyArgsDecoder());
 }

@@ -14,6 +14,7 @@ import {
 } from '@solana/kit';
 import {
   type ParsedBurnInstruction,
+  type ParsedCloseRateAccountInstruction,
   type ParsedCreateRateAccountInstruction,
   type ParsedFreezeInstruction,
   type ParsedInitializeMintInstruction,
@@ -24,6 +25,7 @@ import {
   type ParsedThawInstruction,
   type ParsedTrimVerificationConfigInstruction,
   type ParsedUpdateMetadataInstruction,
+  type ParsedUpdateRateAccountInstruction,
   type ParsedUpdateVerificationConfigInstruction,
   type ParsedVerifyInstruction,
 } from '../instructions';
@@ -51,6 +53,8 @@ export enum SecurityTokenProgramInstruction {
   Freeze,
   Thaw,
   CreateRateAccount,
+  UpdateRateAccount,
+  CloseRateAccount,
 }
 
 export function identifySecurityTokenProgramInstruction(
@@ -95,6 +99,12 @@ export function identifySecurityTokenProgramInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(12), 0)) {
     return SecurityTokenProgramInstruction.CreateRateAccount;
+  }
+  if (containsBytes(data, getU8Encoder().encode(13), 0)) {
+    return SecurityTokenProgramInstruction.UpdateRateAccount;
+  }
+  if (containsBytes(data, getU8Encoder().encode(14), 0)) {
+    return SecurityTokenProgramInstruction.CloseRateAccount;
   }
   throw new Error(
     'The provided instruction could not be identified as a securityTokenProgram instruction.'
@@ -142,4 +152,10 @@ export type ParsedSecurityTokenProgramInstruction<
     } & ParsedThawInstruction<TProgram>)
   | ({
       instructionType: SecurityTokenProgramInstruction.CreateRateAccount;
-    } & ParsedCreateRateAccountInstruction<TProgram>);
+    } & ParsedCreateRateAccountInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.UpdateRateAccount;
+    } & ParsedUpdateRateAccountInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.CloseRateAccount;
+    } & ParsedCloseRateAccountInstruction<TProgram>);

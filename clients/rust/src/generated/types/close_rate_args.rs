@@ -10,7 +10,6 @@ use borsh::BorshSerialize;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct VerifyArgs {
-    pub ix: u8,
-    pub instruction_data: Vec<u8>,
+pub struct CloseRateArgs {
+    pub action_id: u64,
 }
