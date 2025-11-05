@@ -283,7 +283,7 @@ async fn test_initialize_mint_with_all_extensions() {
             assert_eq!(
                 Option::<Pubkey>::from(metadata.update_authority),
                 Some(mint_authority_pda),
-                "Metadata update authority should be creator (payer) during initialization"
+                "Metadata update authority should be mint authority PDA"
             );
 
             // Verify mint field points to correct mint
