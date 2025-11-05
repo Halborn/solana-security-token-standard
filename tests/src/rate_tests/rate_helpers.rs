@@ -4,11 +4,16 @@ use security_token_client::{
         CreateRateAccountInstructionArgs, UpdateRateAccount, UpdateRateAccountInstructionArgs,
     },
     programs::SECURITY_TOKEN_PROGRAM_ID,
-    types::{CloseRateArgs, CreateRateArgs, InitializeMintArgs, MintArgs, UpdateRateArgs},
+    types::{
+        CloseRateArgs, CreateRateArgs, InitializeMintArgs, MintArgs, Rounding, UpdateRateArgs,
+    },
 };
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
-use solana_sdk::signature::{Keypair, Signer};
+use solana_sdk::{
+    program_error::ProgramError,
+    signature::{Keypair, Signer},
+};
 
 use crate::helpers::{
     find_mint_authority_pda, find_mint_freeze_authority_pda, initialize_mint_for_creator, send_tx,
@@ -172,4 +177,34 @@ pub fn find_rate_pda(action_id: u64, mint_pubkey1: &Pubkey, mint_pubkey2: &Pubke
         ],
         &SECURITY_TOKEN_PROGRAM_ID,
     )
+}
+
+pub fn calculate_rate_amount(
+    numerator: u8,
+    denominator: u8,
+    rounding: u8,
+    amount: u64,
+) -> Result<u64, ProgramError> {
+    let into_rounding_enum = match rounding {
+        0 => Rounding::Down,
+        1 => Rounding::Up,
+        _ => return Err(ProgramError::InvalidArgument),
+    };
+    match into_rounding_enum {
+        Rounding::Up => {
+            let result = amount
+                .checked_mul(numerator as u64)
+                .ok_or(ProgramError::ArithmeticOverflow)?
+                .div_ceil(denominator as u64);
+            Ok(result)
+        }
+        Rounding::Down => {
+            let result = amount
+                .checked_mul(numerator as u64)
+                .ok_or(ProgramError::ArithmeticOverflow)?
+                .checked_div(denominator as u64)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+            Ok(result)
+        }
+    }
 }
