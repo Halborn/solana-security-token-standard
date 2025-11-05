@@ -90,9 +90,10 @@ mod idl_gen {
         #[account(1, name = "verification_config_or_mint_authority")]
         #[account(2, name = "instructions_sysvar_or_creator")]
         #[account(3, writable, name = "mint_account")]
-        #[account(4, writable, signer, name = "payer")] // Pays for potential rent-exempt top-up, must sign
-        #[account(5, name = "token_program")]
-        #[account(6, name = "system_program")]
+        #[account(4, name = "mint_authority")]
+        #[account(5, writable, signer, name = "payer")] // Pays for potential rent-exempt top-up, must sign
+        #[account(6, name = "token_program")]
+        #[account(7, name = "system_program")]
         UpdateMetadata(UpdateMetadataArgs) = 1,
 
         #[account(0, name = "mint")]

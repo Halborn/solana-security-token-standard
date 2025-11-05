@@ -618,6 +618,7 @@ async fn test_update_metadata_under_verification() {
         .verification_config_or_mint_authority(verification_config_pda)
         .instructions_sysvar_or_creator(sysvar::instructions::ID)
         .mint_account(mint_keypair.pubkey())
+        .mint_authority(mint_authority_pda)
         .payer(context.payer.pubkey())
         .update_metadata_args(update_metadata_args.clone())
         .instruction();
@@ -697,6 +698,7 @@ async fn test_update_metadata_under_verification() {
             program_id: dummy_program_1_id,
             accounts: vec![
                 AccountMeta::new_readonly(mint_keypair.pubkey(), false),
+                AccountMeta::new_readonly(mint_authority_pda, false),
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
                 AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
@@ -707,6 +709,7 @@ async fn test_update_metadata_under_verification() {
             program_id: dummy_program_2_id,
             accounts: vec![
                 AccountMeta::new_readonly(mint_keypair.pubkey(), false),
+                AccountMeta::new_readonly(mint_authority_pda, false),
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
                 AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
