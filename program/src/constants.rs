@@ -21,3 +21,4 @@ pub mod seeds {
 }
 
 pub const INSTRUCTION_ACCOUNTS_OFFSET: usize = 3;
+pub const ACTION_ID_LEN: usize = 8;

@@ -6,18 +6,20 @@
 use crate::constants::seeds;
 use crate::instructions::{CustomPause, CustomResume};
 use crate::modules::{
-    verify_account_initialized, verify_account_not_initialized, verify_operation_mint_info,
-    verify_owner, verify_pda, verify_signer, verify_system_program, verify_token22_program,
-    verify_writable,
+    burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
+    verify_operation_mint_info, verify_owner, verify_pda, verify_signer, verify_system_program,
+    verify_token22_program, verify_writable,
 };
-use crate::state::{MintAuthority, ProgramAccount, Rate, Rounding};
-use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda, find_rate_pda};
+use crate::state::{MintAuthority, ProgramAccount, Rate, Receipt, Rounding};
+use crate::utils::{
+    find_freeze_authority_pda, find_pause_authority_pda, find_rate_pda, find_receipt_pda,
+};
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
 use pinocchio_log::log;
 use pinocchio_token_2022::instructions::{BurnChecked, FreezeAccount, MintToChecked, ThawAccount};
-use pinocchio_token_2022::state::Mint;
+use pinocchio_token_2022::state::{Mint, TokenAccount};
 
 /// Operations Module - executes token operations
 pub struct OperationsModule;
@@ -279,15 +281,6 @@ impl OperationsModule {
         Ok(())
     }
 
-    /// Execute token split at predefined rate
-    pub fn execute_split(_accounts: &[AccountInfo], _action_id: u64) -> ProgramResult {
-        // TODO: Load Rate account
-        // TODO: Calculate new balance (balance * numerator / denominator)
-        // TODO: Burn or mint delta amount
-        // TODO: Create Receipt account
-        Ok(())
-    }
-
     /// Claim distribution (dividends/coupons)
     pub fn execute_claim_distribution(
         _accounts: &[AccountInfo],
@@ -433,6 +426,141 @@ impl OperationsModule {
         Rate::close(rate_account_info, destination_account)?;
 
         log!("Rate Account {} closed successfully", &expected_rate_pda);
+        Ok(())
+    }
+
+    /// Execute token split at predefined rate
+    pub fn execute_split(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+    ) -> ProgramResult {
+        let [mint_account, mint_authority, permanent_delegate, rate_account, receipt_account, token_account, token_program, system_program, payer] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        // Verify splitted Mint
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        let mint_split = Mint::from_account_info(mint_account)?;
+        let mint_decimals = mint_split.decimals();
+        let mint_split_key = mint_account.key();
+        drop(mint_split);
+
+        // Verify Mint Authority
+        verify_owner(mint_authority, program_id)?;
+        let mint_authority_state = MintAuthority::from_account_info(mint_authority)?;
+        if mint_split_key.ne(&mint_authority_state.mint) {
+            log!("Mint Authority mint mismatch");
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // Verify Permanent Delegate Authority
+        let (permanent_delegate_pda, permanent_delegate_bump) =
+            crate::utils::find_permanent_delegate_pda(mint_split_key, program_id);
+        verify_pda(permanent_delegate.key(), &permanent_delegate_pda)?;
+
+        // Verify Token account and Token2022 program
+        let token = TokenAccount::from_account_info(token_account)?;
+        let current_amount = token.amount();
+        verify_writable(token_account)?;
+        verify_token22_program(token_program)?;
+        if token.mint().ne(mint_split_key) {
+            log!("Token account mint mismatch");
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        if current_amount == 0 {
+            log!("Token account has zero balance");
+            return Err(ProgramError::InsufficientFunds);
+        }
+        drop(token);
+
+        // Verify Rate account
+        let rate = Rate::from_account_info(rate_account)?;
+        verify_owner(rate_account, program_id)?;
+        let new_amount = rate.calculate(current_amount)?;
+        // TODO: derive optimized via rate.derive
+        let (expected_rate_pda, _) =
+            find_rate_pda(action_id, mint_split_key, mint_split_key, program_id);
+        verify_pda(rate_account.key(), &expected_rate_pda)?;
+
+        // Verify Receipt account
+        verify_writable(receipt_account)?;
+        verify_account_not_initialized(receipt_account)?;
+        let (expected_receipt_pda, receipt_bump) = find_receipt_pda(mint_split_key, action_id, program_id);
+        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+
+        // Verify System program
+        verify_system_program(system_program)?;
+
+        // Verify payer
+        verify_signer(payer)?;
+        verify_writable(payer)?;
+
+        if current_amount.eq(&new_amount) {
+            // TODO: Consider returning error instead?
+            log!("No change in amount after split");
+            return Ok(());
+        }
+
+        if new_amount.gt(&current_amount) {
+            // Mint additional tokens
+            let amount_diff = new_amount
+                .checked_sub(current_amount)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+            log!("Increase amount, diff: {}", amount_diff);
+            mint_to_checked(
+                amount_diff,
+                mint_decimals,
+                mint_account,
+                token_account,
+                mint_authority,
+                &mint_authority_state,
+            )?;
+        } else {
+            // Burn excess tokens
+            let amount_diff = current_amount
+                .checked_sub(new_amount)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+            log!("Decrease amount, diff: {}", amount_diff);
+            burn_checked(
+                amount_diff,
+                mint_decimals,
+                mint_account,
+                token_account,
+                permanent_delegate,
+                permanent_delegate_bump,
+            )?;
+        }
+
+        // Create Receipt PDA account for Split operation
+        Self::issue_receipt(receipt_account, payer, mint_split_key, action_id, receipt_bump)?;
+
+        log!("Account successfully split");
+        Ok(())
+    }
+
+    fn issue_receipt(
+        receipt_account: &AccountInfo,
+        payer: &AccountInfo,
+        mint: &Pubkey,
+        action_id: u64,
+        receipt_bump: u8,
+    ) -> ProgramResult {
+        let receipt = Receipt::new(*mint, action_id, receipt_bump)?;
+
+        let action_id_seed = receipt.action_id_seed();
+        let bump_seed = receipt.bump_seed();
+        let seeds = receipt.seeds(&action_id_seed, &bump_seed);
+        receipt.init(payer, receipt_account, &seeds)?;
+        receipt.write_data(receipt_account)?;
+
+        log!(
+            "Receipt account {} created successfully",
+            receipt_account.key()
+        );
         Ok(())
     }
 }
