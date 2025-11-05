@@ -22,6 +22,7 @@ import {
   type ParsedMintInstruction,
   type ParsedPauseInstruction,
   type ParsedResumeInstruction,
+  type ParsedSplitInstruction,
   type ParsedThawInstruction,
   type ParsedTrimVerificationConfigInstruction,
   type ParsedUpdateMetadataInstruction,
@@ -36,6 +37,7 @@ export const SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS =
 export enum SecurityTokenProgramAccount {
   MintAuthority,
   Rate,
+  Receipt,
   VerificationConfig,
 }
 
@@ -55,6 +57,7 @@ export enum SecurityTokenProgramInstruction {
   CreateRateAccount,
   UpdateRateAccount,
   CloseRateAccount,
+  Split,
 }
 
 export function identifySecurityTokenProgramInstruction(
@@ -105,6 +108,9 @@ export function identifySecurityTokenProgramInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(14), 0)) {
     return SecurityTokenProgramInstruction.CloseRateAccount;
+  }
+  if (containsBytes(data, getU8Encoder().encode(15), 0)) {
+    return SecurityTokenProgramInstruction.Split;
   }
   throw new Error(
     'The provided instruction could not be identified as a securityTokenProgram instruction.'
@@ -158,4 +164,7 @@ export type ParsedSecurityTokenProgramInstruction<
     } & ParsedUpdateRateAccountInstruction<TProgram>)
   | ({
       instructionType: SecurityTokenProgramInstruction.CloseRateAccount;
-    } & ParsedCloseRateAccountInstruction<TProgram>);
+    } & ParsedCloseRateAccountInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.Split;
+    } & ParsedSplitInstruction<TProgram>);

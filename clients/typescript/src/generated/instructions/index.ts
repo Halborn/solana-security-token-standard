@@ -15,6 +15,7 @@ export * from './initializeVerificationConfig';
 export * from './mint';
 export * from './pause';
 export * from './resume';
+export * from './split';
 export * from './thaw';
 export * from './trimVerificationConfig';
 export * from './updateMetadata';
