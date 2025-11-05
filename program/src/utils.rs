@@ -2,7 +2,7 @@
 
 use pinocchio::{
     program_error::ProgramError,
-    pubkey::{find_program_address, Pubkey},
+    pubkey::{Pubkey, find_program_address},
 };
 use pinocchio_token::state::Mint;
 use pinocchio_token_2022::extensions::ExtensionType;
@@ -83,6 +83,14 @@ pub fn find_rate_pda(
             mint_from.as_ref(),
             mint_to.as_ref(),
         ],
+        program_id,
+    )
+}
+/// Derive receipt PDA
+/// Seeds: ["receipt", mint, action_id]
+pub fn find_receipt_pda(mint: &Pubkey, action_id: u64, program_id: &Pubkey) -> (Pubkey, u8) {
+    find_program_address(
+        &[seeds::RECEIPT_ACCOUNT, mint.as_ref(), action_id.to_le_bytes().as_ref()],
         program_id,
     )
 }
