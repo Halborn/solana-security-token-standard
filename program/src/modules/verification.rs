@@ -878,7 +878,8 @@ impl VerificationModule {
         }
 
         // Create the VerificationConfig data first to calculate exact size
-        let config = VerificationConfig::new(discriminator, args.program_addresses())?;
+        let config =
+            VerificationConfig::new(discriminator, args.cpi_mode, args.program_addresses())?;
 
         let account_size = config.serialized_size();
 
@@ -973,6 +974,9 @@ impl VerificationModule {
             log!("Discriminator mismatch");
             return Err(ProgramError::InvalidAccountData);
         }
+
+        // Update cpi_mode
+        existing_config.cpi_mode = args.cpi_mode;
 
         // Update verification programs starting at the specified offset
         let offset = args.offset() as usize;

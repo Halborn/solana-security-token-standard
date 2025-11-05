@@ -12,6 +12,8 @@ import {
   getAddressEncoder,
   getArrayDecoder,
   getArrayEncoder,
+  getBooleanDecoder,
+  getBooleanEncoder,
   getStructDecoder,
   getStructEncoder,
   getU8Decoder,
@@ -24,6 +26,7 @@ import {
 
 export type InitializeVerificationConfigArgs = {
   instructionDiscriminator: number;
+  cpiMode: boolean;
   programAddresses: Array<Address>;
 };
 
@@ -33,6 +36,7 @@ export type InitializeVerificationConfigArgsArgs =
 export function getInitializeVerificationConfigArgsEncoder(): Encoder<InitializeVerificationConfigArgsArgs> {
   return getStructEncoder([
     ['instructionDiscriminator', getU8Encoder()],
+    ['cpiMode', getBooleanEncoder()],
     ['programAddresses', getArrayEncoder(getAddressEncoder())],
   ]);
 }
@@ -40,6 +44,7 @@ export function getInitializeVerificationConfigArgsEncoder(): Encoder<Initialize
 export function getInitializeVerificationConfigArgsDecoder(): Decoder<InitializeVerificationConfigArgs> {
   return getStructDecoder([
     ['instructionDiscriminator', getU8Decoder()],
+    ['cpiMode', getBooleanDecoder()],
     ['programAddresses', getArrayDecoder(getAddressDecoder())],
   ]);
 }

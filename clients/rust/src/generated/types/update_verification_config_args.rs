@@ -13,6 +13,7 @@ use solana_pubkey::Pubkey;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UpdateVerificationConfigArgs {
     pub instruction_discriminator: u8,
+    pub cpi_mode: bool,
     pub offset: u8,
     #[cfg_attr(
         feature = "serde",

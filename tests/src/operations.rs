@@ -120,6 +120,7 @@ async fn test_basic_t22_operations() {
 
         let initialize_verification_config_args = InitializeVerificationConfigArgs {
             instruction_discriminator: discriminator,
+            cpi_mode: false,
             program_addresses: vec![],
         };
 
@@ -338,6 +339,7 @@ async fn test_t22_extension_operations() {
 
     let pause_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: PAUSE_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: vec![],
     };
     initialize_verification_config(
@@ -387,6 +389,7 @@ async fn test_t22_extension_operations() {
 
     let resume_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: RESUME_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: vec![],
     };
 

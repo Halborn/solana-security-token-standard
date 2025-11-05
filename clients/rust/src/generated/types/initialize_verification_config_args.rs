@@ -13,6 +13,7 @@ use solana_pubkey::Pubkey;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitializeVerificationConfigArgs {
     pub instruction_discriminator: u8,
+    pub cpi_mode: bool,
     #[cfg_attr(
         feature = "serde",
         serde(with = "serde_with::As::<Vec<serde_with::DisplayFromStr>>")

@@ -140,6 +140,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: verification_programs,
     };
 
@@ -406,6 +407,7 @@ async fn test_update_metadata_under_verification() {
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: verification_programs,
     };
 
