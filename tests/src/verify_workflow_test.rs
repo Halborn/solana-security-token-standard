@@ -415,7 +415,7 @@ async fn test_verify_with_system_instructions_succeeds(
 async fn test_verify_with_correct_accounts_but_wrong_data_fails(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
-    let mut setup = verification_test_setup.await;
+    let setup = verification_test_setup.await;
 
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
@@ -428,7 +428,7 @@ async fn test_verify_with_correct_accounts_but_wrong_data_fails(
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
             ],
-            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8, 2u8],
         },
         Instruction {
             program_id: setup.dummy_program_2_id,
@@ -436,7 +436,7 @@ async fn test_verify_with_correct_accounts_but_wrong_data_fails(
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
             ],
-            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8, 2u8],
         },
     ];
 
@@ -451,7 +451,7 @@ async fn test_verify_with_correct_accounts_but_wrong_data_fails(
         .verification_config(setup.verification_config_pda)
         .verify_args(VerifyArgs {
             ix: UPDATE_METADATA_DISCRIMINATOR,
-            instruction_data: vec![2u8],
+            instruction_data: vec![1u8, 2u8, 3u8],
         })
         .add_remaining_accounts(&verify_accounts)
         .instruction();
