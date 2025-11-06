@@ -516,37 +516,20 @@ impl OperationsModule {
         }
 
         // Create Receipt PDA account for Split operation
-        Self::issue_receipt(
+        Receipt::issue(
             receipt_account,
             payer,
-            mint_split_key,
+            *mint_split_key,
             action_id,
             receipt_bump,
         )?;
-
-        log!("Token successfully split");
-        Ok(())
-    }
-
-    fn issue_receipt(
-        receipt_account: &AccountInfo,
-        payer: &AccountInfo,
-        mint: &Pubkey,
-        action_id: u64,
-        receipt_bump: u8,
-    ) -> ProgramResult {
-        let receipt = Receipt::new(*mint, action_id, receipt_bump)?;
-
-        let action_id_seed = receipt.action_id_seed();
-        let bump_seed = receipt.bump_seed();
-        let seeds = receipt.seeds(&action_id_seed, &bump_seed);
-        receipt.init(payer, receipt_account, &seeds)?;
-        receipt.write_data(receipt_account)?;
-
         log!(
-            "Receipt account {} created successfully",
+            "Receipt account {} successfully created",
             receipt_account.key()
         );
+
+        log!("Token successfully split");
+
         Ok(())
     }
 }

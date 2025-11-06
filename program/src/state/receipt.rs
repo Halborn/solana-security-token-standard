@@ -1,5 +1,6 @@
 //! Receipt account state
 use pinocchio::{
+    account_info::AccountInfo,
     instruction::Seed,
     program_error::ProgramError,
     pubkey::{create_program_address, Pubkey, PUBKEY_BYTES},
@@ -83,6 +84,26 @@ impl Receipt {
         };
         receipt.validate()?;
         Ok(receipt)
+    }
+
+    /// Issue new Receipt
+    /// Create PDA account and write data into it
+    pub fn issue(
+        receipt_account: &AccountInfo,
+        payer: &AccountInfo,
+        mint: Pubkey,
+        action_id: u64,
+        receipt_bump: u8,
+    ) -> ProgramResult {
+        let receipt = Self::new(mint, action_id, receipt_bump)?;
+        let action_id_seed = receipt.action_id_seed();
+        let bump_seed = receipt.bump_seed();
+        let seeds = receipt.seeds(&action_id_seed, &bump_seed);
+
+        receipt.init(payer, receipt_account, &seeds)?;
+        receipt.write_data(receipt_account)?;
+
+        Ok(())
     }
 
     pub fn validate(&self) -> ProgramResult {
