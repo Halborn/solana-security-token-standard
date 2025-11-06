@@ -10,7 +10,6 @@ use pinocchio::pubkey::Pubkey;
 use pinocchio::sysvars::Sysvar;
 use pinocchio::sysvars::{instructions::Instructions, rent::Rent};
 use pinocchio::ProgramResult;
-use pinocchio_log::log;
 use pinocchio_system::instructions::{CreateAccount, Transfer};
 use pinocchio_token_2022::extensions::metadata_pointer::{
     Initialize as MetadataPointerInitialize, MetadataPointer,
@@ -43,7 +42,7 @@ use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
     VerificationConfig,
 };
-use crate::utils;
+use crate::{debug_log, utils};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Verification Module - handles all authorization and compliance checks
@@ -57,22 +56,12 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &InitializeMintArgs,
     ) -> ProgramResult {
-        log!("Processing InitializeMint with Token-2022 extensions");
-
         let decimals = args.ix_mint.decimals;
         let client_mint_authority = args.ix_mint.mint_authority;
         let freeze_authority = args.ix_mint.freeze_authority;
         let metadata_pointer_opt = &args.ix_metadata_pointer;
         let metadata_opt = &args.ix_metadata;
         let scaled_ui_amount_opt = &args.ix_scaled_ui_amount;
-        log!("Initializing mint with {} decimals", decimals);
-
-        if let Some(_metadata_pointer) = &metadata_pointer_opt {
-            log!("MetadataPointer configuration provided by client");
-        }
-        if let Some(_scaled_ui_amount) = &scaled_ui_amount_opt {
-            log!("ScaledUiAmount configuration provided by client");
-        }
 
         let [mint_info, creator_info, mint_authority_account, token_program_info, system_program_info, rent_info] =
             accounts
@@ -92,7 +81,6 @@ impl VerificationModule {
             utils::find_freeze_authority_pda(mint_info.key(), program_id);
 
         if freeze_authority != freeze_authority_pda {
-            log!("Freeze authority PDA mismatch");
             return Err(ProgramError::InvalidSeeds);
         }
 
@@ -112,17 +100,13 @@ impl VerificationModule {
         if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
             extensions_buf[ext_count] = ExtensionType::MetadataPointer;
             ext_count += 1;
-            log!("MetadataPointer extension will be initialized");
         }
 
         // Add ScaledUiAmount if provided by client
         if scaled_ui_amount_opt.is_some() {
             extensions_buf[ext_count] = ExtensionType::ScaledUiAmount;
             ext_count += 1;
-            log!("ScaledUiAmount extension will be initialized");
         }
-
-        log!("Extensions for mint: {}", ext_count);
 
         // Calculate mint size with extensions (but without metadata TLV data)
         let mint_size = if ext_count == 0 {
@@ -184,13 +168,11 @@ impl VerificationModule {
             let (metadata_authority, metadata_address) =
                 if let Some(client_metadata_pointer) = &metadata_pointer_opt {
                     // Use client-provided MetadataPointer configuration
-                    log!("Using client-provided MetadataPointer configuration");
                     let authority = client_metadata_pointer.authority.into();
                     let address = client_metadata_pointer.metadata_address.into();
                     (authority, address)
                 } else {
                     // Fallback to default: creator as authority, mint as metadata storage
-                    log!("Using default MetadataPointer configuration");
                     (Some(*creator_info.key()), Some(*mint_info.key()))
                 };
 
@@ -201,8 +183,6 @@ impl VerificationModule {
             };
 
             metadata_pointer_initialize.invoke()?;
-            log!("MetadataPointer extension initialized");
-
             // Return the metadata address for later use
             metadata_address
         } else {
@@ -211,8 +191,6 @@ impl VerificationModule {
 
         // Initialize ScaledUiAmount extension if provided by client
         if let Some(scaled_ui_amount_config) = &scaled_ui_amount_opt {
-            log!("Initializing ScaledUiAmount extension with client configuration");
-
             let scaled_ui_amount_initialize = ScaledUiAmountInitialize {
                 mint: mint_info,
                 authority: scaled_ui_amount_config.authority.into(),
@@ -220,7 +198,6 @@ impl VerificationModule {
             };
 
             scaled_ui_amount_initialize.invoke()?;
-            log!("ScaledUiAmount extension initialized");
         }
 
         // Use client-provided authorities for base initialize to match client expectations/tests
@@ -250,10 +227,6 @@ impl VerificationModule {
             MintAuthority::new(*mint_info.key(), *creator_info.key(), mint_authority_bump)?;
 
         let authority_account_required_lamports = rent.minimum_balance(MintAuthority::LEN);
-        log!(
-            "Creating mint authority PDA account with {} lamports",
-            authority_account_required_lamports
-        );
         let create_mint_authority_instruction = CreateAccount {
             from: creator_info,                            // from (payer)
             to: mint_authority_account,                    // to (new PDA account)
@@ -295,7 +268,6 @@ impl VerificationModule {
         let metadata_account_info = if let Some(metadata_addr) = metadata_account_address {
             if metadata_addr == *mint_info.key() {
                 // Metadata is stored in mint account (in-mint storage)
-                log!("Using mint account for metadata");
                 mint_info.clone()
             } else {
                 // Metadata is stored in external account - find it in accounts list
@@ -319,17 +291,8 @@ impl VerificationModule {
             &metadata.symbol,
             &metadata.uri,
         );
-        let invoke_result =
-            metadata_init_instruction.invoke_signed(&[mint_authority_signer.clone()]);
 
-        if let Err(err) = &invoke_result {
-            let err_str = format!("{:?}", err);
-            log!(
-                "CustomInitializeTokenMetadata invoke failed with error: {}",
-                err_str.as_str()
-            );
-            return Err(err.clone());
-        }
+        metadata_init_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
 
         // Add additional metadata fields if present - each field requires separate instruction
         if !metadata.additional_metadata.is_empty() {
@@ -497,7 +460,6 @@ impl VerificationModule {
                 );
 
                 if parse_result.is_err() {
-                    log!("Warning: Failed to parse existing additional metadata");
                     field_count = 0; // Reset to 0 if parsing failed
                 }
 
@@ -545,8 +507,6 @@ impl VerificationModule {
                     }
                 }
             }
-        } else {
-            log!("No existing additional metadata fields found to check");
         }
 
         // Step 4: Add/update new additional metadata fields
@@ -745,54 +705,48 @@ impl VerificationModule {
                     break;
                 }
 
-                match instructions.load_instruction_at(instr_idx) {
-                    Ok(instruction) => {
-                        let program_id = instruction.get_program_id();
-                        if let Some(config_idx) =
-                            program_index_map.get_mut(program_id).and_then(|indices| {
-                                while let Some(&candidate_idx) = indices.front() {
-                                    if remaining_indices.contains(&candidate_idx) {
-                                        return Some(candidate_idx);
-                                    }
-                                    indices.pop_front();
+                if let Ok(instruction) = instructions.load_instruction_at(instr_idx) {
+                    let program_id = instruction.get_program_id();
+                    if let Some(config_idx) =
+                        program_index_map.get_mut(program_id).and_then(|indices| {
+                            while let Some(&candidate_idx) = indices.front() {
+                                if remaining_indices.contains(&candidate_idx) {
+                                    return Some(candidate_idx);
                                 }
-                                None
-                            })
-                        {
-                            let instruction_data = instruction.get_instruction_data();
-                            if instruction_data != target_instruction_data {
-                                continue;
+                                indices.pop_front();
                             }
-
-                            let mut accounts = Vec::new();
-                            let mut account_idx = 0;
-
-                            while let Ok(account_meta) =
-                                instruction.get_account_meta_at(account_idx)
-                            {
-                                accounts.push(account_meta.key);
-                                account_idx += 1;
-                            }
-
-                            collected_accounts[config_idx] = Some(accounts);
-                            verified_programs.push((*program_id, instr_idx));
-                            remaining_indices.remove(&config_idx);
+                            None
+                        })
+                    {
+                        let instruction_data = instruction.get_instruction_data();
+                        if instruction_data != target_instruction_data {
+                            continue;
                         }
+
+                        let mut accounts = Vec::new();
+                        let mut account_idx = 0;
+
+                        while let Ok(account_meta) = instruction.get_account_meta_at(account_idx) {
+                            accounts.push(account_meta.key);
+                            account_idx += 1;
+                        }
+
+                        collected_accounts[config_idx] = Some(accounts);
+                        verified_programs.push((*program_id, instr_idx));
+                        remaining_indices.remove(&config_idx);
                     }
-                    Err(_) => {
-                        log!("Could not load instruction at index {}", instr_idx);
-                    }
+                } else {
+                    debug_log!("Could not load instruction at index {}", instr_idx);
                 }
             }
         }
 
+        #[cfg_attr(not(feature = "debug-logs"), allow(unused_variables))]
         if let Some(&missing_idx) = remaining_indices.iter().next() {
-            let missing_program = config.verification_programs[missing_idx];
-            log!(
+            debug_log!(
                 "ERROR: Required verification program {} not found",
-                crate::key_as_str!(missing_program)
+                crate::key_as_str!(config.verification_programs[missing_idx])
             );
-            log!("Missing program index: {}", missing_idx);
             return Err(SecurityTokenError::VerificationProgramNotFound.into());
         }
 
@@ -809,11 +763,6 @@ impl VerificationModule {
                 &instruction_account_keys,
             )?;
         }
-
-        log!(
-            "Verification completed successfully for {} programs",
-            verified_programs.len()
-        );
         Ok(())
     }
 
@@ -889,13 +838,6 @@ impl VerificationModule {
         let mut data = config_account.try_borrow_mut_data()?;
         let config_bytes = config.to_bytes();
         data[..config_bytes.len()].copy_from_slice(&config_bytes);
-
-        log!(
-            "VerificationConfig PDA created for {} programs",
-            args.program_count()
-        );
-        log!("Config PDA address: {}", config_account.key());
-        log!("Mint: {}", mint_account.key());
         Ok(())
     }
 
@@ -926,13 +868,11 @@ impl VerificationModule {
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
-            log!("Invalid config account");
             return Err(ProgramError::InvalidAccountData);
         }
 
         // Check if account exists
         if config_account.data_len() == 0 {
-            log!("VerificationConfig account does not exist");
             return Err(ProgramError::UninitializedAccount);
         }
 
@@ -945,7 +885,6 @@ impl VerificationModule {
 
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
-            log!("Discriminator mismatch");
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -976,14 +915,6 @@ impl VerificationModule {
             let additional_space = new_size - current_size;
             let rent = Rent::get()?;
             let additional_rent = rent.minimum_balance(additional_space);
-
-            log!(
-                "Expanding account from {} to {} bytes",
-                current_size,
-                new_size
-            );
-            log!("Additional rent needed: {} lamports", additional_rent);
-
             let transfer = Transfer {
                 from: payer,
                 to: config_account,
@@ -999,12 +930,6 @@ impl VerificationModule {
             let mut data = config_account.try_borrow_mut_data()?;
             data[..config_bytes.len()].copy_from_slice(&config_bytes);
         }
-
-        log!(
-            "VerificationConfig updated: {} programs at offset {}",
-            new_programs.len(),
-            offset
-        );
         Ok(())
     }
 
@@ -1076,16 +1001,7 @@ impl VerificationModule {
 
             // Clear account data
             config_account.realloc(0, false)?;
-
-            log!("Account closed, recovered {} lamports", config_lamports);
         } else if new_size < current_program_count {
-            // Trim the array and resize account
-            log!(
-                "Trimming VerificationConfig from {} to {} programs",
-                current_program_count,
-                new_size
-            );
-
             // Trim the verification programs array
             existing_config.verification_programs.truncate(new_size);
 
@@ -1102,9 +1018,6 @@ impl VerificationModule {
                 let rent = Rent::get()?;
                 let recovered_rent = rent.minimum_balance(space_recovered);
 
-                log!("Recovering {} bytes of space", space_recovered);
-                log!("Recovered rent: {} lamports", recovered_rent);
-
                 // Transfer recovered rent to recipient
                 *config_account.try_borrow_mut_lamports()? = config_account
                     .lamports()
@@ -1119,30 +1032,13 @@ impl VerificationModule {
                 // Resize account to new size
                 config_account.realloc(new_account_size, false)?;
             }
-
             // Write the trimmed config back to the account
             let config_bytes = existing_config.to_bytes();
-
             {
                 let mut data = config_account.try_borrow_mut_data()?;
                 data[..config_bytes.len()].copy_from_slice(&config_bytes);
             } // data borrow is released here
-
-            log!(
-                "VerificationConfig trimmed to {} programs, recovered {} lamports",
-                new_size,
-                if new_account_size < current_account_size {
-                    let space_recovered = current_account_size - new_account_size;
-                    let rent = Rent::get()?;
-                    rent.minimum_balance(space_recovered)
-                } else {
-                    0
-                }
-            );
-        } else {
-            log!("No trimming needed - current size equals requested size");
         }
-
         Ok(())
     }
 }

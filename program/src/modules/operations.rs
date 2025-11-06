@@ -4,6 +4,7 @@
 //! All operations are wrappers around SPL Token 2022 instructions.
 
 use crate::constants::seeds;
+use crate::debug_log;
 use crate::instructions::{CustomPause, CustomResume};
 use crate::modules::{
     burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
@@ -17,7 +18,6 @@ use crate::utils::{
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
-use pinocchio_log::log;
 use pinocchio_token_2022::instructions::{FreezeAccount, ThawAccount};
 use pinocchio_token_2022::state::{Mint, TokenAccount};
 
@@ -40,8 +40,6 @@ impl OperationsModule {
         verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
         verify_owner(mint_authority, program_id)?;
-
-        log!("All checks passed, proceeding to mint {} tokens", amount);
 
         let mint_account = Mint::from_account_info(mint_info)?;
         let decimals = mint_account.decimals();
@@ -83,8 +81,6 @@ impl OperationsModule {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        log!("All checks passed, proceeding to burn {} tokens", amount);
-
         let mint_account = Mint::from_account_info(mint_info)?;
         let decimals = mint_account.decimals();
         drop(mint_account);
@@ -120,7 +116,6 @@ impl OperationsModule {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        log!("All checks passed, proceeding to pause");
         let pause_instruction = CustomPause {
             mint: mint_info,
             pause_authority,
@@ -155,7 +150,7 @@ impl OperationsModule {
         if pause_authority.key() != &pause_authority_pda {
             return Err(ProgramError::InvalidSeeds);
         }
-        log!("All checks passed, proceeding to resume");
+
         let resume_instruction = CustomResume {
             mint: mint_info,
             pause_authority,
@@ -191,7 +186,6 @@ impl OperationsModule {
         if freeze_authority.key() != &freeze_authority_pda {
             return Err(ProgramError::InvalidSeeds);
         }
-        log!("All checks passed, proceeding to freeze");
         let freeze_instruction = FreezeAccount {
             account: token_account,
             mint: mint_info,
@@ -227,7 +221,6 @@ impl OperationsModule {
         if freeze_authority.key() != &freeze_authority_pda {
             return Err(ProgramError::InvalidSeeds);
         }
-        log!("All checks passed, proceeding to thaw");
         let thaw_instruction = ThawAccount {
             account: token_account,
             mint: mint_info,
@@ -331,11 +324,7 @@ impl OperationsModule {
         let bump_seed = &rate.bump_seed();
         let seeds = rate.seeds(action_id_seed, mint_from_key, mint_to_key, bump_seed);
         rate.init(payer, rate_account, &seeds)?;
-
-        log!("Rate PDA account created successfully");
         rate.write_data(rate_account)?;
-
-        log!("Rate PDA account created: {}", rate_account.key());
         Ok(())
     }
 
@@ -370,11 +359,6 @@ impl OperationsModule {
         let rounding_enum = Rounding::try_from(rounding)?;
         rate_account.update(rounding_enum, numerator, denominator)?;
         rate_account.write_data(rate_account_info)?;
-
-        log!(
-            "Rate account {} updated successfully",
-            rate_account_info.key()
-        );
         Ok(())
     }
 
@@ -408,8 +392,6 @@ impl OperationsModule {
         verify_pda(rate_account_info.key(), &expected_rate_pda)?;
 
         Rate::close(rate_account_info, destination_account)?;
-
-        log!("Rate Account {} closed successfully", &expected_rate_pda);
         Ok(())
     }
 
@@ -437,7 +419,6 @@ impl OperationsModule {
         verify_owner(mint_authority, program_id)?;
         let mint_authority_state = MintAuthority::from_account_info(mint_authority)?;
         if mint_split_key.ne(&mint_authority_state.mint) {
-            log!("Mint Authority mint mismatch");
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -452,11 +433,9 @@ impl OperationsModule {
         verify_writable(token_account)?;
         verify_token22_program(token_program)?;
         if token.mint().ne(mint_split_key) {
-            log!("Token account mint mismatch");
             return Err(ProgramError::InvalidInstructionData);
         }
         if current_amount == 0 {
-            log!("Token account has zero balance");
             return Err(ProgramError::InsufficientFunds);
         }
         drop(token);
@@ -484,13 +463,12 @@ impl OperationsModule {
 
         if current_amount.eq(&new_amount) {
             // Just log the message but create Receipt to prevent duplicate split attempts
-            log!("No change in amount after split");
+            debug_log!("No change in amount after split");
         } else if new_amount.gt(&current_amount) {
             // Mint additional tokens
             let amount_diff = new_amount
                 .checked_sub(current_amount)
                 .ok_or(ProgramError::ArithmeticOverflow)?;
-            log!("Increase amount, diff: {}", amount_diff);
             mint_to_checked(
                 amount_diff,
                 mint_decimals,
@@ -504,7 +482,6 @@ impl OperationsModule {
             let amount_diff = current_amount
                 .checked_sub(new_amount)
                 .ok_or(ProgramError::ArithmeticOverflow)?;
-            log!("Decrease amount, diff: {}", amount_diff);
             burn_checked(
                 amount_diff,
                 mint_decimals,
@@ -514,7 +491,6 @@ impl OperationsModule {
                 permanent_delegate_bump,
             )?;
         }
-
         // Create Receipt PDA account for Split operation
         Receipt::issue(
             receipt_account,
@@ -523,13 +499,6 @@ impl OperationsModule {
             action_id,
             receipt_bump,
         )?;
-        log!(
-            "Receipt account {} successfully created",
-            receipt_account.key()
-        );
-
-        log!("Token successfully split");
-
         Ok(())
     }
 }
