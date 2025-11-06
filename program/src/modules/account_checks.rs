@@ -1,5 +1,6 @@
-#[allow(unused_imports)]
-use crate::{acc_info_as_str, debug_log};
+#[cfg(feature = "debug-logs")]
+use crate::acc_info_as_str;
+use crate::debug_log;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 /// Verify account as writable
