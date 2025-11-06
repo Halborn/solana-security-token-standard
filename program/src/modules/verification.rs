@@ -10,7 +10,6 @@ use pinocchio::pubkey::Pubkey;
 use pinocchio::sysvars::Sysvar;
 use pinocchio::sysvars::{instructions::Instructions, rent::Rent};
 use pinocchio::ProgramResult;
-use pinocchio_log::log;
 use pinocchio_system::instructions::{CreateAccount, Transfer};
 use pinocchio_token_2022::extensions::metadata_pointer::{
     Initialize as MetadataPointerInitialize, MetadataPointer,
@@ -43,7 +42,7 @@ use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
     VerificationConfig,
 };
-use crate::utils;
+use crate::{debug_log, utils};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Verification Module - handles all authorization and compliance checks
@@ -706,52 +705,47 @@ impl VerificationModule {
                     break;
                 }
 
-                match instructions.load_instruction_at(instr_idx) {
-                    Ok(instruction) => {
-                        let program_id = instruction.get_program_id();
-                        if let Some(config_idx) =
-                            program_index_map.get_mut(program_id).and_then(|indices| {
-                                while let Some(&candidate_idx) = indices.front() {
-                                    if remaining_indices.contains(&candidate_idx) {
-                                        return Some(candidate_idx);
-                                    }
-                                    indices.pop_front();
+                if let Ok(instruction) = instructions.load_instruction_at(instr_idx) {
+                    let program_id = instruction.get_program_id();
+                    if let Some(config_idx) =
+                        program_index_map.get_mut(program_id).and_then(|indices| {
+                            while let Some(&candidate_idx) = indices.front() {
+                                if remaining_indices.contains(&candidate_idx) {
+                                    return Some(candidate_idx);
                                 }
-                                None
-                            })
-                        {
-                            let instruction_data = instruction.get_instruction_data();
-                            if instruction_data != target_instruction_data {
-                                continue;
+                                indices.pop_front();
                             }
-
-                            let mut accounts = Vec::new();
-                            let mut account_idx = 0;
-
-                            while let Ok(account_meta) =
-                                instruction.get_account_meta_at(account_idx)
-                            {
-                                accounts.push(account_meta.key);
-                                account_idx += 1;
-                            }
-
-                            collected_accounts[config_idx] = Some(accounts);
-                            verified_programs.push((*program_id, instr_idx));
-                            remaining_indices.remove(&config_idx);
+                            None
+                        })
+                    {
+                        let instruction_data = instruction.get_instruction_data();
+                        if instruction_data != target_instruction_data {
+                            continue;
                         }
+
+                        let mut accounts = Vec::new();
+                        let mut account_idx = 0;
+
+                        while let Ok(account_meta) = instruction.get_account_meta_at(account_idx) {
+                            accounts.push(account_meta.key);
+                            account_idx += 1;
+                        }
+
+                        collected_accounts[config_idx] = Some(accounts);
+                        verified_programs.push((*program_id, instr_idx));
+                        remaining_indices.remove(&config_idx);
                     }
-                    Err(_) => {
-                        log!("Could not load instruction at index {}", instr_idx);
-                    }
+                } else {
+                    debug_log!("Could not load instruction at index {}", instr_idx);
                 }
             }
         }
 
+        #[allow(unused_variables)]
         if let Some(&missing_idx) = remaining_indices.iter().next() {
-            let missing_program = config.verification_programs[missing_idx];
-            log!(
+            debug_log!(
                 "ERROR: Required verification program {} not found",
-                crate::key_as_str!(missing_program)
+                crate::key_as_str!(config.verification_programs[missing_idx])
             );
             return Err(SecurityTokenError::VerificationProgramNotFound.into());
         }
