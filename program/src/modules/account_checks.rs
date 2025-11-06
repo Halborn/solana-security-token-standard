@@ -190,8 +190,7 @@ pub fn verify_account_initialized(info: &AccountInfo) -> Result<(), ProgramError
 /// * `Result<(), ProgramError>` - The result of the operation
 pub fn verify_pda(provided_pda: &Pubkey, expected_pda: &Pubkey) -> Result<(), ProgramError> {
     if provided_pda.ne(expected_pda) {
-        debug_log!("Invalid PDA account");
-        debug_log!("Expected: {}, Provided: {}", expected_pda, provided_pda);
+        debug_log!("Invalid PDA account. Expected: {}, Provided: {}", expected_pda, provided_pda);
         return Err(ProgramError::InvalidSeeds);
     }
     Ok(())
