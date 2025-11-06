@@ -6,18 +6,16 @@
 use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
 use crate::instructions::{CustomPause, CustomResume, CustomTransferChecked};
 use crate::modules::{
-    verify_account_not_initialized, verify_operation_mint_info, verify_owner, verify_signer,
-    verify_system_program, verify_token22_program, verify_writable,
+    verify_account_initialized, verify_account_not_initialized, verify_operation_mint_info,
+    verify_owner, verify_pda, verify_signer, verify_system_program, verify_token22_program,
+    verify_writable,
 };
-use crate::state::{AccountSerialize, MintAuthority, Rate, Rounding};
+use crate::state::{MintAuthority, ProgramAccount, Rate, Rounding};
 use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda, find_rate_pda};
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
-use pinocchio::sysvars::rent::Rent;
-use pinocchio::sysvars::Sysvar;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
 use pinocchio_log::log;
-use pinocchio_system::instructions::CreateAccount;
 use pinocchio_token_2022::instructions::{BurnChecked, FreezeAccount, MintToChecked, ThawAccount};
 use pinocchio_token_2022::state::Mint;
 
@@ -29,12 +27,15 @@ impl OperationsModule {
     /// Wrapper for SPL Token MintToChecked instruction
     pub fn execute_mint(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
         let [mint_info, mint_authority, destination_account_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
         verify_owner(mint_authority, program_id)?;
 
@@ -72,6 +73,7 @@ impl OperationsModule {
     /// Wrapper for SPL Token BurnChecked instruction
     pub fn execute_burn(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
@@ -80,6 +82,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (permanent_delegate_pda, bump) =
@@ -114,10 +117,16 @@ impl OperationsModule {
 
     /// Pause all activity within a mint
     /// Wrapper for SPL Token Pause instruction
-    pub fn execute_pause(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    pub fn execute_pause(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
         let [mint_info, pause_authority, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
@@ -145,10 +154,15 @@ impl OperationsModule {
 
     /// Resume all activity within a mint
     /// Wrapper for SPL Token Resume instruction
-    pub fn execute_resume(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    pub fn execute_resume(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
         let [mint_info, pause_authority, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
@@ -175,10 +189,16 @@ impl OperationsModule {
 
     /// Freeze a token account
     /// Wrapper for SPL Token FreezeAccount instruction
-    pub fn execute_freeze_account(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    pub fn execute_freeze_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
         let [mint_info, freeze_authority, token_account, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
@@ -205,10 +225,16 @@ impl OperationsModule {
 
     /// Thaw a token account
     /// Wrapper for SPL Token ThawAccount instruction
-    pub fn execute_thaw_account(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    pub fn execute_thaw_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
         let [mint_info, freeze_authority, token_account, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
@@ -366,51 +392,94 @@ impl OperationsModule {
         let (expected_rate_pda, bump) =
             find_rate_pda(action_id, mint_from_key, mint_to_key, program_id);
 
-        if rate_account.key().ne(&expected_rate_pda) {
-            log!("Invalid Rate account PDA");
-            log!(
-                "Expected: {}, Provided: {}",
-                &expected_rate_pda,
-                rate_account.key()
-            );
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda(rate_account.key(), &expected_rate_pda)?;
 
         // Calculate rent and create Rate account
         let rounding_enum = Rounding::try_from(rounding)?;
         let rate = Rate::new(rounding_enum, numerator, denominator, bump)?;
-        let account_size = Rate::LEN;
-        let rent = Rent::get()?;
-        let required_lamports = rent.minimum_balance(account_size);
-
-        let create_account_instruction = CreateAccount {
-            from: payer,
-            to: rate_account,
-            lamports: required_lamports,
-            space: account_size as u64,
-            owner: program_id,
-        };
-
-        let action_id_seed = action_id.to_le_bytes();
-        let bump_seed = [bump];
-        let seeds = [
-            Seed::from(seeds::RATE_ACCOUNT),
-            Seed::from(action_id_seed.as_ref()),
-            Seed::from(mint_from_key.as_ref()),
-            Seed::from(mint_to_key.as_ref()),
-            Seed::from(bump_seed.as_ref()),
-        ];
-        let signer = Signer::from(&seeds);
-        create_account_instruction.invoke_signed(&[signer])?;
+        let action_id_seed = &action_id.to_le_bytes();
+        let bump_seed = &rate.bump_seed();
+        let seeds = rate.seeds(action_id_seed, mint_from_key, mint_to_key, bump_seed);
+        rate.init(payer, rate_account, &seeds)?;
 
         log!("Rate PDA account created successfully");
-
-        // Write Rate data to the account
-        let mut data = rate_account.try_borrow_mut_data()?;
-        let rate_bytes = rate.to_bytes();
-        data[..rate_bytes.len()].copy_from_slice(&rate_bytes);
+        rate.write_data(rate_account)?;
 
         log!("Rate PDA account created: {}", rate_account.key());
+        Ok(())
+    }
+
+    /// Update Rate account
+    pub fn execute_update_rate_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+        numerator: u8,
+        denominator: u8,
+        rounding: u8,
+    ) -> ProgramResult {
+        let [rate_account_info, mint_from_account, mint_to_info_account] = accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_operation_mint_info(verified_mint_info, &mint_from_account)?;
+        verify_writable(rate_account_info)?;
+        verify_owner(rate_account_info, program_id)?;
+        verify_account_initialized(rate_account_info)?;
+
+        Mint::from_account_info(mint_from_account)?;
+        Mint::from_account_info(mint_to_info_account)?;
+        let mint_from_key = mint_from_account.key();
+        let mint_to_key = mint_to_info_account.key();
+
+        let mut rate_account = Rate::from_account_info(rate_account_info)?;
+        let expected_rate_pda = rate_account.derive_pda(action_id, mint_from_key, mint_to_key)?;
+        verify_pda(rate_account_info.key(), &expected_rate_pda)?;
+
+        let rounding_enum = Rounding::try_from(rounding)?;
+        rate_account.update(rounding_enum, numerator, denominator)?;
+        rate_account.write_data(rate_account_info)?;
+
+        log!(
+            "Rate account {} updated successfully",
+            rate_account_info.key()
+        );
+        Ok(())
+    }
+
+    /// Close Rate account
+    pub fn execute_close_rate_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+    ) -> ProgramResult {
+        let [rate_account_info, mint_from_account, mint_to_info_account, destination_account] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_operation_mint_info(verified_mint_info, &mint_from_account)?;
+        verify_writable(destination_account)?;
+        verify_writable(rate_account_info)?;
+        verify_account_initialized(rate_account_info)?;
+        verify_owner(rate_account_info, program_id)?;
+
+        Mint::from_account_info(mint_from_account)?;
+        Mint::from_account_info(mint_to_info_account)?;
+        let mint_from_key = mint_from_account.key();
+        let mint_to_key = mint_to_info_account.key();
+
+        // Deserialize to ensure it's valid Rate account before closing
+        let rate = Rate::from_account_info(rate_account_info)?;
+        let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
+        verify_pda(rate_account_info.key(), &expected_rate_pda)?;
+
+        Rate::close(rate_account_info, destination_account)?;
+
+        log!("Rate Account {} closed successfully", &expected_rate_pda);
         Ok(())
     }
 }

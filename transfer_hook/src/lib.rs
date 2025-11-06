@@ -131,12 +131,11 @@ fn load_verification_programs(
     if *operation_discriminator != TRANSFER_DISCRIMINATOR {
         return Err(ProgramError::InvalidAccountData);
     }
-
-    if config_data.len() < 6 {
+    if config_data.len() < 7 {
         return Err(ProgramError::InvalidAccountData);
     }
-
-    let verification_programs_data = &config_data[6..];
+    // Skip a CPI mode byte
+    let verification_programs_data = &config_data[7..];
 
     if verification_programs_data.len() % 32 != 0 {
         return Err(ProgramError::InvalidAccountData);

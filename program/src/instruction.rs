@@ -18,6 +18,8 @@ pub enum SecurityTokenInstruction {
     Thaw = 11,
     Transfer = 12,
     CreateRateAccount = 13,
+    UpdateRateAccount = 14,
+    CloseRateAccount = 15,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -39,6 +41,8 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             11 => Ok(SecurityTokenInstruction::Thaw),
             12 => Ok(SecurityTokenInstruction::Transfer),
             13 => Ok(SecurityTokenInstruction::CreateRateAccount),
+            14 => Ok(SecurityTokenInstruction::UpdateRateAccount),
+            15 => Ok(SecurityTokenInstruction::CloseRateAccount),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -73,8 +77,9 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
-        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        close_rate_account::CloseRateArgs, update_rate_account::UpdateRateArgs, CreateRateArgs,
+        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -92,9 +97,10 @@ mod idl_gen {
         #[account(1, name = "verification_config_or_mint_authority")]
         #[account(2, name = "instructions_sysvar_or_creator")]
         #[account(3, writable, name = "mint_account")]
-        #[account(4, writable, signer, name = "payer")] // Pays for potential rent-exempt top-up, must sign
-        #[account(5, name = "token_program")]
-        #[account(6, name = "system_program")]
+        #[account(4, name = "mint_authority")]
+        #[account(5, writable, signer, name = "payer")] // Pays for potential rent-exempt top-up, must sign
+        #[account(6, name = "token_program")]
+        #[account(7, name = "system_program")]
         UpdateMetadata(UpdateMetadataArgs) = 1,
 
         #[account(0, name = "mint")]
@@ -201,5 +207,22 @@ mod idl_gen {
         #[account(6, writable, signer, name = "payer")]
         #[account(7, name = "system_program")]
         CreateRateAccount(CreateRateArgs) = 13,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, writable, name = "rate_account")]
+        #[account(4, name = "mint_from")]
+        #[account(5, name = "mint_to")]
+        UpdateRateAccount(UpdateRateArgs) = 14,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, writable, name = "rate_account")]
+        #[account(4, name = "mint_from")]
+        #[account(5, name = "mint_to")]
+        #[account(6, writable, name = "destination")]
+        CloseRateAccount(CloseRateArgs) = 15,
     }
 }

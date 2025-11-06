@@ -2,6 +2,8 @@ use crate::helpers::{
     assert_security_token_error, assert_transaction_success, initialize_mint,
     initialize_verification_config,
 };
+use borsh::BorshSerialize;
+use rstest::*;
 use security_token_client::{
     errors::SecurityTokenProgramError,
     instructions::{UpdateMetadataBuilder, VerifyBuilder, UPDATE_METADATA_DISCRIMINATOR},
@@ -64,21 +66,21 @@ fn dummy_program_2_processor(
     Ok(())
 }
 
-//TODO: Refactor to fixtures and rstest test cases
-/// Test verifies that our verification workflow works with any program calls
-#[tokio::test]
-async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::error::Error>> {
-    // Create dummy program IDs for testing
+struct VerificationTestContext {
+    context: ProgramTestContext,
+    dummy_program_1_id: Pubkey,
+    dummy_program_2_id: Pubkey,
+    mint_keypair: Keypair,
+    verification_config_pda: Pubkey,
+}
+
+#[fixture]
+async fn verification_test_setup() -> VerificationTestContext {
     let dummy_program_1_id = Pubkey::new_unique();
     let dummy_program_2_id = Pubkey::new_unique();
 
-    // Setup program test with our security token program
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-
-    // Disable BPF preference to use dummy programs
     pt.prefer_bpf(false);
-
-    // Add dummy programs using builtin functions
     pt.add_program(
         "dummy_program_1",
         dummy_program_1_id,
@@ -91,11 +93,9 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     );
 
     let mut context = pt.start_with_context().await;
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let mint_keypair = Keypair::new();
-    let mint_pubkey = mint_keypair.pubkey();
 
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
+    let (mint_authority_pda, _) = Pubkey::find_program_address(
         &[
             b"mint.authority",
             &mint_keypair.pubkey().to_bytes(),
@@ -104,7 +104,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
+    let (freeze_authority_pda, _) = Pubkey::find_program_address(
         &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
         &SECURITY_TOKEN_PROGRAM_ID,
     );
@@ -128,10 +128,10 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     )
     .await;
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
+    let (verification_config_pda, _) = Pubkey::find_program_address(
         &[
             b"verification_config",
-            mint_pubkey.as_ref(),
+            mint_keypair.pubkey().as_ref(),
             &[UPDATE_METADATA_DISCRIMINATOR],
         ],
         &SECURITY_TOKEN_PROGRAM_ID,
@@ -140,6 +140,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: verification_programs,
     };
 
@@ -152,36 +153,75 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
     )
     .await;
 
-    // Test 1: Verify without prior verification calls (should fail)
+    VerificationTestContext {
+        context,
+        dummy_program_1_id,
+        dummy_program_2_id,
+        mint_keypair,
+        verification_config_pda,
+    }
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_verify_without_prior_verification_calls(
+    #[future] verification_test_setup: VerificationTestContext,
+) {
+    let setup = verification_test_setup.await;
+    let recent_blockhash = setup
+        .context
+        .banks_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
+
     let verify_only_ix = VerifyBuilder::new()
-        .mint(mint_keypair.pubkey())
-        .verification_config(verification_config_pda)
+        .mint(setup.mint_keypair.pubkey())
+        .verification_config(setup.verification_config_pda)
         .verify_args(VerifyArgs {
             ix: UPDATE_METADATA_DISCRIMINATOR,
+            instruction_data: vec![],
         })
         .instruction();
 
     let transaction = Transaction::new_signed_with_payer(
         &[verify_only_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
+        Some(&setup.context.payer.pubkey()),
+        &[&setup.context.payer],
         recent_blockhash,
     );
 
-    let result = context.banks_client.process_transaction(transaction).await;
+    let result = setup
+        .context
+        .banks_client
+        .process_transaction(transaction)
+        .await;
+
     assert_security_token_error(
         result,
         SecurityTokenProgramError::VerificationProgramNotFound,
     );
+}
 
-    // Accounts verified by dummy programs
+#[rstest]
+#[tokio::test]
+async fn test_verify_with_proper_prior_calls_succeeds(
+    #[future] verification_test_setup: VerificationTestContext,
+) {
+    let setup = verification_test_setup.await;
+    let recent_blockhash = setup
+        .context
+        .banks_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
+
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
 
-    // Test 2: Verify with proper prior instruction calls (should succeed)
     let success_instructions = vec![
         Instruction {
-            program_id: dummy_program_1_id,
+            program_id: setup.dummy_program_1_id,
             accounts: vec![
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
@@ -189,7 +229,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
         Instruction {
-            program_id: dummy_program_2_id,
+            program_id: setup.dummy_program_2_id,
             accounts: vec![
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
@@ -203,12 +243,12 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
     ];
 
-    // Test 2: Verify with proper prior instruction calls (should succeed)
     let verify_instruction_success = VerifyBuilder::new()
-        .mint(mint_keypair.pubkey())
-        .verification_config(verification_config_pda)
+        .mint(setup.mint_keypair.pubkey())
+        .verification_config(setup.verification_config_pda)
         .verify_args(VerifyArgs {
             ix: UPDATE_METADATA_DISCRIMINATOR,
+            instruction_data: vec![1u8],
         })
         .add_remaining_accounts(&success_verify_accounts)
         .instruction();
@@ -218,18 +258,39 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
     let transaction = Transaction::new_signed_with_payer(
         &success_tx_instructions,
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
+        Some(&setup.context.payer.pubkey()),
+        &[&setup.context.payer],
         recent_blockhash,
     );
 
-    let result = context.banks_client.process_transaction(transaction).await;
-    assert_transaction_success(result);
+    let result = setup
+        .context
+        .banks_client
+        .process_transaction(transaction)
+        .await;
 
-    // Test 3: Verify instruction discriminator (should fail)
+    assert_transaction_success(result);
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_verify_with_wrong_discriminator_fails(
+    #[future] verification_test_setup: VerificationTestContext,
+) {
+    let setup = verification_test_setup.await;
+    let recent_blockhash = setup
+        .context
+        .banks_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
+
+    let account_for_verification_1 = Keypair::new();
+    let account_for_verification_2 = Keypair::new();
+
     let instructions = vec![
         Instruction {
-            program_id: dummy_program_2_id,
+            program_id: setup.dummy_program_2_id,
             accounts: vec![
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
@@ -237,7 +298,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
             data: vec![128u8, 1u8],
         },
         Instruction {
-            program_id: dummy_program_1_id,
+            program_id: setup.dummy_program_1_id,
             accounts: vec![
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
@@ -246,11 +307,17 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         },
     ];
 
+    let success_verify_accounts = vec![
+        AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+        AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+    ];
+
     let verify_ix = VerifyBuilder::new()
-        .mint(mint_keypair.pubkey())
-        .verification_config(verification_config_pda)
+        .mint(setup.mint_keypair.pubkey())
+        .verification_config(setup.verification_config_pda)
         .verify_args(VerifyArgs {
             ix: UPDATE_METADATA_DISCRIMINATOR,
+            instruction_data: vec![],
         })
         .add_remaining_accounts(&success_verify_accounts)
         .instruction();
@@ -260,30 +327,60 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
     let transaction = Transaction::new_signed_with_payer(
         &tx_instructions,
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
+        Some(&setup.context.payer.pubkey()),
+        &[&setup.context.payer],
         recent_blockhash,
     );
 
-    let result = context.banks_client.process_transaction(transaction).await;
+    let result = setup
+        .context
+        .banks_client
+        .process_transaction(transaction)
+        .await;
+
     assert_security_token_error(
         result,
         SecurityTokenProgramError::VerificationProgramNotFound,
     );
-    // Test 4: Verify instruction with system instruction (should succeed)
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_verify_with_system_instructions_succeeds(
+    #[future] verification_test_setup: VerificationTestContext,
+) {
+    let setup = verification_test_setup.await;
+    let recent_blockhash = setup
+        .context
+        .banks_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
+
+    let account_for_verification_1 = Keypair::new();
+    let account_for_verification_2 = Keypair::new();
+
     let instructions = vec![
-        system_instruction::transfer(&context.payer.pubkey(), &mint_pubkey, 1),
+        system_instruction::transfer(
+            &setup.context.payer.pubkey(),
+            &setup.mint_keypair.pubkey(),
+            1,
+        ),
         Instruction {
-            program_id: dummy_program_2_id,
+            program_id: setup.dummy_program_2_id,
             accounts: vec![
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
             ],
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
-        system_instruction::transfer(&context.payer.pubkey(), &mint_pubkey, 1),
+        system_instruction::transfer(
+            &setup.context.payer.pubkey(),
+            &setup.mint_keypair.pubkey(),
+            1,
+        ),
         Instruction {
-            program_id: dummy_program_1_id,
+            program_id: setup.dummy_program_1_id,
             accounts: vec![
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
@@ -291,7 +388,7 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
         Instruction {
-            program_id: dummy_program_1_id,
+            program_id: setup.dummy_program_1_id,
             accounts: vec![
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
@@ -300,11 +397,17 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
         },
     ];
 
+    let success_verify_accounts = vec![
+        AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+        AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+    ];
+
     let verify_ix = VerifyBuilder::new()
-        .mint(mint_keypair.pubkey())
-        .verification_config(verification_config_pda)
+        .mint(setup.mint_keypair.pubkey())
+        .verification_config(setup.verification_config_pda)
         .verify_args(VerifyArgs {
             ix: UPDATE_METADATA_DISCRIMINATOR,
+            instruction_data: vec![1u8],
         })
         .add_remaining_accounts(&success_verify_accounts)
         .instruction();
@@ -314,14 +417,92 @@ async fn test_verification_with_dummy_programs() -> Result<(), Box<dyn std::erro
 
     let transaction = Transaction::new_signed_with_payer(
         &tx_instructions,
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
+        Some(&setup.context.payer.pubkey()),
+        &[&setup.context.payer],
         recent_blockhash,
     );
 
-    let result = context.banks_client.process_transaction(transaction).await;
+    let result = setup
+        .context
+        .banks_client
+        .process_transaction(transaction)
+        .await;
+
     assert_transaction_success(result);
-    Ok(())
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_verify_with_correct_accounts_but_wrong_data_fails(
+    #[future] verification_test_setup: VerificationTestContext,
+) {
+    let setup = verification_test_setup.await;
+    let recent_blockhash = setup
+        .context
+        .banks_client
+        .get_latest_blockhash()
+        .await
+        .unwrap();
+
+    let account_for_verification_1 = Keypair::new();
+    let account_for_verification_2 = Keypair::new();
+
+    // Programs are called with correct discriminator and data
+    let instructions = vec![
+        Instruction {
+            program_id: setup.dummy_program_1_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8, 2u8],
+        },
+        Instruction {
+            program_id: setup.dummy_program_2_id,
+            accounts: vec![
+                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+            ],
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8, 2u8],
+        },
+    ];
+
+    let verify_accounts = vec![
+        AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
+        AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
+    ];
+
+    // Verify instruction has wrong data (more arguments for the target instruction)
+    let verify_ix = VerifyBuilder::new()
+        .mint(setup.mint_keypair.pubkey())
+        .verification_config(setup.verification_config_pda)
+        .verify_args(VerifyArgs {
+            ix: UPDATE_METADATA_DISCRIMINATOR,
+            instruction_data: vec![1u8, 2u8, 3u8],
+        })
+        .add_remaining_accounts(&verify_accounts)
+        .instruction();
+
+    let mut tx_instructions = instructions;
+    tx_instructions.push(verify_ix);
+
+    let transaction = Transaction::new_signed_with_payer(
+        &tx_instructions,
+        Some(&setup.context.payer.pubkey()),
+        &[&setup.context.payer],
+        recent_blockhash,
+    );
+
+    let result = setup
+        .context
+        .banks_client
+        .process_transaction(transaction)
+        .await;
+
+    assert_security_token_error(
+        result,
+        SecurityTokenProgramError::VerificationProgramNotFound,
+    );
 }
 
 #[tokio::test]
@@ -406,6 +587,7 @@ async fn test_update_metadata_under_verification() {
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: verification_programs,
     };
 
@@ -438,9 +620,15 @@ async fn test_update_metadata_under_verification() {
         .verification_config_or_mint_authority(verification_config_pda)
         .instructions_sysvar_or_creator(sysvar::instructions::ID)
         .mint_account(mint_keypair.pubkey())
+        .mint_authority(mint_authority_pda)
         .payer(context.payer.pubkey())
-        .update_metadata_args(update_metadata_args)
+        .update_metadata_args(update_metadata_args.clone())
         .instruction();
+
+    // Prepare metadata args
+    let mut metadata_instruction_data = vec![UPDATE_METADATA_DISCRIMINATOR];
+    metadata_instruction_data
+        .extend_from_slice(update_metadata_args.try_to_vec().unwrap().as_slice());
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
@@ -472,7 +660,7 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
             ],
-            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+            data: metadata_instruction_data.clone(),
         },
         Instruction {
             program_id: dummy_program_2_id,
@@ -480,7 +668,7 @@ async fn test_update_metadata_under_verification() {
                 AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
                 AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
             ],
-            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+            data: metadata_instruction_data.clone(),
         },
     ];
 
@@ -512,21 +700,23 @@ async fn test_update_metadata_under_verification() {
             program_id: dummy_program_1_id,
             accounts: vec![
                 AccountMeta::new_readonly(mint_keypair.pubkey(), false),
+                AccountMeta::new_readonly(mint_authority_pda, false),
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
                 AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
-            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+            data: metadata_instruction_data.clone(),
         },
         Instruction {
             program_id: dummy_program_2_id,
             accounts: vec![
                 AccountMeta::new_readonly(mint_keypair.pubkey(), false),
+                AccountMeta::new_readonly(mint_authority_pda, false),
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
                 AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
-            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
+            data: metadata_instruction_data.clone(),
         },
     ];
 

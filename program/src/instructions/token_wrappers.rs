@@ -118,6 +118,11 @@ impl<'a> CustomInitializeTokenMetadata<'a> {
 
     /// Invoke the InitializeTokenMetadata instruction
     pub fn invoke(&self) -> ProgramResult {
+        self.invoke_signed(&[])
+    }
+
+    /// Invoke the InitializeTokenMetadata instruction with signers
+    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         let ix_len = 8 // instruction discriminator
                 + 4 // name length
                 + self.inner.name.len()
@@ -169,7 +174,7 @@ impl<'a> CustomInitializeTokenMetadata<'a> {
                 self.inner.mint,
                 self.inner.mint_authority,
             ],
-            &[],
+            signers,
         )
     }
 }

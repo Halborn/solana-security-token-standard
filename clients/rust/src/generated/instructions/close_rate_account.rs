@@ -5,36 +5,34 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use crate::generated::types::UpdateMetadataArgs;
+use crate::generated::types::CloseRateArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
-pub const UPDATE_METADATA_DISCRIMINATOR: u8 = 1;
+pub const CLOSE_RATE_ACCOUNT_DISCRIMINATOR: u8 = 15;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct UpdateMetadata {
+pub struct CloseRateAccount {
     pub mint: solana_pubkey::Pubkey,
 
     pub verification_config_or_mint_authority: solana_pubkey::Pubkey,
 
     pub instructions_sysvar_or_creator: solana_pubkey::Pubkey,
 
-    pub mint_account: solana_pubkey::Pubkey,
+    pub rate_account: solana_pubkey::Pubkey,
 
-    pub mint_authority: solana_pubkey::Pubkey,
+    pub mint_from: solana_pubkey::Pubkey,
 
-    pub payer: solana_pubkey::Pubkey,
+    pub mint_to: solana_pubkey::Pubkey,
 
-    pub token_program: solana_pubkey::Pubkey,
-
-    pub system_program: solana_pubkey::Pubkey,
+    pub destination: solana_pubkey::Pubkey,
 }
 
-impl UpdateMetadata {
+impl CloseRateAccount {
     pub fn instruction(
         &self,
-        args: UpdateMetadataInstructionArgs,
+        args: CloseRateAccountInstructionArgs,
     ) -> solana_instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
@@ -42,10 +40,10 @@ impl UpdateMetadata {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: UpdateMetadataInstructionArgs,
+        args: CloseRateAccountInstructionArgs,
         remaining_accounts: &[solana_instruction::AccountMeta],
     ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint, false,
         ));
@@ -58,24 +56,23 @@ impl UpdateMetadata {
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
-            self.mint_account,
+            self.rate_account,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.mint_authority,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.token_program,
+            self.mint_from,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.system_program,
+            self.mint_to,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            self.destination,
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&UpdateMetadataInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&CloseRateAccountInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
@@ -89,17 +86,17 @@ impl UpdateMetadata {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateMetadataInstructionData {
+pub struct CloseRateAccountInstructionData {
     discriminator: u8,
 }
 
-impl UpdateMetadataInstructionData {
+impl CloseRateAccountInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 1 }
+        Self { discriminator: 15 }
     }
 }
 
-impl Default for UpdateMetadataInstructionData {
+impl Default for CloseRateAccountInstructionData {
     fn default() -> Self {
         Self::new()
     }
@@ -107,37 +104,35 @@ impl Default for UpdateMetadataInstructionData {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateMetadataInstructionArgs {
-    pub update_metadata_args: UpdateMetadataArgs,
+pub struct CloseRateAccountInstructionArgs {
+    pub close_rate_args: CloseRateArgs,
 }
 
-/// Instruction builder for `UpdateMetadata`.
+/// Instruction builder for `CloseRateAccount`.
 ///
 /// ### Accounts:
 ///
 ///   0. `[]` mint
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
-///   3. `[writable]` mint_account
-///   4. `[]` mint_authority
-///   5. `[writable, signer]` payer
-///   6. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
-///   7. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   3. `[writable]` rate_account
+///   4. `[]` mint_from
+///   5. `[]` mint_to
+///   6. `[writable]` destination
 #[derive(Clone, Debug, Default)]
-pub struct UpdateMetadataBuilder {
+pub struct CloseRateAccountBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config_or_mint_authority: Option<solana_pubkey::Pubkey>,
     instructions_sysvar_or_creator: Option<solana_pubkey::Pubkey>,
-    mint_account: Option<solana_pubkey::Pubkey>,
-    mint_authority: Option<solana_pubkey::Pubkey>,
-    payer: Option<solana_pubkey::Pubkey>,
-    token_program: Option<solana_pubkey::Pubkey>,
-    system_program: Option<solana_pubkey::Pubkey>,
-    update_metadata_args: Option<UpdateMetadataArgs>,
+    rate_account: Option<solana_pubkey::Pubkey>,
+    mint_from: Option<solana_pubkey::Pubkey>,
+    mint_to: Option<solana_pubkey::Pubkey>,
+    destination: Option<solana_pubkey::Pubkey>,
+    close_rate_args: Option<CloseRateArgs>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
-impl UpdateMetadataBuilder {
+impl CloseRateAccountBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -163,35 +158,28 @@ impl UpdateMetadataBuilder {
         self
     }
     #[inline(always)]
-    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.mint_account = Some(mint_account);
+    pub fn rate_account(&mut self, rate_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.rate_account = Some(rate_account);
         self
     }
     #[inline(always)]
-    pub fn mint_authority(&mut self, mint_authority: solana_pubkey::Pubkey) -> &mut Self {
-        self.mint_authority = Some(mint_authority);
+    pub fn mint_from(&mut self, mint_from: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_from = Some(mint_from);
         self
     }
     #[inline(always)]
-    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
-        self.payer = Some(payer);
-        self
-    }
-    /// `[optional account, default to 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']`
-    #[inline(always)]
-    pub fn token_program(&mut self, token_program: solana_pubkey::Pubkey) -> &mut Self {
-        self.token_program = Some(token_program);
-        self
-    }
-    /// `[optional account, default to '11111111111111111111111111111111']`
-    #[inline(always)]
-    pub fn system_program(&mut self, system_program: solana_pubkey::Pubkey) -> &mut Self {
-        self.system_program = Some(system_program);
+    pub fn mint_to(&mut self, mint_to: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_to = Some(mint_to);
         self
     }
     #[inline(always)]
-    pub fn update_metadata_args(&mut self, update_metadata_args: UpdateMetadataArgs) -> &mut Self {
-        self.update_metadata_args = Some(update_metadata_args);
+    pub fn destination(&mut self, destination: solana_pubkey::Pubkey) -> &mut Self {
+        self.destination = Some(destination);
+        self
+    }
+    #[inline(always)]
+    pub fn close_rate_args(&mut self, close_rate_args: CloseRateArgs) -> &mut Self {
+        self.close_rate_args = Some(close_rate_args);
         self
     }
     /// Add an additional account to the instruction.
@@ -211,7 +199,7 @@ impl UpdateMetadataBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_instruction::Instruction {
-        let accounts = UpdateMetadata {
+        let accounts = CloseRateAccount {
             mint: self.mint.expect("mint is not set"),
             verification_config_or_mint_authority: self
                 .verification_config_or_mint_authority
@@ -219,48 +207,41 @@ impl UpdateMetadataBuilder {
             instructions_sysvar_or_creator: self
                 .instructions_sysvar_or_creator
                 .expect("instructions_sysvar_or_creator is not set"),
-            mint_account: self.mint_account.expect("mint_account is not set"),
-            mint_authority: self.mint_authority.expect("mint_authority is not set"),
-            payer: self.payer.expect("payer is not set"),
-            token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
-                "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
-            )),
-            system_program: self
-                .system_program
-                .unwrap_or(solana_pubkey::pubkey!("11111111111111111111111111111111")),
+            rate_account: self.rate_account.expect("rate_account is not set"),
+            mint_from: self.mint_from.expect("mint_from is not set"),
+            mint_to: self.mint_to.expect("mint_to is not set"),
+            destination: self.destination.expect("destination is not set"),
         };
-        let args = UpdateMetadataInstructionArgs {
-            update_metadata_args: self
-                .update_metadata_args
+        let args = CloseRateAccountInstructionArgs {
+            close_rate_args: self
+                .close_rate_args
                 .clone()
-                .expect("update_metadata_args is not set"),
+                .expect("close_rate_args is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
     }
 }
 
-/// `update_metadata` CPI accounts.
-pub struct UpdateMetadataCpiAccounts<'a, 'b> {
+/// `close_rate_account` CPI accounts.
+pub struct CloseRateAccountCpiAccounts<'a, 'b> {
     pub mint: &'b solana_account_info::AccountInfo<'a>,
 
     pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
 
     pub instructions_sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
+    pub rate_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
+    pub mint_from: &'b solana_account_info::AccountInfo<'a>,
 
-    pub payer: &'b solana_account_info::AccountInfo<'a>,
+    pub mint_to: &'b solana_account_info::AccountInfo<'a>,
 
-    pub token_program: &'b solana_account_info::AccountInfo<'a>,
-
-    pub system_program: &'b solana_account_info::AccountInfo<'a>,
+    pub destination: &'b solana_account_info::AccountInfo<'a>,
 }
 
-/// `update_metadata` CPI instruction.
-pub struct UpdateMetadataCpi<'a, 'b> {
+/// `close_rate_account` CPI instruction.
+pub struct CloseRateAccountCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -270,35 +251,32 @@ pub struct UpdateMetadataCpi<'a, 'b> {
 
     pub instructions_sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
+    pub rate_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
+    pub mint_from: &'b solana_account_info::AccountInfo<'a>,
 
-    pub payer: &'b solana_account_info::AccountInfo<'a>,
+    pub mint_to: &'b solana_account_info::AccountInfo<'a>,
 
-    pub token_program: &'b solana_account_info::AccountInfo<'a>,
-
-    pub system_program: &'b solana_account_info::AccountInfo<'a>,
+    pub destination: &'b solana_account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
-    pub __args: UpdateMetadataInstructionArgs,
+    pub __args: CloseRateAccountInstructionArgs,
 }
 
-impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
+impl<'a, 'b> CloseRateAccountCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_account_info::AccountInfo<'a>,
-        accounts: UpdateMetadataCpiAccounts<'a, 'b>,
-        args: UpdateMetadataInstructionArgs,
+        accounts: CloseRateAccountCpiAccounts<'a, 'b>,
+        args: CloseRateAccountInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
             mint: accounts.mint,
             verification_config_or_mint_authority: accounts.verification_config_or_mint_authority,
             instructions_sysvar_or_creator: accounts.instructions_sysvar_or_creator,
-            mint_account: accounts.mint_account,
-            mint_authority: accounts.mint_authority,
-            payer: accounts.payer,
-            token_program: accounts.token_program,
-            system_program: accounts.system_program,
+            rate_account: accounts.rate_account,
+            mint_from: accounts.mint_from,
+            mint_to: accounts.mint_to,
+            destination: accounts.destination,
             __args: args,
         }
     }
@@ -325,7 +303,7 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
         remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
     ) -> solana_program_error::ProgramResult {
-        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint.key,
             false,
@@ -339,20 +317,19 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
-            *self.mint_account.key,
+            *self.rate_account.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.mint_authority.key,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.token_program.key,
+            *self.mint_from.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.system_program.key,
+            *self.mint_to.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            *self.destination.key,
             false,
         ));
         remaining_accounts.iter().for_each(|remaining_account| {
@@ -362,7 +339,7 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&UpdateMetadataInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&CloseRateAccountInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
@@ -371,16 +348,15 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(9 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(8 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config_or_mint_authority.clone());
         account_infos.push(self.instructions_sysvar_or_creator.clone());
-        account_infos.push(self.mint_account.clone());
-        account_infos.push(self.mint_authority.clone());
-        account_infos.push(self.payer.clone());
-        account_infos.push(self.token_program.clone());
-        account_infos.push(self.system_program.clone());
+        account_infos.push(self.rate_account.clone());
+        account_infos.push(self.mint_from.clone());
+        account_infos.push(self.mint_to.clone());
+        account_infos.push(self.destination.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -393,36 +369,34 @@ impl<'a, 'b> UpdateMetadataCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `UpdateMetadata` via CPI.
+/// Instruction builder for `CloseRateAccount` via CPI.
 ///
 /// ### Accounts:
 ///
 ///   0. `[]` mint
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
-///   3. `[writable]` mint_account
-///   4. `[]` mint_authority
-///   5. `[writable, signer]` payer
-///   6. `[]` token_program
-///   7. `[]` system_program
+///   3. `[writable]` rate_account
+///   4. `[]` mint_from
+///   5. `[]` mint_to
+///   6. `[writable]` destination
 #[derive(Clone, Debug)]
-pub struct UpdateMetadataCpiBuilder<'a, 'b> {
-    instruction: Box<UpdateMetadataCpiBuilderInstruction<'a, 'b>>,
+pub struct CloseRateAccountCpiBuilder<'a, 'b> {
+    instruction: Box<CloseRateAccountCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
+impl<'a, 'b> CloseRateAccountCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(UpdateMetadataCpiBuilderInstruction {
+        let instruction = Box::new(CloseRateAccountCpiBuilderInstruction {
             __program: program,
             mint: None,
             verification_config_or_mint_authority: None,
             instructions_sysvar_or_creator: None,
-            mint_account: None,
-            mint_authority: None,
-            payer: None,
-            token_program: None,
-            system_program: None,
-            update_metadata_args: None,
+            rate_account: None,
+            mint_from: None,
+            mint_to: None,
+            destination: None,
+            close_rate_args: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -450,45 +424,34 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn mint_account(
+    pub fn rate_account(
         &mut self,
-        mint_account: &'b solana_account_info::AccountInfo<'a>,
+        rate_account: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.mint_account = Some(mint_account);
+        self.instruction.rate_account = Some(rate_account);
         self
     }
     #[inline(always)]
-    pub fn mint_authority(
+    pub fn mint_from(&mut self, mint_from: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.mint_from = Some(mint_from);
+        self
+    }
+    #[inline(always)]
+    pub fn mint_to(&mut self, mint_to: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.mint_to = Some(mint_to);
+        self
+    }
+    #[inline(always)]
+    pub fn destination(
         &mut self,
-        mint_authority: &'b solana_account_info::AccountInfo<'a>,
+        destination: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.mint_authority = Some(mint_authority);
+        self.instruction.destination = Some(destination);
         self
     }
     #[inline(always)]
-    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.payer = Some(payer);
-        self
-    }
-    #[inline(always)]
-    pub fn token_program(
-        &mut self,
-        token_program: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.token_program = Some(token_program);
-        self
-    }
-    #[inline(always)]
-    pub fn system_program(
-        &mut self,
-        system_program: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.system_program = Some(system_program);
-        self
-    }
-    #[inline(always)]
-    pub fn update_metadata_args(&mut self, update_metadata_args: UpdateMetadataArgs) -> &mut Self {
-        self.instruction.update_metadata_args = Some(update_metadata_args);
+    pub fn close_rate_args(&mut self, close_rate_args: CloseRateArgs) -> &mut Self {
+        self.instruction.close_rate_args = Some(close_rate_args);
         self
     }
     /// Add an additional account to the instruction.
@@ -525,14 +488,14 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
     #[allow(clippy::clone_on_copy)]
     #[allow(clippy::vec_init_then_push)]
     pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
-        let args = UpdateMetadataInstructionArgs {
-            update_metadata_args: self
+        let args = CloseRateAccountInstructionArgs {
+            close_rate_args: self
                 .instruction
-                .update_metadata_args
+                .close_rate_args
                 .clone()
-                .expect("update_metadata_args is not set"),
+                .expect("close_rate_args is not set"),
         };
-        let instruction = UpdateMetadataCpi {
+        let instruction = CloseRateAccountCpi {
             __program: self.instruction.__program,
 
             mint: self.instruction.mint.expect("mint is not set"),
@@ -547,27 +510,19 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
                 .instructions_sysvar_or_creator
                 .expect("instructions_sysvar_or_creator is not set"),
 
-            mint_account: self
+            rate_account: self
                 .instruction
-                .mint_account
-                .expect("mint_account is not set"),
+                .rate_account
+                .expect("rate_account is not set"),
 
-            mint_authority: self
+            mint_from: self.instruction.mint_from.expect("mint_from is not set"),
+
+            mint_to: self.instruction.mint_to.expect("mint_to is not set"),
+
+            destination: self
                 .instruction
-                .mint_authority
-                .expect("mint_authority is not set"),
-
-            payer: self.instruction.payer.expect("payer is not set"),
-
-            token_program: self
-                .instruction
-                .token_program
-                .expect("token_program is not set"),
-
-            system_program: self
-                .instruction
-                .system_program
-                .expect("system_program is not set"),
+                .destination
+                .expect("destination is not set"),
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -578,17 +533,16 @@ impl<'a, 'b> UpdateMetadataCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct UpdateMetadataCpiBuilderInstruction<'a, 'b> {
+struct CloseRateAccountCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_account_info::AccountInfo<'a>,
     mint: Option<&'b solana_account_info::AccountInfo<'a>>,
     verification_config_or_mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar_or_creator: Option<&'b solana_account_info::AccountInfo<'a>>,
-    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-    mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
-    payer: Option<&'b solana_account_info::AccountInfo<'a>>,
-    token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    update_metadata_args: Option<UpdateMetadataArgs>,
+    rate_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_from: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_to: Option<&'b solana_account_info::AccountInfo<'a>>,
+    destination: Option<&'b solana_account_info::AccountInfo<'a>>,
+    close_rate_args: Option<CloseRateArgs>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }

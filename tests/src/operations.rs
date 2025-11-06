@@ -25,9 +25,8 @@ use security_token_transfer_hook;
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
 use solana_sdk::signature::Signer;
-use solana_sdk::{msg, system_instruction};
 use solana_sdk::{signature::Keypair, sysvar};
-use spl_discriminator::{ArrayDiscriminator, SplDiscriminate};
+use spl_discriminator::SplDiscriminate;
 use spl_pod::primitives::PodBool;
 use spl_token_2022::extension::pausable::PausableConfig;
 use spl_token_2022::extension::BaseStateWithExtensions;
@@ -35,7 +34,6 @@ use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
 use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 use spl_transfer_hook_interface::get_extra_account_metas_address;
-use std::mem::size_of;
 
 async fn get_mint_state(
     banks_client: &mut solana_program_test::BanksClient,
@@ -136,6 +134,7 @@ async fn test_basic_t22_operations() {
 
         let initialize_verification_config_args = InitializeVerificationConfigArgs {
             instruction_discriminator: discriminator,
+            cpi_mode: false,
             program_addresses: vec![],
         };
 
@@ -354,6 +353,7 @@ async fn test_t22_extension_operations() {
 
     let pause_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: PAUSE_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: vec![],
     };
     initialize_verification_config(
@@ -403,6 +403,7 @@ async fn test_t22_extension_operations() {
 
     let resume_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: RESUME_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: vec![],
     };
 
@@ -509,6 +510,7 @@ async fn test_t22_transfer_operations() {
 
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: vec![],
     };
 
@@ -657,6 +659,7 @@ async fn test_p2p_transfer_direct_spl() {
 
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
+        cpi_mode: false,
         program_addresses: vec![dummy_program_1_id, dummy_program_2_id],
     };
 
@@ -802,6 +805,8 @@ async fn test_p2p_transfer_direct_spl() {
     )
     .await
     .expect("add extra metas");
+
+    println!("Added accounts");
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(

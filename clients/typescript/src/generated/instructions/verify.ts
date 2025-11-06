@@ -15,9 +15,9 @@ import {
   transformEncoder,
   type AccountMeta,
   type Address,
-  type FixedSizeCodec,
-  type FixedSizeDecoder,
-  type FixedSizeEncoder,
+  type Codec,
+  type Decoder,
+  type Encoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -71,7 +71,7 @@ export type VerifyInstructionData = {
 
 export type VerifyInstructionDataArgs = { verifyArgs: VerifyArgsArgs };
 
-export function getVerifyInstructionDataEncoder(): FixedSizeEncoder<VerifyInstructionDataArgs> {
+export function getVerifyInstructionDataEncoder(): Encoder<VerifyInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -81,14 +81,14 @@ export function getVerifyInstructionDataEncoder(): FixedSizeEncoder<VerifyInstru
   );
 }
 
-export function getVerifyInstructionDataDecoder(): FixedSizeDecoder<VerifyInstructionData> {
+export function getVerifyInstructionDataDecoder(): Decoder<VerifyInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['verifyArgs', getVerifyArgsDecoder()],
   ]);
 }
 
-export function getVerifyInstructionDataCodec(): FixedSizeCodec<
+export function getVerifyInstructionDataCodec(): Codec<
   VerifyInstructionDataArgs,
   VerifyInstructionData
 > {

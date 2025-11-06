@@ -5,12 +5,13 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
+use crate::generated::types::RateArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct VerifyArgs {
-    pub ix: u8,
-    pub instruction_data: Vec<u8>,
+pub struct UpdateRateArgs {
+    pub action_id: u64,
+    pub rate: RateArgs,
 }
