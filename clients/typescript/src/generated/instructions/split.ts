@@ -81,10 +81,10 @@ export type SplitInstruction<
         ? WritableAccount<TAccountMintAccount>
         : TAccountMintAccount,
       TAccountMintAuthority extends string
-        ? WritableAccount<TAccountMintAuthority>
+        ? ReadonlyAccount<TAccountMintAuthority>
         : TAccountMintAuthority,
       TAccountPermanentDelegate extends string
-        ? WritableAccount<TAccountPermanentDelegate>
+        ? ReadonlyAccount<TAccountPermanentDelegate>
         : TAccountPermanentDelegate,
       TAccountRateAccount extends string
         ? ReadonlyAccount<TAccountRateAccount>
@@ -234,10 +234,10 @@ export function getSplitInstruction<
       isWritable: false,
     },
     mintAccount: { value: input.mintAccount ?? null, isWritable: true },
-    mintAuthority: { value: input.mintAuthority ?? null, isWritable: true },
+    mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
     permanentDelegate: {
       value: input.permanentDelegate ?? null,
-      isWritable: true,
+      isWritable: false,
     },
     rateAccount: { value: input.rateAccount ?? null, isWritable: false },
     receiptAccount: { value: input.receiptAccount ?? null, isWritable: true },

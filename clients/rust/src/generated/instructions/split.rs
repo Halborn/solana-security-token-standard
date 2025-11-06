@@ -66,11 +66,11 @@ impl Split {
             self.mint_account,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint_authority,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.permanent_delegate,
             false,
         ));
@@ -140,8 +140,8 @@ pub struct SplitInstructionArgs {
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
 ///   3. `[writable]` mint_account
-///   4. `[writable]` mint_authority
-///   5. `[writable]` permanent_delegate
+///   4. `[]` mint_authority
+///   5. `[]` permanent_delegate
 ///   6. `[]` rate_account
 ///   7. `[writable]` receipt_account
 ///   8. `[writable]` token_account
@@ -409,11 +409,11 @@ impl<'a, 'b> SplitCpi<'a, 'b> {
             *self.mint_account.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint_authority.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.permanent_delegate.key,
             false,
         ));
@@ -488,8 +488,8 @@ impl<'a, 'b> SplitCpi<'a, 'b> {
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
 ///   3. `[writable]` mint_account
-///   4. `[writable]` mint_authority
-///   5. `[writable]` permanent_delegate
+///   4. `[]` mint_authority
+///   5. `[]` permanent_delegate
 ///   6. `[]` rate_account
 ///   7. `[writable]` receipt_account
 ///   8. `[writable]` token_account

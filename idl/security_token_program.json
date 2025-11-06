@@ -745,12 +745,12 @@
         },
         {
           "name": "mintAuthority",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
           "name": "permanentDelegate",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
