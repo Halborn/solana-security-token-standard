@@ -24,6 +24,9 @@ pub mod modules;
 pub mod processor;
 /// State structures
 pub mod state;
+/// Utility functions for testing
+#[cfg(test)]
+pub mod test_utils;
 /// Utility functions
 pub mod utils;
 use pinocchio_pubkey::declare_id;

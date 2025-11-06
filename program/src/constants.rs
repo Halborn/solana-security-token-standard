@@ -16,6 +16,9 @@ pub mod seeds {
     pub const VERIFICATION_CONFIG: &[u8] = b"verification_config";
     /// Seed for rate account PDA
     pub const RATE_ACCOUNT: &[u8] = b"rate";
+    /// Seed for receipt account PDA
+    pub const RECEIPT_ACCOUNT: &[u8] = b"receipt";
 }
 
 pub const INSTRUCTION_ACCOUNTS_OFFSET: usize = 3;
+pub const ACTION_ID_LEN: usize = 8;

@@ -19,6 +19,7 @@ pub enum SecurityTokenInstruction {
     CreateRateAccount = 12,
     UpdateRateAccount = 13,
     CloseRateAccount = 14,
+    Split = 15,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -41,6 +42,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             12 => Ok(SecurityTokenInstruction::CreateRateAccount),
             13 => Ok(SecurityTokenInstruction::UpdateRateAccount),
             14 => Ok(SecurityTokenInstruction::CloseRateAccount),
+            15 => Ok(SecurityTokenInstruction::Split),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -75,9 +77,9 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        close_rate_account::CloseRateArgs, update_rate_account::UpdateRateArgs, CreateRateArgs,
-        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
-        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        close_rate_account::CloseRateArgs, split::SplitArgs, update_rate_account::UpdateRateArgs,
+        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
+        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -211,5 +213,19 @@ mod idl_gen {
         #[account(5, name = "mint_to")]
         #[account(6, writable, name = "destination")]
         CloseRateAccount(CloseRateArgs) = 14,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        #[account(3, writable, name = "mint_account")]
+        #[account(4, name = "mint_authority")]
+        #[account(5, name = "permanent_delegate")]
+        #[account(6, name = "rate_account")]
+        #[account(7, writable, name = "receipt_account")]
+        #[account(8, writable, name = "token_account")]
+        #[account(9, name = "token_program")]
+        #[account(10, name = "system_program")]
+        #[account(11, writable, signer, name = "payer")]
+        Split(SplitArgs) = 15,
     }
 }

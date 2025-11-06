@@ -16,38 +16,13 @@ use spl_pod::primitives::PodBool;
 use spl_token_2022::extension::pausable::PausableConfig;
 use spl_token_2022::extension::BaseStateWithExtensions;
 use spl_token_2022::extension::StateWithExtensionsOwned;
-use spl_token_2022::state::{Account as TokenAccount, AccountState, Mint as TokenMint};
+use spl_token_2022::state::{AccountState, Mint as TokenMint};
 
-use crate::helpers::{assert_transaction_success, initialize_mint, initialize_verification_config};
+use crate::helpers::{
+    assert_transaction_success, get_mint_state, get_token_account_state, initialize_mint,
+    initialize_verification_config,
+};
 use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
-
-async fn get_mint_state(
-    banks_client: &mut solana_program_test::BanksClient,
-    mint: Pubkey,
-) -> StateWithExtensionsOwned<TokenMint> {
-    let account = banks_client
-        .get_account(mint)
-        .await
-        .expect("mint account fetch")
-        .expect("mint account must exist");
-
-    StateWithExtensionsOwned::<TokenMint>::unpack(account.data)
-        .expect("mint state should deserialize")
-}
-
-async fn get_token_account_state(
-    banks_client: &mut solana_program_test::BanksClient,
-    token_account: Pubkey,
-) -> StateWithExtensionsOwned<TokenAccount> {
-    let account = banks_client
-        .get_account(token_account)
-        .await
-        .expect("token account fetch")
-        .expect("token account must exist");
-
-    StateWithExtensionsOwned::<TokenAccount>::unpack(account.data)
-        .expect("token account state should deserialize")
-}
 
 #[tokio::test]
 async fn test_basic_t22_operations() {

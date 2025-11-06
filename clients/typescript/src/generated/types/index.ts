@@ -15,6 +15,7 @@ export * from './mintArgs';
 export * from './rateArgs';
 export * from './rounding';
 export * from './scaledUiAmountConfigArgs';
+export * from './splitArgs';
 export * from './tokenMetadataArgs';
 export * from './trimVerificationConfigArgs';
 export * from './updateMetadataArgs';

@@ -7,8 +7,10 @@
 
 pub(crate) mod r#mint_authority;
 pub(crate) mod r#rate;
+pub(crate) mod r#receipt;
 pub(crate) mod r#verification_config;
 
 pub use self::r#mint_authority::*;
 pub use self::r#rate::*;
+pub use self::r#receipt::*;
 pub use self::r#verification_config::*;
