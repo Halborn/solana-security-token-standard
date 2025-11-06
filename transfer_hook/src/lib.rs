@@ -27,8 +27,8 @@ pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
 const PERMANENT_DELEGATE_SEED: &[u8] = b"mint.permanent_delegate";
 const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
 const VERIFICATION_CONFIG_SEED: &[u8] = b"verification_config";
-const TRANSFER_DISCRIMINATOR: u8 = 12;
-const TRANSFER_VERIFICATION_CONFIG_DISCRIMINATOR: u8 = 1;
+const TRANSFER_DISCRIMINATOR: u8 = 12; // Security Token transfer instruction discriminator
+const TRANSFER_VERIFICATION_CONFIG_DISCRIMINATOR: u8 = 1; // Account discriminator for Security Token verification config
 const MAX_VERIFICATION_PROGRAMS: usize = 10;
 
 // NOTE: Replace with the finalized program ID generated for the transfer hook deployment.
@@ -52,7 +52,7 @@ pub fn process_instruction(
         instruction_data.split_at(ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len());
 
     match discriminator {
-        ExecuteInstruction::SPL_DISCRIMINATOR_SLICE => process_execute(program_id, accounts, rest),
+        ExecuteInstruction::SPL_DISCRIMINATOR_SLICE => process_execute(accounts, rest),
         InitializeExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE => {
             process_initialize_extra_account_meta_list(program_id, accounts, rest)
         }
@@ -60,7 +60,7 @@ pub fn process_instruction(
     }
 }
 
-fn process_execute(_program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) -> ProgramResult {
+fn process_execute(accounts: &[AccountInfo], rest: &[u8]) -> ProgramResult {
     let [_from, mint, _to, authority, extra_accounts @ ..] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
