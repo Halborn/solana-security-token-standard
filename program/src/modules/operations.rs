@@ -15,7 +15,6 @@ use crate::utils::{find_freeze_authority_pda, find_pause_authority_pda, find_rat
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
-use pinocchio_log::log;
 use pinocchio_token_2022::instructions::{BurnChecked, FreezeAccount, MintToChecked, ThawAccount};
 use pinocchio_token_2022::state::Mint;
 
@@ -38,8 +37,6 @@ impl OperationsModule {
         verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
         verify_owner(mint_authority, program_id)?;
-
-        log!("All checks passed, proceeding to mint {} tokens", amount);
 
         let mint_account = Mint::from_account_info(mint_info)?;
         let decimals = mint_account.decimals();
@@ -91,8 +88,6 @@ impl OperationsModule {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        log!("All checks passed, proceeding to burn {} tokens", amount);
-
         let mint_account = Mint::from_account_info(mint_info)?;
         let decimals = mint_account.decimals();
         drop(mint_account);
@@ -134,7 +129,6 @@ impl OperationsModule {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        log!("All checks passed, proceeding to pause");
         let pause_instruction = CustomPause {
             mint: mint_info,
             pause_authority,
@@ -169,7 +163,7 @@ impl OperationsModule {
         if pause_authority.key() != &pause_authority_pda {
             return Err(ProgramError::InvalidSeeds);
         }
-        log!("All checks passed, proceeding to resume");
+
         let resume_instruction = CustomResume {
             mint: mint_info,
             pause_authority,
@@ -205,7 +199,6 @@ impl OperationsModule {
         if freeze_authority.key() != &freeze_authority_pda {
             return Err(ProgramError::InvalidSeeds);
         }
-        log!("All checks passed, proceeding to freeze");
         let freeze_instruction = FreezeAccount {
             account: token_account,
             mint: mint_info,
@@ -241,7 +234,6 @@ impl OperationsModule {
         if freeze_authority.key() != &freeze_authority_pda {
             return Err(ProgramError::InvalidSeeds);
         }
-        log!("All checks passed, proceeding to thaw");
         let thaw_instruction = ThawAccount {
             account: token_account,
             mint: mint_info,
@@ -354,11 +346,7 @@ impl OperationsModule {
         let bump_seed = &rate.bump_seed();
         let seeds = rate.seeds(action_id_seed, mint_from_key, mint_to_key, bump_seed);
         rate.init(payer, rate_account, &seeds)?;
-
-        log!("Rate PDA account created successfully");
         rate.write_data(rate_account)?;
-
-        log!("Rate PDA account created: {}", rate_account.key());
         Ok(())
     }
 
@@ -393,11 +381,6 @@ impl OperationsModule {
         let rounding_enum = Rounding::try_from(rounding)?;
         rate_account.update(rounding_enum, numerator, denominator)?;
         rate_account.write_data(rate_account_info)?;
-
-        log!(
-            "Rate account {} updated successfully",
-            rate_account_info.key()
-        );
         Ok(())
     }
 
@@ -431,8 +414,6 @@ impl OperationsModule {
         verify_pda(rate_account_info.key(), &expected_rate_pda)?;
 
         Rate::close(rate_account_info, destination_account)?;
-
-        log!("Rate Account {} closed successfully", &expected_rate_pda);
         Ok(())
     }
 }
