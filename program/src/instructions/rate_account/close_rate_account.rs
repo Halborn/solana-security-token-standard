@@ -1,7 +1,7 @@
 use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
-use crate::instructions::rate_account::shared::parse_action_id;
+use crate::instructions::rate_account::shared::parse_action_id_argument;
 
 /// Arguments to close Rate account
 #[repr(C)]
@@ -14,7 +14,7 @@ pub struct CloseRateArgs {
 impl CloseRateArgs {
     /// Parse CloseRateArgs from bytes
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        let action_id = parse_action_id(data)?;
+        let action_id = parse_action_id_argument(data)?;
         Ok(Self { action_id })
     }
 }

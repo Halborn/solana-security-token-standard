@@ -1,9 +1,8 @@
 use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
-use crate::state::Rounding;
+use crate::{constants::ACTION_ID_LEN, state::Rounding, utils::parse_action_id_bytes};
 
-pub const ACTION_ID_LEN: usize = 8;
 pub const ACTION_AND_RATE_ARGS_LEN: usize = ACTION_ID_LEN + RateArgs::LEN;
 
 #[repr(C)]
@@ -58,7 +57,7 @@ pub fn parse_action_and_rate(data: &[u8]) -> Result<(u64, RateArgs), ProgramErro
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    let action_id = parse_action_id(&data[..ACTION_ID_LEN])?;
+    let action_id = parse_action_id_argument(&data[..ACTION_ID_LEN])?;
 
     let rate_args_data = &data[ACTION_ID_LEN..];
     let rate_args = RateArgs::try_from_bytes(rate_args_data)?;
@@ -67,16 +66,12 @@ pub fn parse_action_and_rate(data: &[u8]) -> Result<(u64, RateArgs), ProgramErro
 }
 
 /// Parse action_id from bytes
-pub fn parse_action_id(data: &[u8]) -> Result<u64, ProgramError> {
+pub fn parse_action_id_argument(data: &[u8]) -> Result<u64, ProgramError> {
     if data.len() != ACTION_ID_LEN {
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    let action_id = data
-        .get(..ACTION_ID_LEN)
-        .and_then(|slice| slice.try_into().ok())
-        .map(u64::from_le_bytes)
-        .ok_or(ProgramError::InvalidArgument)?;
+    let action_id = parse_action_id_bytes(data).ok_or(ProgramError::InvalidArgument)?;
 
     if action_id == 0 {
         return Err(ProgramError::InvalidArgument);

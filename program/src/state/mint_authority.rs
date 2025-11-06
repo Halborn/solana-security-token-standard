@@ -1,8 +1,10 @@
 //! Mint configuration account state
+use crate::constants::seeds;
 use crate::state::{
     AccountDeserialize, AccountSerialize, Discriminator, SecurityTokenDiscriminators,
 };
 use pinocchio::account_info::{AccountInfo, Ref};
+use pinocchio::instruction::Seed;
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 use shank::ShankAccount;
@@ -110,5 +112,18 @@ impl MintAuthority {
         Ok(Ref::map(account_info.try_borrow_data()?, |_| {
             &*Box::leak(Box::new(mint_authority))
         }))
+    }
+
+    pub fn bump_seed(&self) -> [u8; 1] {
+        [self.bump]
+    }
+
+    pub fn seeds<'a>(&'a self, bump_seed: &'a [u8; 1]) -> [Seed<'a>; 4] {
+        [
+            Seed::from(seeds::MINT_AUTHORITY),
+            Seed::from(self.mint.as_ref()),
+            Seed::from(self.mint_creator.as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ]
     }
 }
