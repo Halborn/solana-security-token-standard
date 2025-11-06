@@ -779,8 +779,6 @@ async fn test_p2p_transfer_direct_spl() {
     .await
     .expect("add extra metas");
 
-    println!("Added accounts");
-
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[spl_transfer_ix],
