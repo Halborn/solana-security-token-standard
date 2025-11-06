@@ -18,6 +18,8 @@ pub mod close_rate_account {
 }
 /// Initialize mint instruction arguments and implementations
 pub mod initialize_mint;
+/// Split instruction arguments and implementations
+pub mod split;
 /// Token wrapper utilities
 pub mod token_wrappers;
 /// Update metadata instruction arguments and implementations

@@ -41,14 +41,7 @@ impl UpdateMetadataArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pinocchio::pubkey::Pubkey;
-
-    #[cfg(test)]
-    fn random_pubkey() -> Pubkey {
-        use pinocchio::pubkey::PUBKEY_BYTES;
-
-        rand::random::<[u8; PUBKEY_BYTES]>()
-    }
+    use crate::test_utils::random_pubkey;
 
     #[test]
     fn test_update_metadata_args_to_bytes_inner_try_from_bytes() {

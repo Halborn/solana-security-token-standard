@@ -2,9 +2,9 @@ use crate::{
     constants::INSTRUCTION_ACCOUNTS_OFFSET,
     instruction::SecurityTokenInstruction,
     instructions::{
-        close_rate_account::CloseRateArgs, update_rate_account::UpdateRateArgs, CreateRateArgs,
-        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
-        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        close_rate_account::CloseRateArgs, split::SplitArgs, update_rate_account::UpdateRateArgs,
+        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
+        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     },
     modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
@@ -33,7 +33,7 @@ impl Processor {
             | UpdateVerificationConfig
             | TrimVerificationConfig
             | UpdateMetadata => VerificationProgramsOrMintAuthority,
-            Burn | Mint | Pause | Resume | Freeze | Thaw | Transfer => VerificationPrograms,
+            Burn | Mint | Pause | Resume | Freeze | Thaw | Transfer | Split => VerificationPrograms,
         }
     }
 
@@ -165,6 +165,12 @@ impl Processor {
                 args_data,
             ),
             SecurityTokenInstruction::CloseRateAccount => Self::process_close_rate_account(
+                program_id,
+                verified_mint_info,
+                instruction_accounts,
+                args_data,
+            ),
+            SecurityTokenInstruction::Split => Self::process_split(
                 program_id,
                 verified_mint_info,
                 instruction_accounts,
@@ -378,6 +384,17 @@ impl Processor {
     ) -> ProgramResult {
         let CloseRateArgs { action_id } = CloseRateArgs::try_from_bytes(args_data)?;
         OperationsModule::execute_close_rate_account(program_id, mint_info, accounts, action_id)?;
+        Ok(())
+    }
+
+    fn process_split(
+        program_id: &Pubkey,
+        mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let SplitArgs { action_id } = SplitArgs::try_from_bytes(args_data)?;
+        OperationsModule::execute_split(program_id, mint_info, accounts, action_id)?;
         Ok(())
     }
 }

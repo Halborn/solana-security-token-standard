@@ -13,6 +13,7 @@ pub enum SecurityTokenDiscriminators {
     MintAuthorityDiscriminator = 0,
     VerificationConfigDiscriminator = 1,
     RateDiscriminator = 2,
+    ReceiptDiscriminator = 3,
 }
 
 impl TryFrom<u8> for SecurityTokenDiscriminators {
@@ -23,6 +24,7 @@ impl TryFrom<u8> for SecurityTokenDiscriminators {
             0 => Ok(SecurityTokenDiscriminators::MintAuthorityDiscriminator),
             1 => Ok(SecurityTokenDiscriminators::VerificationConfigDiscriminator),
             2 => Ok(SecurityTokenDiscriminators::RateDiscriminator),
+            3 => Ok(SecurityTokenDiscriminators::ReceiptDiscriminator),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

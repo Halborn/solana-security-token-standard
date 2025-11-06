@@ -14,3 +14,6 @@ pub mod operations;
 
 #[cfg(test)]
 pub mod rate_tests;
+
+#[cfg(test)]
+pub mod split_tests;

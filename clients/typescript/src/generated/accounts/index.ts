@@ -8,4 +8,5 @@
 
 export * from './mintAuthority';
 export * from './rate';
+export * from './receipt';
 export * from './verificationConfig';
