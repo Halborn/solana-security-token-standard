@@ -20,6 +20,7 @@ use spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountM
 use spl_transfer_hook_interface::get_extra_account_metas_address_and_bump_seed;
 use spl_transfer_hook_interface::instruction::{
     ExecuteInstruction, InitializeExtraAccountMetaListInstruction,
+    UpdateExtraAccountMetaListInstruction,
 };
 
 pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
@@ -55,6 +56,9 @@ pub fn process_instruction(
         ExecuteInstruction::SPL_DISCRIMINATOR_SLICE => process_execute(accounts, rest),
         InitializeExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE => {
             process_initialize_extra_account_meta_list(program_id, accounts, rest)
+        }
+        UpdateExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE => {
+            process_update_extra_account_meta_list(program_id, accounts, rest)
         }
         _ => Err(ProgramError::InvalidInstructionData),
     }
@@ -195,25 +199,15 @@ fn execute_verification_programs(
     Ok(())
 }
 
-fn process_initialize_extra_account_meta_list(
+/// Validate common account checks for extra account meta list operations
+fn validate_extra_account_meta_accounts(
     program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    rest: &[u8],
-) -> ProgramResult {
-    let [extra_meta_info, mint_info, authority_info, system_program_info] = accounts else {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    };
-
-    if extra_meta_info.is_owned_by(program_id) {
-        return Err(ProgramError::AccountAlreadyInitialized);
-    }
-
+    extra_meta_info: &AccountInfo,
+    mint_info: &AccountInfo,
+    authority_info: &AccountInfo,
+) -> Result<(Pubkey, u8), ProgramError> {
     if !extra_meta_info.is_writable() {
         return Err(ProgramError::InvalidAccountData);
-    }
-
-    if system_program_info.key() != &pinocchio_system::ID {
-        return Err(ProgramError::IncorrectProgramId);
     }
 
     // NOTE: In our case the authority must be a signer
@@ -234,6 +228,33 @@ fn process_initialize_extra_account_meta_list(
     if extra_meta_info.key() != &expected_pda.to_bytes() {
         return Err(ProgramError::InvalidSeeds);
     }
+
+    Ok((expected_pda.to_bytes(), bump))
+}
+
+fn process_initialize_extra_account_meta_list(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    rest: &[u8],
+) -> ProgramResult {
+    let [extra_meta_info, mint_info, authority_info, system_program_info] = accounts else {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
+
+    if system_program_info.key() != &pinocchio_system::ID {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if extra_meta_info.is_owned_by(program_id) {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
+    let (_expected_pda, bump) = validate_extra_account_meta_accounts(
+        program_id,
+        extra_meta_info,
+        mint_info,
+        authority_info,
+    )?;
 
     let pod_slice = PodSlice::<ExtraAccountMeta>::unpack(rest)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
@@ -275,5 +296,70 @@ fn process_initialize_extra_account_meta_list(
         ExtraAccountMetaList::init::<ExecuteInstruction>(&mut data, &extra_account_metas)
             .map_err(|_| ProgramError::InvalidAccountData)?;
     }
+    Ok(())
+}
+
+fn process_update_extra_account_meta_list(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    rest: &[u8],
+) -> ProgramResult {
+    let [extra_meta_info, mint_info, authority_info, rest_accounts @ ..] = accounts else {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
+
+    if !extra_meta_info.is_owned_by(program_id) {
+        return Err(ProgramError::IllegalOwner);
+    }
+
+    validate_extra_account_meta_accounts(program_id, extra_meta_info, mint_info, authority_info)?;
+
+    let pod_slice = PodSlice::<ExtraAccountMeta>::unpack(rest)
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    let extra_account_metas = pod_slice.data().to_vec();
+    let new_count = extra_account_metas.len();
+    let new_account_size =
+        ExtraAccountMetaList::size_of(new_count).map_err(|_| ProgramError::InvalidAccountData)?;
+
+    let current_account_size = extra_meta_info.data_len();
+
+    // Handle size changes
+    if new_account_size > current_account_size {
+        // Verify system program is provided
+        if !rest_accounts
+            .iter()
+            .any(|acc| acc.key() == &pinocchio_system::ID)
+        {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        }
+
+        // Need to add lamports and realloc
+        let additional_space = new_account_size - current_account_size;
+        let rent = Rent::get()?;
+        let additional_rent = rent.minimum_balance(additional_space);
+
+        let transfer = Transfer {
+            from: authority_info,
+            to: extra_meta_info,
+            lamports: additional_rent,
+        };
+        transfer.invoke()?;
+
+        extra_meta_info.realloc(new_account_size, false)?;
+    } else if new_account_size < current_account_size {
+        // Can shrink and return lamports
+        extra_meta_info.realloc(new_account_size, false)?;
+        let space_recovered = current_account_size - new_account_size;
+        let rent = Rent::get()?;
+        let recovered_rent = rent.minimum_balance(space_recovered);
+        *extra_meta_info.try_borrow_mut_lamports()? -= recovered_rent;
+        *authority_info.try_borrow_mut_lamports()? += recovered_rent;
+    }
+    {
+        let mut data = extra_meta_info.try_borrow_mut_data()?;
+        ExtraAccountMetaList::update::<ExecuteInstruction>(&mut data, &extra_account_metas)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+    }
+
     Ok(())
 }
