@@ -112,7 +112,11 @@ fn load_verification_programs(
     let verification_config = extra_accounts
         .iter()
         .find(|acc| acc.key() == &verification_config_pda)
-        .ok_or(ProgramError::InvalidSeeds)?;
+        .ok_or(ProgramError::InvalidAccountData)?;
+
+    if verification_config.data_is_empty() {
+        return Err(ProgramError::UninitializedAccount);
+    }
 
     if !verification_config.is_owned_by(&SECURITY_TOKEN_PROGRAM_ID) {
         return Err(ProgramError::IllegalOwner);
@@ -202,6 +206,10 @@ fn process_initialize_extra_account_meta_list(
 
     if extra_meta_info.is_owned_by(program_id) {
         return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
+    if !extra_meta_info.is_writable() {
+        return Err(ProgramError::InvalidAccountData);
     }
 
     if system_program_info.key() != &pinocchio_system::ID {
