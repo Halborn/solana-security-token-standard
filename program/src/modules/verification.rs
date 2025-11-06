@@ -741,7 +741,7 @@ impl VerificationModule {
             }
         }
 
-        #[cfg_attr(not(feature = "debug-logs"), allow(unused_variables))] 
+        #[cfg_attr(not(feature = "debug-logs"), allow(unused_variables))]
         if let Some(&missing_idx) = remaining_indices.iter().next() {
             debug_log!(
                 "ERROR: Required verification program {} not found",
