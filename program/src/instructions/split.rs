@@ -1,7 +1,9 @@
 use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
-use crate::instructions::rate_account::shared::parse_action_id_argument;
+use crate::{
+    constants::ACTION_ID_LEN, instructions::rate_account::shared::parse_action_id_argument,
+};
 
 /// Arguments to split a token amount according to a rate
 #[repr(C)]
@@ -13,7 +15,7 @@ pub struct SplitArgs {
 
 impl SplitArgs {
     /// action_id
-    pub const LEN: usize = 8;
+    pub const LEN: usize = ACTION_ID_LEN;
 
     /// Deserialize arguments from bytes
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {

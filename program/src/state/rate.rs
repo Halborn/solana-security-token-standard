@@ -6,6 +6,7 @@ use pinocchio::{account_info::AccountInfo, ProgramResult};
 use shank::{ShankAccount, ShankType};
 
 use crate::constants::seeds::RATE_ACCOUNT;
+use crate::math::pow10_u64;
 use crate::state::{
     AccountDeserialize, AccountSerialize, Discriminator, ProgramAccount,
     SecurityTokenDiscriminators,
@@ -205,6 +206,40 @@ impl Rate {
             &crate::id(),
         )
     }
+
+    /// Convert amount of token A (amount_from) to token B (amount_to) with Rate parameters
+    /// Formula: amount_to = amount_from * numerator * 10^{decimals_to} / (denominator * 10^{decimals_from})
+    pub fn convert_from_to_amount(
+        &self,
+        amount_from: u64,
+        decimals_from: u8,
+        decimals_to: u8,
+    ) -> Result<u64, ProgramError> {
+        let scale_a = pow10_u64(decimals_from)?;
+        let scale_b = pow10_u64(decimals_to)?;
+        // amount_from * numerator * scale_b
+        let numerator_scaled = amount_from
+            .checked_mul(self.numerator as u64)
+            .and_then(|v| v.checked_mul(scale_b))
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+
+        // denominator * scale_a
+        let denominator_scaled = (self.denominator as u64)
+            .checked_mul(scale_a)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+
+        if denominator_scaled == 0 {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let result = match self.rounding {
+            Rounding::Down => numerator_scaled
+                .checked_div(denominator_scaled)
+                .ok_or(ProgramError::ArithmeticOverflow)?,
+            Rounding::Up => numerator_scaled.div_ceil(denominator_scaled),
+        };
+        Ok(result)
+    }
 }
 
 #[cfg(test)]
@@ -233,5 +268,45 @@ mod tests {
 
         let result = rate.calculate(amount).unwrap();
         assert_eq!(result, expected);
+    }
+
+    #[rstest]
+    #[case(Rounding::Down, 1, 3, 1_000, 3, 6, 333_333)]
+    #[case(Rounding::Up, 1, 3, 1_000, 3, 6, 333_334)]
+    #[case(Rounding::Down, 2, 3, 1_000, 3, 6, 666_666)]
+    #[case(Rounding::Up, 2, 3, 1_000, 3, 6, 666_667)]
+    #[case(Rounding::Down, 3, 2, 1_000, 3, 6, 1_500_000)]
+    #[case(Rounding::Up, 5, 4, 1_000, 3, 6, 1_250_000)]
+    #[case(Rounding::Down, 1, 2, 10_000, 6, 3, 5)]
+    #[case(Rounding::Up, 1, 2, 10_500, 6, 3, 6)]
+    #[case(Rounding::Down, 7, 8, 1_000, 3, 3, 875)]
+    // 6 -> 9 decimals, 10 tokens
+    #[case(Rounding::Down, 3, 7, 1_000_000_000, 6, 9, 428_571_428_571)]
+    #[case(Rounding::Up, 3, 7, 1_000_000_000, 6, 9, 428_571_428_572)]
+    // 9 -> 6 decimals, 10 tokens
+    #[case(Rounding::Down, 3, 7, 10_000_000_000, 9, 6, 4_285_714)]
+    #[case(Rounding::Up, 3, 7, 10_000_000_000, 9, 6, 4_285_715)]
+    fn test_convert_from_to_amount_cases(
+        #[case] rounding: Rounding,
+        #[case] numerator: u8,
+        #[case] denominator: u8,
+        #[case] amount_from: u64,
+        #[case] decimals_from: u8,
+        #[case] decimals_to: u8,
+        #[case] expected: u64,
+    ) {
+        let rate = Rate {
+            rounding,
+            numerator,
+            denominator,
+            bump: 0,
+        };
+        let calculated = rate
+            .convert_from_to_amount(amount_from, decimals_from, decimals_to)
+            .unwrap();
+        assert_eq!(
+            calculated, expected,
+            "Conversion not matching expected value"
+        );
     }
 }

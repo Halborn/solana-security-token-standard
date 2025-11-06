@@ -21,6 +21,7 @@ pub enum SecurityTokenInstruction {
     UpdateRateAccount = 14,
     CloseRateAccount = 15,
     Split = 16,
+    Convert = 17,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -45,6 +46,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             14 => Ok(SecurityTokenInstruction::UpdateRateAccount),
             15 => Ok(SecurityTokenInstruction::CloseRateAccount),
             16 => Ok(SecurityTokenInstruction::Split),
+            17 => Ok(SecurityTokenInstruction::Convert),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -79,9 +81,10 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        close_rate_account::CloseRateArgs, split::SplitArgs, update_rate_account::UpdateRateArgs,
-        CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
-        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        close_rate_account::CloseRateArgs, convert::ConvertArgs, split::SplitArgs,
+        update_rate_account::UpdateRateArgs, CreateRateArgs, InitializeMintArgs,
+        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
+        UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -240,5 +243,21 @@ mod idl_gen {
         #[account(10, name = "system_program")]
         #[account(11, writable, signer, name = "payer")]
         Split(SplitArgs) = 16,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        #[account(3, writable, name = "mint_from")]
+        #[account(4, writable, name = "mint_to")]
+        #[account(5, writable, name = "token_account_from")]
+        #[account(6, writable, name = "token_account_to")]
+        #[account(7, name = "mint_authority")]
+        #[account(8, name = "permanent_delegate")]
+        #[account(9, name = "rate_account")]
+        #[account(10, writable, name = "receipt_account")]
+        #[account(11, name = "token_program")]
+        #[account(12, name = "system_program")]
+        #[account(13, writable, signer, name = "payer")]
+        Convert(ConvertArgs) = 17,
     }
 }
