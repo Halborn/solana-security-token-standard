@@ -465,40 +465,6 @@ pub async fn create_minimal_security_token_mint(
     )
 }
 
-/// Create associated token account for owner and mint
-pub async fn create_token_account(
-    banks_client: &BanksClient,
-    owner: &Pubkey,
-    mint: &Pubkey,
-    payer: &Keypair,
-) -> (Result<(), BanksClientError>, Pubkey) {
-    let token_account_pubkey =
-        spl_associated_token_account::get_associated_token_address_with_program_id(
-            &owner,
-            &mint,
-            &spl_token_2022::ID,
-        );
-
-    let create_destination_account_ix =
-        spl_associated_token_account::instruction::create_associated_token_account_idempotent(
-            &payer.pubkey(),
-            &owner,
-            &mint,
-            &spl_token_2022::ID,
-        );
-    let signer = payer.insecure_clone();
-    let signers = vec![&signer];
-    let result = send_tx(
-        banks_client,
-        vec![create_destination_account_ix],
-        &payer.pubkey(),
-        signers,
-    )
-    .await;
-
-    (result, token_account_pubkey)
-}
-
 /// Mint tokens to destination token account
 pub async fn mint_tokens_to(
     banks_client: &BanksClient,
@@ -527,23 +493,21 @@ pub async fn mint_tokens_to(
 /// Create token account and mint tokens to it
 pub async fn create_token_account_and_mint_tokens(
     context: &mut solana_program_test::ProgramTestContext,
-    mint_pubkey: Pubkey,
+    mint_keipair: &Keypair,
     mint_authority_pda: Pubkey,
     mint_verification_config_pda: Pubkey,
-    mint_owner: Pubkey,
+    mint_owner: &Keypair,
     payer: &Keypair,
     decimals: u8,
     ui_amount: u64,
 ) -> (u64, Pubkey) {
-    let (result, token_account_pubkey) =
-        create_token_account(&context.banks_client, &mint_owner, &mint_pubkey, payer).await;
-    assert_transaction_success(result);
+    let token_account_pubkey = create_spl_account(context, &mint_keipair, mint_owner).await;
 
     let amount = from_ui_amount(ui_amount, decimals);
     let result = mint_tokens_to(
         &mut context.banks_client,
         amount,
-        mint_pubkey.clone(),
+        mint_keipair.pubkey(),
         token_account_pubkey.clone(),
         mint_authority_pda.clone(),
         mint_verification_config_pda.clone(),

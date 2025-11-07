@@ -9,7 +9,7 @@ use solana_sdk::{native_token::sol_str_to_lamports, signature::Keypair, signer::
 use crate::{
     helpers::{
         assert_account_exists, assert_transaction_success, create_mint_verification_config,
-        create_token_account, find_permanent_delegate_pda, find_receipt_pda, from_ui_amount,
+        create_spl_account, find_permanent_delegate_pda, find_receipt_pda, from_ui_amount,
         get_token_account_state, mint_tokens_to, start_with_context,
         start_with_context_and_accounts,
     },
@@ -28,7 +28,7 @@ async fn test_should_split_with_mint_successfully() {
     let mint_pubkey = mint_keypair.pubkey();
     let decimals = 6u8;
     let mint_creator = &context.payer.insecure_clone();
-    let mint_creator_pubkey = mint_creator.pubkey();
+    let _mint_creator_pubkey = mint_creator.pubkey();
 
     let (mint_authority_pda, _, _) =
         create_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals).await;
@@ -51,14 +51,7 @@ async fn test_should_split_with_mint_successfully() {
     )
     .await;
 
-    let (result, token_account_pubkey) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey,
-        &mint_pubkey,
-        mint_creator,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey = create_spl_account(context, &mint_keypair, &mint_creator).await;
 
     let amount = from_ui_amount(1000, decimals);
     println!("Tokens amount before split: {:?}", amount);
@@ -153,7 +146,7 @@ async fn test_should_split_with_burn_successfully() {
     let mint_pubkey = mint_keypair.pubkey();
     let decimals = 6u8;
     let mint_creator = &context.payer.insecure_clone();
-    let mint_creator_pubkey = mint_creator.pubkey();
+    let _mint_creator_pubkey = mint_creator.pubkey();
 
     let (mint_authority_pda, _, _) =
         create_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals).await;
@@ -176,14 +169,7 @@ async fn test_should_split_with_burn_successfully() {
     )
     .await;
 
-    let (result, token_account_pubkey) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey,
-        &mint_pubkey,
-        mint_creator,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey = create_spl_account(context, &mint_keypair, &mint_creator).await;
 
     let amount = from_ui_amount(1000, decimals);
     println!("Tokens amount before split: {:?}", amount);
@@ -278,7 +264,7 @@ async fn test_should_not_split_twice() {
     let mint_pubkey = mint_keypair.pubkey();
     let decimals = 6u8;
     let mint_creator = &context.payer.insecure_clone();
-    let mint_creator_pubkey = mint_creator.pubkey();
+    let _mint_creator_pubkey = mint_creator.pubkey();
 
     let (mint_authority_pda, _, _) =
         create_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals).await;
@@ -301,14 +287,7 @@ async fn test_should_not_split_twice() {
     )
     .await;
 
-    let (result, token_account_pubkey) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey,
-        &mint_pubkey,
-        mint_creator,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey = create_spl_account(context, &mint_keypair, &mint_creator).await;
 
     let amount = from_ui_amount(1000, decimals);
     println!("Tokens amount before split: {:?}", amount);
@@ -401,7 +380,7 @@ async fn test_should_not_split_token_zero_amount() {
     let mint_pubkey = mint_keypair.pubkey();
     let decimals = 6u8;
     let mint_creator = &context.payer.insecure_clone();
-    let mint_creator_pubkey = mint_creator.pubkey();
+    let _mint_creator_pubkey = mint_creator.pubkey();
 
     let (mint_authority_pda, _, _) =
         create_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals).await;
@@ -425,14 +404,7 @@ async fn test_should_not_split_token_zero_amount() {
     .await;
 
     // Create token account, no minting
-    let (result, token_account_pubkey) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey,
-        &mint_pubkey,
-        mint_creator,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey = create_spl_account(context, &mint_keypair, &mint_creator).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Down as u8;
@@ -569,14 +541,8 @@ async fn test_should_not_split_with_invalid_random_accounts(
     .await;
 
     // Create valid token account with tokens
-    let (result, valid_token_account_pubkey) = create_token_account(
-        &context.banks_client,
-        &valid_mint_creator_pubkey,
-        &valid_mint_pubkey,
-        valid_mint_creator,
-    )
-    .await;
-    assert_transaction_success(result);
+    let valid_token_account_pubkey =
+        create_spl_account(context, &valid_mint_keypair, &valid_mint_creator).await;
 
     let amount = from_ui_amount(1000, decimals);
     println!("Tokens amount before split: {:?}", amount);
@@ -672,14 +638,7 @@ async fn test_should_not_split_not_owned_mint_or_token_account() {
     )
     .await;
 
-    let (result, token_account_pubkey1) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey1,
-        &mint_pubkey1,
-        mint_creator1,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey1 = create_spl_account(context, &mint_keypair1, &mint_creator1).await;
 
     let amount = from_ui_amount(1000, decimals);
     let result = mint_tokens_to(
@@ -740,14 +699,7 @@ async fn test_should_not_split_not_owned_mint_or_token_account() {
     )
     .await;
 
-    let (result, token_account_pubkey2) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey2,
-        &mint_pubkey2,
-        &mint_creator2,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey2 = create_spl_account(context, &mint_keypair2, &mint_creator2).await;
 
     let amount = from_ui_amount(1000, decimals);
     let result = mint_tokens_to(

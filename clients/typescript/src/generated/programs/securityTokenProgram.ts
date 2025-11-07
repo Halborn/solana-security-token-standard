@@ -119,7 +119,7 @@ export function identifySecurityTokenProgramInstruction(
   if (containsBytes(data, getU8Encoder().encode(16), 0)) {
     return SecurityTokenProgramInstruction.Split;
   }
-  if (containsBytes(data, getU8Encoder().encode(16), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(17), 0)) {
     return SecurityTokenProgramInstruction.Convert;
   }
   throw new Error(

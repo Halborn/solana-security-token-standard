@@ -82,6 +82,7 @@ pub async fn build_creator_resources(
 ) -> (
     Keypair, // mint creator (clone of input if needed)
     Pubkey,  // mint_creator_pubkey
+    Keypair, // mint_keypair
     Pubkey,  // mint_pubkey
     Pubkey,  // mint_authority_pda
     Pubkey,  // convert_verification_config_pda
@@ -116,10 +117,10 @@ pub async fn build_creator_resources(
     let initial_ui_amount = 1000u64;
     let (_initial_amount, token_account_pubkey) = create_token_account_and_mint_tokens(
         context,
-        mint_pubkey,
+        &mint_keypair,
         mint_authority_pda,
         mint_verification_config_pda.clone(),
-        mint_creator_pubkey,
+        mint_creator,
         mint_creator,
         decimals,
         initial_ui_amount,
@@ -129,6 +130,7 @@ pub async fn build_creator_resources(
     (
         mint_creator.insecure_clone(),
         mint_creator_pubkey,
+        mint_keypair,
         mint_pubkey,
         mint_authority_pda,
         convert_verification_config_pda,

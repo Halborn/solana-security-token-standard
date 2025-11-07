@@ -9,7 +9,7 @@ use crate::generated::types::ConvertArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
-pub const CONVERT_DISCRIMINATOR: u8 = 16;
+pub const CONVERT_DISCRIMINATOR: u8 = 17;
 
 /// Accounts.
 #[derive(Debug)]
@@ -122,7 +122,7 @@ pub struct ConvertInstructionData {
 
 impl ConvertInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 16 }
+        Self { discriminator: 17 }
     }
 }
 

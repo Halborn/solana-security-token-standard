@@ -11,7 +11,7 @@ use crate::{
     },
     helpers::{
         assert_account_exists, assert_transaction_success, create_mint_verification_config,
-        create_token_account, create_token_account_and_mint_tokens, find_permanent_delegate_pda,
+        create_spl_account, create_token_account_and_mint_tokens, find_permanent_delegate_pda,
         find_receipt_pda, from_ui_amount, get_token_account_state, mint_tokens_to,
         start_with_context, start_with_context_and_accounts,
     },
@@ -44,7 +44,7 @@ async fn test_should_convert_successfully() {
         &mint_keypair_from,
         mint_authority_pda_from.clone(),
         vec![],
-        None,
+        Some(mint_creator),
     )
     .await;
 
@@ -52,10 +52,10 @@ async fn test_should_convert_successfully() {
     let initial_ui_amount = 1000u64;
     let (initial_amount, token_account_pubkey_from) = create_token_account_and_mint_tokens(
         context,
-        mint_pubkey_from,
+        &mint_keypair_from,
         mint_authority_pda_from.clone(),
         mint_verification_config_pda_from.clone(),
-        mint_creator_pubkey,
+        mint_creator,
         mint_creator,
         decimals_from,
         initial_ui_amount,
@@ -80,14 +80,7 @@ async fn test_should_convert_successfully() {
     )
     .await;
 
-    let (result, token_account_pubkey_to) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey,
-        &mint_pubkey_to,
-        mint_creator,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey_to = create_spl_account(context, &mint_keypair_to, mint_creator).await;
 
     // Create Rate for 2/1 conversion
     let action_id = 77u64;
@@ -210,10 +203,10 @@ async fn test_should_not_convert_twice() {
     let initial_ui_amount = 1000u64;
     let (_initial_amount, token_account_pubkey_from) = create_token_account_and_mint_tokens(
         context,
-        mint_pubkey_from,
+        &mint_keypair_from,
         mint_authority_pda_from.clone(),
         mint_verification_config_pda_from.clone(),
-        mint_creator_pubkey,
+        mint_creator,
         mint_creator,
         decimals_from,
         initial_ui_amount,
@@ -238,14 +231,7 @@ async fn test_should_not_convert_twice() {
     )
     .await;
 
-    let (result, token_account_pubkey_to) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey,
-        &mint_pubkey_to,
-        mint_creator,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey_to = create_spl_account(context, &mint_keypair_to, mint_creator).await;
 
     // Create Rate for 2/1 conversion
     let action_id = 77u64;
@@ -364,14 +350,8 @@ async fn test_should_not_convert_insufficient_tokens_amount() {
     .await;
 
     // Create source token account WITHOUT minting tokens
-    let (result, token_account_pubkey_from) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey,
-        &mint_pubkey_from,
-        mint_creator,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey_from =
+        create_spl_account(context, &mint_keypair_from, mint_creator).await;
 
     // Target mint
     let mint_keypair_to = Keypair::new();
@@ -391,14 +371,7 @@ async fn test_should_not_convert_insufficient_tokens_amount() {
     )
     .await;
 
-    let (result, token_account_pubkey_to) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey,
-        &mint_pubkey_to,
-        mint_creator,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey_to = create_spl_account(context, &mint_keypair_to, mint_creator).await;
 
     // Create Rate
     let action_id = 77u64;
@@ -524,10 +497,10 @@ async fn test_should_fail_when_conversion_target_amount_zero() {
     let initial_ui_amount = 1000u64;
     let (_initial_amount, token_account_pubkey_from) = create_token_account_and_mint_tokens(
         context,
-        mint_pubkey_from,
+        &mint_keypair_from,
         mint_authority_pda_from.clone(),
         mint_verification_config_pda_from.clone(),
-        mint_creator_pubkey,
+        mint_creator,
         mint_creator,
         decimals_from,
         initial_ui_amount,
@@ -552,14 +525,7 @@ async fn test_should_fail_when_conversion_target_amount_zero() {
     )
     .await;
 
-    let (result, token_account_pubkey_to) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey,
-        &mint_pubkey_to,
-        mint_creator,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey_to = create_spl_account(context, &mint_keypair_to, mint_creator).await;
 
     // Create Rate
     let action_id = 77u64;
@@ -649,10 +615,10 @@ async fn test_should_not_panic_when_overflow_occur() {
     let initial_ui_amount = u64::MAX / 10u64.pow(decimals_from as u32);
     let (_initial_amount, token_account_pubkey_from) = create_token_account_and_mint_tokens(
         context,
-        mint_pubkey_from,
+        &mint_keypair_from,
         mint_authority_pda_from.clone(),
         mint_verification_config_pda_from.clone(),
-        mint_creator_pubkey,
+        mint_creator,
         mint_creator,
         decimals_from,
         initial_ui_amount,
@@ -677,14 +643,7 @@ async fn test_should_not_panic_when_overflow_occur() {
     )
     .await;
 
-    let (result, token_account_pubkey_to) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey,
-        &mint_pubkey_to,
-        mint_creator,
-    )
-    .await;
-    assert_transaction_success(result);
+    let token_account_pubkey_to = create_spl_account(context, &mint_keypair_to, mint_creator).await;
 
     // Create Rate 1:1, so we try to convert u64::MAX 6 decimals to u64::MAX 9 decimals, which should overflow
     let action_id = 77u64;
@@ -760,6 +719,7 @@ async fn test_should_not_convert_token_from_wrong_mint() {
     let [(
         mint_creator_1,
         mint_creator_pubkey_1,
+        mint_keypair_1,
         mint_pubkey_1,
         mint_authority_pda_1,
         _convert_verification_config_pda_1,
@@ -768,6 +728,7 @@ async fn test_should_not_convert_token_from_wrong_mint() {
     ), (
         mint_creator_2,
         mint_creator_pubkey_2,
+        mint_keypair_2,
         mint_pubkey_2,
         mint_authority_pda_2,
         convert_verification_config_pda_2,
@@ -776,20 +737,24 @@ async fn test_should_not_convert_token_from_wrong_mint() {
     )] = <[_; 2]>::try_from(creator_resources).expect("Expect 2 creator resources");
 
     // create token missing token accounts for both creators
-    let (_, token_account_owner_1_mint_2) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey_1,
-        &mint_pubkey_2,
-        &mint_creator_1,
-    )
-    .await;
-    let (_, token_account_owner_2_mint_1) = create_token_account(
-        &context.banks_client,
-        &mint_creator_pubkey_2,
-        &mint_pubkey_1,
-        &mint_creator_2,
-    )
-    .await;
+    let token_account_owner_1_mint_2 =
+        create_spl_account(context, &mint_keypair_2, &mint_creator_1).await;
+    // let (_, token_account_owner_1_mint_2) = create_token_account(
+    //     &context.banks_client,
+    //     &mint_creator_pubkey_1,
+    //     &mint_pubkey_2,
+    //     &mint_creator_1,
+    // )
+    // .await;
+    // let (_, token_account_owner_2_mint_1) = create_token_account(
+    //     &context.banks_client,
+    //     &mint_creator_pubkey_2,
+    //     &mint_pubkey_1,
+    //     &mint_creator_2,
+    // )
+    // .await;
+    let token_account_owner_2_mint_1 =
+        create_spl_account(context, &mint_keypair_1, &mint_creator_2).await;
 
     // Create Rate for 1/1 conversion for both mints
     let action_id = 1u64;

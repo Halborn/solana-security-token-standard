@@ -37,7 +37,7 @@ import {
   type ConvertArgsArgs,
 } from '../types';
 
-export const CONVERT_DISCRIMINATOR = 16;
+export const CONVERT_DISCRIMINATOR = 17;
 
 export function getConvertDiscriminatorBytes() {
   return getU8Encoder().encode(CONVERT_DISCRIMINATOR);

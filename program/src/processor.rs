@@ -34,7 +34,9 @@ impl Processor {
             | UpdateVerificationConfig
             | TrimVerificationConfig
             | UpdateMetadata => VerificationProgramsOrMintAuthority,
-            Burn | Mint | Pause | Resume | Freeze | Thaw | Transfer | Split | Convert => VerificationPrograms,
+            Burn | Mint | Pause | Resume | Freeze | Thaw | Transfer | Split | Convert => {
+                VerificationPrograms
+            }
         }
     }
 
