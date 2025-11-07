@@ -1,5 +1,5 @@
 use security_token_client::{
-    instructions::{SPLIT_DISCRIMINATOR, Split, SplitInstructionArgs},
+    instructions::{Split, SplitInstructionArgs, SPLIT_DISCRIMINATOR},
     types::SplitArgs,
 };
 use solana_program_test::*;

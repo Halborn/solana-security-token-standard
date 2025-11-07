@@ -8,14 +8,15 @@ use solana_sdk::{native_token::sol_str_to_lamports, signature::Keypair, signer::
 
 use crate::{
     helpers::{
-        assert_account_exists, assert_transaction_success, create_mint_verification_config, create_token_account, find_permanent_delegate_pda, find_receipt_pda, from_ui_amount, get_token_account_state, mint_tokens_to, start_with_context, start_with_context_and_accounts
+        assert_account_exists, assert_transaction_success, create_mint_verification_config,
+        create_token_account, find_permanent_delegate_pda, find_receipt_pda, from_ui_amount,
+        get_token_account_state, mint_tokens_to, start_with_context,
+        start_with_context_and_accounts,
     },
     rate_tests::rate_helpers::{
         calculate_rate_amount, create_rate_account, create_security_token_mint,
     },
-    split_tests::split_helpers::{
-        create_split_verification_config, execute_split, uniq_pubkey,
-    },
+    split_tests::split_helpers::{create_split_verification_config, execute_split, uniq_pubkey},
 };
 
 #[tokio::test]
@@ -41,9 +42,14 @@ async fn test_should_split_with_mint_successfully() {
     )
     .await;
 
-    let mint_verification_config_pda =
-        create_mint_verification_config(context, &mint_keypair, mint_authority_pda.clone(), vec![], None)
-            .await;
+    let mint_verification_config_pda = create_mint_verification_config(
+        context,
+        &mint_keypair,
+        mint_authority_pda.clone(),
+        vec![],
+        None,
+    )
+    .await;
 
     let (result, token_account_pubkey) = create_token_account(
         &context.banks_client,
@@ -161,9 +167,14 @@ async fn test_should_split_with_burn_successfully() {
     )
     .await;
 
-    let mint_verification_config_pda =
-        create_mint_verification_config(context, &mint_keypair, mint_authority_pda.clone(), vec![], None)
-            .await;
+    let mint_verification_config_pda = create_mint_verification_config(
+        context,
+        &mint_keypair,
+        mint_authority_pda.clone(),
+        vec![],
+        None,
+    )
+    .await;
 
     let (result, token_account_pubkey) = create_token_account(
         &context.banks_client,
@@ -281,9 +292,14 @@ async fn test_should_not_split_twice() {
     )
     .await;
 
-    let mint_verification_config_pda =
-        create_mint_verification_config(context, &mint_keypair, mint_authority_pda.clone(), vec![], None)
-            .await;
+    let mint_verification_config_pda = create_mint_verification_config(
+        context,
+        &mint_keypair,
+        mint_authority_pda.clone(),
+        vec![],
+        None,
+    )
+    .await;
 
     let (result, token_account_pubkey) = create_token_account(
         &context.banks_client,
@@ -399,8 +415,14 @@ async fn test_should_not_split_token_zero_amount() {
     )
     .await;
 
-    create_mint_verification_config(context, &mint_keypair, mint_authority_pda.clone(), vec![], None)
-        .await;
+    create_mint_verification_config(
+        context,
+        &mint_keypair,
+        mint_authority_pda.clone(),
+        vec![],
+        None,
+    )
+    .await;
 
     // Create token account, no minting
     let (result, token_account_pubkey) = create_token_account(
