@@ -24,6 +24,7 @@ import {
   type ParsedResumeInstruction,
   type ParsedSplitInstruction,
   type ParsedThawInstruction,
+  type ParsedTransferInstruction,
   type ParsedTrimVerificationConfigInstruction,
   type ParsedUpdateMetadataInstruction,
   type ParsedUpdateRateAccountInstruction,
@@ -54,6 +55,7 @@ export enum SecurityTokenProgramInstruction {
   Resume,
   Freeze,
   Thaw,
+  Transfer,
   CreateRateAccount,
   UpdateRateAccount,
   CloseRateAccount,
@@ -101,15 +103,18 @@ export function identifySecurityTokenProgramInstruction(
     return SecurityTokenProgramInstruction.Thaw;
   }
   if (containsBytes(data, getU8Encoder().encode(12), 0)) {
-    return SecurityTokenProgramInstruction.CreateRateAccount;
+    return SecurityTokenProgramInstruction.Transfer;
   }
   if (containsBytes(data, getU8Encoder().encode(13), 0)) {
-    return SecurityTokenProgramInstruction.UpdateRateAccount;
+    return SecurityTokenProgramInstruction.CreateRateAccount;
   }
   if (containsBytes(data, getU8Encoder().encode(14), 0)) {
-    return SecurityTokenProgramInstruction.CloseRateAccount;
+    return SecurityTokenProgramInstruction.UpdateRateAccount;
   }
   if (containsBytes(data, getU8Encoder().encode(15), 0)) {
+    return SecurityTokenProgramInstruction.CloseRateAccount;
+  }
+  if (containsBytes(data, getU8Encoder().encode(16), 0)) {
     return SecurityTokenProgramInstruction.Split;
   }
   throw new Error(
@@ -156,6 +161,9 @@ export type ParsedSecurityTokenProgramInstruction<
   | ({
       instructionType: SecurityTokenProgramInstruction.Thaw;
     } & ParsedThawInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.Transfer;
+    } & ParsedTransferInstruction<TProgram>)
   | ({
       instructionType: SecurityTokenProgramInstruction.CreateRateAccount;
     } & ParsedCreateRateAccountInstruction<TProgram>)

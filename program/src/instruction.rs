@@ -16,10 +16,11 @@ pub enum SecurityTokenInstruction {
     Resume = 9,
     Freeze = 10,
     Thaw = 11,
-    CreateRateAccount = 12,
-    UpdateRateAccount = 13,
-    CloseRateAccount = 14,
-    Split = 15,
+    Transfer = 12,
+    CreateRateAccount = 13,
+    UpdateRateAccount = 14,
+    CloseRateAccount = 15,
+    Split = 16,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -39,10 +40,11 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             9 => Ok(SecurityTokenInstruction::Resume),
             10 => Ok(SecurityTokenInstruction::Freeze),
             11 => Ok(SecurityTokenInstruction::Thaw),
-            12 => Ok(SecurityTokenInstruction::CreateRateAccount),
-            13 => Ok(SecurityTokenInstruction::UpdateRateAccount),
-            14 => Ok(SecurityTokenInstruction::CloseRateAccount),
-            15 => Ok(SecurityTokenInstruction::Split),
+            12 => Ok(SecurityTokenInstruction::Transfer),
+            13 => Ok(SecurityTokenInstruction::CreateRateAccount),
+            14 => Ok(SecurityTokenInstruction::UpdateRateAccount),
+            15 => Ok(SecurityTokenInstruction::CloseRateAccount),
+            16 => Ok(SecurityTokenInstruction::Split),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -188,14 +190,15 @@ mod idl_gen {
         Thaw = 11,
 
         #[account(0, name = "mint")]
-        #[account(1, name = "verification_config_or_mint_authority")]
-        #[account(2, name = "instructions_sysvar_or_creator")]
-        #[account(3, writable, name = "rate_account")]
-        #[account(4, name = "mint_from")]
-        #[account(5, name = "mint_to")]
-        #[account(6, writable, signer, name = "payer")]
-        #[account(7, name = "system_program")]
-        CreateRateAccount(CreateRateArgs) = 12,
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        #[account(3, name = "mint_account")]
+        #[account(4, name = "permanent_delegate_authority")]
+        #[account(5, writable, name = "from_token_account")]
+        #[account(6, writable, name = "to_token_account")]
+        #[account(7, name = "transfer_hook_program")]
+        #[account(8, name = "token_program")]
+        Transfer { amount: u64 } = 12,
 
         #[account(0, name = "mint")]
         #[account(1, name = "verification_config_or_mint_authority")]
@@ -203,7 +206,17 @@ mod idl_gen {
         #[account(3, writable, name = "rate_account")]
         #[account(4, name = "mint_from")]
         #[account(5, name = "mint_to")]
-        UpdateRateAccount(UpdateRateArgs) = 13,
+        #[account(6, writable, signer, name = "payer")]
+        #[account(7, name = "system_program")]
+        CreateRateAccount(CreateRateArgs) = 13,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, writable, name = "rate_account")]
+        #[account(4, name = "mint_from")]
+        #[account(5, name = "mint_to")]
+        UpdateRateAccount(UpdateRateArgs) = 14,
 
         #[account(0, name = "mint")]
         #[account(1, name = "verification_config_or_mint_authority")]
@@ -212,7 +225,7 @@ mod idl_gen {
         #[account(4, name = "mint_from")]
         #[account(5, name = "mint_to")]
         #[account(6, writable, name = "destination")]
-        CloseRateAccount(CloseRateArgs) = 14,
+        CloseRateAccount(CloseRateArgs) = 15,
 
         #[account(0, name = "mint")]
         #[account(1, name = "verification_config")]
@@ -226,6 +239,6 @@ mod idl_gen {
         #[account(9, name = "token_program")]
         #[account(10, name = "system_program")]
         #[account(11, writable, signer, name = "payer")]
-        Split(SplitArgs) = 15,
+        Split(SplitArgs) = 16,
     }
 }

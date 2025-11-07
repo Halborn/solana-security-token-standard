@@ -34,7 +34,7 @@ import {
   type UpdateRateArgsArgs,
 } from '../types';
 
-export const UPDATE_RATE_ACCOUNT_DISCRIMINATOR = 13;
+export const UPDATE_RATE_ACCOUNT_DISCRIMINATOR = 14;
 
 export function getUpdateRateAccountDiscriminatorBytes() {
   return getU8Encoder().encode(UPDATE_RATE_ACCOUNT_DISCRIMINATOR);

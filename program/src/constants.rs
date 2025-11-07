@@ -1,3 +1,5 @@
+use pinocchio::pubkey::Pubkey;
+use pinocchio_pubkey::pubkey;
 /// Seeds for different PDA types
 pub mod seeds {
     /// Seed for mint authority PDA
@@ -21,4 +23,6 @@ pub mod seeds {
 }
 
 pub const INSTRUCTION_ACCOUNTS_OFFSET: usize = 3;
+pub const TRANSFER_HOOK_PROGRAM_ID: Pubkey =
+    pubkey!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
 pub const ACTION_ID_LEN: usize = 8;

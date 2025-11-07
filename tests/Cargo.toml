@@ -10,18 +10,25 @@ publish = false
 
 [dependencies]
 assert_matches = "1.5.0"
-security-token-program = { path = "../program" }
+security-token-program = { path = "../program", features = ["no-entrypoint"] }
 security-token-client = { path = "../clients/rust" }
+security-token-transfer-hook = { path = "../transfer_hook", features = [
+    "no-entrypoint",
+] }
 tokio = { version = "1.41.1", features = ["macros", "rt"] }
 borsh = "0.10.4"
 solana-program-test = "2.3.1"
 solana-sdk = "2.3.1"
 solana-program = "2.3.0"
 solana-system-interface = "1.0.0"
-solana-pubkey = "2.4.0"                                     # For extensions compatibility
+solana-pubkey = "2.4.0" # For extensions compatibility
 
 spl-token-2022 = { version = "9.0.0", features = ["no-entrypoint"] }
 spl-token-metadata-interface = "0.7.0"
+spl-tlv-account-resolution = "0.9.0"
+spl-transfer-hook-interface = "0.9.0"
+spl-type-length-value = "0.7.0"
+spl-discriminator = "0.4.0"
 spl-associated-token-account = { version = "7.0.0", features = [
     "no-entrypoint",
 ] }

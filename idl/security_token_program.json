@@ -565,6 +565,66 @@
       }
     },
     {
+      "name": "Transfer",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "permanentDelegateAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "fromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "toTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "transferHookProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 12
+      }
+    },
+    {
       "name": "CreateRateAccount",
       "accounts": [
         {
@@ -618,7 +678,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 12
+        "value": 13
       }
     },
     {
@@ -665,7 +725,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 13
+        "value": 14
       }
     },
     {
@@ -717,7 +777,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 14
+        "value": 15
       }
     },
     {
@@ -794,7 +854,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 15
+        "value": 16
       }
     }
   ],

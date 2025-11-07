@@ -34,7 +34,7 @@ import {
   type CloseRateArgsArgs,
 } from '../types';
 
-export const CLOSE_RATE_ACCOUNT_DISCRIMINATOR = 14;
+export const CLOSE_RATE_ACCOUNT_DISCRIMINATOR = 15;
 
 export function getCloseRateAccountDiscriminatorBytes() {
   return getU8Encoder().encode(CLOSE_RATE_ACCOUNT_DISCRIMINATOR);

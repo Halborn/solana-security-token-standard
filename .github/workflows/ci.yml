@@ -42,13 +42,17 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-cargo-sbf-${{ hashFiles('program/Cargo.toml', 'Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-sbf-${{ hashFiles('program/Cargo.toml', 'transfer_hook/Cargo.toml', 'Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-sbf-
             ${{ runner.os }}-cargo-
 
-      - name: Build SBF program
+      - name: Build Security Token SBF program
         working-directory: ./program
+        run: cargo build-sbf
+
+      - name: Build Security Token Transfer Hook SBF program
+        working-directory: ./transfer_hook
         run: cargo build-sbf
 
       - name: Upload SBF artifacts
@@ -76,16 +80,16 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('program/Cargo.toml', 'Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('program/Cargo.toml', 'transfer_hook/Cargo.toml', 'Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-lint-
             ${{ runner.os }}-cargo-
 
       - name: Check formatting
-        run: cargo fmt -p security-token-program -- --check
+        run: cargo fmt -p security-token-program -p security-token-transfer-hook -- --check
 
       - name: Clippy
-        run: cargo clippy -p security-token-program
+        run: cargo clippy -p security-token-program -p security-token-transfer-hook -- -D warnings
 
   test:
     name: Test
@@ -113,7 +117,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-cargo-test-${{ hashFiles('tests/Cargo.toml', 'client/rust/Cargo.toml', 'program/Cargo.toml', 'Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('tests/Cargo.toml', 'transfer_hook/Cargo.toml', 'client/rust/Cargo.toml', 'program/Cargo.toml', 'Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-test-
             ${{ runner.os }}-cargo-

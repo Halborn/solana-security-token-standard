@@ -9,7 +9,7 @@ use crate::generated::types::UpdateRateArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
-pub const UPDATE_RATE_ACCOUNT_DISCRIMINATOR: u8 = 13;
+pub const UPDATE_RATE_ACCOUNT_DISCRIMINATOR: u8 = 14;
 
 /// Accounts.
 #[derive(Debug)]
@@ -86,7 +86,7 @@ pub struct UpdateRateAccountInstructionData {
 
 impl UpdateRateAccountInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 13 }
+        Self { discriminator: 14 }
     }
 }
 

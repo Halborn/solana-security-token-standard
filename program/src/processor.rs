@@ -33,7 +33,7 @@ impl Processor {
             | UpdateVerificationConfig
             | TrimVerificationConfig
             | UpdateMetadata => VerificationProgramsOrMintAuthority,
-            Burn | Mint | Pause | Resume | Freeze | Thaw | Split => VerificationPrograms,
+            Burn | Mint | Pause | Resume | Freeze | Thaw | Transfer | Split => VerificationPrograms,
         }
     }
 
@@ -48,7 +48,7 @@ impl Processor {
         verification_profile: VerificationProfile,
     ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         match verification_profile {
-            VerificationProfile::None => Ok((&accounts[0], &accounts)),
+            VerificationProfile::None => Ok((&accounts[0], accounts)),
             VerificationProfile::VerificationPrograms => {
                 let mint_info = VerificationModule::verify_by_programs(
                     program_id,
@@ -148,6 +148,9 @@ impl Processor {
             }
             SecurityTokenInstruction::Thaw => {
                 Self::process_thaw(program_id, verified_mint_info, instruction_accounts)
+            }
+            SecurityTokenInstruction::Transfer => {
+                Self::process_transfer(program_id, instruction_accounts, args_data)
             }
             SecurityTokenInstruction::CreateRateAccount => Self::process_create_rate_account(
                 program_id,
@@ -318,6 +321,20 @@ impl Processor {
         accounts: &[AccountInfo],
     ) -> ProgramResult {
         OperationsModule::execute_thaw_account(program_id, verified_mint_info, accounts)?;
+        Ok(())
+    }
+
+    fn process_transfer(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let amount = args_data
+            .get(..8)
+            .and_then(|slice| slice.try_into().ok())
+            .map(u64::from_le_bytes)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        OperationsModule::execute_transfer(program_id, accounts, amount)?;
         Ok(())
     }
 

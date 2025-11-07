@@ -37,7 +37,7 @@ import {
   type SplitArgsArgs,
 } from '../types';
 
-export const SPLIT_DISCRIMINATOR = 15;
+export const SPLIT_DISCRIMINATOR = 16;
 
 export function getSplitDiscriminatorBytes() {
   return getU8Encoder().encode(SPLIT_DISCRIMINATOR);

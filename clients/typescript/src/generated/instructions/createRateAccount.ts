@@ -37,7 +37,7 @@ import {
   type CreateRateArgsArgs,
 } from '../types';
 
-export const CREATE_RATE_ACCOUNT_DISCRIMINATOR = 12;
+export const CREATE_RATE_ACCOUNT_DISCRIMINATOR = 13;
 
 export function getCreateRateAccountDiscriminatorBytes() {
   return getU8Encoder().encode(CREATE_RATE_ACCOUNT_DISCRIMINATOR);

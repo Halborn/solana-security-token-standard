@@ -3,9 +3,9 @@
 //! Executes token operations after successful verification.
 //! All operations are wrappers around SPL Token 2022 instructions.
 
-use crate::constants::seeds;
+use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
 use crate::debug_log;
-use crate::instructions::{CustomPause, CustomResume};
+use crate::instructions::{CustomPause, CustomResume, CustomTransferChecked};
 use crate::modules::{
     burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
     verify_operation_mint_info, verify_owner, verify_pda, verify_signer, verify_system_program,
@@ -240,8 +240,50 @@ impl OperationsModule {
 
     /// Transfer tokens between accounts
     /// Wrapper for SPL Token TransferChecked instruction
-    pub fn execute_transfer(_accounts: &[AccountInfo], _amount: u64) -> ProgramResult {
-        // TODO: Execute SPL Token2022 transfer CPI with Permanent Delegate PDA
+    pub fn execute_transfer(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+    ) -> ProgramResult {
+        let [mint_info, permanent_delegate_authority, from_token_account, to_token_account, transfer_hook_program, token_program] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+        verify_token22_program(token_program)?;
+
+        if transfer_hook_program.key() != &TRANSFER_HOOK_PROGRAM_ID {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        let (permanent_delegate_pda, bump) =
+            crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
+        if permanent_delegate_authority.key() != &permanent_delegate_pda {
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        let mint_account = Mint::from_account_info(mint_info)?;
+        let decimals = mint_account.decimals();
+        drop(mint_account);
+
+        let transfer_instruction = CustomTransferChecked::new(
+            mint_info,
+            from_token_account,
+            to_token_account,
+            permanent_delegate_authority,
+            amount,
+            decimals,
+            transfer_hook_program,
+        );
+
+        let bump_seed = [bump];
+        let seeds = [
+            Seed::from(seeds::PERMANENT_DELEGATE),
+            Seed::from(mint_info.key().as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+        let permanent_delegate_signer = Signer::from(&seeds);
+        transfer_instruction.invoke_signed(&[permanent_delegate_signer])?;
         Ok(())
     }
 

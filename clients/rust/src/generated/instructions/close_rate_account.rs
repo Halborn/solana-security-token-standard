@@ -9,7 +9,7 @@ use crate::generated::types::CloseRateArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
-pub const CLOSE_RATE_ACCOUNT_DISCRIMINATOR: u8 = 14;
+pub const CLOSE_RATE_ACCOUNT_DISCRIMINATOR: u8 = 15;
 
 /// Accounts.
 #[derive(Debug)]
@@ -92,7 +92,7 @@ pub struct CloseRateAccountInstructionData {
 
 impl CloseRateAccountInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 14 }
+        Self { discriminator: 15 }
     }
 }
 

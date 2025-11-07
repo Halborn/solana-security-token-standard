@@ -1,0 +1,28 @@
+[package]
+name = "security-token-transfer-hook"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "security_token_transfer_hook"
+
+[features]
+no-entrypoint = []
+
+[dependencies]
+pinocchio = { workspace = true }
+pinocchio-log = { workspace = true }
+pinocchio-pubkey = { workspace = true }
+pinocchio-token-2022 = { workspace = true }
+pinocchio-system = { workspace = true }
+spl-tlv-account-resolution = "0.9.0"
+spl-transfer-hook-interface = "0.9.0"
+spl-discriminator = "0.4.0"
+spl-pod = "0.4.0"
+solana-pubkey = "2.4.0"
+bytemuck = "1.14"

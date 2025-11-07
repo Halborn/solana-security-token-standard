@@ -29,7 +29,7 @@ use pinocchio_token_2022::{
 };
 
 use super::utils as verification_utils;
-use crate::constants::seeds;
+use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
 use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
@@ -151,7 +151,8 @@ impl VerificationModule {
         let transfer_hook_initialize = TransferHookInitialize {
             mint: mint_info,
             authority: transfer_hook_pda.into(),
-            program_id: Some(*program_id),
+            // TODO: A direct import of security_token_transfer_hook::id() causes build issues with the allocator, investigate later
+            program_id: Some(TRANSFER_HOOK_PROGRAM_ID),
         };
 
         transfer_hook_initialize.invoke()?;
@@ -581,9 +582,7 @@ impl VerificationModule {
                     mint_creator_info,
                 )
             }
-            _ => {
-                return Err(ProgramError::InvalidAccountData);
-            }
+            _ => Err(ProgramError::InvalidAccountData),
         }
     }
 
