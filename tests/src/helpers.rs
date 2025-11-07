@@ -535,13 +535,8 @@ pub async fn create_token_account_and_mint_tokens(
     decimals: u8,
     ui_amount: u64,
 ) -> (u64, Pubkey) {
-    let (result, token_account_pubkey) = create_token_account(
-        &context.banks_client,
-        &mint_owner,
-        &mint_pubkey,
-        payer,
-    )
-    .await;
+    let (result, token_account_pubkey) =
+        create_token_account(&context.banks_client, &mint_owner, &mint_pubkey, payer).await;
     assert_transaction_success(result);
 
     let amount = from_ui_amount(ui_amount, decimals);
@@ -556,7 +551,10 @@ pub async fn create_token_account_and_mint_tokens(
     )
     .await;
     assert_transaction_success(result);
-    println!("Tokens amount minted: {} to {:?} token account", amount, token_account_pubkey);
+    println!(
+        "Tokens amount minted: {} to {:?} token account",
+        amount, token_account_pubkey
+    );
     (amount, token_account_pubkey)
 }
 

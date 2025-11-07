@@ -1,5 +1,5 @@
 use security_token_client::{
-    instructions::{CONVERT_DISCRIMINATOR, Convert, ConvertInstructionArgs},
+    instructions::{Convert, ConvertInstructionArgs, CONVERT_DISCRIMINATOR},
     types::ConvertArgs,
 };
 use solana_program_test::*;
@@ -8,7 +8,13 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
-use crate::helpers::{create_verification_config, send_tx};
+use crate::{
+    helpers::{
+        create_mint_verification_config, create_token_account_and_mint_tokens,
+        create_verification_config, send_tx,
+    },
+    rate_tests::rate_helpers::create_security_token_mint,
+};
 
 /// Build and send Convert instruction
 pub async fn execute_convert(
@@ -26,9 +32,12 @@ pub async fn execute_convert(
     action_id: u64,
     amount_to_convert: u64,
 ) -> Result<(), BanksClientError> {
-    let convert_args = ConvertArgs { action_id, amount_to_convert };
+    let convert_args = ConvertArgs {
+        action_id,
+        amount_to_convert,
+    };
     let convert_ix = Convert {
-        mint: mint_from,
+        mint: mint_to, // Verified mint is mint_to
         verification_config: verification_config_pda,
         instructions_sysvar: solana_program::sysvar::instructions::id(),
         mint_from,
@@ -64,4 +73,66 @@ pub async fn create_convert_verification_config(
         owner,
     )
     .await
+}
+
+pub async fn build_creator_resources(
+    context: &mut ProgramTestContext,
+    mint_creator: &Keypair,
+    decimals: u8,
+) -> (
+    Keypair, // mint creator (clone of input if needed)
+    Pubkey,  // mint_creator_pubkey
+    Pubkey,  // mint_pubkey
+    Pubkey,  // mint_authority_pda
+    Pubkey,  // convert_verification_config_pda
+    Pubkey,  // mint_verification_config_pda
+    Pubkey,  // token_account_pubkey
+) {
+    let mint_creator_pubkey = mint_creator.pubkey();
+
+    let mint_keypair = Keypair::new();
+    let mint_pubkey = mint_keypair.pubkey();
+    let (mint_authority_pda, _, _) =
+        create_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals).await;
+
+    let convert_verification_config_pda = create_convert_verification_config(
+        context,
+        &mint_keypair,
+        mint_authority_pda.clone(),
+        vec![],
+        Some(mint_creator),
+    )
+    .await;
+
+    let mint_verification_config_pda = create_mint_verification_config(
+        context,
+        &mint_keypair,
+        mint_authority_pda.clone(),
+        vec![],
+        Some(mint_creator),
+    )
+    .await;
+
+    let initial_ui_amount = 1000u64;
+    let (_initial_amount, token_account_pubkey) = create_token_account_and_mint_tokens(
+        context,
+        mint_pubkey,
+        mint_authority_pda,
+        mint_verification_config_pda.clone(),
+        mint_creator_pubkey,
+        mint_creator,
+        decimals,
+        initial_ui_amount,
+    )
+    .await;
+
+    (
+        mint_creator.insecure_clone(),
+        mint_creator_pubkey,
+        mint_pubkey,
+        mint_authority_pda,
+        convert_verification_config_pda,
+        mint_verification_config_pda,
+        token_account_pubkey,
+    )
 }
