@@ -208,29 +208,37 @@ impl Rate {
     }
 
     /// Convert amount of token A (amount_from) to token B (amount_to) with Rate parameters
-    /// Formula: amount_to = amount_from * numerator * 10^{decimals_to} / (denominator * 10^{decimals_from})
     pub fn convert_from_to_amount(
         &self,
         amount_from: u64,
         decimals_from: u8,
         decimals_to: u8,
     ) -> Result<u64, ProgramError> {
-        let scale_a = pow10_u64(decimals_from)?;
-        let scale_b = pow10_u64(decimals_to)?;
-        // amount_from * numerator * scale_b
-        let numerator_scaled = amount_from
-            .checked_mul(self.numerator as u64)
-            .and_then(|v| v.checked_mul(scale_b))
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-
-        // denominator * scale_a
-        let denominator_scaled = (self.denominator as u64)
-            .checked_mul(scale_a)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-
-        if denominator_scaled == 0 {
-            return Err(ProgramError::InvalidAccountData);
+        if amount_from == 0 {
+            return Ok(0);
         }
+
+        let (numerator_scaled, denominator_scaled): (u128, u128) = if decimals_to >= decimals_from {
+            let delta = decimals_to - decimals_from;
+            let scale = pow10_u64(delta)? as u128;
+            // amount_from * numerator * 10^{delta}
+            let numerator = (amount_from as u128)
+                .checked_mul(self.numerator as u128)
+                .and_then(|v| v.checked_mul(scale))
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+            (numerator, self.denominator as u128)
+        } else {
+            let delta = decimals_from - decimals_to;
+            let scale = pow10_u64(delta)? as u128;
+            // denominator * 10^{delta}
+            let denominator = (self.denominator as u128)
+                .checked_mul(scale)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+            let numerator = (amount_from as u128)
+                .checked_mul(self.numerator as u128)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+            (numerator, denominator)
+        };
 
         let result = match self.rounding {
             Rounding::Down => numerator_scaled
@@ -238,12 +246,15 @@ impl Rate {
                 .ok_or(ProgramError::ArithmeticOverflow)?,
             Rounding::Up => numerator_scaled.div_ceil(denominator_scaled),
         };
-        Ok(result)
+
+        u64::try_from(result).map_err(|_| ProgramError::ArithmeticOverflow)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::u8;
+
     use super::*;
     use rstest::rstest;
 
@@ -277,8 +288,8 @@ mod tests {
     #[case(Rounding::Up, 2, 3, 1_000, 3, 6, 666_667)]
     #[case(Rounding::Down, 3, 2, 1_000, 3, 6, 1_500_000)]
     #[case(Rounding::Up, 5, 4, 1_000, 3, 6, 1_250_000)]
-    #[case(Rounding::Down, 1, 2, 10_000, 6, 3, 5)]
-    #[case(Rounding::Up, 1, 2, 10_500, 6, 3, 6)]
+    #[case(Rounding::Down, 1, 2, 10_000_000, 6, 3, 5_000)]
+    #[case(Rounding::Up, 1, 2, 10_500_000, 6, 3, 5_250)]
     #[case(Rounding::Down, 7, 8, 1_000, 3, 3, 875)]
     // 6 -> 9 decimals, 10 tokens
     #[case(Rounding::Down, 3, 7, 1_000_000_000, 6, 9, 428_571_428_571)]
@@ -286,6 +297,16 @@ mod tests {
     // 9 -> 6 decimals, 10 tokens
     #[case(Rounding::Down, 3, 7, 10_000_000_000, 9, 6, 4_285_714)]
     #[case(Rounding::Up, 3, 7, 10_000_000_000, 9, 6, 4_285_715)]
+    #[case(Rounding::Up, 1, 1, 10_000, 6, 6, 10_000)]
+    #[case(Rounding::Up, 255, 255, 10_000_000, 6, 3, 10_000)]
+    #[case(Rounding::Up, 1, 255, 10_000_000, 6, 3, 40)]
+    #[case(Rounding::Down, 1, 255, 10_000_000, 6, 3, 39)]
+    #[case(Rounding::Down, 1, 1, u64::MAX, 6, 6, u64::MAX)]
+    #[case(Rounding::Down, 255, 255, u64::MAX, 9, 6, 18_446_744_073_709_551)]
+    // converting small amounts with Rounding::Down can result in zero
+    #[case(Rounding::Down, 1, 255, 1_000, 6, 3, 0)]
+    // Rounding::Up returns 1
+    #[case(Rounding::Up, 1, 255, 1_000, 6, 3, 1)]
     fn test_convert_from_to_amount_cases(
         #[case] rounding: Rounding,
         #[case] numerator: u8,

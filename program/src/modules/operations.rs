@@ -328,7 +328,6 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_from_account)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_system_program(system_program_info)?;
@@ -341,6 +340,11 @@ impl OperationsModule {
         let mint_to_key = mint_to_account.key();
         drop(mint_from);
         drop(mint_to);
+
+        // Ensure Rate account is being created for target mint_to account
+        // For Split operation mint_from == mint_to
+        // For Convert operation mint_to is verified so we ensure correct minting of new tokens
+        verify_operation_mint_info(verified_mint_info, &mint_to_account)?;
 
         let (expected_rate_pda, bump) =
             find_rate_pda(action_id, mint_from_key, mint_to_key, program_id);
@@ -372,7 +376,9 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_from_account)?;
+        // For Split operation mint_from == mint_to
+        // For Convert operation mint_to is verified
+        verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
         verify_writable(rate_account_info)?;
         verify_owner(rate_account_info, program_id)?;
         verify_account_initialized(rate_account_info)?;
@@ -405,7 +411,9 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_from_account)?;
+        // For Split operation mint_from == mint_to
+        // For Convert operation mint_to is verified
+        verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
         verify_writable(destination_account)?;
         verify_writable(rate_account_info)?;
         verify_account_initialized(rate_account_info)?;
@@ -547,7 +555,8 @@ impl OperationsModule {
         };
 
         // Verify Mints
-        verify_operation_mint_info(verified_mint_info, &mint_from_account)?;
+        // Expect target mint was verified before minting new tokens at conversion rate
+        verify_operation_mint_info(verified_mint_info, &mint_to_account)?;
         let verified_mint_key = verified_mint_info.key();
         let mint_from = Mint::from_account_info(mint_from_account)?;
         let mint_from_decimals = mint_from.decimals();
@@ -564,12 +573,11 @@ impl OperationsModule {
         let token_from = TokenAccount::from_account_info(token_account_from)?;
         let current_amount = token_from.amount();
         verify_writable(token_account_from)?;
+        // Split should be used for the same mints instead
         if token_from.mint().ne(mint_from_key) {
-            log!("Token account mint mismatch");
             return Err(ProgramError::InvalidInstructionData);
         }
         if current_amount == 0 || current_amount < amount_to_convert {
-            log!("Insufficient Token account balance");
             return Err(ProgramError::InsufficientFunds);
         }
         drop(token_from);
@@ -577,7 +585,6 @@ impl OperationsModule {
         let token_to = TokenAccount::from_account_info(token_account_to)?;
         verify_writable(token_account_to)?;
         if token_to.mint().ne(mint_to_key) {
-            log!("Token account mint mismatch");
             return Err(ProgramError::InvalidInstructionData);
         }
         drop(token_to);
@@ -587,7 +594,6 @@ impl OperationsModule {
         // Mint authority should be for mint_to as we are minting new tokens at conversion rate
         let mint_authority_state = MintAuthority::from_account_info(mint_authority)?;
         if mint_to_key.ne(&mint_authority_state.mint) {
-            log!("Mint Authority mint mismatch");
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -600,9 +606,7 @@ impl OperationsModule {
         // Verify Rate account
         let rate = Rate::from_account_info(rate_account)?;
         verify_owner(rate_account, program_id)?;
-        // TODO: derive optimized via rate.derive
-        let (expected_rate_pda, _) =
-            find_rate_pda(action_id, mint_from_key, mint_to_key, program_id);
+        let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
         verify_pda(rate_account.key(), &expected_rate_pda)?;
 
         // Verify Receipt account
@@ -621,12 +625,13 @@ impl OperationsModule {
 
         let amount_to_mint =
             rate.convert_from_to_amount(amount_to_convert, mint_from_decimals, mint_to_decimals)?;
-        if current_amount.eq(&0) {
-            log!("Nothing to convert");
+
+        if amount_to_mint.eq(&0) {
+            // Conversion of small amounts or big rate delta can result in zero output when Rounding::Down is used
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        // Burn tokens from source mint
+        // Burn tokens from source
         burn_checked(
             amount_to_convert,
             mint_from_decimals,
@@ -636,7 +641,7 @@ impl OperationsModule {
             permanent_delegate_bump,
         )?;
 
-        // Mint tokens to target mint
+        // Mint tokens to target
         mint_to_checked(
             amount_to_mint,
             mint_to_decimals,
@@ -654,11 +659,7 @@ impl OperationsModule {
             action_id,
             receipt_bump,
         )?;
-        log!(
-            "Receipt account {} successfully created",
-            receipt_account.key()
-        );
-        log!("Tokens successfully converted");
+
         Ok(())
     }
 }
