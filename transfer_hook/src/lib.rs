@@ -113,10 +113,17 @@ fn load_verification_programs(
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    let verification_config = extra_accounts
-        .iter()
-        .find(|acc| acc.key() == &verification_config_pda)
-        .ok_or(ProgramError::InvalidAccountData)?;
+    // [0] - validate_state_pubkey (added by Token-2022)
+    // [1] - verification_config_pda
+    if extra_accounts.len() < 2 {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    let verification_config = &extra_accounts[1];
+
+    if verification_config.key() != &verification_config_pda {
+        return Err(ProgramError::InvalidAccountData);
+    }
 
     if verification_config.data_is_empty() {
         return Err(ProgramError::UninitializedAccount);
