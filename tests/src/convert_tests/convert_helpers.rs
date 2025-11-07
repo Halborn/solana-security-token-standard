@@ -80,7 +80,7 @@ pub async fn build_creator_resources(
     mint_creator: &Keypair,
     decimals: u8,
 ) -> (
-    Keypair, // mint creator (clone of input if needed)
+    Keypair, // mint creator
     Pubkey,  // mint_creator_pubkey
     Keypair, // mint_keypair
     Pubkey,  // mint_pubkey

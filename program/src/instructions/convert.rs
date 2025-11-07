@@ -9,7 +9,7 @@ use crate::{
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, ShankType)]
 pub struct ConvertArgs {
-    /// Action ID for the сonversion operation
+    /// Action ID for the conversion operation
     pub action_id: u64,
     /// Amount to convert from token A to token B
     pub amount_to_convert: u64,
@@ -30,6 +30,10 @@ impl ConvertArgs {
             .and_then(|slice| slice.try_into().ok())
             .map(u64::from_le_bytes)
             .ok_or(ProgramError::InvalidArgument)?;
+
+        if amount_to_convert == 0 {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         Ok(Self {
             action_id,
@@ -69,11 +73,16 @@ mod tests {
     }
 
     #[rstest]
-    #[case(0u64, "Zero action_id should be invalid")]
-    fn test_create_convert_args_validation(#[case] action_id: u64, #[case] description: &str) {
+    #[case(0u64, 100u64, "Zero action_id should be invalid")]
+    #[case(1u64, 0u64, "Zero amount_to_convert should be invalid")]
+    fn test_create_convert_args_validation(
+        #[case] action_id: u64,
+        #[case] amount_to_convert: u64,
+        #[case] description: &str,
+    ) {
         let original = ConvertArgs {
             action_id,
-            amount_to_convert: 1,
+            amount_to_convert,
         };
 
         assert!(

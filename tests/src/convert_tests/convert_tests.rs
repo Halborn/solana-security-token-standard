@@ -739,20 +739,6 @@ async fn test_should_not_convert_token_from_wrong_mint() {
     // create token missing token accounts for both creators
     let token_account_owner_1_mint_2 =
         create_spl_account(context, &mint_keypair_2, &mint_creator_1).await;
-    // let (_, token_account_owner_1_mint_2) = create_token_account(
-    //     &context.banks_client,
-    //     &mint_creator_pubkey_1,
-    //     &mint_pubkey_2,
-    //     &mint_creator_1,
-    // )
-    // .await;
-    // let (_, token_account_owner_2_mint_1) = create_token_account(
-    //     &context.banks_client,
-    //     &mint_creator_pubkey_2,
-    //     &mint_pubkey_1,
-    //     &mint_creator_2,
-    // )
-    // .await;
     let token_account_owner_2_mint_1 =
         create_spl_account(context, &mint_keypair_1, &mint_creator_2).await;
 

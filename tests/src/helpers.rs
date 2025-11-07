@@ -493,7 +493,7 @@ pub async fn mint_tokens_to(
 /// Create token account and mint tokens to it
 pub async fn create_token_account_and_mint_tokens(
     context: &mut solana_program_test::ProgramTestContext,
-    mint_keipair: &Keypair,
+    mint_keypair: &Keypair,
     mint_authority_pda: Pubkey,
     mint_verification_config_pda: Pubkey,
     mint_owner: &Keypair,
@@ -501,13 +501,13 @@ pub async fn create_token_account_and_mint_tokens(
     decimals: u8,
     ui_amount: u64,
 ) -> (u64, Pubkey) {
-    let token_account_pubkey = create_spl_account(context, &mint_keipair, mint_owner).await;
+    let token_account_pubkey = create_spl_account(context, &mint_keypair, mint_owner).await;
 
     let amount = from_ui_amount(ui_amount, decimals);
     let result = mint_tokens_to(
         &mut context.banks_client,
         amount,
-        mint_keipair.pubkey(),
+        mint_keypair.pubkey(),
         token_account_pubkey.clone(),
         mint_authority_pda.clone(),
         mint_verification_config_pda.clone(),
@@ -523,7 +523,7 @@ pub async fn create_token_account_and_mint_tokens(
 }
 
 /// Convert UI amount to raw amount based on decimals
-/// E.g. 1000 UI amount (3 deciamls) = 1_000_000 raw amount
+/// E.g. 1000 UI amount (3 decimals) = 1_000_000 raw amount
 pub fn from_ui_amount(amount: u64, decimals: u8) -> u64 {
     let factor = 10u64.pow(decimals as u32);
     amount * factor

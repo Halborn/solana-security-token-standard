@@ -377,7 +377,7 @@ impl OperationsModule {
         };
 
         // For Split operation mint_from == mint_to
-        // For Convert operation mint_to is verified
+        // If Rate was created for Convert operation, then mint_to should be verified
         verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
         verify_writable(rate_account_info)?;
         verify_owner(rate_account_info, program_id)?;
@@ -412,7 +412,7 @@ impl OperationsModule {
         };
 
         // For Split operation mint_from == mint_to
-        // For Convert operation mint_to is verified
+        // If Rate was created for Convert operation, then mint_to should be verified
         verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
         verify_writable(destination_account)?;
         verify_writable(rate_account_info)?;

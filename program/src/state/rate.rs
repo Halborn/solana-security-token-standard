@@ -6,7 +6,6 @@ use pinocchio::{account_info::AccountInfo, ProgramResult};
 use shank::{ShankAccount, ShankType};
 
 use crate::constants::seeds::RATE_ACCOUNT;
-use crate::math::pow10_u64;
 use crate::state::{
     AccountDeserialize, AccountSerialize, Discriminator, ProgramAccount,
     SecurityTokenDiscriminators,
@@ -220,7 +219,9 @@ impl Rate {
 
         let (numerator_scaled, denominator_scaled): (u128, u128) = if decimals_to >= decimals_from {
             let delta = decimals_to - decimals_from;
-            let scale = pow10_u64(delta)? as u128;
+            let scale = 10u64
+                .checked_pow(delta as u32)
+                .ok_or(ProgramError::ArithmeticOverflow)? as u128;
             // amount_from * numerator * 10^{delta}
             let numerator = (amount_from as u128)
                 .checked_mul(self.numerator as u128)
@@ -229,7 +230,9 @@ impl Rate {
             (numerator, self.denominator as u128)
         } else {
             let delta = decimals_from - decimals_to;
-            let scale = pow10_u64(delta)? as u128;
+            let scale = 10u64
+                .checked_pow(delta as u32)
+                .ok_or(ProgramError::ArithmeticOverflow)? as u128;
             // denominator * 10^{delta}
             let denominator = (self.denominator as u128)
                 .checked_mul(scale)
@@ -253,8 +256,6 @@ impl Rate {
 
 #[cfg(test)]
 mod tests {
-    use std::u8;
-
     use super::*;
     use rstest::rstest;
 
