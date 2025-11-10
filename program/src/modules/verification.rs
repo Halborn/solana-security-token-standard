@@ -705,7 +705,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
-        // NOTE: Remove verification program accounts from the end to the explicit intruction accounts
+        // NOTE: Remove verification program accounts from the end to the explicit instruction accounts
         // As a side effect it will help in verification programs implementations
         let cleaned_accounts =
             &instruction_accounts[..instruction_accounts.len() - verification_accounts_len];
@@ -735,8 +735,7 @@ impl VerificationModule {
 
     /// Execute introspection-based verification
     /// Validates that required verification programs were called before the current instruction
-    /// by examining the instructions sysvar and comparing their accounts and arguments
-    /// with current instruction accounts
+    /// by examining the instructions sysvar and comparing their accounts and arguments with current instruction accounts
     fn execute_introspection_verification(
         config: &VerificationConfig,
         instructions_sysvar: &AccountInfo,
