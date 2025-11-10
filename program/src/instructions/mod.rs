@@ -16,6 +16,8 @@ pub mod create_rate_account {
 pub mod close_rate_account {
     pub use super::rate_account::close_rate_account::*;
 }
+/// Convert instruction arguments and implementations
+pub mod convert;
 /// Initialize mint instruction arguments and implementations
 pub mod initialize_mint;
 /// Split instruction arguments and implementations

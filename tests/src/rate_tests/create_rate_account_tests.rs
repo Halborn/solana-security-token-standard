@@ -96,10 +96,10 @@ async fn test_should_create_rate_account_operation_with_conversion_mints() {
     let mint_to_keypair = Keypair::new();
     let decimals = 6u8;
 
-    // Conversion operation (different mints)
-    let (mint_authority_pda1, _, _) =
+    // Conversion operation (different mints). mint_to should be used
+    let (_mint_authority_pda_from, _, _) =
         create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
-    let (_mint_authority_pda2, _, _) =
+    let (mint_authority_pda_to, _, _) =
         create_security_token_mint(&mut context, &mint_to_keypair, None, decimals).await;
 
     let action_id = 100u64;
@@ -118,8 +118,8 @@ async fn test_should_create_rate_account_operation_with_conversion_mints() {
 
     let (rate_pda, result) = create_rate_account(
         context,
-        mint_from_keypair.pubkey(),
-        mint_authority_pda1,
+        mint_to_keypair.pubkey(),
+        mint_authority_pda_to,
         context.payer.pubkey(),
         mint_from_keypair.pubkey(),
         mint_to_keypair.pubkey(),
@@ -244,9 +244,9 @@ async fn test_should_create_both_split_and_conversion_rate_accounts() {
     let mint_from_keypair = Keypair::new();
     let mint_to_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda1, _, _) =
+    let (mint_authority_pda_from, _, _) =
         create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
-    let (_mint_authority_pda2, _, _) =
+    let (mint_authority_pda_to, _, _) =
         create_security_token_mint(&mut context, &mint_to_keypair, None, decimals).await;
 
     let action_id = 42u64;
@@ -266,7 +266,7 @@ async fn test_should_create_both_split_and_conversion_rate_accounts() {
     let (rate_pda1, result1) = create_rate_account(
         context,
         mint_from,
-        mint_authority_pda1,
+        mint_authority_pda_from,
         context.payer.pubkey(),
         mint_from,
         mint_from,
@@ -279,8 +279,8 @@ async fn test_should_create_both_split_and_conversion_rate_accounts() {
     // Rate account for conversion (different mints)
     let (rate_pda2, result2) = create_rate_account(
         context,
-        mint_from,
-        mint_authority_pda1,
+        mint_to,
+        mint_authority_pda_to,
         context.payer.pubkey(),
         mint_from,
         mint_to,

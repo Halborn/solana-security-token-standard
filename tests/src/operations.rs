@@ -9,7 +9,6 @@ use security_token_client::types::{
 };
 use solana_program::entrypoint::ProgramResult;
 use solana_sdk::account_info::AccountInfo;
-use solana_sdk::system_program;
 use spl_tlv_account_resolution::account::ExtraAccountMeta;
 use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 use spl_transfer_hook_interface::instruction::{
@@ -940,6 +939,9 @@ async fn test_transfer_hook_extra_account_metas_init_and_update() {
         .into_iter()
         .map(|meta| meta.clone())
         .collect::<Vec<_>>();
-    assert_eq!(Pubkey::from(metas[0].address_config), verification_config_pda);
+    assert_eq!(
+        Pubkey::from(metas[0].address_config),
+        verification_config_pda
+    );
     assert_eq!(Pubkey::from(metas[1].address_config), dummy_account);
 }

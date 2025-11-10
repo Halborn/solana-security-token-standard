@@ -17,3 +17,6 @@ pub mod rate_tests;
 
 #[cfg(test)]
 pub mod split_tests;
+
+#[cfg(test)]
+pub mod convert_tests;

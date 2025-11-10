@@ -22,9 +22,9 @@ async fn test_should_close_rate_account() {
     let mint_from_keypair = Keypair::new();
     let mint_to_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda1, _, _) =
+    let (mint_authority_pda_from, _, _) =
         create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
-    let (_, _, _) =
+    let (mint_authority_pda_to, _, _) =
         create_security_token_mint(&mut context, &mint_to_keypair, None, decimals).await;
 
     let action_id = 42u64;
@@ -47,7 +47,7 @@ async fn test_should_close_rate_account() {
     let (rate_pda1, result1) = create_rate_account(
         context,
         mint_from_keypair.pubkey(),
-        mint_authority_pda1,
+        mint_authority_pda_from,
         context.payer.pubkey(),
         mint_from_pubkey,
         mint_from_pubkey,
@@ -60,8 +60,8 @@ async fn test_should_close_rate_account() {
     // For conversion (different mints)
     let (rate_pda2, result2) = create_rate_account(
         context,
-        mint_from_keypair.pubkey(),
-        mint_authority_pda1,
+        mint_to_keypair.pubkey(),
+        mint_authority_pda_to,
         context.payer.pubkey(),
         mint_from_pubkey,
         mint_to_pubkey,
@@ -88,7 +88,7 @@ async fn test_should_close_rate_account() {
     let result = close_rate_account(
         context,
         mint_from_keypair.pubkey(),
-        mint_authority_pda1,
+        mint_authority_pda_from,
         context.payer.pubkey(),
         mint_from_pubkey,
         mint_from_pubkey,
@@ -117,8 +117,8 @@ async fn test_should_close_rate_account() {
     // Close Rate account 2
     let result = close_rate_account(
         context,
-        mint_from_keypair.pubkey(),
-        mint_authority_pda1,
+        mint_to_keypair.pubkey(),
+        mint_authority_pda_to,
         context.payer.pubkey(),
         mint_from_pubkey,
         mint_to_pubkey,
@@ -147,7 +147,7 @@ async fn test_should_close_rate_account() {
     let result = close_rate_account(
         context,
         mint_from_keypair.pubkey(),
-        mint_authority_pda1,
+        mint_authority_pda_from,
         context.payer.pubkey(),
         mint_from_pubkey,
         mint_from_pubkey,
