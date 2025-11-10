@@ -668,26 +668,60 @@ impl VerificationModule {
                 &config_data,
                 instruction_accounts,
                 instruction_data,
-            )
+            )?;
         } else {
             Self::execute_introspection_verification(
                 &config_data,
                 instructions_sysvar,
                 instruction_accounts,
                 instruction_data,
-            )
-        }?;
+            )?;
+        }
 
         Ok(mint_info)
     }
 
-    fn execute_cpi_mode_verification(
-        _config: &VerificationConfig,
-        _instruction_accounts: &[AccountInfo],
-        _target_instruction_data: &[u8],
-    ) -> ProgramResult {
-        // CPI mode verification is not implemented yet
-        Ok(())
+    fn execute_cpi_mode_verification<'a>(
+        config: &VerificationConfig,
+        instruction_accounts: &'a [AccountInfo],
+        target_instruction_data: &[u8],
+    ) -> Result<&'a [AccountInfo], ProgramError> {
+        let verification_accounts_len = config.verification_programs.len();
+        if verification_accounts_len > instruction_accounts.len() {
+            debug_log!(
+                "ERROR: Not enough instruction accounts provided for CPI mode verification. Expected at least {}, got {}",
+                verification_accounts_len,
+                instruction_accounts.len()
+            );
+            return Err(ProgramError::NotEnoughAccountKeys);
+        }
+
+        // NOTE: Split accounts: first N are verification programs, rest are for the actual instruction
+        // This idea simplifies implementation in verification programs
+        let split_point = instruction_accounts.len() - verification_accounts_len;
+        let cleaned_accounts = &instruction_accounts[..split_point];
+
+        let verification_account_metas: Vec<pinocchio::instruction::AccountMeta> = cleaned_accounts
+            .iter()
+            .map(|acc| pinocchio::instruction::AccountMeta {
+                pubkey: acc.key(),
+                is_signer: acc.is_signer(),
+                is_writable: acc.is_writable(),
+            })
+            .collect();
+
+        let account_refs: Vec<_> = cleaned_accounts.iter().collect();
+
+        for program_id in config.verification_programs.iter() {
+            let verification_instruction = pinocchio::instruction::Instruction {
+                program_id,
+                accounts: &verification_account_metas,
+                data: &target_instruction_data,
+            };
+            pinocchio::program::slice_invoke(&verification_instruction, &account_refs)?;
+        }
+
+        Ok(cleaned_accounts)
     }
 
     /// Execute introspection-based verification
