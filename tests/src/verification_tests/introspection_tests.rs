@@ -1,8 +1,8 @@
-use crate::helpers::{
+use crate::{helpers::{
     assert_security_token_error, assert_transaction_success, find_mint_authority_pda,
     find_mint_freeze_authority_pda, find_verification_config_pda, initialize_mint,
     initialize_verification_config, send_tx,
-};
+}, verification_tests::verification_helpers::dummy_program_processor};
 use borsh::BorshSerialize;
 use rstest::*;
 use security_token_client::{
@@ -13,10 +13,6 @@ use security_token_client::{
         InitializeMintArgs, InitializeVerificationConfigArgs, MetadataPointerArgs, MintArgs,
         TokenMetadataArgs, UpdateMetadataArgs, VerifyArgs,
     },
-};
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
-    pubkey::Pubkey as SolanaPubkey,
 };
 use solana_program_test::*;
 use solana_sdk::{
@@ -30,41 +26,6 @@ use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 
 use solana_system_interface::instruction as system_instruction;
 use solana_system_interface::program as system_program;
-
-// Simple dummy program processor that can succeed or fail based on instruction data
-fn dummy_program_processor(
-    _program_id: &SolanaPubkey,
-    _accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
-    // The first byte determines instruction id
-    // The second byte determines success (1) or failure (0)
-    msg!("Dummy program called with {} bytes", instruction_data.len());
-
-    // If instruction data is empty or first byte is 0, fail
-    if instruction_data.is_empty() || instruction_data[1] == 0 {
-        msg!("Dummy program: intentional failure");
-        return Err(ProgramError::Custom(9999));
-    }
-
-    // Otherwise succeed
-    msg!("Dummy program: success");
-    Ok(())
-}
-
-// Another dummy program that always succeeds
-fn dummy_program_2_processor(
-    _program_id: &SolanaPubkey,
-    _accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
-    // The first byte determines instruction id
-    msg!(
-        "Dummy program 2 called with {} bytes - always succeeds",
-        instruction_data.len()
-    );
-    Ok(())
-}
 
 struct VerificationTestContext {
     context: ProgramTestContext,
@@ -89,7 +50,7 @@ async fn verification_test_setup() -> VerificationTestContext {
     pt.add_program(
         "dummy_program_2",
         dummy_program_2_id,
-        processor!(dummy_program_2_processor),
+        processor!(dummy_program_processor),
     );
 
     let mut context = pt.start_with_context().await;
@@ -104,7 +65,7 @@ async fn verification_test_setup() -> VerificationTestContext {
         ix_mint: MintArgs {
             decimals: 6,
             mint_authority: context.payer.pubkey(),
-            freeze_authority: freeze_authority_pda
+            freeze_authority: freeze_authority_pda,
         },
         ix_metadata_pointer: None,
         ix_metadata: None,
@@ -443,7 +404,7 @@ async fn test_update_metadata_under_verification() {
     pt.add_program(
         "dummy_program_2",
         dummy_program_2_id,
-        processor!(dummy_program_2_processor),
+        processor!(dummy_program_processor),
     );
 
     let mint_keypair = solana_sdk::signature::Keypair::new();

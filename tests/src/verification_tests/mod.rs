@@ -1,2 +1,6 @@
 #[cfg(test)]
-pub mod verify_workflow_test;
+pub mod introspection_tests;
+
+pub mod verification_helpers;
+
+pub mod cpi_mode_tests;

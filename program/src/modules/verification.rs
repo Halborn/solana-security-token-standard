@@ -662,19 +662,39 @@ impl VerificationModule {
             // If no verification programs configured, allow
             return Ok(mint_info);
         }
-        Self::execute_verification(
-            &config_data,
-            instructions_sysvar,
-            instruction_accounts,
-            instruction_data,
-        )?;
+
+        if config_data.cpi_mode {
+            Self::execute_cpi_mode_verification(
+                &config_data,
+                instruction_accounts,
+                instruction_data,
+            )
+        } else {
+            Self::execute_introspection_verification(
+                &config_data,
+                instructions_sysvar,
+                instruction_accounts,
+                instruction_data,
+            )
+        }?;
 
         Ok(mint_info)
     }
 
-    /// Execute instruction and verification programs validation
-    /// Checks that required verification programs were called with proper accounts matching current instruction accounts
-    fn execute_verification(
+    fn execute_cpi_mode_verification(
+        _config: &VerificationConfig,
+        _instruction_accounts: &[AccountInfo],
+        _target_instruction_data: &[u8],
+    ) -> ProgramResult {
+        // CPI mode verification is not implemented yet
+        Ok(())
+    }
+
+    /// Execute introspection-based verification
+    /// Validates that required verification programs were called before the current instruction
+    /// by examining the instructions sysvar and comparing their accounts and arguments
+    /// with current instruction accounts
+    fn execute_introspection_verification(
         config: &VerificationConfig,
         instructions_sysvar: &AccountInfo,
         instruction_accounts: &[AccountInfo],
