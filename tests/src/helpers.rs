@@ -278,6 +278,57 @@ pub async fn initialize_mint_verification_and_mint_to_account(
     assert_transaction_success(result);
 }
 
+/// Create verification config with pda derivation
+pub async fn create_verification_config(
+    context: &mut solana_program_test::ProgramTestContext,
+    mint_keypair: &Keypair,
+    mint_authority_pda: Pubkey,
+    instruction_discriminator: u8,
+    program_addresses: Vec<Pubkey>,
+    owner: Option<&Keypair>,
+) -> Pubkey {
+    let mint_pubkey = mint_keypair.pubkey();
+    let (verification_config_pda, _vc_bump) =
+        find_verification_config_pda(mint_pubkey, instruction_discriminator);
+
+    let init_vc_args = security_token_client::types::InitializeVerificationConfigArgs {
+        instruction_discriminator,
+        program_addresses,
+        cpi_mode: false,
+    };
+    let payer = owner.unwrap_or(&context.payer);
+    let result = initialize_verification_config_for_payer(
+        &context.banks_client,
+        &payer,
+        mint_keypair,
+        mint_authority_pda,
+        verification_config_pda,
+        &init_vc_args,
+    )
+    .await;
+
+    assert_transaction_success(result);
+    verification_config_pda
+}
+
+pub async fn create_mint_verification_config(
+    context: &mut solana_program_test::ProgramTestContext,
+    mint_keypair: &Keypair,
+    mint_authority_pda: Pubkey,
+    program_addresses: Vec<Pubkey>,
+    owner: Option<&Keypair>,
+) -> Pubkey {
+    create_verification_config(
+        context,
+        mint_keypair,
+        mint_authority_pda,
+        MINT_DISCRIMINATOR,
+        program_addresses,
+        owner,
+    )
+    .await
+}
+
 pub fn initialize_program() -> ProgramTest {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(true);
@@ -414,40 +465,6 @@ pub async fn create_minimal_security_token_mint(
     )
 }
 
-/// Create associated token account for owner and mint
-pub async fn create_token_account(
-    banks_client: &BanksClient,
-    owner: &Pubkey,
-    mint: &Pubkey,
-    payer: &Keypair,
-) -> (Result<(), BanksClientError>, Pubkey) {
-    let token_account_pubkey =
-        spl_associated_token_account::get_associated_token_address_with_program_id(
-            &owner,
-            &mint,
-            &spl_token_2022::ID,
-        );
-
-    let create_destination_account_ix =
-        spl_associated_token_account::instruction::create_associated_token_account_idempotent(
-            &payer.pubkey(),
-            &owner,
-            &mint,
-            &spl_token_2022::ID,
-        );
-    let signer = payer.insecure_clone();
-    let signers = vec![&signer];
-    let result = send_tx(
-        banks_client,
-        vec![create_destination_account_ix],
-        &payer.pubkey(),
-        signers,
-    )
-    .await;
-
-    (result, token_account_pubkey)
-}
-
 /// Mint tokens to destination token account
 pub async fn mint_tokens_to(
     banks_client: &BanksClient,
@@ -473,8 +490,40 @@ pub async fn mint_tokens_to(
     send_tx(banks_client, vec![mint_ix], &payer.pubkey(), signers).await
 }
 
+/// Create token account and mint tokens to it
+pub async fn create_token_account_and_mint_tokens(
+    context: &mut solana_program_test::ProgramTestContext,
+    mint_keypair: &Keypair,
+    mint_authority_pda: Pubkey,
+    mint_verification_config_pda: Pubkey,
+    mint_owner: &Keypair,
+    payer: &Keypair,
+    decimals: u8,
+    ui_amount: u64,
+) -> (u64, Pubkey) {
+    let token_account_pubkey = create_spl_account(context, &mint_keypair, mint_owner).await;
+
+    let amount = from_ui_amount(ui_amount, decimals);
+    let result = mint_tokens_to(
+        &mut context.banks_client,
+        amount,
+        mint_keypair.pubkey(),
+        token_account_pubkey.clone(),
+        mint_authority_pda.clone(),
+        mint_verification_config_pda.clone(),
+        payer,
+    )
+    .await;
+    assert_transaction_success(result);
+    println!(
+        "Tokens amount minted: {} to {:?} token account",
+        amount, token_account_pubkey
+    );
+    (amount, token_account_pubkey)
+}
+
 /// Convert UI amount to raw amount based on decimals
-/// E.g. 1000 UI amount (3 deciamls) = 1_000_000 raw amount
+/// E.g. 1000 UI amount (3 decimals) = 1_000_000 raw amount
 pub fn from_ui_amount(amount: u64, decimals: u8) -> u64 {
     let factor = 10u64.pow(decimals as u32);
     amount * factor

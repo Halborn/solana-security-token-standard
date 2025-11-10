@@ -308,7 +308,7 @@ async fn test_initialize_mint_with_all_extensions() {
                 );
             }
         }
-        Err(e) => {
+        Err(_e) => {
             panic!("Failed to parse token metadata from mint account");
         }
     }

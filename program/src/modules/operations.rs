@@ -13,7 +13,8 @@ use crate::modules::{
 };
 use crate::state::{MintAuthority, ProgramAccount, Rate, Receipt, Rounding};
 use crate::utils::{
-    find_freeze_authority_pda, find_pause_authority_pda, find_rate_pda, find_receipt_pda,
+    find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda,
+    find_rate_pda, find_receipt_pda,
 };
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
@@ -287,19 +288,6 @@ impl OperationsModule {
         Ok(())
     }
 
-    /// Execute token conversion at predefined rate
-    pub fn execute_convert(
-        _accounts: &[AccountInfo],
-        _amount_to_convert: u64,
-        _action_id: u64,
-    ) -> ProgramResult {
-        // TODO: Load Rate account
-        // TODO: Calculate target amount (amount * numerator / denominator)
-        // TODO: Burn source tokens, mint target tokens
-        // TODO: Create Receipt account
-        Ok(())
-    }
-
     /// Claim distribution (dividends/coupons)
     pub fn execute_claim_distribution(
         _accounts: &[AccountInfo],
@@ -340,7 +328,6 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_from_account)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_system_program(system_program_info)?;
@@ -353,6 +340,11 @@ impl OperationsModule {
         let mint_to_key = mint_to_account.key();
         drop(mint_from);
         drop(mint_to);
+
+        // Ensure Rate account is being created for target mint_to account
+        // For Split operation mint_from == mint_to
+        // For Convert operation mint_to is verified so we ensure correct minting of new tokens
+        verify_operation_mint_info(verified_mint_info, &mint_to_account)?;
 
         let (expected_rate_pda, bump) =
             find_rate_pda(action_id, mint_from_key, mint_to_key, program_id);
@@ -384,7 +376,9 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_from_account)?;
+        // For Split operation mint_from == mint_to
+        // If Rate was created for Convert operation, then mint_to should be verified
+        verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
         verify_writable(rate_account_info)?;
         verify_owner(rate_account_info, program_id)?;
         verify_account_initialized(rate_account_info)?;
@@ -417,7 +411,9 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_from_account)?;
+        // For Split operation mint_from == mint_to
+        // If Rate was created for Convert operation, then mint_to should be verified
+        verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
         verify_writable(destination_account)?;
         verify_writable(rate_account_info)?;
         verify_account_initialized(rate_account_info)?;
@@ -541,6 +537,129 @@ impl OperationsModule {
             action_id,
             receipt_bump,
         )?;
+        Ok(())
+    }
+
+    /// Execute token conversion at predefined rate
+    pub fn execute_convert(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+        amount_to_convert: u64,
+    ) -> ProgramResult {
+        let [mint_from_account, mint_to_account, token_account_from, token_account_to, mint_authority, permanent_delegate, rate_account, receipt_account, token_program, system_program, payer] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        // Verify Mints
+        // Expect target mint was verified before minting new tokens at conversion rate
+        verify_operation_mint_info(verified_mint_info, &mint_to_account)?;
+        let verified_mint_key = verified_mint_info.key();
+        let mint_from = Mint::from_account_info(mint_from_account)?;
+        let mint_from_decimals = mint_from.decimals();
+        let mint_from_key = mint_from_account.key();
+        drop(mint_from);
+
+        let mint_to = Mint::from_account_info(mint_to_account)?;
+        let mint_to_decimals = mint_to.decimals();
+        let mint_to_key = mint_to_account.key();
+        drop(mint_to);
+
+        // Verify Token accounts and Token2022 program
+        verify_token22_program(token_program)?;
+        let token_from = TokenAccount::from_account_info(token_account_from)?;
+        let current_amount = token_from.amount();
+        verify_writable(token_account_from)?;
+        // Split should be used for the same mints instead
+        if token_from.mint().ne(mint_from_key) {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        if current_amount == 0 || current_amount < amount_to_convert {
+            return Err(ProgramError::InsufficientFunds);
+        }
+        drop(token_from);
+
+        let token_to = TokenAccount::from_account_info(token_account_to)?;
+        verify_writable(token_account_to)?;
+        if token_to.mint().ne(mint_to_key) {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        drop(token_to);
+
+        // Verify Mint Authority
+        verify_owner(mint_authority, program_id)?;
+        // Mint authority should be for mint_to as we are minting new tokens at conversion rate
+        let mint_authority_state = MintAuthority::from_account_info(mint_authority)?;
+        if mint_to_key.ne(&mint_authority_state.mint) {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // Verify Permanent Delegate Authority
+        // Permanent delegate should be for mint_from as we are burning tokens
+        let (permanent_delegate_pda, permanent_delegate_bump) =
+            find_permanent_delegate_pda(mint_from_key, program_id);
+        verify_pda(permanent_delegate.key(), &permanent_delegate_pda)?;
+
+        // Verify Rate account
+        let rate = Rate::from_account_info(rate_account)?;
+        verify_owner(rate_account, program_id)?;
+        let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
+        verify_pda(rate_account.key(), &expected_rate_pda)?;
+
+        // Verify Receipt account
+        verify_writable(receipt_account)?;
+        verify_account_not_initialized(receipt_account)?;
+        let (expected_receipt_pda, receipt_bump) =
+            find_receipt_pda(verified_mint_key, action_id, program_id);
+        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+
+        // Verify System program
+        verify_system_program(system_program)?;
+
+        // Verify payer
+        verify_signer(payer)?;
+        verify_writable(payer)?;
+
+        let amount_to_mint =
+            rate.convert_from_to_amount(amount_to_convert, mint_from_decimals, mint_to_decimals)?;
+
+        if amount_to_mint.eq(&0) {
+            // Conversion of small amounts or big rate delta can result in zero output when Rounding::Down is used
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // Burn tokens from source
+        burn_checked(
+            amount_to_convert,
+            mint_from_decimals,
+            mint_from_account,
+            token_account_from,
+            permanent_delegate,
+            permanent_delegate_bump,
+        )?;
+
+        // Mint tokens to target
+        mint_to_checked(
+            amount_to_mint,
+            mint_to_decimals,
+            mint_to_account,
+            token_account_to,
+            mint_authority,
+            &mint_authority_state,
+        )?;
+
+        // Create Receipt PDA account for Convert operation
+        Receipt::issue(
+            receipt_account,
+            payer,
+            *verified_mint_key,
+            action_id,
+            receipt_bump,
+        )?;
+
         Ok(())
     }
 }
