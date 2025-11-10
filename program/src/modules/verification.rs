@@ -705,17 +705,10 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
-        // NOTE: Split accounts: LAST N are verification program accounts, FIRST M are for the actual instruction
-        // Client passes: [instruction_account_1, instruction_account_2, ..., verification_program_1, verification_program_2, ...]
-        let split_point = instruction_accounts.len() - verification_accounts_len;
-        let cleaned_accounts = &instruction_accounts[..split_point];
-        let verification_program_accounts = &instruction_accounts[split_point..];
-
-        log!(
-            "Cleaned accounts: {}, Verification program accounts: {}",
-            cleaned_accounts.len(),
-            verification_program_accounts.len()
-        );
+        // NOTE: Remove verification program accounts from the end to the explicit intruction accounts
+        // As a side effect it will help in verification programs implementations
+        let cleaned_accounts =
+            &instruction_accounts[..instruction_accounts.len() - verification_accounts_len];
 
         let verification_account_metas: Vec<pinocchio::instruction::AccountMeta> = cleaned_accounts
             .iter()
@@ -728,12 +721,7 @@ impl VerificationModule {
 
         let account_refs: Vec<_> = cleaned_accounts.iter().collect();
 
-        for (idx, program_id) in config.verification_programs.iter().enumerate() {
-            log!(
-                "Invoking verification program {}: {}",
-                idx,
-                crate::key_as_str!(program_id)
-            );
+        for program_id in config.verification_programs.iter() {
             let verification_instruction = pinocchio::instruction::Instruction {
                 program_id,
                 accounts: &verification_account_metas,
