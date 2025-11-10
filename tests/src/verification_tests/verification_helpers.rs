@@ -20,5 +20,5 @@ pub fn failing_dummy_program_processor(
     _instruction_data: &[u8],
 ) -> ProgramResult {
     msg!("Failing dummy program called");
-    Err(ProgramError::Custom(0xDEAD))
+    Err(ProgramError::Custom(0x1111))
 }

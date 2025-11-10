@@ -1,8 +1,8 @@
-use crate::helpers::{
+use crate::{helpers::{
     assert_custom_error, assert_transaction_failure, assert_transaction_success,
     create_minimal_security_token_mint, create_spl_account, find_verification_config_pda,
     initialize_verification_config, send_tx,
-};
+}, verification_tests::verification_helpers::failing_dummy_program_processor};
 use borsh::BorshDeserialize;
 use security_token_client::{
     accounts::VerificationConfig,
@@ -30,14 +30,6 @@ pub fn mint_dummy_program_processor(
     );
     assert_eq!(amount, 1000);
     Ok(())
-}
-
-pub fn mint_failing_dummy_program_processor(
-    _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    _instruction_data: &[u8],
-) -> ProgramResult {
-    Err(ProgramError::Custom(0x1111))
 }
 
 #[tokio::test]
@@ -141,7 +133,7 @@ async fn test_mint_cpi_mode_error_cases() {
     pt.add_program(
         "dummy_program_2",
         dummy_program_2,
-        processor!(mint_failing_dummy_program_processor),
+        processor!(failing_dummy_program_processor),
     );
 
     let mint_keypair = Keypair::new();
