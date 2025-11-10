@@ -344,7 +344,7 @@ mod tests {
 
     #[test]
     fn test_initialize_verification_config_args_limits() {
-        // Test with maximum allowed programs (16)
+        // Test with maximum allowed programs (10)
         let max_programs: Vec<Pubkey> = (0..MAX_VERIFICATION_PROGRAMS)
             .map(|_| random_pubkey())
             .collect();
