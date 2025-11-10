@@ -546,8 +546,7 @@ impl VerificationModule {
         let mut instruction_data = Vec::with_capacity(1 + args.instruction_data.len());
         instruction_data.push(args.ix);
         instruction_data.extend_from_slice(&args.instruction_data);
-        let (_mint_info, _cleaned_accounts) =
-            Self::verify_by_programs(program_id, accounts, args.ix, &instruction_data)?;
+        Self::verify_by_programs(program_id, accounts, args.ix, &instruction_data)?;
         Ok(())
     }
 
