@@ -704,12 +704,6 @@ impl VerificationModule {
             );
             return Err(ProgramError::NotEnoughAccountKeys);
         }
-        use pinocchio_log::log;
-        log!(
-            "CPI mode verification: invoking {} verification programs",
-            config.verification_programs.len()
-        );
-        log!("Total instruction_accounts: {}", instruction_accounts.len());
 
         // NOTE: Split accounts: LAST N are verification program accounts, FIRST M are for the actual instruction
         // Client passes: [instruction_account_1, instruction_account_2, ..., verification_program_1, verification_program_2, ...]
