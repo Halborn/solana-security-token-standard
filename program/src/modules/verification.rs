@@ -29,7 +29,7 @@ use pinocchio_token_2022::{
 };
 
 use super::utils as verification_utils;
-use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
+use crate::constants::{seeds, INSTRUCTION_ACCOUNTS_OFFSET, TRANSFER_HOOK_PROGRAM_ID};
 use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
@@ -546,7 +546,8 @@ impl VerificationModule {
         let mut instruction_data = Vec::with_capacity(1 + args.instruction_data.len());
         instruction_data.push(args.ix);
         instruction_data.extend_from_slice(&args.instruction_data);
-        Self::verify_by_programs(program_id, accounts, args.ix, &instruction_data)?;
+        let (_mint_info, _cleaned_accounts) =
+            Self::verify_by_programs(program_id, accounts, args.ix, &instruction_data)?;
         Ok(())
     }
 
@@ -557,7 +558,7 @@ impl VerificationModule {
         accounts: &'a [AccountInfo],
         ix_discriminator: u8,
         instruction_data: &[u8],
-    ) -> Result<&'a AccountInfo, ProgramError> {
+    ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         let [mint_info, verification_config_or_mint_authority, instructions_sysvar_or_signer, _instruction_accounts @ ..] =
             accounts
         else {
@@ -570,17 +571,24 @@ impl VerificationModule {
         let disc = SecurityTokenDiscriminators::try_from(*state_discriminator)?;
         match disc {
             SecurityTokenDiscriminators::VerificationConfigDiscriminator => {
-                Self::verify_by_programs(program_id, accounts, ix_discriminator, instruction_data)
+                let (mint_info, cleaned_accounts) = Self::verify_by_programs(
+                    program_id,
+                    accounts,
+                    ix_discriminator,
+                    instruction_data,
+                )?;
+                Ok((mint_info, cleaned_accounts))
             }
             SecurityTokenDiscriminators::MintAuthorityDiscriminator => {
                 let mint_authority_account = verification_config_or_mint_authority;
                 let mint_creator_info = instructions_sysvar_or_signer;
-                Self::verify_by_mint_authority(
+                let mint_info = Self::verify_by_mint_authority(
                     program_id,
                     mint_info,
                     mint_authority_account,
                     mint_creator_info,
-                )
+                )?;
+                Ok((mint_info, &accounts[INSTRUCTION_ACCOUNTS_OFFSET..]))
             }
             _ => Err(ProgramError::InvalidAccountData),
         }
@@ -632,7 +640,7 @@ impl VerificationModule {
         accounts: &'a [AccountInfo],
         ix_discriminator: u8,
         instruction_data: &[u8],
-    ) -> Result<&'a AccountInfo, ProgramError> {
+    ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         let [mint_info, verification_config, instructions_sysvar, instruction_accounts @ ..] =
             accounts
         else {
@@ -660,15 +668,15 @@ impl VerificationModule {
         }
         if config_data.verification_programs.is_empty() {
             // If no verification programs configured, allow
-            return Ok(mint_info);
+            return Ok((mint_info, instruction_accounts));
         }
 
-        if config_data.cpi_mode {
+        let cleaned_accounts = if config_data.cpi_mode {
             Self::execute_cpi_mode_verification(
                 &config_data,
                 instruction_accounts,
                 instruction_data,
-            )?;
+            )?
         } else {
             Self::execute_introspection_verification(
                 &config_data,
@@ -676,9 +684,10 @@ impl VerificationModule {
                 instruction_accounts,
                 instruction_data,
             )?;
-        }
+            instruction_accounts
+        };
 
-        Ok(mint_info)
+        Ok((mint_info, cleaned_accounts))
     }
 
     fn execute_cpi_mode_verification<'a>(
@@ -695,11 +704,24 @@ impl VerificationModule {
             );
             return Err(ProgramError::NotEnoughAccountKeys);
         }
+        use pinocchio_log::log;
+        log!(
+            "CPI mode verification: invoking {} verification programs",
+            config.verification_programs.len()
+        );
+        log!("Total instruction_accounts: {}", instruction_accounts.len());
 
-        // NOTE: Split accounts: first N are verification programs, rest are for the actual instruction
-        // This idea simplifies implementation in verification programs
+        // NOTE: Split accounts: LAST N are verification program accounts, FIRST M are for the actual instruction
+        // Client passes: [instruction_account_1, instruction_account_2, ..., verification_program_1, verification_program_2, ...]
         let split_point = instruction_accounts.len() - verification_accounts_len;
         let cleaned_accounts = &instruction_accounts[..split_point];
+        let verification_program_accounts = &instruction_accounts[split_point..];
+
+        log!(
+            "Cleaned accounts: {}, Verification program accounts: {}",
+            cleaned_accounts.len(),
+            verification_program_accounts.len()
+        );
 
         let verification_account_metas: Vec<pinocchio::instruction::AccountMeta> = cleaned_accounts
             .iter()
@@ -712,11 +734,16 @@ impl VerificationModule {
 
         let account_refs: Vec<_> = cleaned_accounts.iter().collect();
 
-        for program_id in config.verification_programs.iter() {
+        for (idx, program_id) in config.verification_programs.iter().enumerate() {
+            log!(
+                "Invoking verification program {}: {}",
+                idx,
+                crate::key_as_str!(program_id)
+            );
             let verification_instruction = pinocchio::instruction::Instruction {
                 program_id,
                 accounts: &verification_account_metas,
-                data: &target_instruction_data,
+                data: target_instruction_data,
             };
             pinocchio::program::slice_invoke(&verification_instruction, &account_refs)?;
         }
