@@ -192,6 +192,8 @@ async fn test_mint_cpi_mode_error_cases() {
         vec![&context.payer],
     )
     .await;
+
+    // Transaction should fail without verification program accounts
     assert_transaction_failure(result);
     for program_id in &verification_config.verification_programs {
         mint_builder.add_remaining_account(solana_sdk::instruction::AccountMeta::new_readonly(
@@ -207,5 +209,6 @@ async fn test_mint_cpi_mode_error_cases() {
         vec![&context.payer],
     )
     .await;
+    // Transaction should fail with custom error from failing dummy program
     assert_custom_error(result, 0x1111);
 }
