@@ -486,11 +486,13 @@ pub struct CustomUpdateExtraAccountMetaList<'a> {
     /// The transfer hook program ID
     pub program_id: &'a Pubkey,
     /// PDA address for extra account metas (must already exist)
-    pub extra_account_metas_pda: &'a Pubkey,
+    pub extra_account_metas_pda: &'a AccountInfo,
     /// Mint pubkey
-    pub mint: &'a Pubkey,
+    pub mint: &'a AccountInfo,
     /// Mint authority AccountInfo (needs to sign)
     pub authority: &'a AccountInfo,
+    /// System program pubkey
+    pub system_program: &'a AccountInfo,
     /// List of extra account metas to update
     pub metas: &'a [ExtraAccountMeta],
 }
@@ -499,9 +501,10 @@ impl<'a> CustomUpdateExtraAccountMetaList<'a> {
     /// Create a new UpdateExtraAccountMetaList instruction wrapper
     pub fn new(
         program_id: &'a Pubkey,
-        extra_account_metas_pda: &'a Pubkey,
-        mint: &'a Pubkey,
+        extra_account_metas_pda: &'a AccountInfo,
+        mint: &'a AccountInfo,
         authority: &'a AccountInfo,
+        system_program: &'a AccountInfo,
         metas: &'a [ExtraAccountMeta],
     ) -> Self {
         Self {
@@ -509,6 +512,7 @@ impl<'a> CustomUpdateExtraAccountMetaList<'a> {
             extra_account_metas_pda,
             mint,
             authority,
+            system_program,
             metas,
         }
     }
@@ -537,10 +541,11 @@ impl<'a> CustomUpdateExtraAccountMetaList<'a> {
             instruction_data.extend(&meta.to_bytes());
         }
 
-        let account_metas: [AccountMeta; 3] = [
-            AccountMeta::writable(self.extra_account_metas_pda),
-            AccountMeta::readonly(self.mint),
+        let account_metas: [AccountMeta; 4] = [
+            AccountMeta::writable(self.extra_account_metas_pda.key()),
+            AccountMeta::readonly(self.mint.key()),
             AccountMeta::readonly_signer(self.authority.key()),
+            AccountMeta::readonly(self.system_program.key()),
         ];
 
         let instruction = Instruction {
@@ -548,8 +553,15 @@ impl<'a> CustomUpdateExtraAccountMetaList<'a> {
             accounts: &account_metas,
             data: &instruction_data,
         };
-
-        // Only authority needs to be in account_infos for invoke_signed
-        invoke_signed(&instruction, &[self.authority], signers)
+        invoke_signed(
+            &instruction,
+            &[
+                self.extra_account_metas_pda,
+                self.mint,
+                self.authority,
+                self.system_program,
+            ],
+            signers,
+        )
     }
 }

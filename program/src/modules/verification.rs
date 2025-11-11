@@ -34,8 +34,8 @@ use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{
-    CustomInitializeExtraAccountMetaList, ExtraAccountMeta, InitializeMintArgs, UpdateMetadataArgs,
-    VerifyArgs,
+    CustomInitializeExtraAccountMetaList, CustomUpdateExtraAccountMetaList, ExtraAccountMeta,
+    InitializeMintArgs, UpdateMetadataArgs, VerifyArgs,
 };
 use crate::modules::{
     verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_pda,
@@ -923,7 +923,99 @@ impl VerificationModule {
         Ok(())
     }
 
-   
+    fn update_transfer_hook_account_metas(
+        program_id: &Pubkey,
+        payer: &AccountInfo,
+        mint_info: &AccountInfo,
+        system_program_info: &AccountInfo,
+        transfer_hook_accounts: &[AccountInfo],
+        verification_config_pda: Pubkey,
+        new_program_addresses: &[Pubkey],
+    ) -> ProgramResult {
+        let [account_metas_pda_info, transfer_hook_pda_info, transfer_hook_program] =
+            &transfer_hook_accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_transfer_hook_program(transfer_hook_program)?;
+        let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), &program_id);
+        verify_pda(&transfer_hook_pda, transfer_hook_pda_info.key())?;
+        let (account_metas_pda, _bump) = find_extra_account_metas_pda(mint_info.key());
+        verify_pda(&account_metas_pda, account_metas_pda_info.key())?;
+
+        let mut account_metas: Vec<ExtraAccountMeta> = Vec::new();
+        account_metas.push(ExtraAccountMeta {
+            discriminator: 0,
+            address_config: verification_config_pda,
+            is_signer: false,
+            is_writable: false,
+        });
+
+        for program_address in new_program_addresses {
+            account_metas.push(ExtraAccountMeta {
+                discriminator: 0,
+                address_config: *program_address,
+                is_signer: false,
+                is_writable: false,
+            });
+        }
+
+        let new_account_size = ExtraAccountMeta::calculate_account_size(account_metas.len());
+        let current_account_size = account_metas_pda_info.data_len();
+
+        // Handle size changes
+        if new_account_size > current_account_size {
+            // Need to add lamports and realloc
+            let additional_space = new_account_size - current_account_size;
+            let rent = Rent::get()?;
+            let additional_rent = rent.minimum_balance(additional_space);
+
+            let transfer = Transfer {
+                from: payer,
+                to: account_metas_pda_info,
+                lamports: additional_rent,
+            };
+            transfer.invoke()?;
+        } else if new_account_size < current_account_size {
+            // Can shrink and return lamports
+            let space_recovered = current_account_size - new_account_size;
+            let rent = Rent::get()?;
+            let recovered_rent = rent.minimum_balance(space_recovered);
+
+            *account_metas_pda_info.try_borrow_mut_lamports()? = account_metas_pda_info
+                .lamports()
+                .checked_sub(recovered_rent)
+                .ok_or(ProgramError::InsufficientFunds)?;
+
+            *payer.try_borrow_mut_lamports()? = payer
+                .lamports()
+                .checked_add(recovered_rent)
+                .ok_or(ProgramError::InsufficientFunds)?;
+        }
+
+        // Update the extra account metas using CustomUpdateExtraAccountMetaList wrapper
+        let bump_seed = [bump];
+        let seeds = [
+            Seed::from(seeds::TRANSFER_HOOK),
+            Seed::from(mint_info.key().as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+        let signer = Signer::from(&seeds);
+
+        let update_instruction = CustomUpdateExtraAccountMetaList::new(
+            &TRANSFER_HOOK_PROGRAM_ID,
+            account_metas_pda_info,
+            mint_info,
+            transfer_hook_pda_info,
+            system_program_info,
+            &account_metas,
+        );
+        update_instruction.invoke_signed(&[signer])?;
+
+        Ok(())
+    }
+
     fn initialize_transfer_hook_account_metas(
         program_id: &Pubkey,
         payer: &AccountInfo,
@@ -1082,6 +1174,18 @@ impl VerificationModule {
         {
             let mut data = config_account.try_borrow_mut_data()?;
             data[..config_bytes.len()].copy_from_slice(&config_bytes);
+        }
+
+        if discriminator == 12 {
+            Self::update_transfer_hook_account_metas(
+                program_id,
+                payer,
+                mint_account,
+                system_program_info,
+                transfer_hook_accounts,
+                *config_account.key(),
+                existing_config.verification_programs.as_slice(),
+            )?;
         }
         Ok(())
     }

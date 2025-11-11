@@ -331,9 +331,7 @@ fn process_update_extra_account_meta_list(
     let new_count = extra_account_metas.len();
     let new_account_size =
         ExtraAccountMetaList::size_of(new_count).map_err(|_| ProgramError::InvalidAccountData)?;
-
     let current_account_size = extra_meta_info.data_len();
-
     // Handle size changes
     if new_account_size > current_account_size {
         // Verify system program is provided
@@ -343,28 +341,10 @@ fn process_update_extra_account_meta_list(
         {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
-
-        // Need to add lamports and realloc
-        let additional_space = new_account_size - current_account_size;
-        let rent = Rent::get()?;
-        let additional_rent = rent.minimum_balance(additional_space);
-
-        let transfer = Transfer {
-            from: authority_info,
-            to: extra_meta_info,
-            lamports: additional_rent,
-        };
-        transfer.invoke()?;
-
         extra_meta_info.realloc(new_account_size, false)?;
     } else if new_account_size < current_account_size {
         // Can shrink and return lamports
         extra_meta_info.realloc(new_account_size, false)?;
-        let space_recovered = current_account_size - new_account_size;
-        let rent = Rent::get()?;
-        let recovered_rent = rent.minimum_balance(space_recovered);
-        *extra_meta_info.try_borrow_mut_lamports()? -= recovered_rent;
-        *authority_info.try_borrow_mut_lamports()? += recovered_rent;
     }
     {
         let mut data = extra_meta_info.try_borrow_mut_data()?;

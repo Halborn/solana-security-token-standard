@@ -886,6 +886,38 @@ async fn test_transfer_hook_extra_account_metas_init_update_trim() {
 
     assert_transaction_success(result);
 
+    let extra_account_metas_pda =
+        get_extra_account_metas_address(&mint_keypair.pubkey(), &transfer_hook_program_id);
+
+    let extra_account_metas_account = context
+        .banks_client
+        .get_account(extra_account_metas_pda)
+        .await
+        .unwrap()
+        .expect("extra account metas account should exist");
+
+    let tlv_state = TlvStateBorrowed::unpack(&extra_account_metas_account.data)
+        .expect("tlv header should deserialize");
+    let extra_metas_data =
+        ExtraAccountMetaList::unpack_with_tlv_state::<ExecuteInstruction>(&tlv_state)
+            .expect("extra meta list should deserialize");
+
+    // Must be 4 accounts: verification config + 3 program addresses
+    assert_eq!(extra_metas_data.data().len(), 4);
+    // Verify the metas are correct
+    let metas = extra_metas_data
+        .data()
+        .into_iter()
+        .map(|meta| meta.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        Pubkey::from(metas[0].address_config),
+        find_verification_config_pda(mint_keypair.pubkey(), TRANSFER_DISCRIMINATOR).0
+    );
+    assert_eq!(Pubkey::from(metas[1].address_config), program_address_1);
+    assert_eq!(Pubkey::from(metas[2].address_config), program_address_2);
+    assert_eq!(Pubkey::from(metas[3].address_config), program_address_3);
+
     // // Get extra account metas PDA
     // let extra_account_metas_pda =
     //     get_extra_account_metas_address(&mint_keypair.pubkey(), &transfer_hook_program_id);
