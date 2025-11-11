@@ -24,6 +24,7 @@ pub enum SecurityTokenInstruction {
     Convert = 17,
     CreateProofAccount = 18,
     UpdateProofAccount = 19,
+    CloseReceiptAccount = 20,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -51,6 +52,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             17 => Ok(SecurityTokenInstruction::Convert),
             18 => Ok(SecurityTokenInstruction::CreateProofAccount),
             19 => Ok(SecurityTokenInstruction::UpdateProofAccount),
+            20 => Ok(SecurityTokenInstruction::CloseReceiptAccount),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -85,11 +87,7 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        close_rate_account::CloseRateArgs, convert::ConvertArgs,
-        create_proof_account::CreateProofArgs, split::SplitArgs,
-        update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs, CreateRateArgs,
-        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
-        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        CloseReceiptArgs, CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs, close_rate_account::CloseRateArgs, convert::ConvertArgs, create_proof_account::CreateProofArgs, split::SplitArgs, update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs
     };
 
     #[derive(shank::ShankInstruction)]
@@ -335,5 +333,14 @@ mod idl_gen {
         #[account(6, name = "token_account")]
         #[account(7, name = "system_program")]
         UpdateProofAccount(UpdateProofArgs) = 19,
+
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        #[account(3, writable, name = "receipt_account")]
+        #[account(4, name = "rate_account")]
+        #[account(5, name = "mint_account")]
+        #[account(6, writable, name = "destination")]
+        CloseReceiptAccount(CloseReceiptArgs) = 20,
     }
 }

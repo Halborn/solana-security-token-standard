@@ -435,6 +435,36 @@ impl OperationsModule {
         Ok(())
     }
 
+    /// Close Receipt account
+    pub fn execute_close_receipt_account(
+        _program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+    ) -> ProgramResult {
+        let [receipt_account, rate_account, mint_account, destination_account] = accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_writable(destination_account)?;
+        verify_writable(receipt_account)?;
+        // Rate account must be closed before closing Receipt
+        verify_account_not_initialized(rate_account)?;
+
+        // Deserialize and ensure Receipt is valid account
+        verify_account_initialized(receipt_account)?;
+        let receipt = Receipt::from_account_info(receipt_account)?;
+        if receipt.action_id.ne(&action_id) || receipt.mint.ne(mint_account.key()) {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        let expected_receipt_pda = receipt.derive_pda()?;
+        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+
+        Receipt::close(receipt_account, destination_account)?;
+        Ok(())
+    }
+
     /// Execute token split at predefined rate
     pub fn execute_split(
         program_id: &Pubkey,

@@ -21,11 +21,11 @@ use crate::{
 #[derive(Debug, ShankAccount)]
 pub struct Receipt {
     /// Mint address this Receipt belongs to
-    mint: Pubkey,
+    pub mint: Pubkey,
     /// Operation action identifier
-    action_id: u64,
+    pub action_id: u64,
     /// Bump seed for PDA
-    bump: u8,
+    pub bump: u8,
 }
 
 impl Discriminator for Receipt {
@@ -116,6 +116,21 @@ impl Receipt {
         }
 
         Ok(())
+    }
+
+    /// Parse from account info
+    pub fn from_account_info(account_info: &AccountInfo) -> Result<Receipt, ProgramError> {
+        if account_info.data_len() != Self::LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        if !account_info.is_owned_by(&crate::ID) {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+
+        let data_ref = account_info.try_borrow_data()?;
+        let receipt = Self::try_from_bytes(&data_ref)?;
+        Ok(receipt)
     }
 
     pub fn action_id_seed(&self) -> [u8; ACTION_ID_LEN] {

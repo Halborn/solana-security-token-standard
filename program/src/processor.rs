@@ -3,9 +3,9 @@ use crate::{
     instructions::{
         close_rate_account::CloseRateArgs, convert::ConvertArgs,
         create_proof_account::CreateProofArgs, split::SplitArgs,
-        update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs, CreateRateArgs,
-        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
-        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs,
+        CloseReceiptArgs, CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
+        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     },
     modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
@@ -27,7 +27,8 @@ impl Processor {
 
         match instruction {
             InitializeMint | Verify => None,
-            CreateRateAccount
+            CloseReceiptAccount
+            | CreateRateAccount
             | UpdateRateAccount
             | CloseRateAccount
             | InitializeVerificationConfig
@@ -191,6 +192,12 @@ impl Processor {
                 args_data,
             ),
             SecurityTokenInstruction::UpdateProofAccount => Self::process_update_proof_account(
+                program_id,
+                verified_mint_info,
+                instruction_accounts,
+                args_data,
+            ),
+            SecurityTokenInstruction::CloseReceiptAccount => Self::process_close_receipt_account(
                 program_id,
                 verified_mint_info,
                 instruction_accounts,
@@ -404,6 +411,19 @@ impl Processor {
     ) -> ProgramResult {
         let CloseRateArgs { action_id } = CloseRateArgs::try_from_bytes(args_data)?;
         OperationsModule::execute_close_rate_account(program_id, mint_info, accounts, action_id)?;
+        Ok(())
+    }
+
+    fn process_close_receipt_account(
+        program_id: &Pubkey,
+        mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let CloseReceiptArgs { action_id } = CloseReceiptArgs::try_from_bytes(args_data)?;
+        OperationsModule::execute_close_receipt_account(
+            program_id, mint_info, accounts, action_id,
+        )?;
         Ok(())
     }
 

@@ -27,6 +27,8 @@ pub mod create_rate_account {
 pub mod close_rate_account {
     pub use super::rate_account::close_rate_account::*;
 }
+/// Close Receipt account instruction arguments and implementations
+pub mod close_receipt_account;
 /// Convert instruction arguments and implementations
 pub mod convert;
 /// Initialize mint instruction arguments and implementations
@@ -43,6 +45,7 @@ pub mod verification_config;
 pub mod verify;
 
 // Re-export all public types for easy access
+pub use close_receipt_account::*;
 pub use create_rate_account::*;
 pub use initialize_mint::*;
 pub use token_wrappers::*;
