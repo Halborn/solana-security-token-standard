@@ -38,8 +38,9 @@ use crate::instructions::{
     VerifyArgs,
 };
 use crate::modules::{
-    verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_rent_sysvar,
-    verify_signer, verify_system_program, verify_token22_program, verify_writable,
+    verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_pda,
+    verify_rent_sysvar, verify_signer, verify_system_program, verify_token22_program,
+    verify_transfer_hook_program, verify_writable,
 };
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
@@ -840,7 +841,7 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::InitializeVerificationConfigArgs,
     ) -> ProgramResult {
-        let [mint_account, config_account, payer, system_program_info, account_metas_pda_opt, transfer_hook_pda, _transfer_hook_account] =
+        let [mint_account, config_account, payer, system_program_info, transfer_hook_accounts @ ..] =
             &accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -912,8 +913,9 @@ impl VerificationModule {
                 payer,
                 mint_account,
                 system_program_info,
-                account_metas_pda_opt,
-                transfer_hook_pda,
+                transfer_hook_accounts,
+                // account_metas_pda_opt,
+                // transfer_hook_pda,
                 *config_account.key(),
                 args.program_addresses(),
             )?;
@@ -926,13 +928,24 @@ impl VerificationModule {
         payer: &AccountInfo,
         mint_info: &AccountInfo,
         system_program_info: &AccountInfo,
-        account_metas_info: &AccountInfo,
-        transfer_hook_info: &AccountInfo,
+        transfer_hook_accounts: &[AccountInfo],
+        // account_metas_info: &AccountInfo,
+        // transfer_hook_info: &AccountInfo,
         verification_config_pda: Pubkey,
         program_addresses: &[Pubkey],
     ) -> ProgramResult {
-        // let (extra_account_metas_pda, _bump) = find_extra_account_metas_pda(mint_info.key());
+        let [account_metas_pda_info, transfer_hook_pda_info, transfer_hook_program] =
+            &transfer_hook_accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_transfer_hook_program(transfer_hook_program)?;
         let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), &program_id);
+        verify_pda(&transfer_hook_pda, transfer_hook_pda_info.key())?;
+        let (account_metas_pda, _bump) = find_extra_account_metas_pda(mint_info.key());
+        verify_pda(&account_metas_pda, account_metas_pda_info.key())?;
+
         let mut account_metas: Vec<ExtraAccountMeta> = Vec::new();
         account_metas.push(ExtraAccountMeta {
             discriminator: 0,
@@ -951,18 +964,13 @@ impl VerificationModule {
             });
         }
 
-        // Calculate rent-exempt lamports for the extra account metas account
-        // use spl_tlv_account_resolution::state::ExtraAccountMetaList;
-        // let account_size = ExtraAccountMetaList::size_of(account_metas.len())
-        //     .map_err(|_| ProgramError::InvalidAccountData)?;
-        // let rent = Rent::get()?;
-        // let required_lamports = rent.minimum_balance(account_size);
-
-        // Transfer lamports from transfer_hook_info (authority) to account_metas PDA
+        let account_size = ExtraAccountMeta::calculate_account_size(account_metas.len());
+        let rent = Rent::get()?;
+        let required_lamports = rent.minimum_balance(account_size);
         let transfer = Transfer {
             from: payer,
-            to: account_metas_info,
-            lamports: 6_000_000,
+            to: account_metas_pda_info,
+            lamports: required_lamports,
         };
         transfer.invoke()?;
 
@@ -973,19 +981,15 @@ impl VerificationModule {
             Seed::from(bump_seed.as_ref()),
         ];
         let signer = Signer::from(&seeds);
-
-        // Use the wrapper to create and invoke the instruction
         let init_instruction = CustomInitializeExtraAccountMetaList::new(
             &TRANSFER_HOOK_PROGRAM_ID,
-            account_metas_info,
+            account_metas_pda_info,
             mint_info,
-            transfer_hook_info,
+            transfer_hook_pda_info,
             system_program_info,
             &account_metas,
         );
-
         init_instruction.invoke_signed(&[signer])?;
-
         Ok(())
     }
 

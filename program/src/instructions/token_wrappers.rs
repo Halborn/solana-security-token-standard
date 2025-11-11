@@ -367,6 +367,9 @@ pub struct ExtraAccountMeta {
 }
 
 impl ExtraAccountMeta {
+    /// Size of a single ExtraAccountMeta in bytes
+    pub const SIZE: usize = 35; // 1 (discriminator) + 32 (address) + 1 (is_signer) + 1 (is_writable)
+
     /// Serialize to bytes
     pub fn to_bytes(&self) -> [u8; 35] {
         let mut bytes = [0u8; 35];
@@ -375,6 +378,18 @@ impl ExtraAccountMeta {
         bytes[33] = self.is_signer as u8;
         bytes[34] = self.is_writable as u8;
         bytes
+    }
+
+    /// Calculate the total size needed for a list of ExtraAccountMetas in TLV format
+    ///
+    /// TLV Layout:
+    /// - 8 bytes: TLV account discriminator (for ExecuteInstruction)
+    /// - 4 bytes: TLV type
+    /// - 4 bytes: TLV length
+    /// - N * 35 bytes: ExtraAccountMeta data
+    pub fn calculate_account_size(count: usize) -> usize {
+        const TLV_HEADER_SIZE: usize = 16; // 8 (discriminator) + 4 (type) + 4 (length)
+        TLV_HEADER_SIZE + (count * Self::SIZE)
     }
 }
 
