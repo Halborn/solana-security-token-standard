@@ -694,11 +694,11 @@ impl VerificationModule {
         instruction_accounts: &'a [AccountInfo],
         target_instruction_data: &[u8],
     ) -> Result<&'a [AccountInfo], ProgramError> {
-        let verification_accounts_len = config.verification_programs.len();
-        if verification_accounts_len > instruction_accounts.len() {
+        let verification_programs_count = config.verification_programs.len();
+        if verification_programs_count > instruction_accounts.len() {
             debug_log!(
                 "ERROR: Not enough instruction accounts provided for CPI mode verification. Expected at least {}, got {}",
-                verification_accounts_len,
+                verification_programs_count,
                 instruction_accounts.len()
             );
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -706,10 +706,10 @@ impl VerificationModule {
 
         // NOTE: Remove verification program accounts from the end to the explicit instruction accounts
         // As a side effect it will help in verification programs implementations
-        let cleaned_accounts =
-            &instruction_accounts[..instruction_accounts.len() - verification_accounts_len];
+        let target_accounts =
+            &instruction_accounts[..instruction_accounts.len() - verification_programs_count];
 
-        let verification_account_metas: Vec<pinocchio::instruction::AccountMeta> = cleaned_accounts
+        let target_account_metas: Vec<pinocchio::instruction::AccountMeta> = target_accounts
             .iter()
             .map(|acc| pinocchio::instruction::AccountMeta {
                 pubkey: acc.key(),
@@ -718,18 +718,18 @@ impl VerificationModule {
             })
             .collect();
 
-        let account_refs: Vec<_> = cleaned_accounts.iter().collect();
+        let account_refs: Vec<_> = target_accounts.iter().collect();
 
         for program_id in config.verification_programs.iter() {
             let verification_instruction = pinocchio::instruction::Instruction {
                 program_id,
-                accounts: &verification_account_metas,
+                accounts: &target_account_metas,
                 data: target_instruction_data,
             };
             pinocchio::program::slice_invoke(&verification_instruction, &account_refs)?;
         }
 
-        Ok(cleaned_accounts)
+        Ok(target_accounts)
     }
 
     /// Execute introspection-based verification
