@@ -915,8 +915,6 @@ impl VerificationModule {
                 mint_account,
                 system_program_info,
                 transfer_hook_accounts,
-                // account_metas_pda_opt,
-                // transfer_hook_pda,
                 *config_account.key(),
                 args.program_addresses(),
             )?;
