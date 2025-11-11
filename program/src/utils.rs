@@ -8,9 +8,16 @@ use pinocchio_token::state::Mint;
 use pinocchio_token_2022::extensions::ExtensionType;
 
 use crate::{
-    constants::{seeds, ACTION_ID_LEN},
+    constants::{seeds, ACTION_ID_LEN, TRANSFER_HOOK_PROGRAM_ID},
     instructions::TokenMetadataArgs,
 };
+
+pub fn find_extra_account_metas_pda(mint: &Pubkey) -> (Pubkey, u8) {
+    find_program_address(
+        &[seeds::EXTRA_ACCOUNT_METAS, mint.as_ref()],
+        &TRANSFER_HOOK_PROGRAM_ID,
+    )
+}
 
 /// Find PDA for verification config
 pub fn find_verification_config_pda(

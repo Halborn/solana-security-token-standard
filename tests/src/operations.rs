@@ -651,26 +651,6 @@ async fn test_p2p_transfer_direct_spl() {
         &Pubkey::from(security_token_transfer_hook::id()),
     );
 
-    let extra_account_metas = [
-        ExtraAccountMeta {
-            discriminator: 0,
-            is_writable: PodBool(0),
-            is_signer: PodBool(0),
-            address_config: verification_config_pda.to_bytes(),
-        },
-        ExtraAccountMeta {
-            discriminator: 0,
-            is_writable: PodBool(0),
-            is_signer: PodBool(0),
-            address_config: dummy_program_1_id.to_bytes(),
-        },
-        ExtraAccountMeta {
-            discriminator: 0,
-            is_writable: PodBool(0),
-            is_signer: PodBool(0),
-            address_config: dummy_program_2_id.to_bytes(),
-        },
-    ];
     let source_account = create_spl_account(&mut context, &mint_keypair, &source_owner).await;
     let destination_account =
         create_spl_account(&mut context, &mint_keypair, &destination_owner).await;
@@ -683,24 +663,6 @@ async fn test_p2p_transfer_direct_spl() {
         250_000,
     )
     .await;
-
-    let init_extra_metas_ix = initialize_extra_account_meta_list(
-        &Pubkey::from(security_token_transfer_hook::id()),
-        &account_metas_pda,
-        &mint_keypair.pubkey(),
-        &context.payer.pubkey(),
-        &extra_account_metas,
-    );
-
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let init_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[init_extra_metas_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-    let result = context.banks_client.process_transaction(init_tx).await;
-    assert_transaction_success(result);
 
     let account_metas_account = context
         .banks_client
@@ -717,10 +679,6 @@ async fn test_p2p_transfer_direct_spl() {
     );
     let tlv_state =
         TlvStateBorrowed::unpack(&account_meta_data).expect("tlv header should deserialize");
-    let mut expected_tlv =
-        vec![0u8; ExtraAccountMetaList::size_of(extra_account_metas.len()).unwrap()];
-    ExtraAccountMetaList::init::<ExecuteInstruction>(&mut expected_tlv, &extra_account_metas)
-        .expect("expected tlv init");
     let meta_list = ExtraAccountMetaList::unpack_with_tlv_state::<ExecuteInstruction>(&tlv_state)
         .expect("extra meta list should deserialize");
     let meta_slice = meta_list.data();

@@ -270,14 +270,9 @@ fn process_initialize_extra_account_meta_list(
     let account_size =
         ExtraAccountMetaList::size_of(count).map_err(|_| ProgramError::InvalidAccountData)?;
 
-    let rent = Rent::get()?;
-    let required_lamports = rent.minimum_balance(account_size);
-    let transfer = Transfer {
-        from: authority_info,
-        to: extra_meta_info,
-        lamports: required_lamports,
-    };
-    transfer.invoke()?;
+    if extra_meta_info.lamports() == 0 {
+        return Err(ProgramError::AccountNotRentExempt);
+    }
 
     let bump_seed = [bump];
     let seeds = [
@@ -292,6 +287,7 @@ fn process_initialize_extra_account_meta_list(
         space: account_size as u64,
     };
     allocate.invoke_signed(&[signer.clone()])?;
+
     let assign = Assign {
         account: extra_meta_info,
         owner: program_id,

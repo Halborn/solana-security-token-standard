@@ -20,6 +20,8 @@ pub mod seeds {
     pub const RATE_ACCOUNT: &[u8] = b"rate";
     /// Seed for receipt account PDA
     pub const RECEIPT_ACCOUNT: &[u8] = b"receipt";
+    /// Seed for extra account metas
+    pub const EXTRA_ACCOUNT_METAS: &[u8] = b"extra-account-metas";
 }
 
 pub const INSTRUCTION_ACCOUNTS_OFFSET: usize = 3;
