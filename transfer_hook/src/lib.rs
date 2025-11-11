@@ -26,6 +26,7 @@ use spl_transfer_hook_interface::instruction::{
 pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
     pubkey!("Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH");
 const PERMANENT_DELEGATE_SEED: &[u8] = b"mint.permanent_delegate";
+const TRANSFER_HOOK_SEED: &[u8] = b"mint.transfer_hook";
 const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
 const VERIFICATION_CONFIG_SEED: &[u8] = b"verification_config";
 const TRANSFER_DISCRIMINATOR: u8 = 12; // Security Token transfer instruction discriminator
@@ -217,10 +218,17 @@ fn validate_extra_account_meta_accounts(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // NOTE: In our case the authority must be a signer
-    // We can't sign as a program offchain, clarify this
     if !authority_info.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    let (transfer_hook_pda, _bump) = find_program_address(
+        &[TRANSFER_HOOK_SEED, mint_info.key().as_ref()],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+
+    if authority_info.key() != &transfer_hook_pda {
+        return Err(ProgramError::InvalidSeeds);
     }
 
     if !mint_info.is_owned_by(&pinocchio_token_2022::ID) {
