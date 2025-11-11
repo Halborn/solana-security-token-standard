@@ -1,7 +1,8 @@
-use crate::helpers::{
-    assert_security_token_error, assert_transaction_success, initialize_mint,
-    initialize_verification_config,
-};
+use crate::{helpers::{
+    assert_security_token_error, assert_transaction_success, find_mint_authority_pda,
+    find_mint_freeze_authority_pda, find_verification_config_pda, initialize_mint,
+    initialize_verification_config, send_tx,
+}, verification_tests::verification_helpers::dummy_program_processor};
 use borsh::BorshSerialize;
 use rstest::*;
 use security_token_client::{
@@ -13,10 +14,6 @@ use security_token_client::{
         TokenMetadataArgs, UpdateMetadataArgs, VerifyArgs,
     },
 };
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
-    pubkey::Pubkey as SolanaPubkey,
-};
 use solana_program_test::*;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -24,47 +21,11 @@ use solana_sdk::{
     signature::Keypair,
     signer::Signer,
     sysvar,
-    transaction::Transaction,
 };
 use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 
 use solana_system_interface::instruction as system_instruction;
 use solana_system_interface::program as system_program;
-
-// Simple dummy program processor that can succeed or fail based on instruction data
-fn dummy_program_processor(
-    _program_id: &SolanaPubkey,
-    _accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
-    // The first byte determines instruction id
-    // The second byte determines success (1) or failure (0)
-    msg!("Dummy program called with {} bytes", instruction_data.len());
-
-    // If instruction data is empty or first byte is 0, fail
-    if instruction_data.is_empty() || instruction_data[1] == 0 {
-        msg!("Dummy program: intentional failure");
-        return Err(ProgramError::Custom(9999));
-    }
-
-    // Otherwise succeed
-    msg!("Dummy program: success");
-    Ok(())
-}
-
-// Another dummy program that always succeeds
-fn dummy_program_2_processor(
-    _program_id: &SolanaPubkey,
-    _accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
-    // The first byte determines instruction id
-    msg!(
-        "Dummy program 2 called with {} bytes - always succeeds",
-        instruction_data.len()
-    );
-    Ok(())
-}
 
 struct VerificationTestContext {
     context: ProgramTestContext,
@@ -89,25 +50,16 @@ async fn verification_test_setup() -> VerificationTestContext {
     pt.add_program(
         "dummy_program_2",
         dummy_program_2_id,
-        processor!(dummy_program_2_processor),
+        processor!(dummy_program_processor),
     );
 
     let mut context = pt.start_with_context().await;
     let mint_keypair = Keypair::new();
 
-    let (mint_authority_pda, _) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (freeze_authority_pda, _) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
     let initialize_mint_args = InitializeMintArgs {
         ix_mint: MintArgs {
@@ -128,14 +80,8 @@ async fn verification_test_setup() -> VerificationTestContext {
     )
     .await;
 
-    let (verification_config_pda, _) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[UPDATE_METADATA_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _) =
+        find_verification_config_pda(mint_keypair.pubkey(), UPDATE_METADATA_DISCRIMINATOR);
 
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
@@ -168,13 +114,6 @@ async fn test_verify_without_prior_verification_calls(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
     let setup = verification_test_setup.await;
-    let recent_blockhash = setup
-        .context
-        .banks_client
-        .get_latest_blockhash()
-        .await
-        .unwrap();
-
     let verify_only_ix = VerifyBuilder::new()
         .mint(setup.mint_keypair.pubkey())
         .verification_config(setup.verification_config_pda)
@@ -184,19 +123,13 @@ async fn test_verify_without_prior_verification_calls(
         })
         .instruction();
 
-    let transaction = Transaction::new_signed_with_payer(
-        &[verify_only_ix],
-        Some(&setup.context.payer.pubkey()),
-        &[&setup.context.payer],
-        recent_blockhash,
-    );
-
-    let result = setup
-        .context
-        .banks_client
-        .process_transaction(transaction)
-        .await;
-
+    let result = send_tx(
+        &setup.context.banks_client,
+        vec![verify_only_ix],
+        &setup.context.payer.pubkey(),
+        vec![&setup.context.payer],
+    )
+    .await;
     assert_security_token_error(
         result,
         SecurityTokenProgramError::VerificationProgramNotFound,
@@ -209,13 +142,6 @@ async fn test_verify_with_proper_prior_calls_succeeds(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
     let setup = verification_test_setup.await;
-    let recent_blockhash = setup
-        .context
-        .banks_client
-        .get_latest_blockhash()
-        .await
-        .unwrap();
-
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
 
@@ -253,22 +179,16 @@ async fn test_verify_with_proper_prior_calls_succeeds(
         .add_remaining_accounts(&success_verify_accounts)
         .instruction();
 
-    let mut success_tx_instructions = success_instructions.clone();
+    let mut success_tx_instructions: Vec<Instruction> = success_instructions.clone();
     success_tx_instructions.push(verify_instruction_success);
 
-    let transaction = Transaction::new_signed_with_payer(
-        &success_tx_instructions,
-        Some(&setup.context.payer.pubkey()),
-        &[&setup.context.payer],
-        recent_blockhash,
-    );
-
-    let result = setup
-        .context
-        .banks_client
-        .process_transaction(transaction)
-        .await;
-
+    let result = send_tx(
+        &setup.context.banks_client,
+        success_tx_instructions,
+        &setup.context.payer.pubkey(),
+        vec![&setup.context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 }
 
@@ -278,13 +198,6 @@ async fn test_verify_with_wrong_discriminator_fails(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
     let setup = verification_test_setup.await;
-    let recent_blockhash = setup
-        .context
-        .banks_client
-        .get_latest_blockhash()
-        .await
-        .unwrap();
-
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
 
@@ -325,19 +238,13 @@ async fn test_verify_with_wrong_discriminator_fails(
     let mut tx_instructions = instructions.clone();
     tx_instructions.push(verify_ix);
 
-    let transaction = Transaction::new_signed_with_payer(
-        &tx_instructions,
-        Some(&setup.context.payer.pubkey()),
-        &[&setup.context.payer],
-        recent_blockhash,
-    );
-
-    let result = setup
-        .context
-        .banks_client
-        .process_transaction(transaction)
-        .await;
-
+    let result = send_tx(
+        &setup.context.banks_client,
+        tx_instructions,
+        &setup.context.payer.pubkey(),
+        vec![&setup.context.payer],
+    )
+    .await;
     assert_security_token_error(
         result,
         SecurityTokenProgramError::VerificationProgramNotFound,
@@ -350,13 +257,6 @@ async fn test_verify_with_system_instructions_succeeds(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
     let setup = verification_test_setup.await;
-    let recent_blockhash = setup
-        .context
-        .banks_client
-        .get_latest_blockhash()
-        .await
-        .unwrap();
-
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
 
@@ -415,19 +315,13 @@ async fn test_verify_with_system_instructions_succeeds(
     let mut tx_instructions = instructions.clone();
     tx_instructions.push(verify_ix);
 
-    let transaction = Transaction::new_signed_with_payer(
-        &tx_instructions,
-        Some(&setup.context.payer.pubkey()),
-        &[&setup.context.payer],
-        recent_blockhash,
-    );
-
-    let result = setup
-        .context
-        .banks_client
-        .process_transaction(transaction)
-        .await;
-
+    let result = send_tx(
+        &setup.context.banks_client,
+        tx_instructions,
+        &setup.context.payer.pubkey(),
+        vec![&setup.context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 }
 
@@ -437,13 +331,6 @@ async fn test_verify_with_correct_accounts_but_wrong_data_fails(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
     let setup = verification_test_setup.await;
-    let recent_blockhash = setup
-        .context
-        .banks_client
-        .get_latest_blockhash()
-        .await
-        .unwrap();
-
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
 
@@ -486,18 +373,13 @@ async fn test_verify_with_correct_accounts_but_wrong_data_fails(
     let mut tx_instructions = instructions;
     tx_instructions.push(verify_ix);
 
-    let transaction = Transaction::new_signed_with_payer(
-        &tx_instructions,
-        Some(&setup.context.payer.pubkey()),
-        &[&setup.context.payer],
-        recent_blockhash,
-    );
-
-    let result = setup
-        .context
-        .banks_client
-        .process_transaction(transaction)
-        .await;
+    let result = send_tx(
+        &setup.context.banks_client,
+        tx_instructions,
+        &setup.context.payer.pubkey(),
+        vec![&setup.context.payer],
+    )
+    .await;
 
     assert_security_token_error(
         result,
@@ -522,7 +404,7 @@ async fn test_update_metadata_under_verification() {
     pt.add_program(
         "dummy_program_2",
         dummy_program_2_id,
-        processor!(dummy_program_2_processor),
+        processor!(dummy_program_processor),
     );
 
     let mint_keypair = solana_sdk::signature::Keypair::new();
@@ -533,19 +415,10 @@ async fn test_update_metadata_under_verification() {
     let symbol = "TEST";
     let uri = "https://example.com";
 
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
     let initialize_mint_args = InitializeMintArgs {
         ix_mint: MintArgs {
@@ -576,14 +449,8 @@ async fn test_update_metadata_under_verification() {
     )
     .await;
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[UPDATE_METADATA_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), UPDATE_METADATA_DISCRIMINATOR);
     let verification_programs = vec![dummy_program_1_id, dummy_program_2_id];
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
@@ -630,19 +497,13 @@ async fn test_update_metadata_under_verification() {
     metadata_instruction_data
         .extend_from_slice(update_metadata_args.try_to_vec().unwrap().as_slice());
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
-    let tx_update_metadata = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[update_metadata_ix.clone()],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(tx_update_metadata)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![update_metadata_ix.clone()],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
 
     assert_security_token_error(
         result,
@@ -672,28 +533,20 @@ async fn test_update_metadata_under_verification() {
         },
     ];
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let mut instructions = verify_instructions.clone();
-    instructions.push(update_metadata_ix.clone());
+    let mut tx_instructions = verify_instructions.clone();
+    tx_instructions.push(update_metadata_ix.clone());
 
-    let tx_update_metadata = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &instructions,
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(tx_update_metadata)
-        .await;
-
+    let result = send_tx(
+        &context.banks_client,
+        tx_instructions,
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_security_token_error(
         result,
         SecurityTokenProgramError::AccountIntersectionMismatch,
     );
-
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
     let verify_instructions = vec![
         Instruction {
@@ -720,20 +573,15 @@ async fn test_update_metadata_under_verification() {
         },
     ];
 
-    let mut instructions = verify_instructions.clone();
-    instructions.push(update_metadata_ix);
+    let mut tx_instructions = verify_instructions.clone();
+    tx_instructions.push(update_metadata_ix);
 
-    let tx_update_metadata = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &instructions,
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(tx_update_metadata)
-        .await;
-
+    let result = send_tx(
+        &context.banks_client,
+        tx_instructions,
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 }

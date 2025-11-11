@@ -26,3 +26,4 @@ pub const INSTRUCTION_ACCOUNTS_OFFSET: usize = 3;
 pub const TRANSFER_HOOK_PROGRAM_ID: Pubkey =
     pubkey!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
 pub const ACTION_ID_LEN: usize = 8;
+pub const MAX_VERIFICATION_PROGRAMS: usize = 10;

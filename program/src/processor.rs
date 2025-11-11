@@ -1,5 +1,4 @@
 use crate::{
-    constants::INSTRUCTION_ACCOUNTS_OFFSET,
     instruction::SecurityTokenInstruction,
     instructions::{
         close_rate_account::CloseRateArgs, convert::ConvertArgs, split::SplitArgs,
@@ -53,22 +52,22 @@ impl Processor {
         match verification_profile {
             VerificationProfile::None => Ok((&accounts[0], accounts)),
             VerificationProfile::VerificationPrograms => {
-                let mint_info = VerificationModule::verify_by_programs(
+                let (mint_info, cleaned_accounts) = VerificationModule::verify_by_programs(
                     program_id,
                     accounts,
                     ix_discriminator,
                     instruction_data,
                 )?;
-                Ok((mint_info, &accounts[INSTRUCTION_ACCOUNTS_OFFSET..]))
+                Ok((mint_info, cleaned_accounts))
             }
             VerificationProfile::VerificationProgramsOrMintAuthority => {
-                let mint_info = VerificationModule::verify_by_strategy(
+                let (mint_info, cleaned_accounts) = VerificationModule::verify_by_strategy(
                     program_id,
                     accounts,
                     ix_discriminator,
                     instruction_data,
                 )?;
-                Ok((mint_info, &accounts[INSTRUCTION_ACCOUNTS_OFFSET..]))
+                Ok((mint_info, cleaned_accounts))
             }
         }
     }

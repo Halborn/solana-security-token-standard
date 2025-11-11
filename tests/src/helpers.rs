@@ -74,6 +74,25 @@ pub fn assert_transaction_failure(result: Result<(), BanksClientError>) {
     }
 }
 
+/// Helper to assert transaction failed with a specific custom error code
+pub fn assert_custom_error(result: Result<(), BanksClientError>, expected_error_code: u32) {
+    match result {
+        Err(BanksClientError::TransactionError(TransactionError::InstructionError(
+            _,
+            InstructionError::Custom(actual_code),
+        ))) => {
+            assert_eq!(
+                actual_code, expected_error_code,
+                "Expected error code 0x{:04X}, but got 0x{:04X}",
+                expected_error_code, actual_code
+            );
+            println!("Test passed: Got expected error code 0x{:04X}", expected_error_code);
+        }
+        Err(e) => panic!("Expected custom error 0x{:04X}, but got: {:?}", expected_error_code, e),
+        Ok(_) => panic!("Expected transaction to fail with error code 0x{:04X}, but it succeeded", expected_error_code),
+    }
+}
+
 pub async fn assert_account_exists(
     context: &mut ProgramTestContext,
     account_pubkey: Pubkey,

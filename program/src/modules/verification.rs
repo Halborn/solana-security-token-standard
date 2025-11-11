@@ -29,7 +29,7 @@ use pinocchio_token_2022::{
 };
 
 use super::utils as verification_utils;
-use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
+use crate::constants::{seeds, INSTRUCTION_ACCOUNTS_OFFSET, TRANSFER_HOOK_PROGRAM_ID};
 use crate::error::SecurityTokenError;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
@@ -557,7 +557,7 @@ impl VerificationModule {
         accounts: &'a [AccountInfo],
         ix_discriminator: u8,
         instruction_data: &[u8],
-    ) -> Result<&'a AccountInfo, ProgramError> {
+    ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         let [mint_info, verification_config_or_mint_authority, instructions_sysvar_or_signer, _instruction_accounts @ ..] =
             accounts
         else {
@@ -570,17 +570,24 @@ impl VerificationModule {
         let disc = SecurityTokenDiscriminators::try_from(*state_discriminator)?;
         match disc {
             SecurityTokenDiscriminators::VerificationConfigDiscriminator => {
-                Self::verify_by_programs(program_id, accounts, ix_discriminator, instruction_data)
+                let (mint_info, cleaned_accounts) = Self::verify_by_programs(
+                    program_id,
+                    accounts,
+                    ix_discriminator,
+                    instruction_data,
+                )?;
+                Ok((mint_info, cleaned_accounts))
             }
             SecurityTokenDiscriminators::MintAuthorityDiscriminator => {
                 let mint_authority_account = verification_config_or_mint_authority;
                 let mint_creator_info = instructions_sysvar_or_signer;
-                Self::verify_by_mint_authority(
+                let mint_info = Self::verify_by_mint_authority(
                     program_id,
                     mint_info,
                     mint_authority_account,
                     mint_creator_info,
-                )
+                )?;
+                Ok((mint_info, &accounts[INSTRUCTION_ACCOUNTS_OFFSET..]))
             }
             _ => Err(ProgramError::InvalidAccountData),
         }
@@ -632,7 +639,7 @@ impl VerificationModule {
         accounts: &'a [AccountInfo],
         ix_discriminator: u8,
         instruction_data: &[u8],
-    ) -> Result<&'a AccountInfo, ProgramError> {
+    ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         let [mint_info, verification_config, instructions_sysvar, instruction_accounts @ ..] =
             accounts
         else {
@@ -660,21 +667,75 @@ impl VerificationModule {
         }
         if config_data.verification_programs.is_empty() {
             // If no verification programs configured, allow
-            return Ok(mint_info);
+            return Ok((mint_info, instruction_accounts));
         }
-        Self::execute_verification(
-            &config_data,
-            instructions_sysvar,
-            instruction_accounts,
-            instruction_data,
-        )?;
 
-        Ok(mint_info)
+        let cleaned_accounts = if config_data.cpi_mode {
+            Self::execute_cpi_mode_verification(
+                &config_data,
+                instruction_accounts,
+                instruction_data,
+            )?
+        } else {
+            Self::execute_introspection_verification(
+                &config_data,
+                instructions_sysvar,
+                instruction_accounts,
+                instruction_data,
+            )?;
+            instruction_accounts
+        };
+
+        Ok((mint_info, cleaned_accounts))
     }
 
-    /// Execute instruction and verification programs validation
-    /// Checks that required verification programs were called with proper accounts matching current instruction accounts
-    fn execute_verification(
+    fn execute_cpi_mode_verification<'a>(
+        config: &VerificationConfig,
+        instruction_accounts: &'a [AccountInfo],
+        target_instruction_data: &[u8],
+    ) -> Result<&'a [AccountInfo], ProgramError> {
+        let verification_programs_count = config.verification_programs.len();
+        if verification_programs_count > instruction_accounts.len() {
+            debug_log!(
+                "ERROR: Not enough instruction accounts provided for CPI mode verification. Expected at least {}, got {}",
+                verification_programs_count,
+                instruction_accounts.len()
+            );
+            return Err(ProgramError::NotEnoughAccountKeys);
+        }
+
+        // NOTE: Remove verification program accounts from the end to the explicit instruction accounts
+        // As a side effect it will help in verification programs implementations
+        let target_accounts =
+            &instruction_accounts[..instruction_accounts.len() - verification_programs_count];
+
+        let target_account_metas: Vec<pinocchio::instruction::AccountMeta> = target_accounts
+            .iter()
+            .map(|acc| pinocchio::instruction::AccountMeta {
+                pubkey: acc.key(),
+                is_signer: acc.is_signer(),
+                is_writable: acc.is_writable(),
+            })
+            .collect();
+
+        let account_refs: Vec<_> = target_accounts.iter().collect();
+
+        for program_id in config.verification_programs.iter() {
+            let verification_instruction = pinocchio::instruction::Instruction {
+                program_id,
+                accounts: &target_account_metas,
+                data: target_instruction_data,
+            };
+            pinocchio::program::slice_invoke(&verification_instruction, &account_refs)?;
+        }
+
+        Ok(target_accounts)
+    }
+
+    /// Execute introspection-based verification
+    /// Validates that required verification programs were called before the current instruction
+    /// by examining the instructions sysvar and comparing their accounts and arguments with current instruction accounts
+    fn execute_introspection_verification(
         config: &VerificationConfig,
         instructions_sysvar: &AccountInfo,
         instruction_accounts: &[AccountInfo],

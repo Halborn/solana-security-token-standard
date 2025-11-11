@@ -3,6 +3,8 @@ use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
 use shank::ShankType;
 
+use crate::constants::MAX_VERIFICATION_PROGRAMS;
+
 /// Arguments for InitializeVerificationConfig instruction
 #[repr(C)]
 #[derive(ShankType)]
@@ -36,7 +38,7 @@ impl InitializeVerificationConfigArgs {
         cpi_mode: bool,
         program_addresses: &[Pubkey],
     ) -> Result<Self, ProgramError> {
-        if program_addresses.len() > 16 {
+        if program_addresses.len() > MAX_VERIFICATION_PROGRAMS {
             return Err(ProgramError::InvalidArgument);
         }
 
@@ -138,6 +140,12 @@ impl UpdateVerificationConfigArgs {
         program_addresses: &[Pubkey],
         offset: u8,
     ) -> Result<Self, ProgramError> {
+        // Validate that offset + new programs doesn't exceed max
+        let total_programs = offset as usize + program_addresses.len();
+        if total_programs > MAX_VERIFICATION_PROGRAMS {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         Ok(Self {
             instruction_discriminator,
             cpi_mode,
@@ -301,6 +309,7 @@ mod tests {
     use super::*;
     use crate::instruction::SecurityTokenInstruction;
     use crate::test_utils::random_pubkey;
+    use rstest::rstest;
 
     #[test]
     fn test_initialize_verification_config_args_to_bytes_inner_try_from_bytes() {
@@ -335,15 +344,20 @@ mod tests {
 
     #[test]
     fn test_initialize_verification_config_args_limits() {
-        // Test with maximum allowed programs (16)
-        let max_programs: Vec<Pubkey> = (0..16).map(|_| random_pubkey()).collect();
+        // Test with maximum allowed programs (10)
+        let max_programs: Vec<Pubkey> = (0..MAX_VERIFICATION_PROGRAMS)
+            .map(|_| random_pubkey())
+            .collect();
         let max_args = InitializeVerificationConfigArgs::new(
             SecurityTokenInstruction::InitializeMint.discriminant(),
             false,
             &max_programs,
         )
         .unwrap();
-        assert_eq!(max_args.program_count(), 16);
+        assert_eq!(
+            usize::from(max_args.program_count()),
+            MAX_VERIFICATION_PROGRAMS
+        );
 
         // Test with too many programs (should fail)
         let too_many_programs: Vec<Pubkey> = (0..17).map(|_| random_pubkey()).collect();
@@ -362,5 +376,43 @@ mod tests {
         )
         .unwrap();
         assert_eq!(empty_args.program_count(), 0);
+    }
+
+    #[rstest]
+    #[case(5, 10, false)]
+    #[case(10, 7, false)]
+    #[case(0, MAX_VERIFICATION_PROGRAMS, true)]
+    #[case(1, MAX_VERIFICATION_PROGRAMS, false)]
+    #[case(0, 1, true)]
+    #[case(15, 2, false)]
+    fn test_update_verification_config_args_validation(
+        #[case] offset: u8,
+        #[case] num_programs: usize,
+        #[case] should_succeed: bool,
+    ) {
+        let programs: Vec<Pubkey> = (0..num_programs).map(|_| random_pubkey()).collect();
+
+        let result = UpdateVerificationConfigArgs::new(
+            SecurityTokenInstruction::Mint.discriminant(),
+            false,
+            &programs,
+            offset,
+        );
+
+        if should_succeed {
+            assert!(
+                result.is_ok(),
+                "Expected success for offset={} with {} programs",
+                offset,
+                num_programs
+            );
+        } else {
+            assert!(
+                result.is_err(),
+                "Expected failure for offset={} with {} programs",
+                offset,
+                num_programs
+            );
+        }
     }
 }

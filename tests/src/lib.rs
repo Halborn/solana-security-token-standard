@@ -4,7 +4,7 @@
 pub mod integration_tests;
 
 #[cfg(test)]
-pub mod verify_workflow_test;
+pub mod verification_tests;
 
 #[cfg(test)]
 pub mod helpers;
