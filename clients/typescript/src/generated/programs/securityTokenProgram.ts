@@ -15,6 +15,7 @@ import {
 import {
   type ParsedBurnInstruction,
   type ParsedCloseRateAccountInstruction,
+  type ParsedCloseReceiptAccountInstruction,
   type ParsedConvertInstruction,
   type ParsedCreateProofAccountInstruction,
   type ParsedCreateRateAccountInstruction,
@@ -67,6 +68,7 @@ export enum SecurityTokenProgramInstruction {
   Convert,
   CreateProofAccount,
   UpdateProofAccount,
+  CloseReceiptAccount,
 }
 
 export function identifySecurityTokenProgramInstruction(
@@ -132,6 +134,9 @@ export function identifySecurityTokenProgramInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(19), 0)) {
     return SecurityTokenProgramInstruction.UpdateProofAccount;
+  }
+  if (containsBytes(data, getU8Encoder().encode(20), 0)) {
+    return SecurityTokenProgramInstruction.CloseReceiptAccount;
   }
   throw new Error(
     'The provided instruction could not be identified as a securityTokenProgram instruction.'
@@ -200,4 +205,7 @@ export type ParsedSecurityTokenProgramInstruction<
     } & ParsedCreateProofAccountInstruction<TProgram>)
   | ({
       instructionType: SecurityTokenProgramInstruction.UpdateProofAccount;
-    } & ParsedUpdateProofAccountInstruction<TProgram>);
+    } & ParsedUpdateProofAccountInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.CloseReceiptAccount;
+    } & ParsedCloseReceiptAccountInstruction<TProgram>);

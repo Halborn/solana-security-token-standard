@@ -1111,6 +1111,58 @@
         "type": "u8",
         "value": 19
       }
+    },
+    {
+      "name": "CloseReceiptAccount",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfigOrMintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvarOrCreator",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "receiptAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rateAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "destination",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "closeReceiptArgs",
+          "type": {
+            "defined": "CloseReceiptArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 20
+      }
     }
   ],
   "accounts": [
@@ -1234,6 +1286,18 @@
     }
   ],
   "types": [
+    {
+      "name": "CloseReceiptArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "actionId",
+            "type": "u64"
+          }
+        ]
+      }
+    },
     {
       "name": "ConvertArgs",
       "type": {
