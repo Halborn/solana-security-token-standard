@@ -32,7 +32,7 @@ pub struct InitializeVerificationConfig {
 
     pub transfer_hook_pda: Option<solana_pubkey::Pubkey>,
 
-    pub transfer_hook_account: Option<solana_pubkey::Pubkey>,
+    pub transfer_hook_program: Option<solana_pubkey::Pubkey>,
 }
 
 impl InitializeVerificationConfig {
@@ -96,9 +96,9 @@ impl InitializeVerificationConfig {
                 false,
             ));
         }
-        if let Some(transfer_hook_account) = self.transfer_hook_account {
+        if let Some(transfer_hook_program) = self.transfer_hook_program {
             accounts.push(solana_instruction::AccountMeta::new_readonly(
-                transfer_hook_account,
+                transfer_hook_program,
                 false,
             ));
         } else {
@@ -157,7 +157,7 @@ pub struct InitializeVerificationConfigInstructionArgs {
 ///   6. `[optional]` system_program (default to `11111111111111111111111111111111`)
 ///   7. `[writable, optional]` account_metas_pda
 ///   8. `[optional]` transfer_hook_pda
-///   9. `[optional]` transfer_hook_account
+///   9. `[optional]` transfer_hook_program
 #[derive(Clone, Debug, Default)]
 pub struct InitializeVerificationConfigBuilder {
     mint: Option<solana_pubkey::Pubkey>,
@@ -169,7 +169,7 @@ pub struct InitializeVerificationConfigBuilder {
     system_program: Option<solana_pubkey::Pubkey>,
     account_metas_pda: Option<solana_pubkey::Pubkey>,
     transfer_hook_pda: Option<solana_pubkey::Pubkey>,
-    transfer_hook_account: Option<solana_pubkey::Pubkey>,
+    transfer_hook_program: Option<solana_pubkey::Pubkey>,
     initialize_verification_config_args: Option<InitializeVerificationConfigArgs>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
@@ -240,11 +240,11 @@ impl InitializeVerificationConfigBuilder {
     }
     /// `[optional account]`
     #[inline(always)]
-    pub fn transfer_hook_account(
+    pub fn transfer_hook_program(
         &mut self,
-        transfer_hook_account: Option<solana_pubkey::Pubkey>,
+        transfer_hook_program: Option<solana_pubkey::Pubkey>,
     ) -> &mut Self {
-        self.transfer_hook_account = transfer_hook_account;
+        self.transfer_hook_program = transfer_hook_program;
         self
     }
     #[inline(always)]
@@ -288,7 +288,7 @@ impl InitializeVerificationConfigBuilder {
                 .unwrap_or(solana_pubkey::pubkey!("11111111111111111111111111111111")),
             account_metas_pda: self.account_metas_pda,
             transfer_hook_pda: self.transfer_hook_pda,
-            transfer_hook_account: self.transfer_hook_account,
+            transfer_hook_program: self.transfer_hook_program,
         };
         let args = InitializeVerificationConfigInstructionArgs {
             initialize_verification_config_args: self
@@ -321,7 +321,7 @@ pub struct InitializeVerificationConfigCpiAccounts<'a, 'b> {
 
     pub transfer_hook_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
 
-    pub transfer_hook_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    pub transfer_hook_program: Option<&'b solana_account_info::AccountInfo<'a>>,
 }
 
 /// `initialize_verification_config` CPI instruction.
@@ -347,7 +347,7 @@ pub struct InitializeVerificationConfigCpi<'a, 'b> {
 
     pub transfer_hook_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
 
-    pub transfer_hook_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    pub transfer_hook_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     /// The arguments for the instruction.
     pub __args: InitializeVerificationConfigInstructionArgs,
 }
@@ -369,7 +369,7 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
             system_program: accounts.system_program,
             account_metas_pda: accounts.account_metas_pda,
             transfer_hook_pda: accounts.transfer_hook_pda,
-            transfer_hook_account: accounts.transfer_hook_account,
+            transfer_hook_program: accounts.transfer_hook_program,
             __args: args,
         }
     }
@@ -444,9 +444,9 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
                 false,
             ));
         }
-        if let Some(transfer_hook_account) = self.transfer_hook_account {
+        if let Some(transfer_hook_program) = self.transfer_hook_program {
             accounts.push(solana_instruction::AccountMeta::new_readonly(
-                *transfer_hook_account.key,
+                *transfer_hook_program.key,
                 false,
             ));
         } else {
@@ -486,8 +486,8 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
         if let Some(transfer_hook_pda) = self.transfer_hook_pda {
             account_infos.push(transfer_hook_pda.clone());
         }
-        if let Some(transfer_hook_account) = self.transfer_hook_account {
-            account_infos.push(transfer_hook_account.clone());
+        if let Some(transfer_hook_program) = self.transfer_hook_program {
+            account_infos.push(transfer_hook_program.clone());
         }
         remaining_accounts
             .iter()
@@ -514,7 +514,7 @@ impl<'a, 'b> InitializeVerificationConfigCpi<'a, 'b> {
 ///   6. `[]` system_program
 ///   7. `[writable, optional]` account_metas_pda
 ///   8. `[optional]` transfer_hook_pda
-///   9. `[optional]` transfer_hook_account
+///   9. `[optional]` transfer_hook_program
 #[derive(Clone, Debug)]
 pub struct InitializeVerificationConfigCpiBuilder<'a, 'b> {
     instruction: Box<InitializeVerificationConfigCpiBuilderInstruction<'a, 'b>>,
@@ -533,7 +533,7 @@ impl<'a, 'b> InitializeVerificationConfigCpiBuilder<'a, 'b> {
             system_program: None,
             account_metas_pda: None,
             transfer_hook_pda: None,
-            transfer_hook_account: None,
+            transfer_hook_program: None,
             initialize_verification_config_args: None,
             __remaining_accounts: Vec::new(),
         });
@@ -610,11 +610,11 @@ impl<'a, 'b> InitializeVerificationConfigCpiBuilder<'a, 'b> {
     }
     /// `[optional account]`
     #[inline(always)]
-    pub fn transfer_hook_account(
+    pub fn transfer_hook_program(
         &mut self,
-        transfer_hook_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+        transfer_hook_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     ) -> &mut Self {
-        self.instruction.transfer_hook_account = transfer_hook_account;
+        self.instruction.transfer_hook_program = transfer_hook_program;
         self
     }
     #[inline(always)]
@@ -703,7 +703,7 @@ impl<'a, 'b> InitializeVerificationConfigCpiBuilder<'a, 'b> {
 
             transfer_hook_pda: self.instruction.transfer_hook_pda,
 
-            transfer_hook_account: self.instruction.transfer_hook_account,
+            transfer_hook_program: self.instruction.transfer_hook_program,
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -725,7 +725,7 @@ struct InitializeVerificationConfigCpiBuilderInstruction<'a, 'b> {
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     account_metas_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
     transfer_hook_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
-    transfer_hook_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    transfer_hook_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     initialize_verification_config_args: Option<InitializeVerificationConfigArgs>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,

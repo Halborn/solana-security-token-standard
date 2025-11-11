@@ -211,7 +211,7 @@ pub async fn initialize_verification_config_for_payer(
         .initialize_verification_config_args(args.clone())
         .account_metas_pda(Some(account_metas_pda))
         .transfer_hook_pda(Some(transfer_hook_pda))
-        .transfer_hook_account(Some(Pubkey::from(security_token_transfer_hook::id())))
+        .transfer_hook_program(Some(Pubkey::from(security_token_transfer_hook::id())))
         .instruction();
 
     send_tx(banks_client, vec![ix], &payer.pubkey(), vec![payer]).await

@@ -60,7 +60,7 @@ export type InitializeVerificationConfigInstruction<
     | AccountMeta<string> = '11111111111111111111111111111111',
   TAccountAccountMetasPda extends string | AccountMeta<string> = string,
   TAccountTransferHookPda extends string | AccountMeta<string> = string,
-  TAccountTransferHookAccount extends string | AccountMeta<string> = string,
+  TAccountTransferHookProgram extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -94,9 +94,9 @@ export type InitializeVerificationConfigInstruction<
       TAccountTransferHookPda extends string
         ? ReadonlyAccount<TAccountTransferHookPda>
         : TAccountTransferHookPda,
-      TAccountTransferHookAccount extends string
-        ? ReadonlyAccount<TAccountTransferHookAccount>
-        : TAccountTransferHookAccount,
+      TAccountTransferHookProgram extends string
+        ? ReadonlyAccount<TAccountTransferHookProgram>
+        : TAccountTransferHookProgram,
       ...TRemainingAccounts,
     ]
   >;
@@ -156,7 +156,7 @@ export type InitializeVerificationConfigInput<
   TAccountSystemProgram extends string = string,
   TAccountAccountMetasPda extends string = string,
   TAccountTransferHookPda extends string = string,
-  TAccountTransferHookAccount extends string = string,
+  TAccountTransferHookProgram extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
@@ -167,7 +167,7 @@ export type InitializeVerificationConfigInput<
   systemProgram?: Address<TAccountSystemProgram>;
   accountMetasPda?: Address<TAccountAccountMetasPda>;
   transferHookPda?: Address<TAccountTransferHookPda>;
-  transferHookAccount?: Address<TAccountTransferHookAccount>;
+  transferHookProgram?: Address<TAccountTransferHookProgram>;
   initializeVerificationConfigArgs: InitializeVerificationConfigInstructionDataArgs['initializeVerificationConfigArgs'];
 };
 
@@ -181,7 +181,7 @@ export function getInitializeVerificationConfigInstruction<
   TAccountSystemProgram extends string,
   TAccountAccountMetasPda extends string,
   TAccountTransferHookPda extends string,
-  TAccountTransferHookAccount extends string,
+  TAccountTransferHookProgram extends string,
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
 >(
@@ -195,7 +195,7 @@ export function getInitializeVerificationConfigInstruction<
     TAccountSystemProgram,
     TAccountAccountMetasPda,
     TAccountTransferHookPda,
-    TAccountTransferHookAccount
+    TAccountTransferHookProgram
   >,
   config?: { programAddress?: TProgramAddress }
 ): InitializeVerificationConfigInstruction<
@@ -209,7 +209,7 @@ export function getInitializeVerificationConfigInstruction<
   TAccountSystemProgram,
   TAccountAccountMetasPda,
   TAccountTransferHookPda,
-  TAccountTransferHookAccount
+  TAccountTransferHookProgram
 > {
   // Program address.
   const programAddress =
@@ -235,8 +235,8 @@ export function getInitializeVerificationConfigInstruction<
       value: input.transferHookPda ?? null,
       isWritable: false,
     },
-    transferHookAccount: {
-      value: input.transferHookAccount ?? null,
+    transferHookProgram: {
+      value: input.transferHookProgram ?? null,
       isWritable: false,
     },
   };
@@ -266,7 +266,7 @@ export function getInitializeVerificationConfigInstruction<
       getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.accountMetasPda),
       getAccountMeta(accounts.transferHookPda),
-      getAccountMeta(accounts.transferHookAccount),
+      getAccountMeta(accounts.transferHookProgram),
     ],
     data: getInitializeVerificationConfigInstructionDataEncoder().encode(
       args as InitializeVerificationConfigInstructionDataArgs
@@ -283,7 +283,7 @@ export function getInitializeVerificationConfigInstruction<
     TAccountSystemProgram,
     TAccountAccountMetasPda,
     TAccountTransferHookPda,
-    TAccountTransferHookAccount
+    TAccountTransferHookProgram
   >);
 }
 
@@ -302,7 +302,7 @@ export type ParsedInitializeVerificationConfigInstruction<
     systemProgram: TAccountMetas[6];
     accountMetasPda?: TAccountMetas[7] | undefined;
     transferHookPda?: TAccountMetas[8] | undefined;
-    transferHookAccount?: TAccountMetas[9] | undefined;
+    transferHookProgram?: TAccountMetas[9] | undefined;
   };
   data: InitializeVerificationConfigInstructionData;
 };
@@ -343,7 +343,7 @@ export function parseInitializeVerificationConfigInstruction<
       systemProgram: getNextAccount(),
       accountMetasPda: getNextOptionalAccount(),
       transferHookPda: getNextOptionalAccount(),
-      transferHookAccount: getNextOptionalAccount(),
+      transferHookProgram: getNextOptionalAccount(),
     },
     data: getInitializeVerificationConfigInstructionDataDecoder().decode(
       instruction.data

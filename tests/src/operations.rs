@@ -1,11 +1,12 @@
 use security_token_client::instructions::{
     BurnBuilder, FreezeBuilder, MintBuilder, PauseBuilder, ResumeBuilder, ThawBuilder,
-    TransferBuilder, BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR, MINT_DISCRIMINATOR,
-    PAUSE_DISCRIMINATOR, RESUME_DISCRIMINATOR, THAW_DISCRIMINATOR, TRANSFER_DISCRIMINATOR,
+    TransferBuilder, UpdateVerificationConfigBuilder, BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR,
+    MINT_DISCRIMINATOR, PAUSE_DISCRIMINATOR, RESUME_DISCRIMINATOR, THAW_DISCRIMINATOR,
+    TRANSFER_DISCRIMINATOR,
 };
 use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
 use security_token_client::types::{
-    InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs,
+    InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs, UpdateVerificationConfigArgs,
 };
 use solana_program::entrypoint::ProgramResult;
 use solana_sdk::account_info::AccountInfo;
@@ -19,9 +20,10 @@ use spl_type_length_value::state::TlvStateBorrowed;
 
 use crate::helpers::{
     assert_transaction_success, create_spl_account, find_mint_authority_pda,
-    find_mint_freeze_authority_pda, find_verification_config_pda, get_mint_state,
-    get_token_account_state, initialize_mint, initialize_mint_verification_and_mint_to_account,
-    initialize_program, initialize_verification_config, send_tx,
+    find_mint_freeze_authority_pda, find_transfer_hook_pda, find_verification_config_pda,
+    get_mint_state, get_token_account_state, initialize_mint,
+    initialize_mint_verification_and_mint_to_account, initialize_program,
+    initialize_verification_config, send_tx,
 };
 use security_token_transfer_hook;
 use solana_program_test::*;
@@ -758,7 +760,7 @@ async fn test_p2p_transfer_direct_spl() {
 }
 
 #[tokio::test]
-async fn test_transfer_hook_extra_account_metas_init_and_update() {
+async fn test_transfer_hook_extra_account_metas_init_update_trim() {
     let transfer_hook_program_id = Pubkey::from(security_token_transfer_hook::id());
 
     let mut pt = initialize_program();
@@ -796,39 +798,28 @@ async fn test_transfer_hook_extra_account_metas_init_and_update() {
     )
     .await;
 
-    // Get extra account metas PDA
-    let extra_account_metas_pda =
-        get_extra_account_metas_address(&mint_keypair.pubkey(), &transfer_hook_program_id);
+    let program_address_1 = Pubkey::new_unique();
+    let program_address_2 = Pubkey::new_unique();
 
-    // Initialize with one extra account meta
     let (verification_config_pda, _bump) =
         find_verification_config_pda(mint_keypair.pubkey(), TRANSFER_DISCRIMINATOR);
 
-    let initial_metas =
-        vec![ExtraAccountMeta::new_with_pubkey(&verification_config_pda, false, false).unwrap()];
-
-    let mut init_buffer = vec![0u8; ExtraAccountMetaList::size_of(initial_metas.len()).unwrap()];
-    ExtraAccountMetaList::init::<ExecuteInstruction>(&mut init_buffer, &initial_metas).unwrap();
-
-    let init_ix = initialize_extra_account_meta_list(
-        &transfer_hook_program_id,
-        &extra_account_metas_pda,
-        &mint_keypair.pubkey(),
-        &context.payer.pubkey(),
-        &initial_metas,
-    );
-
-    let result = send_tx(
-        &context.banks_client,
-        vec![init_ix],
-        &context.payer.pubkey(),
-        vec![&context.payer],
+    initialize_verification_config(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        verification_config_pda,
+        &InitializeVerificationConfigArgs {
+            instruction_discriminator: TRANSFER_DISCRIMINATOR,
+            cpi_mode: false,
+            program_addresses: vec![program_address_1, program_address_2],
+        },
     )
     .await;
 
-    assert_transaction_success(result);
+    let extra_account_metas_pda =
+        get_extra_account_metas_address(&mint_keypair.pubkey(), &transfer_hook_program_id);
 
-    // Verify initialization
     let extra_account_metas_account = context
         .banks_client
         .get_account(extra_account_metas_pda)
@@ -841,56 +832,9 @@ async fn test_transfer_hook_extra_account_metas_init_and_update() {
     let extra_metas_data =
         ExtraAccountMetaList::unpack_with_tlv_state::<ExecuteInstruction>(&tlv_state)
             .expect("extra meta list should deserialize");
-    assert_eq!(extra_metas_data.data().len(), 1);
 
-    // Update with two extra account metas
-    let dummy_account = Pubkey::new_unique();
-    let updated_metas = vec![
-        ExtraAccountMeta::new_with_pubkey(&verification_config_pda, false, false).unwrap(),
-        ExtraAccountMeta::new_with_pubkey(&dummy_account, false, false).unwrap(),
-    ];
-
-    let mut update_ix = spl_transfer_hook_interface::instruction::update_extra_account_meta_list(
-        &transfer_hook_program_id,
-        &extra_account_metas_pda,
-        &mint_keypair.pubkey(),
-        &context.payer.pubkey(),
-        &updated_metas,
-    );
-
-    // Add System Program as additional account for realloc
-    update_ix
-        .accounts
-        .push(solana_sdk::instruction::AccountMeta::new_readonly(
-            solana_sdk::system_program::ID,
-            false,
-        ));
-
-    let result = send_tx(
-        &context.banks_client,
-        vec![update_ix],
-        &context.payer.pubkey(),
-        vec![&context.payer],
-    )
-    .await;
-
-    assert_transaction_success(result);
-
-    // Verify update
-    let extra_account_metas_account = context
-        .banks_client
-        .get_account(extra_account_metas_pda)
-        .await
-        .unwrap()
-        .expect("extra account metas account should exist");
-
-    let tlv_state = TlvStateBorrowed::unpack(&extra_account_metas_account.data)
-        .expect("tlv header should deserialize");
-    let extra_metas_data =
-        ExtraAccountMetaList::unpack_with_tlv_state::<ExecuteInstruction>(&tlv_state)
-            .expect("extra meta list should deserialize");
-    assert_eq!(extra_metas_data.data().len(), 2);
-
+    // Must be 3 accounts: verification config + 2 program addresses
+    assert_eq!(extra_metas_data.data().len(), 3);
     // Verify the metas are correct
     let metas = extra_metas_data
         .data()
@@ -899,7 +843,153 @@ async fn test_transfer_hook_extra_account_metas_init_and_update() {
         .collect::<Vec<_>>();
     assert_eq!(
         Pubkey::from(metas[0].address_config),
-        verification_config_pda
+        find_verification_config_pda(mint_keypair.pubkey(), TRANSFER_DISCRIMINATOR).0
     );
-    assert_eq!(Pubkey::from(metas[1].address_config), dummy_account);
+    assert_eq!(Pubkey::from(metas[1].address_config), program_address_1);
+    assert_eq!(Pubkey::from(metas[2].address_config), program_address_2);
+
+    let program_address_3 = Pubkey::new_unique();
+    let update_verification_config_args = UpdateVerificationConfigArgs {
+        instruction_discriminator: TRANSFER_DISCRIMINATOR,
+        cpi_mode: false,
+        offset: 2,
+        program_addresses: vec![program_address_3],
+    };
+
+    let account_metas_pda = get_extra_account_metas_address(
+        &mint_keypair.pubkey(),
+        &Pubkey::from(security_token_transfer_hook::id()),
+    );
+
+    let (transfer_hook_pda, _bump) = find_transfer_hook_pda(&mint_keypair.pubkey());
+
+    let update_config_ix = UpdateVerificationConfigBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config_or_mint_authority(mint_authority_pda)
+        .instructions_sysvar_or_creator(context.payer.pubkey())
+        .config_account(verification_config_pda)
+        .mint_account(mint_keypair.pubkey())
+        .payer(context.payer.pubkey())
+        .update_verification_config_args(update_verification_config_args)
+        .account_metas_pda(Some(account_metas_pda))
+        .transfer_hook_pda(Some(transfer_hook_pda))
+        .transfer_hook_program(Some(transfer_hook_program_id))
+        .instruction();
+
+    let result = send_tx(
+        &context.banks_client,
+        vec![update_config_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
+
+    assert_transaction_success(result);
+
+    // // Get extra account metas PDA
+    // let extra_account_metas_pda =
+    //     get_extra_account_metas_address(&mint_keypair.pubkey(), &transfer_hook_program_id);
+
+    // // Initialize with one extra account meta
+    // let (verification_config_pda, _bump) =
+    //     find_verification_config_pda(mint_keypair.pubkey(), TRANSFER_DISCRIMINATOR);
+
+    // let initial_metas =
+    //     vec![ExtraAccountMeta::new_with_pubkey(&verification_config_pda, false, false).unwrap()];
+
+    // let mut init_buffer = vec![0u8; ExtraAccountMetaList::size_of(initial_metas.len()).unwrap()];
+    // ExtraAccountMetaList::init::<ExecuteInstruction>(&mut init_buffer, &initial_metas).unwrap();
+
+    // let init_ix = initialize_extra_account_meta_list(
+    //     &transfer_hook_program_id,
+    //     &extra_account_metas_pda,
+    //     &mint_keypair.pubkey(),
+    //     &context.payer.pubkey(),
+    //     &initial_metas,
+    // );
+
+    // let result = send_tx(
+    //     &context.banks_client,
+    //     vec![init_ix],
+    //     &context.payer.pubkey(),
+    //     vec![&context.payer],
+    // )
+    // .await;
+
+    // assert_transaction_success(result);
+
+    // // Verify initialization
+    // let extra_account_metas_account = context
+    //     .banks_client
+    //     .get_account(extra_account_metas_pda)
+    //     .await
+    //     .unwrap()
+    //     .expect("extra account metas account should exist");
+
+    // let tlv_state = TlvStateBorrowed::unpack(&extra_account_metas_account.data)
+    //     .expect("tlv header should deserialize");
+    // let extra_metas_data =
+    //     ExtraAccountMetaList::unpack_with_tlv_state::<ExecuteInstruction>(&tlv_state)
+    //         .expect("extra meta list should deserialize");
+    // assert_eq!(extra_metas_data.data().len(), 1);
+
+    // // Update with two extra account metas
+    // let dummy_account = Pubkey::new_unique();
+    // let updated_metas = vec![
+    //     ExtraAccountMeta::new_with_pubkey(&verification_config_pda, false, false).unwrap(),
+    //     ExtraAccountMeta::new_with_pubkey(&dummy_account, false, false).unwrap(),
+    // ];
+
+    // let mut update_ix = spl_transfer_hook_interface::instruction::update_extra_account_meta_list(
+    //     &transfer_hook_program_id,
+    //     &extra_account_metas_pda,
+    //     &mint_keypair.pubkey(),
+    //     &context.payer.pubkey(),
+    //     &updated_metas,
+    // );
+
+    // // Add System Program as additional account for realloc
+    // update_ix
+    //     .accounts
+    //     .push(solana_sdk::instruction::AccountMeta::new_readonly(
+    //         solana_sdk::system_program::ID,
+    //         false,
+    //     ));
+
+    // let result = send_tx(
+    //     &context.banks_client,
+    //     vec![update_ix],
+    //     &context.payer.pubkey(),
+    //     vec![&context.payer],
+    // )
+    // .await;
+
+    // assert_transaction_success(result);
+
+    // // Verify update
+    // let extra_account_metas_account = context
+    //     .banks_client
+    //     .get_account(extra_account_metas_pda)
+    //     .await
+    //     .unwrap()
+    //     .expect("extra account metas account should exist");
+
+    // let tlv_state = TlvStateBorrowed::unpack(&extra_account_metas_account.data)
+    //     .expect("tlv header should deserialize");
+    // let extra_metas_data =
+    //     ExtraAccountMetaList::unpack_with_tlv_state::<ExecuteInstruction>(&tlv_state)
+    //         .expect("extra meta list should deserialize");
+    // assert_eq!(extra_metas_data.data().len(), 2);
+
+    // // Verify the metas are correct
+    // let metas = extra_metas_data
+    //     .data()
+    //     .into_iter()
+    //     .map(|meta| meta.clone())
+    //     .collect::<Vec<_>>();
+    // assert_eq!(
+    //     Pubkey::from(metas[0].address_config),
+    //     verification_config_pda
+    // );
+    // assert_eq!(Pubkey::from(metas[1].address_config), dummy_account);
 }

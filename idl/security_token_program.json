@@ -157,7 +157,7 @@
           "isOptional": true
         },
         {
-          "name": "transferHookAccount",
+          "name": "transferHookProgram",
           "isMut": false,
           "isSigner": false,
           "isOptional": true
@@ -213,6 +213,24 @@
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "accountMetasPda",
+          "isMut": true,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "transferHookPda",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "transferHookProgram",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
         }
       ],
       "args": [

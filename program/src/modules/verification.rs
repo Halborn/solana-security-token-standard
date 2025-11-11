@@ -923,14 +923,13 @@ impl VerificationModule {
         Ok(())
     }
 
+   
     fn initialize_transfer_hook_account_metas(
         program_id: &Pubkey,
         payer: &AccountInfo,
         mint_info: &AccountInfo,
         system_program_info: &AccountInfo,
         transfer_hook_accounts: &[AccountInfo],
-        // account_metas_info: &AccountInfo,
-        // transfer_hook_info: &AccountInfo,
         verification_config_pda: Pubkey,
         program_addresses: &[Pubkey],
     ) -> ProgramResult {
@@ -1000,7 +999,9 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::UpdateVerificationConfigArgs,
     ) -> ProgramResult {
-        let [mint_account, config_account, payer, system_program_info] = accounts else {
+        let [mint_account, config_account, payer, system_program_info, transfer_hook_accounts @ ..] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
