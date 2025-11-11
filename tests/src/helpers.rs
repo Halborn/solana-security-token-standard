@@ -606,3 +606,11 @@ pub async fn get_token_account_state(
     StateWithExtensionsOwned::<TokenAccount>::unpack(account.data)
         .expect("token account state should deserialize")
 }
+
+/// Fetch balance of an account
+pub async fn get_balance(banks_client: &BanksClient, pubkey: Pubkey) -> u64 {
+    banks_client
+        .get_balance(pubkey)
+        .await
+        .expect("Should fetch balance")
+}
