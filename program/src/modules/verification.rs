@@ -907,7 +907,7 @@ impl VerificationModule {
         let config_bytes = config.to_bytes();
         data[..config_bytes.len()].copy_from_slice(&config_bytes);
 
-        if discriminator == SecurityTokenInstruction::Transfer as u8{
+        if discriminator == SecurityTokenInstruction::Transfer as u8 {
             // Initialize transfer hook extra account metas
             Self::initialize_transfer_hook_account_metas(
                 program_id,
@@ -1229,9 +1229,7 @@ impl VerificationModule {
 
         if args.close {
             // Close the account completely - transfer all lamports to recipient
-
             let config_lamports = config_account.lamports();
-
             // Transfer all lamports to recipient
             *config_account.try_borrow_mut_lamports()? = 0;
             *recipient.try_borrow_mut_lamports()? = recipient
@@ -1241,23 +1239,30 @@ impl VerificationModule {
 
             // Clear account data
             config_account.realloc(0, false)?;
+            // The ugly solution, but the case is specific
+            if discriminator == SecurityTokenInstruction::Transfer as u8 {
+                Self::update_transfer_hook_account_metas(
+                    program_id,
+                    recipient,
+                    mint_account,
+                    system_program_info,
+                    transfer_hook_accounts,
+                    *config_account.key(),
+                    &[],
+                )?;
+            }
         } else if new_size < current_program_count {
             // Trim the verification programs array
             existing_config.verification_programs.truncate(new_size);
-
-            // Validate the trimmed configuration
             existing_config.validate()?;
 
-            // Calculate new account size
             let new_account_size = existing_config.serialized_size();
             let current_account_size = config_account.data_len();
 
             if new_account_size < current_account_size {
-                // Calculate recovered rent (will transfer AFTER transfer hook CPI)
                 let space_recovered = current_account_size - new_account_size;
                 let rent = Rent::get()?;
                 let recovered_rent = rent.minimum_balance(space_recovered);
-                // Resize account to new size FIRST (before lamports transfer)
                 config_account.realloc(new_account_size, false)?;
 
                 // Write the trimmed config back to the account
@@ -1266,7 +1271,8 @@ impl VerificationModule {
                     let mut data = config_account.try_borrow_mut_data()?;
                     data[..config_bytes.len()].copy_from_slice(&config_bytes);
                 }
-                if discriminator == SecurityTokenInstruction::Transfer as u8{
+                // NOTE: CPI AFTER balance change causes an error
+                if discriminator == SecurityTokenInstruction::Transfer as u8 {
                     Self::update_transfer_hook_account_metas(
                         program_id,
                         recipient,
@@ -1287,7 +1293,6 @@ impl VerificationModule {
                     .checked_add(recovered_rent)
                     .ok_or(ProgramError::InsufficientFunds)?;
             } else {
-                // Account size didn't change, just write config back
                 let config_bytes = existing_config.to_bytes();
                 let mut data = config_account.try_borrow_mut_data()?;
                 data[..config_bytes.len()].copy_from_slice(&config_bytes);
