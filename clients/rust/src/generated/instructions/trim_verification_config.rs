@@ -27,6 +27,12 @@ pub struct TrimVerificationConfig {
     pub recipient: solana_pubkey::Pubkey,
 
     pub system_program: solana_pubkey::Pubkey,
+
+    pub account_metas_pda: Option<solana_pubkey::Pubkey>,
+
+    pub transfer_hook_pda: Option<solana_pubkey::Pubkey>,
+
+    pub transfer_hook_program: Option<solana_pubkey::Pubkey>,
 }
 
 impl TrimVerificationConfig {
@@ -43,7 +49,7 @@ impl TrimVerificationConfig {
         args: TrimVerificationConfigInstructionArgs,
         remaining_accounts: &[solana_instruction::AccountMeta],
     ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(10 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint, false,
         ));
@@ -68,6 +74,39 @@ impl TrimVerificationConfig {
             self.system_program,
             false,
         ));
+        if let Some(account_metas_pda) = self.account_metas_pda {
+            accounts.push(solana_instruction::AccountMeta::new(
+                account_metas_pda,
+                false,
+            ));
+        } else {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                crate::SECURITY_TOKEN_PROGRAM_ID,
+                false,
+            ));
+        }
+        if let Some(transfer_hook_pda) = self.transfer_hook_pda {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                transfer_hook_pda,
+                false,
+            ));
+        } else {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                crate::SECURITY_TOKEN_PROGRAM_ID,
+                false,
+            ));
+        }
+        if let Some(transfer_hook_program) = self.transfer_hook_program {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                transfer_hook_program,
+                false,
+            ));
+        } else {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                crate::SECURITY_TOKEN_PROGRAM_ID,
+                false,
+            ));
+        }
         accounts.extend_from_slice(remaining_accounts);
         let mut data = borsh::to_vec(&TrimVerificationConfigInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
@@ -116,6 +155,9 @@ pub struct TrimVerificationConfigInstructionArgs {
 ///   4. `[writable]` config_account
 ///   5. `[writable]` recipient
 ///   6. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   7. `[writable, optional]` account_metas_pda
+///   8. `[optional]` transfer_hook_pda
+///   9. `[optional]` transfer_hook_program
 #[derive(Clone, Debug, Default)]
 pub struct TrimVerificationConfigBuilder {
     mint: Option<solana_pubkey::Pubkey>,
@@ -125,6 +167,9 @@ pub struct TrimVerificationConfigBuilder {
     config_account: Option<solana_pubkey::Pubkey>,
     recipient: Option<solana_pubkey::Pubkey>,
     system_program: Option<solana_pubkey::Pubkey>,
+    account_metas_pda: Option<solana_pubkey::Pubkey>,
+    transfer_hook_pda: Option<solana_pubkey::Pubkey>,
+    transfer_hook_program: Option<solana_pubkey::Pubkey>,
     trim_verification_config_args: Option<TrimVerificationConfigArgs>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
@@ -175,6 +220,33 @@ impl TrimVerificationConfigBuilder {
         self.system_program = Some(system_program);
         self
     }
+    /// `[optional account]`
+    #[inline(always)]
+    pub fn account_metas_pda(
+        &mut self,
+        account_metas_pda: Option<solana_pubkey::Pubkey>,
+    ) -> &mut Self {
+        self.account_metas_pda = account_metas_pda;
+        self
+    }
+    /// `[optional account]`
+    #[inline(always)]
+    pub fn transfer_hook_pda(
+        &mut self,
+        transfer_hook_pda: Option<solana_pubkey::Pubkey>,
+    ) -> &mut Self {
+        self.transfer_hook_pda = transfer_hook_pda;
+        self
+    }
+    /// `[optional account]`
+    #[inline(always)]
+    pub fn transfer_hook_program(
+        &mut self,
+        transfer_hook_program: Option<solana_pubkey::Pubkey>,
+    ) -> &mut Self {
+        self.transfer_hook_program = transfer_hook_program;
+        self
+    }
     #[inline(always)]
     pub fn trim_verification_config_args(
         &mut self,
@@ -214,6 +286,9 @@ impl TrimVerificationConfigBuilder {
             system_program: self
                 .system_program
                 .unwrap_or(solana_pubkey::pubkey!("11111111111111111111111111111111")),
+            account_metas_pda: self.account_metas_pda,
+            transfer_hook_pda: self.transfer_hook_pda,
+            transfer_hook_program: self.transfer_hook_program,
         };
         let args = TrimVerificationConfigInstructionArgs {
             trim_verification_config_args: self
@@ -241,6 +316,12 @@ pub struct TrimVerificationConfigCpiAccounts<'a, 'b> {
     pub recipient: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
+
+    pub account_metas_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
+
+    pub transfer_hook_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
+
+    pub transfer_hook_program: Option<&'b solana_account_info::AccountInfo<'a>>,
 }
 
 /// `trim_verification_config` CPI instruction.
@@ -261,6 +342,12 @@ pub struct TrimVerificationConfigCpi<'a, 'b> {
     pub recipient: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
+
+    pub account_metas_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
+
+    pub transfer_hook_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
+
+    pub transfer_hook_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     /// The arguments for the instruction.
     pub __args: TrimVerificationConfigInstructionArgs,
 }
@@ -280,6 +367,9 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
             config_account: accounts.config_account,
             recipient: accounts.recipient,
             system_program: accounts.system_program,
+            account_metas_pda: accounts.account_metas_pda,
+            transfer_hook_pda: accounts.transfer_hook_pda,
+            transfer_hook_program: accounts.transfer_hook_program,
             __args: args,
         }
     }
@@ -306,7 +396,7 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
         remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
     ) -> solana_program_error::ProgramResult {
-        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(10 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint.key,
             false,
@@ -335,6 +425,39 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
             *self.system_program.key,
             false,
         ));
+        if let Some(account_metas_pda) = self.account_metas_pda {
+            accounts.push(solana_instruction::AccountMeta::new(
+                *account_metas_pda.key,
+                false,
+            ));
+        } else {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                crate::SECURITY_TOKEN_PROGRAM_ID,
+                false,
+            ));
+        }
+        if let Some(transfer_hook_pda) = self.transfer_hook_pda {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                *transfer_hook_pda.key,
+                false,
+            ));
+        } else {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                crate::SECURITY_TOKEN_PROGRAM_ID,
+                false,
+            ));
+        }
+        if let Some(transfer_hook_program) = self.transfer_hook_program {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                *transfer_hook_program.key,
+                false,
+            ));
+        } else {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                crate::SECURITY_TOKEN_PROGRAM_ID,
+                false,
+            ));
+        }
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
@@ -351,7 +474,7 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(8 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(11 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config_or_mint_authority.clone());
@@ -360,6 +483,15 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
         account_infos.push(self.config_account.clone());
         account_infos.push(self.recipient.clone());
         account_infos.push(self.system_program.clone());
+        if let Some(account_metas_pda) = self.account_metas_pda {
+            account_infos.push(account_metas_pda.clone());
+        }
+        if let Some(transfer_hook_pda) = self.transfer_hook_pda {
+            account_infos.push(transfer_hook_pda.clone());
+        }
+        if let Some(transfer_hook_program) = self.transfer_hook_program {
+            account_infos.push(transfer_hook_program.clone());
+        }
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -383,6 +515,9 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
 ///   4. `[writable]` config_account
 ///   5. `[writable]` recipient
 ///   6. `[]` system_program
+///   7. `[writable, optional]` account_metas_pda
+///   8. `[optional]` transfer_hook_pda
+///   9. `[optional]` transfer_hook_program
 #[derive(Clone, Debug)]
 pub struct TrimVerificationConfigCpiBuilder<'a, 'b> {
     instruction: Box<TrimVerificationConfigCpiBuilderInstruction<'a, 'b>>,
@@ -399,6 +534,9 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
             config_account: None,
             recipient: None,
             system_program: None,
+            account_metas_pda: None,
+            transfer_hook_pda: None,
+            transfer_hook_program: None,
             trim_verification_config_args: None,
             __remaining_accounts: Vec::new(),
         });
@@ -453,6 +591,33 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
         system_program: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.system_program = Some(system_program);
+        self
+    }
+    /// `[optional account]`
+    #[inline(always)]
+    pub fn account_metas_pda(
+        &mut self,
+        account_metas_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
+    ) -> &mut Self {
+        self.instruction.account_metas_pda = account_metas_pda;
+        self
+    }
+    /// `[optional account]`
+    #[inline(always)]
+    pub fn transfer_hook_pda(
+        &mut self,
+        transfer_hook_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
+    ) -> &mut Self {
+        self.instruction.transfer_hook_pda = transfer_hook_pda;
+        self
+    }
+    /// `[optional account]`
+    #[inline(always)]
+    pub fn transfer_hook_program(
+        &mut self,
+        transfer_hook_program: Option<&'b solana_account_info::AccountInfo<'a>>,
+    ) -> &mut Self {
+        self.instruction.transfer_hook_program = transfer_hook_program;
         self
     }
     #[inline(always)]
@@ -535,6 +700,12 @@ impl<'a, 'b> TrimVerificationConfigCpiBuilder<'a, 'b> {
                 .instruction
                 .system_program
                 .expect("system_program is not set"),
+
+            account_metas_pda: self.instruction.account_metas_pda,
+
+            transfer_hook_pda: self.instruction.transfer_hook_pda,
+
+            transfer_hook_program: self.instruction.transfer_hook_program,
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -554,6 +725,9 @@ struct TrimVerificationConfigCpiBuilderInstruction<'a, 'b> {
     config_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     recipient: Option<&'b solana_account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
+    account_metas_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
+    transfer_hook_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
+    transfer_hook_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     trim_verification_config_args: Option<TrimVerificationConfigArgs>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,

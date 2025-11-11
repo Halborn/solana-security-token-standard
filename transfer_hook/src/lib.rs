@@ -1,8 +1,6 @@
 //! Security Token transfer hook implementation
 #![allow(unexpected_cfgs)]
 
-use pinocchio::sysvars::rent::Rent;
-use pinocchio::sysvars::Sysvar;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
@@ -11,7 +9,6 @@ use pinocchio::{
     ProgramResult,
 };
 use pinocchio_pubkey::{declare_id, pubkey};
-use pinocchio_system::instructions::Transfer;
 use pinocchio_system::instructions::{Allocate, Assign};
 use solana_pubkey::Pubkey as SolanaPubkey;
 use spl_discriminator::SplDiscriminate;
@@ -22,7 +19,6 @@ use spl_transfer_hook_interface::instruction::{
     ExecuteInstruction, InitializeExtraAccountMetaListInstruction,
     UpdateExtraAccountMetaListInstruction,
 };
-
 pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
     pubkey!("Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH");
 const PERMANENT_DELEGATE_SEED: &[u8] = b"mint.permanent_delegate";
@@ -329,12 +325,12 @@ fn process_update_extra_account_meta_list(
         .map_err(|_| ProgramError::InvalidInstructionData)?;
     let extra_account_metas = pod_slice.data().to_vec();
     let new_count = extra_account_metas.len();
+
     let new_account_size =
         ExtraAccountMetaList::size_of(new_count).map_err(|_| ProgramError::InvalidAccountData)?;
     let current_account_size = extra_meta_info.data_len();
-    // Handle size changes
+
     if new_account_size > current_account_size {
-        // Verify system program is provided
         if !rest_accounts
             .iter()
             .any(|acc| acc.key() == &pinocchio_system::ID)
@@ -342,15 +338,11 @@ fn process_update_extra_account_meta_list(
             return Err(ProgramError::NotEnoughAccountKeys);
         }
         extra_meta_info.realloc(new_account_size, false)?;
-    } else if new_account_size < current_account_size {
-        // Can shrink and return lamports
-        extra_meta_info.realloc(new_account_size, false)?;
     }
-    {
-        let mut data = extra_meta_info.try_borrow_mut_data()?;
-        ExtraAccountMetaList::update::<ExecuteInstruction>(&mut data, &extra_account_metas)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-    }
-
+    // NOTE: Realloc to the smaller size causes panic
+    // new_account_size < current_account_size -> extra_meta_info.realloc(new_account_size, false)?;
+    let mut data = extra_meta_info.try_borrow_mut_data()?;
+    ExtraAccountMetaList::update::<ExecuteInstruction>(&mut data, &extra_account_metas)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
     Ok(())
 }

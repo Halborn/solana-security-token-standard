@@ -939,7 +939,7 @@ impl VerificationModule {
         };
 
         verify_transfer_hook_program(transfer_hook_program)?;
-        let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), &program_id);
+        let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
         verify_pda(&transfer_hook_pda, transfer_hook_pda_info.key())?;
         let (account_metas_pda, _bump) = find_extra_account_metas_pda(mint_info.key());
         verify_pda(&account_metas_pda, account_metas_pda_info.key())?;
@@ -964,37 +964,20 @@ impl VerificationModule {
         let new_account_size = ExtraAccountMeta::calculate_account_size(account_metas.len());
         let current_account_size = account_metas_pda_info.data_len();
 
-        // Handle size changes
+        // Add lamports on STP side and allocate in the Transfer Hook side
         if new_account_size > current_account_size {
             // Need to add lamports and realloc
-            let additional_space = new_account_size - current_account_size;
             let rent = Rent::get()?;
-            let additional_rent = rent.minimum_balance(additional_space);
-
+            let old_rent = rent.minimum_balance(current_account_size);
+            let new_rent = rent.minimum_balance(new_account_size);
+            let additional_rent = new_rent.saturating_sub(old_rent);
             let transfer = Transfer {
                 from: payer,
                 to: account_metas_pda_info,
                 lamports: additional_rent,
             };
             transfer.invoke()?;
-        } else if new_account_size < current_account_size {
-            // Can shrink and return lamports
-            let space_recovered = current_account_size - new_account_size;
-            let rent = Rent::get()?;
-            let recovered_rent = rent.minimum_balance(space_recovered);
-
-            *account_metas_pda_info.try_borrow_mut_lamports()? = account_metas_pda_info
-                .lamports()
-                .checked_sub(recovered_rent)
-                .ok_or(ProgramError::InsufficientFunds)?;
-
-            *payer.try_borrow_mut_lamports()? = payer
-                .lamports()
-                .checked_add(recovered_rent)
-                .ok_or(ProgramError::InsufficientFunds)?;
         }
-
-        // Update the extra account metas using CustomUpdateExtraAccountMetaList wrapper
         let bump_seed = [bump];
         let seeds = [
             Seed::from(seeds::TRANSFER_HOOK),
@@ -1002,7 +985,6 @@ impl VerificationModule {
             Seed::from(bump_seed.as_ref()),
         ];
         let signer = Signer::from(&seeds);
-
         let update_instruction = CustomUpdateExtraAccountMetaList::new(
             &TRANSFER_HOOK_PROGRAM_ID,
             account_metas_pda_info,
@@ -1012,7 +994,6 @@ impl VerificationModule {
             &account_metas,
         );
         update_instruction.invoke_signed(&[signer])?;
-
         Ok(())
     }
 
@@ -1032,7 +1013,7 @@ impl VerificationModule {
         };
 
         verify_transfer_hook_program(transfer_hook_program)?;
-        let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), &program_id);
+        let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
         verify_pda(&transfer_hook_pda, transfer_hook_pda_info.key())?;
         let (account_metas_pda, _bump) = find_extra_account_metas_pda(mint_info.key());
         verify_pda(&account_metas_pda, account_metas_pda_info.key())?;
@@ -1044,8 +1025,6 @@ impl VerificationModule {
             is_signer: false,
             is_writable: false,
         });
-
-        // Add all verification program addresses
         for program_address in program_addresses {
             account_metas.push(ExtraAccountMeta {
                 discriminator: 0,
@@ -1055,6 +1034,7 @@ impl VerificationModule {
             });
         }
 
+        // Add lamports on STP side and allocate in the Transfer Hook side
         let account_size = ExtraAccountMeta::calculate_account_size(account_metas.len());
         let rent = Rent::get()?;
         let required_lamports = rent.minimum_balance(account_size);
@@ -1197,7 +1177,9 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &TrimVerificationConfigArgs,
     ) -> ProgramResult {
-        let [mint_account, config_account, recipient, system_program_info] = accounts else {
+        let [mint_account, config_account, recipient, system_program_info, transfer_hook_accounts @ ..] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -1270,12 +1252,30 @@ impl VerificationModule {
             let current_account_size = config_account.data_len();
 
             if new_account_size < current_account_size {
-                // Calculate recovered rent
+                // Calculate recovered rent (will transfer AFTER transfer hook CPI)
                 let space_recovered = current_account_size - new_account_size;
                 let rent = Rent::get()?;
                 let recovered_rent = rent.minimum_balance(space_recovered);
+                // Resize account to new size FIRST (before lamports transfer)
+                config_account.realloc(new_account_size, false)?;
 
-                // Transfer recovered rent to recipient
+                // Write the trimmed config back to the account
+                let config_bytes = existing_config.to_bytes();
+                {
+                    let mut data = config_account.try_borrow_mut_data()?;
+                    data[..config_bytes.len()].copy_from_slice(&config_bytes);
+                }
+                if discriminator == 12 {
+                    Self::update_transfer_hook_account_metas(
+                        program_id,
+                        recipient,
+                        mint_account,
+                        system_program_info,
+                        transfer_hook_accounts,
+                        *config_account.key(),
+                        existing_config.verification_programs.as_slice(),
+                    )?;
+                }
                 *config_account.try_borrow_mut_lamports()? = config_account
                     .lamports()
                     .checked_sub(recovered_rent)
@@ -1285,16 +1285,12 @@ impl VerificationModule {
                     .lamports()
                     .checked_add(recovered_rent)
                     .ok_or(ProgramError::InsufficientFunds)?;
-
-                // Resize account to new size
-                config_account.realloc(new_account_size, false)?;
-            }
-            // Write the trimmed config back to the account
-            let config_bytes = existing_config.to_bytes();
-            {
+            } else {
+                // Account size didn't change, just write config back
+                let config_bytes = existing_config.to_bytes();
                 let mut data = config_account.try_borrow_mut_data()?;
                 data[..config_bytes.len()].copy_from_slice(&config_bytes);
-            } // data borrow is released here
+            }
         }
         Ok(())
     }
