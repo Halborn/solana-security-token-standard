@@ -31,6 +31,7 @@ use pinocchio_token_2022::{
 use super::utils as verification_utils;
 use crate::constants::{seeds, INSTRUCTION_ACCOUNTS_OFFSET, TRANSFER_HOOK_PROGRAM_ID};
 use crate::error::SecurityTokenError;
+use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{
@@ -906,7 +907,7 @@ impl VerificationModule {
         let config_bytes = config.to_bytes();
         data[..config_bytes.len()].copy_from_slice(&config_bytes);
 
-        if discriminator == 12 {
+        if discriminator == SecurityTokenInstruction::Transfer as u8{
             // Initialize transfer hook extra account metas
             Self::initialize_transfer_hook_account_metas(
                 program_id,
@@ -1156,7 +1157,7 @@ impl VerificationModule {
             data[..config_bytes.len()].copy_from_slice(&config_bytes);
         }
 
-        if discriminator == 12 {
+        if discriminator == SecurityTokenInstruction::Transfer as u8 {
             Self::update_transfer_hook_account_metas(
                 program_id,
                 payer,
@@ -1265,7 +1266,7 @@ impl VerificationModule {
                     let mut data = config_account.try_borrow_mut_data()?;
                     data[..config_bytes.len()].copy_from_slice(&config_bytes);
                 }
-                if discriminator == 12 {
+                if discriminator == SecurityTokenInstruction::Transfer as u8{
                     Self::update_transfer_hook_account_metas(
                         program_id,
                         recipient,
