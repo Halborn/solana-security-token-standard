@@ -922,6 +922,7 @@ impl VerificationModule {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn sync_transfer_hook_account_metas(
         program_id: &Pubkey,
         payer: &AccountInfo,
@@ -1224,32 +1225,11 @@ impl VerificationModule {
             return Err(ProgramError::InvalidArgument);
         }
 
-        if args.close {
-            // Close the account completely - transfer all lamports to recipient
+        let (new_program_list, recovered_rent) = if args.close {
             let config_lamports = config_account.lamports();
-            // Transfer all lamports to recipient
-            *config_account.try_borrow_mut_lamports()? = 0;
-            *recipient.try_borrow_mut_lamports()? = recipient
-                .lamports()
-                .checked_add(config_lamports)
-                .ok_or(ProgramError::InsufficientFunds)?;
-
-            // Clear account data
-            config_account.realloc(0, false)?;
-            // The ugly solution, but the case is specific
-            if discriminator == SecurityTokenInstruction::Transfer as u8 {
-                Self::update_transfer_hook_account_metas(
-                    program_id,
-                    recipient,
-                    mint_account,
-                    system_program_info,
-                    transfer_hook_accounts,
-                    *config_account.key(),
-                    &[],
-                )?;
-            }
+            (&[][..], config_lamports)
         } else if new_size < current_program_count {
-            // Trim the verification programs array
+            // Trim: truncate program list, calculate recovered rent
             existing_config.verification_programs.truncate(new_size);
             existing_config.validate()?;
 
@@ -1260,41 +1240,59 @@ impl VerificationModule {
                 let rent = Rent::get()?;
                 let old_rent = rent.minimum_balance(current_account_size);
                 let new_rent = rent.minimum_balance(new_account_size);
-                let recovered_rent = old_rent - new_rent;
-                config_account.realloc(new_account_size, false)?;
-
-                // Write the trimmed config back to the account
-                let config_bytes = existing_config.to_bytes();
-                {
-                    let mut data = config_account.try_borrow_mut_data()?;
-                    data[..config_bytes.len()].copy_from_slice(&config_bytes);
-                }
-                // NOTE: CPI AFTER balance change causes an error
-                if discriminator == SecurityTokenInstruction::Transfer as u8 {
-                    Self::update_transfer_hook_account_metas(
-                        program_id,
-                        recipient,
-                        mint_account,
-                        system_program_info,
-                        transfer_hook_accounts,
-                        *config_account.key(),
-                        existing_config.verification_programs.as_slice(),
-                    )?;
-                }
-                *config_account.try_borrow_mut_lamports()? = config_account
-                    .lamports()
-                    .checked_sub(recovered_rent)
-                    .ok_or(ProgramError::InsufficientFunds)?;
-
-                *recipient.try_borrow_mut_lamports()? = recipient
-                    .lamports()
-                    .checked_add(recovered_rent)
-                    .ok_or(ProgramError::InsufficientFunds)?;
+                let recovered = old_rent - new_rent;
+                (existing_config.verification_programs.as_slice(), recovered)
             } else {
+                // No size change, just update data
                 let config_bytes = existing_config.to_bytes();
                 let mut data = config_account.try_borrow_mut_data()?;
                 data[..config_bytes.len()].copy_from_slice(&config_bytes);
+                return Ok(());
             }
+        } else {
+            return Ok(());
+        };
+
+        // Update transfer hook BEFORE any balance changes
+        if discriminator == SecurityTokenInstruction::Transfer as u8 {
+            Self::update_transfer_hook_account_metas(
+                program_id,
+                recipient,
+                mint_account,
+                system_program_info,
+                transfer_hook_accounts,
+                *config_account.key(),
+                new_program_list,
+            )?;
+        }
+
+        if args.close {
+            // Close the account completely
+            *config_account.try_borrow_mut_lamports()? = 0;
+            *recipient.try_borrow_mut_lamports()? = recipient
+                .lamports()
+                .checked_add(recovered_rent)
+                .ok_or(ProgramError::InsufficientFunds)?;
+            config_account.realloc(0, false)?;
+        } else {
+            let new_account_size = existing_config.serialized_size();
+            config_account.realloc(new_account_size, false)?;
+
+            let config_bytes = existing_config.to_bytes();
+            {
+                let mut data = config_account.try_borrow_mut_data()?;
+                data[..config_bytes.len()].copy_from_slice(&config_bytes);
+            }
+
+            *config_account.try_borrow_mut_lamports()? = config_account
+                .lamports()
+                .checked_sub(recovered_rent)
+                .ok_or(ProgramError::InsufficientFunds)?;
+
+            *recipient.try_borrow_mut_lamports()? = recipient
+                .lamports()
+                .checked_add(recovered_rent)
+                .ok_or(ProgramError::InsufficientFunds)?;
         }
         Ok(())
     }

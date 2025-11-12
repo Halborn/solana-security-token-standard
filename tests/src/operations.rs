@@ -1,8 +1,8 @@
 use security_token_client::instructions::{
     BurnBuilder, FreezeBuilder, MintBuilder, PauseBuilder, ResumeBuilder, ThawBuilder,
-    TransferBuilder, TrimVerificationConfig, TrimVerificationConfigBuilder,
-    UpdateVerificationConfigBuilder, BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR, MINT_DISCRIMINATOR,
-    PAUSE_DISCRIMINATOR, RESUME_DISCRIMINATOR, THAW_DISCRIMINATOR, TRANSFER_DISCRIMINATOR,
+    TransferBuilder, TrimVerificationConfigBuilder, UpdateVerificationConfigBuilder,
+    BURN_DISCRIMINATOR, FREEZE_DISCRIMINATOR, MINT_DISCRIMINATOR, PAUSE_DISCRIMINATOR,
+    RESUME_DISCRIMINATOR, THAW_DISCRIMINATOR, TRANSFER_DISCRIMINATOR,
 };
 use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
 use security_token_client::types::{
@@ -11,11 +11,8 @@ use security_token_client::types::{
 };
 use solana_program::entrypoint::ProgramResult;
 use solana_sdk::account_info::AccountInfo;
-use spl_tlv_account_resolution::account::ExtraAccountMeta;
 use spl_tlv_account_resolution::state::ExtraAccountMetaList;
-use spl_transfer_hook_interface::instruction::{
-    initialize_extra_account_meta_list, ExecuteInstruction,
-};
+use spl_transfer_hook_interface::instruction::ExecuteInstruction;
 use spl_transfer_hook_interface::offchain::add_extra_account_metas_for_execute;
 use spl_type_length_value::state::TlvStateBorrowed;
 
