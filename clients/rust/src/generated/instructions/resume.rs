@@ -19,9 +19,9 @@ pub struct Resume {
 
     pub instructions_sysvar: solana_pubkey::Pubkey,
 
-    pub mint_account: solana_pubkey::Pubkey,
-
     pub pause_authority: solana_pubkey::Pubkey,
+
+    pub mint_account: solana_pubkey::Pubkey,
 
     pub token_program: solana_pubkey::Pubkey,
 }
@@ -48,12 +48,12 @@ impl Resume {
             self.instructions_sysvar,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
-            self.mint_account,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.pause_authority,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            self.mint_account,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -96,16 +96,16 @@ impl Default for ResumeInstructionData {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
-///   3. `[writable]` mint_account
-///   4. `[]` pause_authority
+///   3. `[]` pause_authority
+///   4. `[writable]` mint_account
 ///   5. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 #[derive(Clone, Debug, Default)]
 pub struct ResumeBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config: Option<solana_pubkey::Pubkey>,
     instructions_sysvar: Option<solana_pubkey::Pubkey>,
-    mint_account: Option<solana_pubkey::Pubkey>,
     pause_authority: Option<solana_pubkey::Pubkey>,
+    mint_account: Option<solana_pubkey::Pubkey>,
     token_program: Option<solana_pubkey::Pubkey>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
@@ -131,13 +131,13 @@ impl ResumeBuilder {
         self
     }
     #[inline(always)]
-    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.mint_account = Some(mint_account);
+    pub fn pause_authority(&mut self, pause_authority: solana_pubkey::Pubkey) -> &mut Self {
+        self.pause_authority = Some(pause_authority);
         self
     }
     #[inline(always)]
-    pub fn pause_authority(&mut self, pause_authority: solana_pubkey::Pubkey) -> &mut Self {
-        self.pause_authority = Some(pause_authority);
+    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_account = Some(mint_account);
         self
     }
     /// `[optional account, default to 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']`
@@ -171,8 +171,8 @@ impl ResumeBuilder {
             instructions_sysvar: self.instructions_sysvar.unwrap_or(solana_pubkey::pubkey!(
                 "Sysvar1nstructions1111111111111111111111111"
             )),
-            mint_account: self.mint_account.expect("mint_account is not set"),
             pause_authority: self.pause_authority.expect("pause_authority is not set"),
+            mint_account: self.mint_account.expect("mint_account is not set"),
             token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
                 "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
             )),
@@ -190,9 +190,9 @@ pub struct ResumeCpiAccounts<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub pause_authority: &'b solana_account_info::AccountInfo<'a>,
+
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 }
@@ -208,9 +208,9 @@ pub struct ResumeCpi<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub pause_authority: &'b solana_account_info::AccountInfo<'a>,
+
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 }
@@ -225,8 +225,8 @@ impl<'a, 'b> ResumeCpi<'a, 'b> {
             mint: accounts.mint,
             verification_config: accounts.verification_config,
             instructions_sysvar: accounts.instructions_sysvar,
-            mint_account: accounts.mint_account,
             pause_authority: accounts.pause_authority,
+            mint_account: accounts.mint_account,
             token_program: accounts.token_program,
         }
     }
@@ -266,12 +266,12 @@ impl<'a, 'b> ResumeCpi<'a, 'b> {
             *self.instructions_sysvar.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
-            *self.mint_account.key,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.pause_authority.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            *self.mint_account.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -297,8 +297,8 @@ impl<'a, 'b> ResumeCpi<'a, 'b> {
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config.clone());
         account_infos.push(self.instructions_sysvar.clone());
-        account_infos.push(self.mint_account.clone());
         account_infos.push(self.pause_authority.clone());
+        account_infos.push(self.mint_account.clone());
         account_infos.push(self.token_program.clone());
         remaining_accounts
             .iter()
@@ -319,8 +319,8 @@ impl<'a, 'b> ResumeCpi<'a, 'b> {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
-///   3. `[writable]` mint_account
-///   4. `[]` pause_authority
+///   3. `[]` pause_authority
+///   4. `[writable]` mint_account
 ///   5. `[]` token_program
 #[derive(Clone, Debug)]
 pub struct ResumeCpiBuilder<'a, 'b> {
@@ -334,8 +334,8 @@ impl<'a, 'b> ResumeCpiBuilder<'a, 'b> {
             mint: None,
             verification_config: None,
             instructions_sysvar: None,
-            mint_account: None,
             pause_authority: None,
+            mint_account: None,
             token_program: None,
             __remaining_accounts: Vec::new(),
         });
@@ -363,19 +363,19 @@ impl<'a, 'b> ResumeCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn mint_account(
-        &mut self,
-        mint_account: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.mint_account = Some(mint_account);
-        self
-    }
-    #[inline(always)]
     pub fn pause_authority(
         &mut self,
         pause_authority: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.pause_authority = Some(pause_authority);
+        self
+    }
+    #[inline(always)]
+    pub fn mint_account(
+        &mut self,
+        mint_account: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.mint_account = Some(mint_account);
         self
     }
     #[inline(always)]
@@ -435,15 +435,15 @@ impl<'a, 'b> ResumeCpiBuilder<'a, 'b> {
                 .instructions_sysvar
                 .expect("instructions_sysvar is not set"),
 
-            mint_account: self
-                .instruction
-                .mint_account
-                .expect("mint_account is not set"),
-
             pause_authority: self
                 .instruction
                 .pause_authority
                 .expect("pause_authority is not set"),
+
+            mint_account: self
+                .instruction
+                .mint_account
+                .expect("mint_account is not set"),
 
             token_program: self
                 .instruction
@@ -463,8 +463,8 @@ struct ResumeCpiBuilderInstruction<'a, 'b> {
     mint: Option<&'b solana_account_info::AccountInfo<'a>>,
     verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
-    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     pause_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,

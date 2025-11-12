@@ -50,19 +50,19 @@ export type SplitInstruction<
   TAccountInstructionsSysvar extends
     | string
     | AccountMeta<string> = 'Sysvar1nstructions1111111111111111111111111',
-  TAccountMintAccount extends string | AccountMeta<string> = string,
+  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountMintAuthority extends string | AccountMeta<string> = string,
   TAccountPermanentDelegate extends string | AccountMeta<string> = string,
-  TAccountRateAccount extends string | AccountMeta<string> = string,
-  TAccountReceiptAccount extends string | AccountMeta<string> = string,
+  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountTokenAccount extends string | AccountMeta<string> = string,
+  TAccountReceiptAccount extends string | AccountMeta<string> = string,
+  TAccountRateAccount extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
     | AccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
   TAccountSystemProgram extends
     | string
     | AccountMeta<string> = '11111111111111111111111111111111',
-  TAccountPayer extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -77,34 +77,34 @@ export type SplitInstruction<
       TAccountInstructionsSysvar extends string
         ? ReadonlyAccount<TAccountInstructionsSysvar>
         : TAccountInstructionsSysvar,
-      TAccountMintAccount extends string
-        ? WritableAccount<TAccountMintAccount>
-        : TAccountMintAccount,
+      TAccountPayer extends string
+        ? WritableSignerAccount<TAccountPayer> &
+            AccountSignerMeta<TAccountPayer>
+        : TAccountPayer,
       TAccountMintAuthority extends string
         ? ReadonlyAccount<TAccountMintAuthority>
         : TAccountMintAuthority,
       TAccountPermanentDelegate extends string
         ? ReadonlyAccount<TAccountPermanentDelegate>
         : TAccountPermanentDelegate,
-      TAccountRateAccount extends string
-        ? ReadonlyAccount<TAccountRateAccount>
-        : TAccountRateAccount,
-      TAccountReceiptAccount extends string
-        ? WritableAccount<TAccountReceiptAccount>
-        : TAccountReceiptAccount,
+      TAccountMintAccount extends string
+        ? WritableAccount<TAccountMintAccount>
+        : TAccountMintAccount,
       TAccountTokenAccount extends string
         ? WritableAccount<TAccountTokenAccount>
         : TAccountTokenAccount,
+      TAccountReceiptAccount extends string
+        ? WritableAccount<TAccountReceiptAccount>
+        : TAccountReceiptAccount,
+      TAccountRateAccount extends string
+        ? ReadonlyAccount<TAccountRateAccount>
+        : TAccountRateAccount,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      TAccountPayer extends string
-        ? WritableSignerAccount<TAccountPayer> &
-            AccountSignerMeta<TAccountPayer>
-        : TAccountPayer,
       ...TRemainingAccounts,
     ]
   >;
@@ -147,28 +147,28 @@ export type SplitInput<
   TAccountMint extends string = string,
   TAccountVerificationConfig extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountMintAccount extends string = string,
+  TAccountPayer extends string = string,
   TAccountMintAuthority extends string = string,
   TAccountPermanentDelegate extends string = string,
-  TAccountRateAccount extends string = string,
-  TAccountReceiptAccount extends string = string,
+  TAccountMintAccount extends string = string,
   TAccountTokenAccount extends string = string,
+  TAccountReceiptAccount extends string = string,
+  TAccountRateAccount extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
-  TAccountPayer extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
-  mintAccount: Address<TAccountMintAccount>;
+  payer: TransactionSigner<TAccountPayer>;
   mintAuthority: Address<TAccountMintAuthority>;
   permanentDelegate: Address<TAccountPermanentDelegate>;
-  rateAccount: Address<TAccountRateAccount>;
-  receiptAccount: Address<TAccountReceiptAccount>;
+  mintAccount: Address<TAccountMintAccount>;
   tokenAccount: Address<TAccountTokenAccount>;
+  receiptAccount: Address<TAccountReceiptAccount>;
+  rateAccount: Address<TAccountRateAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
-  payer: TransactionSigner<TAccountPayer>;
   splitArgs: SplitInstructionDataArgs['splitArgs'];
 };
 
@@ -176,15 +176,15 @@ export function getSplitInstruction<
   TAccountMint extends string,
   TAccountVerificationConfig extends string,
   TAccountInstructionsSysvar extends string,
-  TAccountMintAccount extends string,
+  TAccountPayer extends string,
   TAccountMintAuthority extends string,
   TAccountPermanentDelegate extends string,
-  TAccountRateAccount extends string,
-  TAccountReceiptAccount extends string,
+  TAccountMintAccount extends string,
   TAccountTokenAccount extends string,
+  TAccountReceiptAccount extends string,
+  TAccountRateAccount extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
-  TAccountPayer extends string,
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
 >(
@@ -192,15 +192,15 @@ export function getSplitInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
+    TAccountPayer,
     TAccountMintAuthority,
     TAccountPermanentDelegate,
-    TAccountRateAccount,
-    TAccountReceiptAccount,
+    TAccountMintAccount,
     TAccountTokenAccount,
+    TAccountReceiptAccount,
+    TAccountRateAccount,
     TAccountTokenProgram,
-    TAccountSystemProgram,
-    TAccountPayer
+    TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress }
 ): SplitInstruction<
@@ -208,15 +208,15 @@ export function getSplitInstruction<
   TAccountMint,
   TAccountVerificationConfig,
   TAccountInstructionsSysvar,
-  TAccountMintAccount,
+  TAccountPayer,
   TAccountMintAuthority,
   TAccountPermanentDelegate,
-  TAccountRateAccount,
-  TAccountReceiptAccount,
+  TAccountMintAccount,
   TAccountTokenAccount,
+  TAccountReceiptAccount,
+  TAccountRateAccount,
   TAccountTokenProgram,
-  TAccountSystemProgram,
-  TAccountPayer
+  TAccountSystemProgram
 > {
   // Program address.
   const programAddress =
@@ -233,18 +233,18 @@ export function getSplitInstruction<
       value: input.instructionsSysvar ?? null,
       isWritable: false,
     },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
+    payer: { value: input.payer ?? null, isWritable: true },
     mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
     permanentDelegate: {
       value: input.permanentDelegate ?? null,
       isWritable: false,
     },
-    rateAccount: { value: input.rateAccount ?? null, isWritable: false },
-    receiptAccount: { value: input.receiptAccount ?? null, isWritable: true },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     tokenAccount: { value: input.tokenAccount ?? null, isWritable: true },
+    receiptAccount: { value: input.receiptAccount ?? null, isWritable: true },
+    rateAccount: { value: input.rateAccount ?? null, isWritable: false },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
-    payer: { value: input.payer ?? null, isWritable: true },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -274,15 +274,15 @@ export function getSplitInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfig),
       getAccountMeta(accounts.instructionsSysvar),
-      getAccountMeta(accounts.mintAccount),
+      getAccountMeta(accounts.payer),
       getAccountMeta(accounts.mintAuthority),
       getAccountMeta(accounts.permanentDelegate),
-      getAccountMeta(accounts.rateAccount),
-      getAccountMeta(accounts.receiptAccount),
+      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.tokenAccount),
+      getAccountMeta(accounts.receiptAccount),
+      getAccountMeta(accounts.rateAccount),
       getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.systemProgram),
-      getAccountMeta(accounts.payer),
     ],
     data: getSplitInstructionDataEncoder().encode(
       args as SplitInstructionDataArgs
@@ -293,15 +293,15 @@ export function getSplitInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
+    TAccountPayer,
     TAccountMintAuthority,
     TAccountPermanentDelegate,
-    TAccountRateAccount,
-    TAccountReceiptAccount,
+    TAccountMintAccount,
     TAccountTokenAccount,
+    TAccountReceiptAccount,
+    TAccountRateAccount,
     TAccountTokenProgram,
-    TAccountSystemProgram,
-    TAccountPayer
+    TAccountSystemProgram
   >);
 }
 
@@ -314,15 +314,15 @@ export type ParsedSplitInstruction<
     mint: TAccountMetas[0];
     verificationConfig: TAccountMetas[1];
     instructionsSysvar: TAccountMetas[2];
-    mintAccount: TAccountMetas[3];
+    payer: TAccountMetas[3];
     mintAuthority: TAccountMetas[4];
     permanentDelegate: TAccountMetas[5];
-    rateAccount: TAccountMetas[6];
-    receiptAccount: TAccountMetas[7];
-    tokenAccount: TAccountMetas[8];
-    tokenProgram: TAccountMetas[9];
-    systemProgram: TAccountMetas[10];
-    payer: TAccountMetas[11];
+    mintAccount: TAccountMetas[6];
+    tokenAccount: TAccountMetas[7];
+    receiptAccount: TAccountMetas[8];
+    rateAccount: TAccountMetas[9];
+    tokenProgram: TAccountMetas[10];
+    systemProgram: TAccountMetas[11];
   };
   data: SplitInstructionData;
 };
@@ -351,15 +351,15 @@ export function parseSplitInstruction<
       mint: getNextAccount(),
       verificationConfig: getNextAccount(),
       instructionsSysvar: getNextAccount(),
-      mintAccount: getNextAccount(),
+      payer: getNextAccount(),
       mintAuthority: getNextAccount(),
       permanentDelegate: getNextAccount(),
-      rateAccount: getNextAccount(),
-      receiptAccount: getNextAccount(),
+      mintAccount: getNextAccount(),
       tokenAccount: getNextAccount(),
+      receiptAccount: getNextAccount(),
+      rateAccount: getNextAccount(),
       tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
-      payer: getNextAccount(),
     },
     data: getSplitInstructionDataDecoder().decode(instruction.data),
   };

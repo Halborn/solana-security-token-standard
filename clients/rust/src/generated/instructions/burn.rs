@@ -19,9 +19,9 @@ pub struct Burn {
 
     pub instructions_sysvar: solana_pubkey::Pubkey,
 
-    pub mint_account: solana_pubkey::Pubkey,
-
     pub permanent_delegate: solana_pubkey::Pubkey,
+
+    pub mint_account: solana_pubkey::Pubkey,
 
     pub token_account: solana_pubkey::Pubkey,
 
@@ -51,12 +51,12 @@ impl Burn {
             self.instructions_sysvar,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
-            self.mint_account,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.permanent_delegate,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            self.mint_account,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
@@ -111,8 +111,8 @@ pub struct BurnInstructionArgs {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
-///   3. `[writable]` mint_account
-///   4. `[]` permanent_delegate
+///   3. `[]` permanent_delegate
+///   4. `[writable]` mint_account
 ///   5. `[writable]` token_account
 ///   6. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 #[derive(Clone, Debug, Default)]
@@ -120,8 +120,8 @@ pub struct BurnBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config: Option<solana_pubkey::Pubkey>,
     instructions_sysvar: Option<solana_pubkey::Pubkey>,
-    mint_account: Option<solana_pubkey::Pubkey>,
     permanent_delegate: Option<solana_pubkey::Pubkey>,
+    mint_account: Option<solana_pubkey::Pubkey>,
     token_account: Option<solana_pubkey::Pubkey>,
     token_program: Option<solana_pubkey::Pubkey>,
     amount: Option<u64>,
@@ -149,13 +149,13 @@ impl BurnBuilder {
         self
     }
     #[inline(always)]
-    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.mint_account = Some(mint_account);
+    pub fn permanent_delegate(&mut self, permanent_delegate: solana_pubkey::Pubkey) -> &mut Self {
+        self.permanent_delegate = Some(permanent_delegate);
         self
     }
     #[inline(always)]
-    pub fn permanent_delegate(&mut self, permanent_delegate: solana_pubkey::Pubkey) -> &mut Self {
-        self.permanent_delegate = Some(permanent_delegate);
+    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_account = Some(mint_account);
         self
     }
     #[inline(always)]
@@ -199,10 +199,10 @@ impl BurnBuilder {
             instructions_sysvar: self.instructions_sysvar.unwrap_or(solana_pubkey::pubkey!(
                 "Sysvar1nstructions1111111111111111111111111"
             )),
-            mint_account: self.mint_account.expect("mint_account is not set"),
             permanent_delegate: self
                 .permanent_delegate
                 .expect("permanent_delegate is not set"),
+            mint_account: self.mint_account.expect("mint_account is not set"),
             token_account: self.token_account.expect("token_account is not set"),
             token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
                 "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
@@ -224,9 +224,9 @@ pub struct BurnCpiAccounts<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
+
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub token_account: &'b solana_account_info::AccountInfo<'a>,
 
@@ -244,9 +244,9 @@ pub struct BurnCpi<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
+
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub token_account: &'b solana_account_info::AccountInfo<'a>,
 
@@ -266,8 +266,8 @@ impl<'a, 'b> BurnCpi<'a, 'b> {
             mint: accounts.mint,
             verification_config: accounts.verification_config,
             instructions_sysvar: accounts.instructions_sysvar,
-            mint_account: accounts.mint_account,
             permanent_delegate: accounts.permanent_delegate,
+            mint_account: accounts.mint_account,
             token_account: accounts.token_account,
             token_program: accounts.token_program,
             __args: args,
@@ -309,12 +309,12 @@ impl<'a, 'b> BurnCpi<'a, 'b> {
             *self.instructions_sysvar.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
-            *self.mint_account.key,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.permanent_delegate.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            *self.mint_account.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
@@ -346,8 +346,8 @@ impl<'a, 'b> BurnCpi<'a, 'b> {
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config.clone());
         account_infos.push(self.instructions_sysvar.clone());
-        account_infos.push(self.mint_account.clone());
         account_infos.push(self.permanent_delegate.clone());
+        account_infos.push(self.mint_account.clone());
         account_infos.push(self.token_account.clone());
         account_infos.push(self.token_program.clone());
         remaining_accounts
@@ -369,8 +369,8 @@ impl<'a, 'b> BurnCpi<'a, 'b> {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
-///   3. `[writable]` mint_account
-///   4. `[]` permanent_delegate
+///   3. `[]` permanent_delegate
+///   4. `[writable]` mint_account
 ///   5. `[writable]` token_account
 ///   6. `[]` token_program
 #[derive(Clone, Debug)]
@@ -385,8 +385,8 @@ impl<'a, 'b> BurnCpiBuilder<'a, 'b> {
             mint: None,
             verification_config: None,
             instructions_sysvar: None,
-            mint_account: None,
             permanent_delegate: None,
+            mint_account: None,
             token_account: None,
             token_program: None,
             amount: None,
@@ -416,19 +416,19 @@ impl<'a, 'b> BurnCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn mint_account(
-        &mut self,
-        mint_account: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.mint_account = Some(mint_account);
-        self
-    }
-    #[inline(always)]
     pub fn permanent_delegate(
         &mut self,
         permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.permanent_delegate = Some(permanent_delegate);
+        self
+    }
+    #[inline(always)]
+    pub fn mint_account(
+        &mut self,
+        mint_account: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.mint_account = Some(mint_account);
         self
     }
     #[inline(always)]
@@ -504,15 +504,15 @@ impl<'a, 'b> BurnCpiBuilder<'a, 'b> {
                 .instructions_sysvar
                 .expect("instructions_sysvar is not set"),
 
-            mint_account: self
-                .instruction
-                .mint_account
-                .expect("mint_account is not set"),
-
             permanent_delegate: self
                 .instruction
                 .permanent_delegate
                 .expect("permanent_delegate is not set"),
+
+            mint_account: self
+                .instruction
+                .mint_account
+                .expect("mint_account is not set"),
 
             token_account: self
                 .instruction
@@ -538,8 +538,8 @@ struct BurnCpiBuilderInstruction<'a, 'b> {
     mint: Option<&'b solana_account_info::AccountInfo<'a>>,
     verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
-    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     permanent_delegate: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     amount: Option<u64>,

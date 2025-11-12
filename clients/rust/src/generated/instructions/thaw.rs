@@ -19,9 +19,9 @@ pub struct Thaw {
 
     pub instructions_sysvar: solana_pubkey::Pubkey,
 
-    pub mint_account: solana_pubkey::Pubkey,
-
     pub freeze_authority: solana_pubkey::Pubkey,
+
+    pub mint_account: solana_pubkey::Pubkey,
 
     pub token_account: solana_pubkey::Pubkey,
 
@@ -51,11 +51,11 @@ impl Thaw {
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.mint_account,
+            self.freeze_authority,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.freeze_authority,
+            self.mint_account,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
@@ -102,8 +102,8 @@ impl Default for ThawInstructionData {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
-///   3. `[]` mint_account
-///   4. `[]` freeze_authority
+///   3. `[]` freeze_authority
+///   4. `[]` mint_account
 ///   5. `[writable]` token_account
 ///   6. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 #[derive(Clone, Debug, Default)]
@@ -111,8 +111,8 @@ pub struct ThawBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config: Option<solana_pubkey::Pubkey>,
     instructions_sysvar: Option<solana_pubkey::Pubkey>,
-    mint_account: Option<solana_pubkey::Pubkey>,
     freeze_authority: Option<solana_pubkey::Pubkey>,
+    mint_account: Option<solana_pubkey::Pubkey>,
     token_account: Option<solana_pubkey::Pubkey>,
     token_program: Option<solana_pubkey::Pubkey>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
@@ -139,13 +139,13 @@ impl ThawBuilder {
         self
     }
     #[inline(always)]
-    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.mint_account = Some(mint_account);
+    pub fn freeze_authority(&mut self, freeze_authority: solana_pubkey::Pubkey) -> &mut Self {
+        self.freeze_authority = Some(freeze_authority);
         self
     }
     #[inline(always)]
-    pub fn freeze_authority(&mut self, freeze_authority: solana_pubkey::Pubkey) -> &mut Self {
-        self.freeze_authority = Some(freeze_authority);
+    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_account = Some(mint_account);
         self
     }
     #[inline(always)]
@@ -184,8 +184,8 @@ impl ThawBuilder {
             instructions_sysvar: self.instructions_sysvar.unwrap_or(solana_pubkey::pubkey!(
                 "Sysvar1nstructions1111111111111111111111111"
             )),
-            mint_account: self.mint_account.expect("mint_account is not set"),
             freeze_authority: self.freeze_authority.expect("freeze_authority is not set"),
+            mint_account: self.mint_account.expect("mint_account is not set"),
             token_account: self.token_account.expect("token_account is not set"),
             token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
                 "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
@@ -204,9 +204,9 @@ pub struct ThawCpiAccounts<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub freeze_authority: &'b solana_account_info::AccountInfo<'a>,
+
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub token_account: &'b solana_account_info::AccountInfo<'a>,
 
@@ -224,9 +224,9 @@ pub struct ThawCpi<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub freeze_authority: &'b solana_account_info::AccountInfo<'a>,
+
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub token_account: &'b solana_account_info::AccountInfo<'a>,
 
@@ -243,8 +243,8 @@ impl<'a, 'b> ThawCpi<'a, 'b> {
             mint: accounts.mint,
             verification_config: accounts.verification_config,
             instructions_sysvar: accounts.instructions_sysvar,
-            mint_account: accounts.mint_account,
             freeze_authority: accounts.freeze_authority,
+            mint_account: accounts.mint_account,
             token_account: accounts.token_account,
             token_program: accounts.token_program,
         }
@@ -286,11 +286,11 @@ impl<'a, 'b> ThawCpi<'a, 'b> {
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.mint_account.key,
+            *self.freeze_authority.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.freeze_authority.key,
+            *self.mint_account.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
@@ -320,8 +320,8 @@ impl<'a, 'b> ThawCpi<'a, 'b> {
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config.clone());
         account_infos.push(self.instructions_sysvar.clone());
-        account_infos.push(self.mint_account.clone());
         account_infos.push(self.freeze_authority.clone());
+        account_infos.push(self.mint_account.clone());
         account_infos.push(self.token_account.clone());
         account_infos.push(self.token_program.clone());
         remaining_accounts
@@ -343,8 +343,8 @@ impl<'a, 'b> ThawCpi<'a, 'b> {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
-///   3. `[]` mint_account
-///   4. `[]` freeze_authority
+///   3. `[]` freeze_authority
+///   4. `[]` mint_account
 ///   5. `[writable]` token_account
 ///   6. `[]` token_program
 #[derive(Clone, Debug)]
@@ -359,8 +359,8 @@ impl<'a, 'b> ThawCpiBuilder<'a, 'b> {
             mint: None,
             verification_config: None,
             instructions_sysvar: None,
-            mint_account: None,
             freeze_authority: None,
+            mint_account: None,
             token_account: None,
             token_program: None,
             __remaining_accounts: Vec::new(),
@@ -389,19 +389,19 @@ impl<'a, 'b> ThawCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn mint_account(
-        &mut self,
-        mint_account: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.mint_account = Some(mint_account);
-        self
-    }
-    #[inline(always)]
     pub fn freeze_authority(
         &mut self,
         freeze_authority: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.freeze_authority = Some(freeze_authority);
+        self
+    }
+    #[inline(always)]
+    pub fn mint_account(
+        &mut self,
+        mint_account: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.mint_account = Some(mint_account);
         self
     }
     #[inline(always)]
@@ -469,15 +469,15 @@ impl<'a, 'b> ThawCpiBuilder<'a, 'b> {
                 .instructions_sysvar
                 .expect("instructions_sysvar is not set"),
 
-            mint_account: self
-                .instruction
-                .mint_account
-                .expect("mint_account is not set"),
-
             freeze_authority: self
                 .instruction
                 .freeze_authority
                 .expect("freeze_authority is not set"),
+
+            mint_account: self
+                .instruction
+                .mint_account
+                .expect("mint_account is not set"),
 
             token_account: self
                 .instruction
@@ -502,8 +502,8 @@ struct ThawCpiBuilderInstruction<'a, 'b> {
     mint: Option<&'b solana_account_info::AccountInfo<'a>>,
     verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
-    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     freeze_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

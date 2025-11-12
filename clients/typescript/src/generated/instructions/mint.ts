@@ -43,8 +43,8 @@ export type MintInstruction<
   TAccountInstructionsSysvar extends
     | string
     | AccountMeta<string> = 'Sysvar1nstructions1111111111111111111111111',
-  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountMintAuthority extends string | AccountMeta<string> = string,
+  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountDestination extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
@@ -63,12 +63,12 @@ export type MintInstruction<
       TAccountInstructionsSysvar extends string
         ? ReadonlyAccount<TAccountInstructionsSysvar>
         : TAccountInstructionsSysvar,
-      TAccountMintAccount extends string
-        ? WritableAccount<TAccountMintAccount>
-        : TAccountMintAccount,
       TAccountMintAuthority extends string
         ? WritableAccount<TAccountMintAuthority>
         : TAccountMintAuthority,
+      TAccountMintAccount extends string
+        ? WritableAccount<TAccountMintAccount>
+        : TAccountMintAccount,
       TAccountDestination extends string
         ? WritableAccount<TAccountDestination>
         : TAccountDestination,
@@ -114,16 +114,16 @@ export type MintInput<
   TAccountMint extends string = string,
   TAccountVerificationConfig extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountMintAccount extends string = string,
   TAccountMintAuthority extends string = string,
+  TAccountMintAccount extends string = string,
   TAccountDestination extends string = string,
   TAccountTokenProgram extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
-  mintAccount: Address<TAccountMintAccount>;
   mintAuthority: Address<TAccountMintAuthority>;
+  mintAccount: Address<TAccountMintAccount>;
   destination: Address<TAccountDestination>;
   tokenProgram?: Address<TAccountTokenProgram>;
   amount: MintInstructionDataArgs['amount'];
@@ -133,8 +133,8 @@ export function getMintInstruction<
   TAccountMint extends string,
   TAccountVerificationConfig extends string,
   TAccountInstructionsSysvar extends string,
-  TAccountMintAccount extends string,
   TAccountMintAuthority extends string,
+  TAccountMintAccount extends string,
   TAccountDestination extends string,
   TAccountTokenProgram extends string,
   TProgramAddress extends
@@ -144,8 +144,8 @@ export function getMintInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
     TAccountMintAuthority,
+    TAccountMintAccount,
     TAccountDestination,
     TAccountTokenProgram
   >,
@@ -155,8 +155,8 @@ export function getMintInstruction<
   TAccountMint,
   TAccountVerificationConfig,
   TAccountInstructionsSysvar,
-  TAccountMintAccount,
   TAccountMintAuthority,
+  TAccountMintAccount,
   TAccountDestination,
   TAccountTokenProgram
 > {
@@ -175,8 +175,8 @@ export function getMintInstruction<
       value: input.instructionsSysvar ?? null,
       isWritable: false,
     },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     mintAuthority: { value: input.mintAuthority ?? null, isWritable: true },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     destination: { value: input.destination ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
   };
@@ -204,8 +204,8 @@ export function getMintInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfig),
       getAccountMeta(accounts.instructionsSysvar),
-      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.mintAuthority),
+      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.destination),
       getAccountMeta(accounts.tokenProgram),
     ],
@@ -218,8 +218,8 @@ export function getMintInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
     TAccountMintAuthority,
+    TAccountMintAccount,
     TAccountDestination,
     TAccountTokenProgram
   >);
@@ -234,8 +234,8 @@ export type ParsedMintInstruction<
     mint: TAccountMetas[0];
     verificationConfig: TAccountMetas[1];
     instructionsSysvar: TAccountMetas[2];
-    mintAccount: TAccountMetas[3];
-    mintAuthority: TAccountMetas[4];
+    mintAuthority: TAccountMetas[3];
+    mintAccount: TAccountMetas[4];
     destination: TAccountMetas[5];
     tokenProgram: TAccountMetas[6];
   };
@@ -266,8 +266,8 @@ export function parseMintInstruction<
       mint: getNextAccount(),
       verificationConfig: getNextAccount(),
       instructionsSysvar: getNextAccount(),
-      mintAccount: getNextAccount(),
       mintAuthority: getNextAccount(),
+      mintAccount: getNextAccount(),
       destination: getNextAccount(),
       tokenProgram: getNextAccount(),
     },

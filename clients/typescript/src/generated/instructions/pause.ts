@@ -41,8 +41,8 @@ export type PauseInstruction<
   TAccountInstructionsSysvar extends
     | string
     | AccountMeta<string> = 'Sysvar1nstructions1111111111111111111111111',
-  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountPauseAuthority extends string | AccountMeta<string> = string,
+  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
     | AccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
@@ -60,12 +60,12 @@ export type PauseInstruction<
       TAccountInstructionsSysvar extends string
         ? ReadonlyAccount<TAccountInstructionsSysvar>
         : TAccountInstructionsSysvar,
-      TAccountMintAccount extends string
-        ? WritableAccount<TAccountMintAccount>
-        : TAccountMintAccount,
       TAccountPauseAuthority extends string
         ? ReadonlyAccount<TAccountPauseAuthority>
         : TAccountPauseAuthority,
+      TAccountMintAccount extends string
+        ? WritableAccount<TAccountMintAccount>
+        : TAccountMintAccount,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
@@ -102,15 +102,15 @@ export type PauseInput<
   TAccountMint extends string = string,
   TAccountVerificationConfig extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountMintAccount extends string = string,
   TAccountPauseAuthority extends string = string,
+  TAccountMintAccount extends string = string,
   TAccountTokenProgram extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
-  mintAccount: Address<TAccountMintAccount>;
   pauseAuthority: Address<TAccountPauseAuthority>;
+  mintAccount: Address<TAccountMintAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
 };
 
@@ -118,8 +118,8 @@ export function getPauseInstruction<
   TAccountMint extends string,
   TAccountVerificationConfig extends string,
   TAccountInstructionsSysvar extends string,
-  TAccountMintAccount extends string,
   TAccountPauseAuthority extends string,
+  TAccountMintAccount extends string,
   TAccountTokenProgram extends string,
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
@@ -128,8 +128,8 @@ export function getPauseInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
     TAccountPauseAuthority,
+    TAccountMintAccount,
     TAccountTokenProgram
   >,
   config?: { programAddress?: TProgramAddress }
@@ -138,8 +138,8 @@ export function getPauseInstruction<
   TAccountMint,
   TAccountVerificationConfig,
   TAccountInstructionsSysvar,
-  TAccountMintAccount,
   TAccountPauseAuthority,
+  TAccountMintAccount,
   TAccountTokenProgram
 > {
   // Program address.
@@ -157,8 +157,8 @@ export function getPauseInstruction<
       value: input.instructionsSysvar ?? null,
       isWritable: false,
     },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     pauseAuthority: { value: input.pauseAuthority ?? null, isWritable: false },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -182,8 +182,8 @@ export function getPauseInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfig),
       getAccountMeta(accounts.instructionsSysvar),
-      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.pauseAuthority),
+      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.tokenProgram),
     ],
     data: getPauseInstructionDataEncoder().encode({}),
@@ -193,8 +193,8 @@ export function getPauseInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
     TAccountPauseAuthority,
+    TAccountMintAccount,
     TAccountTokenProgram
   >);
 }
@@ -208,8 +208,8 @@ export type ParsedPauseInstruction<
     mint: TAccountMetas[0];
     verificationConfig: TAccountMetas[1];
     instructionsSysvar: TAccountMetas[2];
-    mintAccount: TAccountMetas[3];
-    pauseAuthority: TAccountMetas[4];
+    pauseAuthority: TAccountMetas[3];
+    mintAccount: TAccountMetas[4];
     tokenProgram: TAccountMetas[5];
   };
   data: PauseInstructionData;
@@ -239,8 +239,8 @@ export function parsePauseInstruction<
       mint: getNextAccount(),
       verificationConfig: getNextAccount(),
       instructionsSysvar: getNextAccount(),
-      mintAccount: getNextAccount(),
       pauseAuthority: getNextAccount(),
+      mintAccount: getNextAccount(),
       tokenProgram: getNextAccount(),
     },
     data: getPauseInstructionDataDecoder().decode(instruction.data),

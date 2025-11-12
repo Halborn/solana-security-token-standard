@@ -52,9 +52,9 @@ export type UpdateVerificationConfigInstruction<
   TAccountInstructionsSysvarOrCreator extends
     | string
     | AccountMeta<string> = string,
+  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountConfigAccount extends string | AccountMeta<string> = string,
-  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends
     | string
     | AccountMeta<string> = '11111111111111111111111111111111',
@@ -72,16 +72,16 @@ export type UpdateVerificationConfigInstruction<
       TAccountInstructionsSysvarOrCreator extends string
         ? ReadonlyAccount<TAccountInstructionsSysvarOrCreator>
         : TAccountInstructionsSysvarOrCreator,
+      TAccountPayer extends string
+        ? WritableSignerAccount<TAccountPayer> &
+            AccountSignerMeta<TAccountPayer>
+        : TAccountPayer,
       TAccountMintAccount extends string
         ? ReadonlyAccount<TAccountMintAccount>
         : TAccountMintAccount,
       TAccountConfigAccount extends string
         ? WritableAccount<TAccountConfigAccount>
         : TAccountConfigAccount,
-      TAccountPayer extends string
-        ? WritableSignerAccount<TAccountPayer> &
-            AccountSignerMeta<TAccountPayer>
-        : TAccountPayer,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -135,17 +135,17 @@ export type UpdateVerificationConfigInput<
   TAccountMint extends string = string,
   TAccountVerificationConfigOrMintAuthority extends string = string,
   TAccountInstructionsSysvarOrCreator extends string = string,
+  TAccountPayer extends string = string,
   TAccountMintAccount extends string = string,
   TAccountConfigAccount extends string = string,
-  TAccountPayer extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
   instructionsSysvarOrCreator: Address<TAccountInstructionsSysvarOrCreator>;
+  payer: TransactionSigner<TAccountPayer>;
   mintAccount: Address<TAccountMintAccount>;
   configAccount: Address<TAccountConfigAccount>;
-  payer: TransactionSigner<TAccountPayer>;
   systemProgram?: Address<TAccountSystemProgram>;
   updateVerificationConfigArgs: UpdateVerificationConfigInstructionDataArgs['updateVerificationConfigArgs'];
 };
@@ -154,9 +154,9 @@ export function getUpdateVerificationConfigInstruction<
   TAccountMint extends string,
   TAccountVerificationConfigOrMintAuthority extends string,
   TAccountInstructionsSysvarOrCreator extends string,
+  TAccountPayer extends string,
   TAccountMintAccount extends string,
   TAccountConfigAccount extends string,
-  TAccountPayer extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
@@ -165,9 +165,9 @@ export function getUpdateVerificationConfigInstruction<
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
+    TAccountPayer,
     TAccountMintAccount,
     TAccountConfigAccount,
-    TAccountPayer,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress }
@@ -176,9 +176,9 @@ export function getUpdateVerificationConfigInstruction<
   TAccountMint,
   TAccountVerificationConfigOrMintAuthority,
   TAccountInstructionsSysvarOrCreator,
+  TAccountPayer,
   TAccountMintAccount,
   TAccountConfigAccount,
-  TAccountPayer,
   TAccountSystemProgram
 > {
   // Program address.
@@ -196,9 +196,9 @@ export function getUpdateVerificationConfigInstruction<
       value: input.instructionsSysvarOrCreator ?? null,
       isWritable: false,
     },
+    payer: { value: input.payer ?? null, isWritable: true },
     mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     configAccount: { value: input.configAccount ?? null, isWritable: true },
-    payer: { value: input.payer ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -221,9 +221,9 @@ export function getUpdateVerificationConfigInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfigOrMintAuthority),
       getAccountMeta(accounts.instructionsSysvarOrCreator),
+      getAccountMeta(accounts.payer),
       getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.configAccount),
-      getAccountMeta(accounts.payer),
       getAccountMeta(accounts.systemProgram),
     ],
     data: getUpdateVerificationConfigInstructionDataEncoder().encode(
@@ -235,9 +235,9 @@ export function getUpdateVerificationConfigInstruction<
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
+    TAccountPayer,
     TAccountMintAccount,
     TAccountConfigAccount,
-    TAccountPayer,
     TAccountSystemProgram
   >);
 }
@@ -251,9 +251,9 @@ export type ParsedUpdateVerificationConfigInstruction<
     mint: TAccountMetas[0];
     verificationConfigOrMintAuthority: TAccountMetas[1];
     instructionsSysvarOrCreator: TAccountMetas[2];
-    mintAccount: TAccountMetas[3];
-    configAccount: TAccountMetas[4];
-    payer: TAccountMetas[5];
+    payer: TAccountMetas[3];
+    mintAccount: TAccountMetas[4];
+    configAccount: TAccountMetas[5];
     systemProgram: TAccountMetas[6];
   };
   data: UpdateVerificationConfigInstructionData;
@@ -283,9 +283,9 @@ export function parseUpdateVerificationConfigInstruction<
       mint: getNextAccount(),
       verificationConfigOrMintAuthority: getNextAccount(),
       instructionsSysvarOrCreator: getNextAccount(),
+      payer: getNextAccount(),
       mintAccount: getNextAccount(),
       configAccount: getNextAccount(),
-      payer: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getUpdateVerificationConfigInstructionDataDecoder().decode(
