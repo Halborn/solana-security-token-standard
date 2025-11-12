@@ -50,9 +50,9 @@ export type SplitInstruction<
   TAccountInstructionsSysvar extends
     | string
     | AccountMeta<string> = 'Sysvar1nstructions1111111111111111111111111',
-  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountMintAuthority extends string | AccountMeta<string> = string,
   TAccountPermanentDelegate extends string | AccountMeta<string> = string,
+  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountTokenAccount extends string | AccountMeta<string> = string,
   TAccountRateAccount extends string | AccountMeta<string> = string,
@@ -77,16 +77,16 @@ export type SplitInstruction<
       TAccountInstructionsSysvar extends string
         ? ReadonlyAccount<TAccountInstructionsSysvar>
         : TAccountInstructionsSysvar,
-      TAccountPayer extends string
-        ? WritableSignerAccount<TAccountPayer> &
-            AccountSignerMeta<TAccountPayer>
-        : TAccountPayer,
       TAccountMintAuthority extends string
         ? ReadonlyAccount<TAccountMintAuthority>
         : TAccountMintAuthority,
       TAccountPermanentDelegate extends string
         ? ReadonlyAccount<TAccountPermanentDelegate>
         : TAccountPermanentDelegate,
+      TAccountPayer extends string
+        ? WritableSignerAccount<TAccountPayer> &
+            AccountSignerMeta<TAccountPayer>
+        : TAccountPayer,
       TAccountMintAccount extends string
         ? WritableAccount<TAccountMintAccount>
         : TAccountMintAccount,
@@ -147,9 +147,9 @@ export type SplitInput<
   TAccountMint extends string = string,
   TAccountVerificationConfig extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountPayer extends string = string,
   TAccountMintAuthority extends string = string,
   TAccountPermanentDelegate extends string = string,
+  TAccountPayer extends string = string,
   TAccountMintAccount extends string = string,
   TAccountTokenAccount extends string = string,
   TAccountRateAccount extends string = string,
@@ -160,9 +160,9 @@ export type SplitInput<
   mint: Address<TAccountMint>;
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
-  payer: TransactionSigner<TAccountPayer>;
   mintAuthority: Address<TAccountMintAuthority>;
   permanentDelegate: Address<TAccountPermanentDelegate>;
+  payer: TransactionSigner<TAccountPayer>;
   mintAccount: Address<TAccountMintAccount>;
   tokenAccount: Address<TAccountTokenAccount>;
   rateAccount: Address<TAccountRateAccount>;
@@ -176,9 +176,9 @@ export function getSplitInstruction<
   TAccountMint extends string,
   TAccountVerificationConfig extends string,
   TAccountInstructionsSysvar extends string,
-  TAccountPayer extends string,
   TAccountMintAuthority extends string,
   TAccountPermanentDelegate extends string,
+  TAccountPayer extends string,
   TAccountMintAccount extends string,
   TAccountTokenAccount extends string,
   TAccountRateAccount extends string,
@@ -192,9 +192,9 @@ export function getSplitInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountPayer,
     TAccountMintAuthority,
     TAccountPermanentDelegate,
+    TAccountPayer,
     TAccountMintAccount,
     TAccountTokenAccount,
     TAccountRateAccount,
@@ -208,9 +208,9 @@ export function getSplitInstruction<
   TAccountMint,
   TAccountVerificationConfig,
   TAccountInstructionsSysvar,
-  TAccountPayer,
   TAccountMintAuthority,
   TAccountPermanentDelegate,
+  TAccountPayer,
   TAccountMintAccount,
   TAccountTokenAccount,
   TAccountRateAccount,
@@ -233,12 +233,12 @@ export function getSplitInstruction<
       value: input.instructionsSysvar ?? null,
       isWritable: false,
     },
-    payer: { value: input.payer ?? null, isWritable: true },
     mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
     permanentDelegate: {
       value: input.permanentDelegate ?? null,
       isWritable: false,
     },
+    payer: { value: input.payer ?? null, isWritable: true },
     mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     tokenAccount: { value: input.tokenAccount ?? null, isWritable: true },
     rateAccount: { value: input.rateAccount ?? null, isWritable: false },
@@ -274,9 +274,9 @@ export function getSplitInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfig),
       getAccountMeta(accounts.instructionsSysvar),
-      getAccountMeta(accounts.payer),
       getAccountMeta(accounts.mintAuthority),
       getAccountMeta(accounts.permanentDelegate),
+      getAccountMeta(accounts.payer),
       getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.tokenAccount),
       getAccountMeta(accounts.rateAccount),
@@ -293,9 +293,9 @@ export function getSplitInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountPayer,
     TAccountMintAuthority,
     TAccountPermanentDelegate,
+    TAccountPayer,
     TAccountMintAccount,
     TAccountTokenAccount,
     TAccountRateAccount,
@@ -314,9 +314,9 @@ export type ParsedSplitInstruction<
     mint: TAccountMetas[0];
     verificationConfig: TAccountMetas[1];
     instructionsSysvar: TAccountMetas[2];
-    payer: TAccountMetas[3];
-    mintAuthority: TAccountMetas[4];
-    permanentDelegate: TAccountMetas[5];
+    mintAuthority: TAccountMetas[3];
+    permanentDelegate: TAccountMetas[4];
+    payer: TAccountMetas[5];
     mintAccount: TAccountMetas[6];
     tokenAccount: TAccountMetas[7];
     rateAccount: TAccountMetas[8];
@@ -351,9 +351,9 @@ export function parseSplitInstruction<
       mint: getNextAccount(),
       verificationConfig: getNextAccount(),
       instructionsSysvar: getNextAccount(),
-      payer: getNextAccount(),
       mintAuthority: getNextAccount(),
       permanentDelegate: getNextAccount(),
+      payer: getNextAccount(),
       mintAccount: getNextAccount(),
       tokenAccount: getNextAccount(),
       rateAccount: getNextAccount(),

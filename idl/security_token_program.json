@@ -799,11 +799,6 @@
           "isSigner": false
         },
         {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
           "name": "mintAuthority",
           "isMut": false,
           "isSigner": false
@@ -812,6 +807,11 @@
           "name": "permanentDelegate",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
         },
         {
           "name": "mintAccount",
@@ -876,11 +876,6 @@
           "isSigner": false
         },
         {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
           "name": "mintAuthority",
           "isMut": false,
           "isSigner": false
@@ -889,6 +884,11 @@
           "name": "permanentDelegate",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
         },
         {
           "name": "mintFrom",
