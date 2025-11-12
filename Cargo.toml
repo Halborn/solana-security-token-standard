@@ -20,7 +20,7 @@ pinocchio-associated-token-account = { git = "https://github.com/Nagaprasadvr/pi
 pinocchio-log = "0.5.0"
 borsh = "0.10.4"
 bs58 = "0.4"
-solana-keccak-hasher = { version = "=3.1.0", features = ["sha3"] }
+solana-keccak-hasher = { version = "=2.2.1" }
 spl-merkle-tree-reference = { version = "=1.0.0" }
 
 # Idl
