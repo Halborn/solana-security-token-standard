@@ -922,17 +922,18 @@ impl VerificationModule {
         Ok(())
     }
 
-    fn update_transfer_hook_account_metas(
+    fn sync_transfer_hook_account_metas(
         program_id: &Pubkey,
         payer: &AccountInfo,
         mint_info: &AccountInfo,
         system_program_info: &AccountInfo,
         transfer_hook_accounts: &[AccountInfo],
         verification_config_pda: Pubkey,
-        new_program_addresses: &[Pubkey],
+        program_addresses: &[Pubkey],
+        is_initialization: bool,
     ) -> ProgramResult {
         let [account_metas_pda_info, transfer_hook_pda_info, transfer_hook_program] =
-            &transfer_hook_accounts
+            transfer_hook_accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -951,7 +952,7 @@ impl VerificationModule {
             is_writable: false,
         });
 
-        for program_address in new_program_addresses {
+        for program_address in program_addresses {
             account_metas.push(ExtraAccountMeta {
                 discriminator: 0,
                 address_config: *program_address,
@@ -961,22 +962,32 @@ impl VerificationModule {
         }
 
         let new_account_size = ExtraAccountMeta::calculate_account_size(account_metas.len());
-        let current_account_size = account_metas_pda_info.data_len();
+        let rent = Rent::get()?;
 
-        // Add lamports on STP side and allocate in the Transfer Hook side
-        if new_account_size > current_account_size {
-            // Need to add lamports and realloc
-            let rent = Rent::get()?;
-            let old_rent = rent.minimum_balance(current_account_size);
-            let new_rent = rent.minimum_balance(new_account_size);
-            let additional_rent = new_rent.saturating_sub(old_rent);
+        if is_initialization {
+            // Initialize: transfer full rent amount
+            let required_lamports = rent.minimum_balance(new_account_size);
             let transfer = Transfer {
                 from: payer,
                 to: account_metas_pda_info,
-                lamports: additional_rent,
+                lamports: required_lamports,
             };
             transfer.invoke()?;
+        } else {
+            let current_account_size = account_metas_pda_info.data_len();
+            if new_account_size > current_account_size {
+                let old_rent = rent.minimum_balance(current_account_size);
+                let new_rent = rent.minimum_balance(new_account_size);
+                let additional_rent = new_rent - old_rent;
+                let transfer = Transfer {
+                    from: payer,
+                    to: account_metas_pda_info,
+                    lamports: additional_rent,
+                };
+                transfer.invoke()?;
+            }
         }
+
         let bump_seed = [bump];
         let seeds = [
             Seed::from(seeds::TRANSFER_HOOK),
@@ -984,16 +995,49 @@ impl VerificationModule {
             Seed::from(bump_seed.as_ref()),
         ];
         let signer = Signer::from(&seeds);
-        let update_instruction = CustomUpdateExtraAccountMetaList::new(
-            &TRANSFER_HOOK_PROGRAM_ID,
-            account_metas_pda_info,
-            mint_info,
-            transfer_hook_pda_info,
-            system_program_info,
-            &account_metas,
-        );
-        update_instruction.invoke_signed(&[signer])?;
+        if is_initialization {
+            let instruction = CustomInitializeExtraAccountMetaList::new(
+                &TRANSFER_HOOK_PROGRAM_ID,
+                account_metas_pda_info,
+                mint_info,
+                transfer_hook_pda_info,
+                system_program_info,
+                &account_metas,
+            );
+            instruction.invoke_signed(&[signer])?;
+        } else {
+            let instruction = CustomUpdateExtraAccountMetaList::new(
+                &TRANSFER_HOOK_PROGRAM_ID,
+                account_metas_pda_info,
+                mint_info,
+                transfer_hook_pda_info,
+                system_program_info,
+                &account_metas,
+            );
+            instruction.invoke_signed(&[signer])?;
+        }
         Ok(())
+    }
+
+    fn update_transfer_hook_account_metas(
+        program_id: &Pubkey,
+        payer: &AccountInfo,
+        mint_info: &AccountInfo,
+        system_program_info: &AccountInfo,
+        transfer_hook_accounts: &[AccountInfo],
+        verification_config_pda: Pubkey,
+        new_program_addresses: &[Pubkey],
+    ) -> ProgramResult {
+        Self::sync_transfer_hook_account_metas(
+            program_id,
+            payer,
+            mint_info,
+            system_program_info,
+            transfer_hook_accounts,
+            verification_config_pda,
+            new_program_addresses,
+            false,
+        )
     }
 
     fn initialize_transfer_hook_account_metas(
@@ -1005,62 +1049,16 @@ impl VerificationModule {
         verification_config_pda: Pubkey,
         program_addresses: &[Pubkey],
     ) -> ProgramResult {
-        let [account_metas_pda_info, transfer_hook_pda_info, transfer_hook_program] =
-            &transfer_hook_accounts
-        else {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        };
-
-        verify_transfer_hook_program(transfer_hook_program)?;
-        let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
-        verify_pda(&transfer_hook_pda, transfer_hook_pda_info.key())?;
-        let (account_metas_pda, _bump) = find_extra_account_metas_pda(mint_info.key());
-        verify_pda(&account_metas_pda, account_metas_pda_info.key())?;
-
-        let mut account_metas: Vec<ExtraAccountMeta> = Vec::new();
-        account_metas.push(ExtraAccountMeta {
-            discriminator: 0,
-            address_config: verification_config_pda,
-            is_signer: false,
-            is_writable: false,
-        });
-        for program_address in program_addresses {
-            account_metas.push(ExtraAccountMeta {
-                discriminator: 0,
-                address_config: *program_address,
-                is_signer: false,
-                is_writable: false,
-            });
-        }
-
-        // Add lamports on STP side and allocate in the Transfer Hook side
-        let account_size = ExtraAccountMeta::calculate_account_size(account_metas.len());
-        let rent = Rent::get()?;
-        let required_lamports = rent.minimum_balance(account_size);
-        let transfer = Transfer {
-            from: payer,
-            to: account_metas_pda_info,
-            lamports: required_lamports,
-        };
-        transfer.invoke()?;
-
-        let bump_seed = [bump];
-        let seeds = [
-            Seed::from(seeds::TRANSFER_HOOK),
-            Seed::from(mint_info.key().as_ref()),
-            Seed::from(bump_seed.as_ref()),
-        ];
-        let signer = Signer::from(&seeds);
-        let init_instruction = CustomInitializeExtraAccountMetaList::new(
-            &TRANSFER_HOOK_PROGRAM_ID,
-            account_metas_pda_info,
+        Self::sync_transfer_hook_account_metas(
+            program_id,
+            payer,
             mint_info,
-            transfer_hook_pda_info,
             system_program_info,
-            &account_metas,
-        );
-        init_instruction.invoke_signed(&[signer])?;
-        Ok(())
+            transfer_hook_accounts,
+            verification_config_pda,
+            program_addresses,
+            true,
+        )
     }
 
     /// Update verification configuration for an instruction
@@ -1136,9 +1134,10 @@ impl VerificationModule {
         let current_size = config_account.data_len();
 
         if new_size > current_size {
-            let additional_space = new_size - current_size;
             let rent = Rent::get()?;
-            let additional_rent = rent.minimum_balance(additional_space);
+            let old_rent = rent.minimum_balance(current_size);
+            let new_rent = rent.minimum_balance(new_size);
+            let additional_rent = new_rent - old_rent;
             let transfer = Transfer {
                 from: payer,
                 to: config_account,
@@ -1258,9 +1257,10 @@ impl VerificationModule {
             let current_account_size = config_account.data_len();
 
             if new_account_size < current_account_size {
-                let space_recovered = current_account_size - new_account_size;
                 let rent = Rent::get()?;
-                let recovered_rent = rent.minimum_balance(space_recovered);
+                let old_rent = rent.minimum_balance(current_account_size);
+                let new_rent = rent.minimum_balance(new_account_size);
+                let recovered_rent = old_rent - new_rent;
                 config_account.realloc(new_account_size, false)?;
 
                 // Write the trimmed config back to the account
