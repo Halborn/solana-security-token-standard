@@ -22,6 +22,8 @@ pub mod seeds {
     pub const RECEIPT_ACCOUNT: &[u8] = b"receipt";
     /// Seed for extra account metas
     pub const EXTRA_ACCOUNT_METAS: &[u8] = b"extra-account-metas";
+    /// Seed for proof account PDA
+    pub const PROOF_ACCOUNT: &[u8] = b"proof";
 }
 
 pub const INSTRUCTION_ACCOUNTS_OFFSET: usize = 3;
@@ -29,3 +31,4 @@ pub const TRANSFER_HOOK_PROGRAM_ID: Pubkey =
     pubkey!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
 pub const ACTION_ID_LEN: usize = 8;
 pub const MAX_VERIFICATION_PROGRAMS: usize = 10;
+pub const MERKLE_TREE_NODE_LEN: usize = 32;
