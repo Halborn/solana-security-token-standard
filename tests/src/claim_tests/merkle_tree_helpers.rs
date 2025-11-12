@@ -22,7 +22,7 @@ impl Leaf {
 }
 
 /// Creates a Merkle tree from a list of leaves
-pub fn create_merkle_tree(leaves: &Vec<Leaf>) -> MerkleTree {
+pub fn create_merkle_tree(leaves: &[Leaf]) -> MerkleTree {
     let nodes: Vec<Node> = leaves.iter().map(leaf_to_node).collect();
     let merkle_tree = MerkleTree::new(nodes.as_ref());
     merkle_tree
@@ -34,7 +34,7 @@ pub fn get_merkle_root_from_tree(merkle_tree: &MerkleTree) -> Node {
 }
 
 /// Creates a Merkle tree from leaves and returns the root node
-pub fn get_merkle_root_from_leaves(leaves: &mut Vec<Leaf>) -> Node {
+pub fn get_merkle_root_from_leaves(leaves: &[Leaf]) -> Node {
     let merkle_tree = create_merkle_tree(leaves);
     merkle_tree.get_root()
 }

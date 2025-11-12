@@ -30,11 +30,11 @@ async fn test_should_create_distribution_account() {
 
     let action_id = 42u64;
     let mint_pubkey = mint_keypair.pubkey();
-    let mut leaves = vec![
+    let leaves = vec![
         Leaf::new(Pubkey::new_unique(), mint_pubkey, action_id, 1000),
         Leaf::new(Pubkey::new_unique(), mint_pubkey, action_id, 2000),
     ];
-    let tree = create_merkle_tree(&mut leaves);
+    let tree = create_merkle_tree(&leaves);
     let merkle_root = tree.get_root();
 
     let distribution_mint = &mint_pubkey;
@@ -89,11 +89,11 @@ async fn test_should_not_create_distribution_account_twice() {
 
     let action_id = 42u64;
     let mint_pubkey = mint_keypair.pubkey();
-    let mut leaves = vec![
+    let leaves = vec![
         Leaf::new(Pubkey::new_unique(), mint_pubkey, action_id, 1000),
         Leaf::new(Pubkey::new_unique(), mint_pubkey, action_id, 2000),
     ];
-    let tree = create_merkle_tree(&mut leaves);
+    let tree = create_merkle_tree(&leaves);
     let merkle_root = tree.get_root();
 
     let distribution_mint = &mint_pubkey;
@@ -170,7 +170,7 @@ async fn test_should_not_create_distribution_account_twice() {
     [1u8; 32],
     None,
     Some(Pubkey::new_unique()),
-    "Should fail with invalid invalid_distribution_token_account"
+    "Should fail with invalid distribution_token_account"
 )]
 #[tokio::test]
 async fn test_should_not_create_distribution_account(
@@ -195,9 +195,6 @@ async fn test_should_not_create_distribution_account(
     let distribution_escrow_authority = invalid_distribution_escrow_authority.unwrap_or(
         find_distribution_escrow_authority_pda(distribution_mint, action_id, &merkle_root).0,
     );
-
-    // let (distribution_escrow_authority, _) =
-    //     find_distribution_escrow_authority_pda(distribution_mint, action_id, &merkle_root);
 
     let distribution_token_account =
         invalid_distribution_token_account.unwrap_or(get_associated_token_address_with_program_id(

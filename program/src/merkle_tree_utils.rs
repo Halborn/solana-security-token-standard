@@ -1,7 +1,15 @@
 use solana_keccak_hasher::hashv;
 
 /// Verifies a Merkle proof for a given leaf node and root
-/// Returns true if a `leaf` is part of a Merkle tree
+///
+/// # Arguments
+/// * `node` - The hash of the leaf node being verified
+/// * `root` - The Merkle tree root hash
+/// * `proof` - Array of sibling hashes forming the proof path
+/// * `leaf_index` - The index of the leaf in the tree
+///
+/// # Returns
+/// Returns `true` if the leaf is part of the Merkle tree with the given root, `false` otherwise
 pub fn verify_merkle_proof(
     node: &[u8; 32],
     root: &[u8; 32],

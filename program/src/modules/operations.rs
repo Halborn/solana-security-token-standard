@@ -314,7 +314,7 @@ impl OperationsModule {
         action_id: u64,
         merkle_root: &[u8; 32],
     ) -> ProgramResult {
-        let [distribution_escrow_authority_info, distribution_mint_info, distribution_token_account_info, payer_info, token_program_info, associated_token_account_program_info, system_program_info] =
+        let [distribution_escrow_authority_info, payer_info, distribution_mint_info, distribution_token_account_info, token_program_info, associated_token_account_program_info, system_program_info] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);

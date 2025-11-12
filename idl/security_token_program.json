@@ -1183,6 +1183,11 @@
           "isSigner": false
         },
         {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
           "name": "distributionMint",
           "isMut": false,
           "isSigner": false
@@ -1191,11 +1196,6 @@
           "name": "distributionTokenAccount",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
         },
         {
           "name": "tokenProgram",

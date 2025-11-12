@@ -16,7 +16,7 @@ impl DistributionEscrowAuthority {
         [bump]
     }
 
-    /// Seeed for signing
+    /// Seeds for signing
     pub fn seeds<'a>(
         mint: &'a Pubkey,
         action_id_seed: &'a [u8],
