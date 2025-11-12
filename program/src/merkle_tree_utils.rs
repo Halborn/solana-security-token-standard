@@ -67,7 +67,9 @@ mod tests {
     #[case(random_32_bytes_vec(86))]
     #[case(random_32_bytes_vec(100))]
     #[case(random_32_bytes_vec(122))]
-    fn test_merkle_tree_utils_should_not_verify_merkle_proof_unsorted(#[case] leaves: Vec<[u8; 32]>) {
+    fn test_merkle_tree_utils_should_not_verify_merkle_proof_unsorted(
+        #[case] leaves: Vec<[u8; 32]>,
+    ) {
         println!("Leaves len: {:?}", leaves.len());
         let hashed_leaves = leaves
             .iter()
