@@ -495,10 +495,7 @@ pub async fn create_minimal_security_token_mint(
     mint_keypair: &solana_sdk::signature::Keypair,
     mint_creator: Option<&Keypair>,
     decimals: u8,
-) -> (Pubkey, Pubkey, Pubkey) {
-    let spl_token_2022_program =
-        Pubkey::from_str_const("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
-
+) -> (Pubkey, Pubkey) {
     let payer = mint_creator.unwrap_or(&context.payer).insecure_clone();
     let mint_authority = payer.pubkey();
 
@@ -527,11 +524,7 @@ pub async fn create_minimal_security_token_mint(
     )
     .await;
 
-    (
-        mint_authority_pda,
-        freeze_authority_pda,
-        spl_token_2022_program,
-    )
+    (mint_authority_pda, freeze_authority_pda)
 }
 
 /// Mint tokens to destination token account

@@ -11,10 +11,8 @@ use solana_sdk::{
 };
 
 use crate::{
-    helpers::assert_account_exists,
-    rate_tests::rate_helpers::{
-        close_rate_account, create_rate_account, create_security_token_mint, find_rate_pda,
-    },
+    helpers::{assert_account_exists, create_minimal_security_token_mint},
+    rate_tests::rate_helpers::{close_rate_account, create_rate_account, find_rate_pda},
 };
 use crate::{
     helpers::{
@@ -30,8 +28,8 @@ async fn test_should_update_existing_rate_account() {
 
     let mint_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
+    let (mint_authority_pda, _freeze_authority_pda) =
+        create_minimal_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
@@ -130,8 +128,8 @@ async fn test_should_fail_invalid_update_rate_account(
 
     let mint_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
+    let (mint_authority_pda, _freeze_authority_pda) =
+        create_minimal_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
     let mint_from_pubkey = mint_keypair.pubkey();
     let mint_to_pubkey = mint_from_pubkey.clone();
 
@@ -192,8 +190,8 @@ async fn test_should_not_update_not_owned_rate_account() {
     let mint_from_keypair = Keypair::new();
     let mint_creator1 = context.payer.pubkey();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
+    let (mint_authority_pda, _freeze_authority_pda) =
+        create_minimal_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
@@ -239,8 +237,9 @@ async fn test_should_not_update_not_owned_rate_account() {
     let mint_creator2 = owner2.pubkey();
 
     let decimals = 6u8;
-    let (mint_authority_pda2, _, _) =
-        create_security_token_mint(&mut context, &mint_keypair2, Some(&owner2), decimals).await;
+    let (mint_authority_pda2, _) =
+        create_minimal_security_token_mint(&mut context, &mint_keypair2, Some(&owner2), decimals)
+            .await;
 
     let action_id = 42u64;
     let rounding = Rounding::Down as u8;
@@ -315,8 +314,8 @@ async fn test_should_not_update_not_existed_rate_account() {
     let mint_from_pubkey = mint_keypair.pubkey();
     let mint_to_pubkey = mint_from_pubkey.clone();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
+    let (mint_authority_pda, _freeze_authority_pda) =
+        create_minimal_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
 
     // Random Rate account
     let action_id = 123u64;
@@ -359,8 +358,8 @@ async fn test_should_not_update_closed_rate_account() {
     let mint_from_pubkey = mint_keypair.pubkey();
     let mint_to_pubkey = mint_keypair.pubkey();
     let decimals = 6u8;
-    let (mint_authority_pda, _, _) =
-        create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
+    let (mint_authority_pda, _) =
+        create_minimal_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Down as u8;

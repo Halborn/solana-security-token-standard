@@ -55,11 +55,11 @@ export type CreateDistributionEscrowInstruction<
   TAccountDistributionEscrowAuthority extends
     | string
     | AccountMeta<string> = string,
-  TAccountPayer extends string | AccountMeta<string> = string,
+  TAccountDistributionMint extends string | AccountMeta<string> = string,
   TAccountDistributionTokenAccount extends
     | string
     | AccountMeta<string> = string,
-  TAccountDistributionMint extends string | AccountMeta<string> = string,
+  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
     | AccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
@@ -86,16 +86,16 @@ export type CreateDistributionEscrowInstruction<
       TAccountDistributionEscrowAuthority extends string
         ? ReadonlyAccount<TAccountDistributionEscrowAuthority>
         : TAccountDistributionEscrowAuthority,
+      TAccountDistributionMint extends string
+        ? ReadonlyAccount<TAccountDistributionMint>
+        : TAccountDistributionMint,
+      TAccountDistributionTokenAccount extends string
+        ? WritableAccount<TAccountDistributionTokenAccount>
+        : TAccountDistributionTokenAccount,
       TAccountPayer extends string
         ? WritableSignerAccount<TAccountPayer> &
             AccountSignerMeta<TAccountPayer>
         : TAccountPayer,
-      TAccountDistributionTokenAccount extends string
-        ? WritableAccount<TAccountDistributionTokenAccount>
-        : TAccountDistributionTokenAccount,
-      TAccountDistributionMint extends string
-        ? ReadonlyAccount<TAccountDistributionMint>
-        : TAccountDistributionMint,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
@@ -156,9 +156,9 @@ export type CreateDistributionEscrowInput<
   TAccountVerificationConfigOrMintAuthority extends string = string,
   TAccountInstructionsSysvarOrCreator extends string = string,
   TAccountDistributionEscrowAuthority extends string = string,
-  TAccountPayer extends string = string,
-  TAccountDistributionTokenAccount extends string = string,
   TAccountDistributionMint extends string = string,
+  TAccountDistributionTokenAccount extends string = string,
+  TAccountPayer extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountAssociatedTokenAccountProgram extends string = string,
   TAccountSystemProgram extends string = string,
@@ -167,9 +167,9 @@ export type CreateDistributionEscrowInput<
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
   instructionsSysvarOrCreator: Address<TAccountInstructionsSysvarOrCreator>;
   distributionEscrowAuthority: Address<TAccountDistributionEscrowAuthority>;
-  payer: TransactionSigner<TAccountPayer>;
-  distributionTokenAccount: Address<TAccountDistributionTokenAccount>;
   distributionMint: Address<TAccountDistributionMint>;
+  distributionTokenAccount: Address<TAccountDistributionTokenAccount>;
+  payer: TransactionSigner<TAccountPayer>;
   tokenProgram?: Address<TAccountTokenProgram>;
   associatedTokenAccountProgram: Address<TAccountAssociatedTokenAccountProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
@@ -181,9 +181,9 @@ export function getCreateDistributionEscrowInstruction<
   TAccountVerificationConfigOrMintAuthority extends string,
   TAccountInstructionsSysvarOrCreator extends string,
   TAccountDistributionEscrowAuthority extends string,
-  TAccountPayer extends string,
-  TAccountDistributionTokenAccount extends string,
   TAccountDistributionMint extends string,
+  TAccountDistributionTokenAccount extends string,
+  TAccountPayer extends string,
   TAccountTokenProgram extends string,
   TAccountAssociatedTokenAccountProgram extends string,
   TAccountSystemProgram extends string,
@@ -195,9 +195,9 @@ export function getCreateDistributionEscrowInstruction<
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
     TAccountDistributionEscrowAuthority,
-    TAccountPayer,
-    TAccountDistributionTokenAccount,
     TAccountDistributionMint,
+    TAccountDistributionTokenAccount,
+    TAccountPayer,
     TAccountTokenProgram,
     TAccountAssociatedTokenAccountProgram,
     TAccountSystemProgram
@@ -209,9 +209,9 @@ export function getCreateDistributionEscrowInstruction<
   TAccountVerificationConfigOrMintAuthority,
   TAccountInstructionsSysvarOrCreator,
   TAccountDistributionEscrowAuthority,
-  TAccountPayer,
-  TAccountDistributionTokenAccount,
   TAccountDistributionMint,
+  TAccountDistributionTokenAccount,
+  TAccountPayer,
   TAccountTokenProgram,
   TAccountAssociatedTokenAccountProgram,
   TAccountSystemProgram
@@ -235,15 +235,15 @@ export function getCreateDistributionEscrowInstruction<
       value: input.distributionEscrowAuthority ?? null,
       isWritable: false,
     },
-    payer: { value: input.payer ?? null, isWritable: true },
-    distributionTokenAccount: {
-      value: input.distributionTokenAccount ?? null,
-      isWritable: true,
-    },
     distributionMint: {
       value: input.distributionMint ?? null,
       isWritable: false,
     },
+    distributionTokenAccount: {
+      value: input.distributionTokenAccount ?? null,
+      isWritable: true,
+    },
+    payer: { value: input.payer ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     associatedTokenAccountProgram: {
       value: input.associatedTokenAccountProgram ?? null,
@@ -276,9 +276,9 @@ export function getCreateDistributionEscrowInstruction<
       getAccountMeta(accounts.verificationConfigOrMintAuthority),
       getAccountMeta(accounts.instructionsSysvarOrCreator),
       getAccountMeta(accounts.distributionEscrowAuthority),
-      getAccountMeta(accounts.payer),
-      getAccountMeta(accounts.distributionTokenAccount),
       getAccountMeta(accounts.distributionMint),
+      getAccountMeta(accounts.distributionTokenAccount),
+      getAccountMeta(accounts.payer),
       getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.associatedTokenAccountProgram),
       getAccountMeta(accounts.systemProgram),
@@ -293,9 +293,9 @@ export function getCreateDistributionEscrowInstruction<
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
     TAccountDistributionEscrowAuthority,
-    TAccountPayer,
-    TAccountDistributionTokenAccount,
     TAccountDistributionMint,
+    TAccountDistributionTokenAccount,
+    TAccountPayer,
     TAccountTokenProgram,
     TAccountAssociatedTokenAccountProgram,
     TAccountSystemProgram
@@ -312,9 +312,9 @@ export type ParsedCreateDistributionEscrowInstruction<
     verificationConfigOrMintAuthority: TAccountMetas[1];
     instructionsSysvarOrCreator: TAccountMetas[2];
     distributionEscrowAuthority: TAccountMetas[3];
-    payer: TAccountMetas[4];
+    distributionMint: TAccountMetas[4];
     distributionTokenAccount: TAccountMetas[5];
-    distributionMint: TAccountMetas[6];
+    payer: TAccountMetas[6];
     tokenProgram: TAccountMetas[7];
     associatedTokenAccountProgram: TAccountMetas[8];
     systemProgram: TAccountMetas[9];
@@ -347,9 +347,9 @@ export function parseCreateDistributionEscrowInstruction<
       verificationConfigOrMintAuthority: getNextAccount(),
       instructionsSysvarOrCreator: getNextAccount(),
       distributionEscrowAuthority: getNextAccount(),
-      payer: getNextAccount(),
-      distributionTokenAccount: getNextAccount(),
       distributionMint: getNextAccount(),
+      distributionTokenAccount: getNextAccount(),
+      payer: getNextAccount(),
       tokenProgram: getNextAccount(),
       associatedTokenAccountProgram: getNextAccount(),
       systemProgram: getNextAccount(),

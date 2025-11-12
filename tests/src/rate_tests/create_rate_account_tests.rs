@@ -12,10 +12,11 @@ use solana_pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 
 use crate::{
-    helpers::{assert_account_exists, assert_transaction_success, send_tx, start_with_context},
-    rate_tests::rate_helpers::{
-        close_rate_account, create_rate_account, create_security_token_mint, find_rate_pda,
+    helpers::{
+        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
+        send_tx, start_with_context,
     },
+    rate_tests::rate_helpers::{close_rate_account, create_rate_account, find_rate_pda},
 };
 
 #[tokio::test]
@@ -24,8 +25,8 @@ async fn test_should_create_rate_account_operation_for_split_mints() {
 
     let mint_from_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
+    let (mint_authority_pda, _freeze_authority_pda) =
+        create_minimal_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
@@ -97,10 +98,10 @@ async fn test_should_create_rate_account_operation_with_conversion_mints() {
     let decimals = 6u8;
 
     // Conversion operation (different mints). mint_to should be used
-    let (_mint_authority_pda_from, _, _) =
-        create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
-    let (mint_authority_pda_to, _, _) =
-        create_security_token_mint(&mut context, &mint_to_keypair, None, decimals).await;
+    let (_mint_authority_pda_from, _) =
+        create_minimal_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
+    let (mint_authority_pda_to, _) =
+        create_minimal_security_token_mint(&mut context, &mint_to_keypair, None, decimals).await;
 
     let action_id = 100u64;
     let rounding = Rounding::Down as u8;
@@ -156,8 +157,8 @@ async fn test_should_fail_invalid_create_rate_account_instruction(
     let mint_keypair = Keypair::new();
     let decimals = 9u8;
 
-    let (mint_authority_pda, _, _) =
-        create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
+    let (mint_authority_pda, _) =
+        create_minimal_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
 
     let create_rate_args = CreateRateArgs {
         action_id,
@@ -189,8 +190,8 @@ async fn test_should_not_create_rate_account_twice() {
 
     let mint_from_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
+    let (mint_authority_pda, _freeze_authority_pda) =
+        create_minimal_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let mint_from = mint_from_keypair.pubkey();
@@ -244,10 +245,10 @@ async fn test_should_create_both_split_and_conversion_rate_accounts() {
     let mint_from_keypair = Keypair::new();
     let mint_to_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda_from, _, _) =
-        create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
-    let (mint_authority_pda_to, _, _) =
-        create_security_token_mint(&mut context, &mint_to_keypair, None, decimals).await;
+    let (mint_authority_pda_from, _) =
+        create_minimal_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
+    let (mint_authority_pda_to, _) =
+        create_minimal_security_token_mint(&mut context, &mint_to_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let mint_from = mint_from_keypair.pubkey();
@@ -300,13 +301,14 @@ async fn test_should_not_create_rate_account_for_not_initial_mint() {
 
     let initial_mint_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &initial_mint_keypair, None, decimals).await;
+    let (mint_authority_pda, _freeze_authority_pda) =
+        create_minimal_security_token_mint(&mut context, &initial_mint_keypair, None, decimals)
+            .await;
 
     // Try to create Rate account by providing second mint
     // Even though it belongs to the same payer, it is not the initial mint and tx should fail
     let second_mint_keypair = Keypair::new();
-    create_security_token_mint(&mut context, &second_mint_keypair, None, decimals).await;
+    create_minimal_security_token_mint(&mut context, &second_mint_keypair, None, decimals).await;
     let mint_from = second_mint_keypair.pubkey();
     let mint_to = mint_from.clone();
 
@@ -342,8 +344,9 @@ async fn test_should_not_create_invalid_pda_rate_account() {
 
     let initial_mint_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &initial_mint_keypair, None, decimals).await;
+    let (mint_authority_pda, _freeze_authority_pda) =
+        create_minimal_security_token_mint(&mut context, &initial_mint_keypair, None, decimals)
+            .await;
 
     let create_rate_args = CreateRateArgs {
         action_id: 42u64,
@@ -389,8 +392,9 @@ async fn test_should_not_create_rate_account_with_invalid_system_program_id() {
 
     let initial_mint_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &initial_mint_keypair, None, decimals).await;
+    let (mint_authority_pda, _freeze_authority_pda) =
+        create_minimal_security_token_mint(&mut context, &initial_mint_keypair, None, decimals)
+            .await;
 
     let create_rate_args = CreateRateArgs {
         action_id: 42u64,
@@ -442,8 +446,8 @@ async fn test_should_re_create_closed_rate_account() {
 
     let mint_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
-        create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
+    let (mint_authority_pda, _freeze_authority_pda) =
+        create_minimal_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let rate_mint_pubkey = mint_keypair.pubkey();

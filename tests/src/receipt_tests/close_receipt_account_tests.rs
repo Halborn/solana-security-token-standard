@@ -8,12 +8,9 @@ use solana_sdk::{
 use crate::{
     convert_tests::convert_helpers::{create_convert_verification_config, execute_convert},
     helpers::{
-        assert_account_exists, assert_transaction_success, create_mint_verification_config,
-        create_spl_account, create_token_account_and_mint_tokens, find_common_action_receipt_pda,
-        find_permanent_delegate_pda, from_ui_amount, get_balance, mint_tokens_to,
-        start_with_context, start_with_context_and_accounts, TX_FEE,
+        TX_FEE, assert_account_exists, assert_transaction_success, create_minimal_security_token_mint, create_mint_verification_config, create_spl_account, create_token_account_and_mint_tokens, find_common_action_receipt_pda, find_permanent_delegate_pda, from_ui_amount, get_balance, mint_tokens_to, start_with_context, start_with_context_and_accounts
     },
-    rate_tests::rate_helpers::{create_rate_account, create_security_token_mint},
+    rate_tests::rate_helpers::create_rate_account,
     receipt_tests::receipt_helpers::close_receipt_account,
     split_tests::split_helpers::{create_split_verification_config, execute_split},
 };
@@ -25,8 +22,8 @@ async fn test_should_close_receipt_account_after_split() {
     let mint_creator = context.payer.insecure_clone();
     let mint_keypair = Keypair::new();
     let decimals = 6u8;
-    let (mint_authority_pda, _, _) =
-        create_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
+    let (mint_authority_pda, _) =
+        create_minimal_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
@@ -172,10 +169,10 @@ async fn test_should_close_receipt_account_after_convert() {
     let mint_pubkey_from = mint_keypair_from.pubkey();
     let mint_pubkey_to = mint_keypair_to.pubkey();
     let decimals = 6u8;
-    let (mint_authority_pda_from, _, _) =
-        create_security_token_mint(&mut context, &mint_keypair_from, None, decimals).await;
-    let (mint_authority_pda_to, _, _) =
-        create_security_token_mint(&mut context, &mint_keypair_to, None, decimals).await;
+    let (mint_authority_pda_from, _) =
+        create_minimal_security_token_mint(&mut context, &mint_keypair_from, None, decimals).await;
+    let (mint_authority_pda_to, _) =
+        create_minimal_security_token_mint(&mut context, &mint_keypair_to, None, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
@@ -331,8 +328,8 @@ async fn test_should_not_close_not_owned_receipt_account() {
 
     for mint_creator in &creator_keypairs {
         let mint_keypair = Keypair::new();
-        let (mint_authority_pda, _, _) =
-            create_security_token_mint(&mut context, &mint_keypair, Some(mint_creator), decimals)
+        let (mint_authority_pda, _) =
+            create_minimal_security_token_mint(&mut context, &mint_keypair, Some(mint_creator), decimals)
                 .await;
 
         action_id += 1;

@@ -22,11 +22,11 @@ pub struct CreateDistributionEscrow {
 
     pub distribution_escrow_authority: solana_pubkey::Pubkey,
 
-    pub payer: solana_pubkey::Pubkey,
+    pub distribution_mint: solana_pubkey::Pubkey,
 
     pub distribution_token_account: solana_pubkey::Pubkey,
 
-    pub distribution_mint: solana_pubkey::Pubkey,
+    pub payer: solana_pubkey::Pubkey,
 
     pub token_program: solana_pubkey::Pubkey,
 
@@ -65,15 +65,15 @@ impl CreateDistributionEscrow {
             self.distribution_escrow_authority,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
-        accounts.push(solana_instruction::AccountMeta::new(
-            self.distribution_token_account,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.distribution_mint,
             false,
         ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            self.distribution_token_account,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.token_program,
             false,
@@ -131,9 +131,9 @@ pub struct CreateDistributionEscrowInstructionArgs {
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
 ///   3. `[]` distribution_escrow_authority
-///   4. `[writable, signer]` payer
+///   4. `[]` distribution_mint
 ///   5. `[writable]` distribution_token_account
-///   6. `[]` distribution_mint
+///   6. `[writable, signer]` payer
 ///   7. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 ///   8. `[]` associated_token_account_program
 ///   9. `[optional]` system_program (default to `11111111111111111111111111111111`)
@@ -143,9 +143,9 @@ pub struct CreateDistributionEscrowBuilder {
     verification_config_or_mint_authority: Option<solana_pubkey::Pubkey>,
     instructions_sysvar_or_creator: Option<solana_pubkey::Pubkey>,
     distribution_escrow_authority: Option<solana_pubkey::Pubkey>,
-    payer: Option<solana_pubkey::Pubkey>,
-    distribution_token_account: Option<solana_pubkey::Pubkey>,
     distribution_mint: Option<solana_pubkey::Pubkey>,
+    distribution_token_account: Option<solana_pubkey::Pubkey>,
+    payer: Option<solana_pubkey::Pubkey>,
     token_program: Option<solana_pubkey::Pubkey>,
     associated_token_account_program: Option<solana_pubkey::Pubkey>,
     system_program: Option<solana_pubkey::Pubkey>,
@@ -187,8 +187,8 @@ impl CreateDistributionEscrowBuilder {
         self
     }
     #[inline(always)]
-    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
-        self.payer = Some(payer);
+    pub fn distribution_mint(&mut self, distribution_mint: solana_pubkey::Pubkey) -> &mut Self {
+        self.distribution_mint = Some(distribution_mint);
         self
     }
     #[inline(always)]
@@ -200,8 +200,8 @@ impl CreateDistributionEscrowBuilder {
         self
     }
     #[inline(always)]
-    pub fn distribution_mint(&mut self, distribution_mint: solana_pubkey::Pubkey) -> &mut Self {
-        self.distribution_mint = Some(distribution_mint);
+    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
+        self.payer = Some(payer);
         self
     }
     /// `[optional account, default to 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']`
@@ -260,13 +260,13 @@ impl CreateDistributionEscrowBuilder {
             distribution_escrow_authority: self
                 .distribution_escrow_authority
                 .expect("distribution_escrow_authority is not set"),
-            payer: self.payer.expect("payer is not set"),
-            distribution_token_account: self
-                .distribution_token_account
-                .expect("distribution_token_account is not set"),
             distribution_mint: self
                 .distribution_mint
                 .expect("distribution_mint is not set"),
+            distribution_token_account: self
+                .distribution_token_account
+                .expect("distribution_token_account is not set"),
+            payer: self.payer.expect("payer is not set"),
             token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
                 "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
             )),
@@ -298,11 +298,11 @@ pub struct CreateDistributionEscrowCpiAccounts<'a, 'b> {
 
     pub distribution_escrow_authority: &'b solana_account_info::AccountInfo<'a>,
 
-    pub payer: &'b solana_account_info::AccountInfo<'a>,
+    pub distribution_mint: &'b solana_account_info::AccountInfo<'a>,
 
     pub distribution_token_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub distribution_mint: &'b solana_account_info::AccountInfo<'a>,
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
 
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -324,11 +324,11 @@ pub struct CreateDistributionEscrowCpi<'a, 'b> {
 
     pub distribution_escrow_authority: &'b solana_account_info::AccountInfo<'a>,
 
-    pub payer: &'b solana_account_info::AccountInfo<'a>,
+    pub distribution_mint: &'b solana_account_info::AccountInfo<'a>,
 
     pub distribution_token_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub distribution_mint: &'b solana_account_info::AccountInfo<'a>,
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
 
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -351,9 +351,9 @@ impl<'a, 'b> CreateDistributionEscrowCpi<'a, 'b> {
             verification_config_or_mint_authority: accounts.verification_config_or_mint_authority,
             instructions_sysvar_or_creator: accounts.instructions_sysvar_or_creator,
             distribution_escrow_authority: accounts.distribution_escrow_authority,
-            payer: accounts.payer,
-            distribution_token_account: accounts.distribution_token_account,
             distribution_mint: accounts.distribution_mint,
+            distribution_token_account: accounts.distribution_token_account,
+            payer: accounts.payer,
             token_program: accounts.token_program,
             associated_token_account_program: accounts.associated_token_account_program,
             system_program: accounts.system_program,
@@ -400,15 +400,15 @@ impl<'a, 'b> CreateDistributionEscrowCpi<'a, 'b> {
             *self.distribution_escrow_authority.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
-        accounts.push(solana_instruction::AccountMeta::new(
-            *self.distribution_token_account.key,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.distribution_mint.key,
             false,
         ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            *self.distribution_token_account.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.token_program.key,
             false,
@@ -443,9 +443,9 @@ impl<'a, 'b> CreateDistributionEscrowCpi<'a, 'b> {
         account_infos.push(self.verification_config_or_mint_authority.clone());
         account_infos.push(self.instructions_sysvar_or_creator.clone());
         account_infos.push(self.distribution_escrow_authority.clone());
-        account_infos.push(self.payer.clone());
-        account_infos.push(self.distribution_token_account.clone());
         account_infos.push(self.distribution_mint.clone());
+        account_infos.push(self.distribution_token_account.clone());
+        account_infos.push(self.payer.clone());
         account_infos.push(self.token_program.clone());
         account_infos.push(self.associated_token_account_program.clone());
         account_infos.push(self.system_program.clone());
@@ -469,9 +469,9 @@ impl<'a, 'b> CreateDistributionEscrowCpi<'a, 'b> {
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
 ///   3. `[]` distribution_escrow_authority
-///   4. `[writable, signer]` payer
+///   4. `[]` distribution_mint
 ///   5. `[writable]` distribution_token_account
-///   6. `[]` distribution_mint
+///   6. `[writable, signer]` payer
 ///   7. `[]` token_program
 ///   8. `[]` associated_token_account_program
 ///   9. `[]` system_program
@@ -488,9 +488,9 @@ impl<'a, 'b> CreateDistributionEscrowCpiBuilder<'a, 'b> {
             verification_config_or_mint_authority: None,
             instructions_sysvar_or_creator: None,
             distribution_escrow_authority: None,
-            payer: None,
-            distribution_token_account: None,
             distribution_mint: None,
+            distribution_token_account: None,
+            payer: None,
             token_program: None,
             associated_token_account_program: None,
             system_program: None,
@@ -530,8 +530,11 @@ impl<'a, 'b> CreateDistributionEscrowCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.payer = Some(payer);
+    pub fn distribution_mint(
+        &mut self,
+        distribution_mint: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.distribution_mint = Some(distribution_mint);
         self
     }
     #[inline(always)]
@@ -543,11 +546,8 @@ impl<'a, 'b> CreateDistributionEscrowCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn distribution_mint(
-        &mut self,
-        distribution_mint: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.distribution_mint = Some(distribution_mint);
+    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.payer = Some(payer);
         self
     }
     #[inline(always)]
@@ -643,17 +643,17 @@ impl<'a, 'b> CreateDistributionEscrowCpiBuilder<'a, 'b> {
                 .distribution_escrow_authority
                 .expect("distribution_escrow_authority is not set"),
 
-            payer: self.instruction.payer.expect("payer is not set"),
+            distribution_mint: self
+                .instruction
+                .distribution_mint
+                .expect("distribution_mint is not set"),
 
             distribution_token_account: self
                 .instruction
                 .distribution_token_account
                 .expect("distribution_token_account is not set"),
 
-            distribution_mint: self
-                .instruction
-                .distribution_mint
-                .expect("distribution_mint is not set"),
+            payer: self.instruction.payer.expect("payer is not set"),
 
             token_program: self
                 .instruction
@@ -685,9 +685,9 @@ struct CreateDistributionEscrowCpiBuilderInstruction<'a, 'b> {
     verification_config_or_mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar_or_creator: Option<&'b solana_account_info::AccountInfo<'a>>,
     distribution_escrow_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
-    payer: Option<&'b solana_account_info::AccountInfo<'a>>,
-    distribution_token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     distribution_mint: Option<&'b solana_account_info::AccountInfo<'a>>,
+    distribution_token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    payer: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     associated_token_account_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
