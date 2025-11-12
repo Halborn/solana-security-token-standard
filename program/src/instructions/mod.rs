@@ -31,6 +31,8 @@ pub mod close_rate_account {
 pub mod close_receipt_account;
 /// Convert instruction arguments and implementations
 pub mod convert;
+/// CreateDistributionEscrow instruction arguments and implementations
+pub mod create_distribution_escrow;
 /// Initialize mint instruction arguments and implementations
 pub mod initialize_mint;
 /// Split instruction arguments and implementations
@@ -46,6 +48,7 @@ pub mod verify;
 
 // Re-export all public types for easy access
 pub use close_receipt_account::*;
+pub use create_distribution_escrow::*;
 pub use create_rate_account::*;
 pub use initialize_mint::*;
 pub use token_wrappers::*;

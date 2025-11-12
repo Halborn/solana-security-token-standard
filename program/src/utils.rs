@@ -152,6 +152,25 @@ pub fn find_proof_pda(
     )
 }
 
+/// Derive distribution escrow authority PDA
+/// Seeds: ["distribution_escrow_authority", mint, action_id, merkle_root]
+pub fn find_distribution_escrow_authority_pda(
+    mint: &Pubkey,
+    action_id: u64,
+    merkle_root: &[u8; 32],
+    program_id: &Pubkey,
+) -> (Pubkey, u8) {
+    find_program_address(
+        &[
+            seeds::DISTRIBUTION_ESCROW_AUTHORITY,
+            mint.as_ref(),
+            action_id.to_le_bytes().as_ref(),
+            merkle_root.as_ref(),
+        ],
+        program_id,
+    )
+}
+
 /// Parse additional metadata from raw bytes in TLV format
 /// Calls the provided callback for each key-value pair found
 pub fn parse_additional_metadata<F>(data: &[u8], mut callback: F) -> Result<(), ProgramError>

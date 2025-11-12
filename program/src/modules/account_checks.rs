@@ -92,6 +92,25 @@ pub fn verify_token22_program(info: &AccountInfo) -> Result<(), ProgramError> {
     Ok(())
 }
 
+/// Verify account as Associated Token program, returning an error if it is not.
+///
+/// # Arguments
+/// * `info` - The account to verify.
+///
+/// # Returns
+/// * `Result<(), ProgramError>` - The result of the operation
+pub fn verify_associated_token_program(info: &AccountInfo) -> Result<(), ProgramError> {
+    if info.key().ne(&pinocchio_associated_token_account::ID) {
+        debug_log!(
+            "Account {} is not the Associated Token program",
+            acc_info_as_str!(info),
+        );
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
+}
+
 /// Verify account as instructions sysvar, returning an error if it is not.
 /// # Arguments
 /// * `info` - The account to verify.

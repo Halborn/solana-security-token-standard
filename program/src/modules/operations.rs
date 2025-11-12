@@ -8,11 +8,12 @@ use crate::debug_log;
 use crate::instructions::{CustomPause, CustomResume, CustomTransferChecked};
 use crate::modules::{
     burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
-    verify_operation_mint_info, verify_owner, verify_pda, verify_signer, verify_system_program,
-    verify_token22_program, verify_writable,
+    verify_associated_token_program, verify_operation_mint_info, verify_owner, verify_pda,
+    verify_signer, verify_system_program, verify_token22_program, verify_writable,
 };
 use crate::state::{
-    MintAuthority, ProgramAccount, Proof, ProofData, ProofNode, Rate, Receipt, Rounding,
+    DistributionEscrowAuthority, MintAuthority, ProgramAccount, Proof, ProofData, ProofNode, Rate,
+    Receipt, Rounding,
 };
 use crate::utils::{
     find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda,
@@ -21,6 +22,7 @@ use crate::utils::{
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
+use pinocchio_associated_token_account::instructions::Create as CreateTokenAccount;
 use pinocchio_token_2022::instructions::{FreezeAccount, ThawAccount};
 use pinocchio_token_2022::state::{Mint, TokenAccount};
 
@@ -306,11 +308,49 @@ impl OperationsModule {
 
     /// Create escrow for distributions
     pub fn execute_create_distribution_escrow(
-        _accounts: &[AccountInfo],
-        _action_id: u64,
-        _merkle_proof: &[u8],
+        _program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+        merkle_root: &[u8; 32],
     ) -> ProgramResult {
-        // TODO: Create escrow token account with PDA authority
+        let [distribution_escrow_authority_info, distribution_mint_info, distribution_token_account_info, payer_info, token_program_info, associated_token_account_program_info, system_program_info] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        // Verify mint is valid
+        verify_operation_mint_info(verified_mint_info, &distribution_mint_info)?;
+        // Verify token account is not initialized
+        verify_writable(distribution_token_account_info)?;
+        verify_account_not_initialized(distribution_token_account_info)?;
+        // Verify payer
+        verify_signer(payer_info)?;
+        verify_writable(payer_info)?;
+        // Verify programs
+        verify_token22_program(token_program_info)?;
+        verify_associated_token_program(associated_token_account_program_info)?;
+        verify_system_program(system_program_info)?;
+
+        let mint_pubkey = distribution_mint_info.key();
+        let (distribution_escrow_authority_pda, _) =
+            DistributionEscrowAuthority::find_pda(mint_pubkey, action_id, merkle_root);
+        verify_pda(
+            distribution_escrow_authority_info.key(),
+            &distribution_escrow_authority_pda,
+        )?;
+
+        CreateTokenAccount {
+            funding_account: payer_info,
+            account: distribution_token_account_info,
+            wallet: distribution_escrow_authority_info,
+            mint: distribution_mint_info,
+            system_program: system_program_info,
+            token_program: token_program_info,
+        }
+        .invoke()?;
+
         Ok(())
     }
 

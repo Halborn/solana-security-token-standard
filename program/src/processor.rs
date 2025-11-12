@@ -4,8 +4,9 @@ use crate::{
         close_rate_account::CloseRateArgs, convert::ConvertArgs,
         create_proof_account::CreateProofArgs, split::SplitArgs,
         update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs,
-        CloseReceiptArgs, CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
-        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        CloseReceiptArgs, CreateDistributionEscrowArgs, CreateRateArgs, InitializeMintArgs,
+        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
+        UpdateVerificationConfigArgs, VerifyArgs,
     },
     modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
@@ -27,7 +28,8 @@ impl Processor {
 
         match instruction {
             InitializeMint | Verify => None,
-            CloseReceiptAccount
+            CreateDistributionEscrow
+            | CloseReceiptAccount
             | CreateRateAccount
             | UpdateRateAccount
             | CloseRateAccount
@@ -203,6 +205,14 @@ impl Processor {
                 instruction_accounts,
                 args_data,
             ),
+            SecurityTokenInstruction::CreateDistributionEscrow => {
+                Self::process_create_distribution_escrow(
+                    program_id,
+                    verified_mint_info,
+                    instruction_accounts,
+                    args_data,
+                )
+            }
         }
     }
 
@@ -484,6 +494,26 @@ impl Processor {
         } = UpdateProofArgs::try_from_bytes(args_data)?;
         OperationsModule::execute_update_proof_account(
             program_id, mint_info, accounts, action_id, data, offset,
+        )?;
+        Ok(())
+    }
+
+    fn process_create_distribution_escrow(
+        program_id: &Pubkey,
+        mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let CreateDistributionEscrowArgs {
+            action_id,
+            merkle_root,
+        } = CreateDistributionEscrowArgs::try_from_bytes(args_data)?;
+        OperationsModule::execute_create_distribution_escrow(
+            program_id,
+            mint_info,
+            accounts,
+            action_id,
+            &merkle_root,
         )?;
         Ok(())
     }

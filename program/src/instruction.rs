@@ -25,6 +25,7 @@ pub enum SecurityTokenInstruction {
     CreateProofAccount = 18,
     UpdateProofAccount = 19,
     CloseReceiptAccount = 20,
+    CreateDistributionEscrow = 21,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -53,6 +54,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             18 => Ok(SecurityTokenInstruction::CreateProofAccount),
             19 => Ok(SecurityTokenInstruction::UpdateProofAccount),
             20 => Ok(SecurityTokenInstruction::CloseReceiptAccount),
+            21 => Ok(SecurityTokenInstruction::CreateDistributionEscrow),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -90,8 +92,9 @@ mod idl_gen {
         close_rate_account::CloseRateArgs, convert::ConvertArgs,
         create_proof_account::CreateProofArgs, split::SplitArgs,
         update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs,
-        CloseReceiptArgs, CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
-        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        CloseReceiptArgs, CreateDistributionEscrowArgs, CreateRateArgs, InitializeMintArgs,
+        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
+        UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -345,5 +348,19 @@ mod idl_gen {
         #[account(4, writable, name = "destination")]
         #[account(5, name = "mint_account")]
         CloseReceiptAccount(CloseReceiptArgs) = 20,
+
+        // Verification overhead
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        // Instruction accounts
+        #[account(3, name = "distribution_escrow_authority")]
+        #[account(4, writable, signer, name = "payer")]
+        #[account(5, writable, name = "distribution_token_account")]
+        #[account(6, name = "distribution_mint")]
+        #[account(7, name = "token_program")]
+        #[account(8, name = "associated_token_account_program")]
+        #[account(9, name = "system_program")]
+        CreateDistributionEscrow(CreateDistributionEscrowArgs) = 21,
     }
 }

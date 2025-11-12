@@ -24,6 +24,8 @@ pub mod seeds {
     pub const EXTRA_ACCOUNT_METAS: &[u8] = b"extra-account-metas";
     /// Seed for proof account PDA
     pub const PROOF_ACCOUNT: &[u8] = b"proof";
+    /// Seed for distribution escrow authority PDA
+    pub const DISTRIBUTION_ESCROW_AUTHORITY: &[u8] = b"distribution_escrow_authority";
 }
 
 pub const INSTRUCTION_ACCOUNTS_OFFSET: usize = 3;
@@ -32,3 +34,5 @@ pub const TRANSFER_HOOK_PROGRAM_ID: Pubkey =
 pub const ACTION_ID_LEN: usize = 8;
 pub const MAX_VERIFICATION_PROGRAMS: usize = 10;
 pub const MERKLE_TREE_NODE_LEN: usize = 32;
+pub const MERKLE_ROOT_LEN: usize = 32;
+pub const MERKLE_PROOF_LEN: usize = 32;
