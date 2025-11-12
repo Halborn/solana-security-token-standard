@@ -26,3 +26,6 @@ pub mod proof_tests;
 
 #[cfg(test)]
 pub mod receipt_tests;
+
+#[cfg(test)]
+pub mod claim_tests;

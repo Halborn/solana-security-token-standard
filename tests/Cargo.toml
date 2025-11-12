@@ -34,3 +34,5 @@ spl-associated-token-account = { version = "7.0.0", features = [
 ] }
 spl-pod = "0.5.1"
 rstest = "0.18"
+spl-merkle-tree-reference = { workspace = true }
+solana-keccak-hasher = { workspace = true }
