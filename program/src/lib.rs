@@ -18,6 +18,8 @@ pub mod instruction;
 pub mod instructions;
 /// Macros used throughout the Security Token program
 pub mod macros;
+/// Merkle tree utilities
+pub mod merkle_tree_utils;
 /// Security Token program modules (verification & operations)
 pub mod modules;
 /// Instruction processor
