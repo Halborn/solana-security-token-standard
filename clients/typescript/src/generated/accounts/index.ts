@@ -7,6 +7,7 @@
  */
 
 export * from './mintAuthority';
+export * from './proof';
 export * from './rate';
 export * from './receipt';
 export * from './verificationConfig';

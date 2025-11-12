@@ -38,6 +38,7 @@ export const SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS =
 
 export enum SecurityTokenProgramAccount {
   MintAuthority,
+  Proof,
   Rate,
   Receipt,
   VerificationConfig,
