@@ -1,11 +1,13 @@
 //! Token extension wrappers
 
+use bytemuck;
 use pinocchio::account_info::AccountInfo;
 use pinocchio::cpi::invoke_signed;
 use pinocchio::instruction::{AccountMeta, Instruction, Signer};
 use pinocchio::pubkey::Pubkey;
 use pinocchio::ProgramResult;
 use pinocchio_token_2022::extensions::metadata::InitializeTokenMetadata;
+use spl_tlv_account_resolution::account::ExtraAccountMeta;
 
 /// Wrapper for RemoveKey instruction
 pub struct CustomRemoveKey<'a> {
@@ -349,50 +351,6 @@ impl<'a> CustomTransferChecked<'a> {
     }
 }
 
-/// Represents an ExtraAccountMeta for transfer hooks
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub struct ExtraAccountMeta {
-    /// Discriminator to tell whether this represents a standard
-    /// `AccountMeta`, PDA, or pubkey data.
-    pub discriminator: u8,
-    /// This `address_config` field can either be the pubkey of the account,
-    /// the seeds used to derive the pubkey from provided inputs (PDA), or the
-    /// data used to derive the pubkey (account or instruction data).
-    pub address_config: [u8; 32],
-    /// Whether the account should sign
-    pub is_signer: bool,
-    /// Whether the account should be writable
-    pub is_writable: bool,
-}
-
-impl ExtraAccountMeta {
-    /// Size of a single ExtraAccountMeta in bytes
-    pub const SIZE: usize = 35; // 1 (discriminator) + 32 (address) + 1 (is_signer) + 1 (is_writable)
-
-    /// Serialize to bytes
-    pub fn to_bytes(&self) -> [u8; 35] {
-        let mut bytes = [0u8; 35];
-        bytes[0] = self.discriminator;
-        bytes[1..33].copy_from_slice(&self.address_config);
-        bytes[33] = self.is_signer as u8;
-        bytes[34] = self.is_writable as u8;
-        bytes
-    }
-
-    /// Calculate the total size needed for a list of ExtraAccountMetas in TLV format
-    ///
-    /// TLV Layout:
-    /// - 8 bytes: TLV account discriminator (for ExecuteInstruction)
-    /// - 4 bytes: TLV type
-    /// - 4 bytes: TLV length
-    /// - N * 35 bytes: ExtraAccountMeta data
-    pub fn calculate_account_size(count: usize) -> usize {
-        const TLV_HEADER_SIZE: usize = 16; // 8 (discriminator) + 4 (type) + 4 (length)
-        TLV_HEADER_SIZE + (count * Self::SIZE)
-    }
-}
-
 /// Wrapper for InitializeExtraAccountMetaList instruction
 ///
 /// This instruction creates the extra_account_metas PDA and initializes it.
@@ -451,7 +409,7 @@ impl<'a> CustomInitializeExtraAccountMetaList<'a> {
 
         instruction_data.extend(&(self.metas.len() as u32).to_le_bytes());
         for meta in self.metas {
-            instruction_data.extend(&meta.to_bytes());
+            instruction_data.extend(bytemuck::bytes_of(meta));
         }
 
         let account_metas: [AccountMeta; 4] = [
@@ -538,7 +496,7 @@ impl<'a> CustomUpdateExtraAccountMetaList<'a> {
 
         // Serialize each ExtraAccountMeta
         for meta in self.metas {
-            instruction_data.extend(&meta.to_bytes());
+            instruction_data.extend(bytemuck::bytes_of(meta));
         }
 
         let account_metas: [AccountMeta; 4] = [

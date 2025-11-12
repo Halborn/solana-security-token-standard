@@ -27,6 +27,8 @@ use pinocchio_token_2022::{
     extensions::metadata::{Field, TokenMetadata, UpdateField},
     instructions::AuthorityType,
 };
+use spl_pod::primitives::PodBool;
+use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 
 use super::utils as verification_utils;
 use crate::constants::{seeds, INSTRUCTION_ACCOUNTS_OFFSET, TRANSFER_HOOK_PROGRAM_ID};
@@ -35,8 +37,8 @@ use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{
-    CustomInitializeExtraAccountMetaList, CustomUpdateExtraAccountMetaList, ExtraAccountMeta,
-    InitializeMintArgs, UpdateMetadataArgs, VerifyArgs,
+    CustomInitializeExtraAccountMetaList, CustomUpdateExtraAccountMetaList, InitializeMintArgs,
+    UpdateMetadataArgs, VerifyArgs,
 };
 use crate::modules::{
     verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_pda,
@@ -49,6 +51,7 @@ use crate::state::{
 };
 use crate::utils::find_extra_account_metas_pda;
 use crate::{debug_log, utils};
+use spl_tlv_account_resolution::account::ExtraAccountMeta;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Verification Module - handles all authorization and compliance checks
@@ -949,20 +952,21 @@ impl VerificationModule {
         account_metas.push(ExtraAccountMeta {
             discriminator: 0,
             address_config: verification_config_pda,
-            is_signer: false,
-            is_writable: false,
+            is_signer: PodBool(0),
+            is_writable: PodBool(0),
         });
 
         for program_address in program_addresses {
             account_metas.push(ExtraAccountMeta {
                 discriminator: 0,
                 address_config: *program_address,
-                is_signer: false,
-                is_writable: false,
+                is_signer: PodBool(0),
+                is_writable: PodBool(0),
             });
         }
 
-        let new_account_size = ExtraAccountMeta::calculate_account_size(account_metas.len());
+        let new_account_size = ExtraAccountMetaList::size_of(account_metas.len())
+            .map_err(|_| ProgramError::InvalidAccountData)?;
         let rent = Rent::get()?;
 
         if is_initialization {
