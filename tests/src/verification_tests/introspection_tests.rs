@@ -555,9 +555,9 @@ async fn test_update_metadata_under_verification() {
         Instruction {
             program_id: dummy_program_1_id,
             accounts: vec![
+                AccountMeta::new_readonly(mint_authority_pda, false),
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
                 AccountMeta::new_readonly(mint_keypair.pubkey(), false),
-                AccountMeta::new_readonly(mint_authority_pda, false),
                 AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
@@ -566,9 +566,9 @@ async fn test_update_metadata_under_verification() {
         Instruction {
             program_id: dummy_program_2_id,
             accounts: vec![
+                AccountMeta::new_readonly(mint_authority_pda, false),
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
                 AccountMeta::new_readonly(mint_keypair.pubkey(), false),
-                AccountMeta::new_readonly(mint_authority_pda, false),
                 AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],

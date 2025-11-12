@@ -63,7 +63,7 @@ impl VerificationModule {
         let metadata_opt = &args.ix_metadata;
         let scaled_ui_amount_opt = &args.ix_scaled_ui_amount;
 
-        let [mint_info, creator_info, mint_authority_account, token_program_info, system_program_info, rent_info] =
+        let [mint_info, mint_authority_account, creator_info, token_program_info, system_program_info, rent_info] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -327,7 +327,7 @@ impl VerificationModule {
         // Validate arguments
         args.validate()?;
 
-        let [payer, mint_info, mint_authority, token_program_info, system_program_info] = accounts
+        let [mint_authority, payer, mint_info, token_program_info, system_program_info] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };

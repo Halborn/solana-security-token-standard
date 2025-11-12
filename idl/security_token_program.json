@@ -11,14 +11,14 @@
           "isSigner": true
         },
         {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
           "name": "authority",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
         },
         {
           "name": "tokenProgram",
@@ -68,6 +68,11 @@
           "isSigner": false
         },
         {
+          "name": "mintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "payer",
           "isMut": true,
           "isSigner": true
@@ -75,11 +80,6 @@
         {
           "name": "mintAccount",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "mintAuthority",
-          "isMut": false,
           "isSigner": false
         },
         {

@@ -93,8 +93,8 @@ mod idl_gen {
         // No verification overhead
         // Instruction accounts
         #[account(0, writable, signer, name = "mint")]
-        #[account(1, writable, signer, name = "payer")]
-        #[account(2, writable, name = "authority")]
+        #[account(1, writable, name = "authority")]
+        #[account(2, writable, signer, name = "payer")]
         #[account(3, name = "token_program")]
         #[account(4, name = "system_program")]
         #[account(5, name = "rent_sysvar")]
@@ -105,9 +105,9 @@ mod idl_gen {
         #[account(1, name = "verification_config_or_mint_authority")]
         #[account(2, name = "instructions_sysvar_or_creator")]
         // Instruction accounts
-        #[account(3, writable, signer, name = "payer")]
-        #[account(4, writable, name = "mint_account")]
-        #[account(5, name = "mint_authority")]
+        #[account(3, name = "mint_authority")]
+        #[account(4, writable, signer, name = "payer")]
+        #[account(5, writable, name = "mint_account")]
         #[account(6, name = "token_program")]
         #[account(7, name = "system_program")]
         UpdateMetadata(UpdateMetadataArgs) = 1,
