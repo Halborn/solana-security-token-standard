@@ -224,7 +224,7 @@ fn validate_extra_account_meta_accounts(
     );
 
     if authority_info.key() != &transfer_hook_pda {
-        return Err(ProgramError::InvalidSeeds);
+        return Err(ProgramError::InvalidAccountData);
     }
 
     if !mint_info.is_owned_by(&pinocchio_token_2022::ID) {
