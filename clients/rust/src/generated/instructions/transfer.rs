@@ -21,11 +21,11 @@ pub struct Transfer {
 
     pub permanent_delegate_authority: solana_pubkey::Pubkey,
 
+    pub mint_account: solana_pubkey::Pubkey,
+
     pub from_token_account: solana_pubkey::Pubkey,
 
     pub to_token_account: solana_pubkey::Pubkey,
-
-    pub mint_account: solana_pubkey::Pubkey,
 
     pub transfer_hook_program: solana_pubkey::Pubkey,
 
@@ -59,16 +59,16 @@ impl Transfer {
             self.permanent_delegate_authority,
             false,
         ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.mint_account,
+            false,
+        ));
         accounts.push(solana_instruction::AccountMeta::new(
             self.from_token_account,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             self.to_token_account,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.mint_account,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -124,9 +124,9 @@ pub struct TransferInstructionArgs {
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
 ///   3. `[]` permanent_delegate_authority
-///   4. `[writable]` from_token_account
-///   5. `[writable]` to_token_account
-///   6. `[]` mint_account
+///   4. `[]` mint_account
+///   5. `[writable]` from_token_account
+///   6. `[writable]` to_token_account
 ///   7. `[]` transfer_hook_program
 ///   8. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 #[derive(Clone, Debug, Default)]
@@ -135,9 +135,9 @@ pub struct TransferBuilder {
     verification_config: Option<solana_pubkey::Pubkey>,
     instructions_sysvar: Option<solana_pubkey::Pubkey>,
     permanent_delegate_authority: Option<solana_pubkey::Pubkey>,
+    mint_account: Option<solana_pubkey::Pubkey>,
     from_token_account: Option<solana_pubkey::Pubkey>,
     to_token_account: Option<solana_pubkey::Pubkey>,
-    mint_account: Option<solana_pubkey::Pubkey>,
     transfer_hook_program: Option<solana_pubkey::Pubkey>,
     token_program: Option<solana_pubkey::Pubkey>,
     amount: Option<u64>,
@@ -173,6 +173,11 @@ impl TransferBuilder {
         self
     }
     #[inline(always)]
+    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_account = Some(mint_account);
+        self
+    }
+    #[inline(always)]
     pub fn from_token_account(&mut self, from_token_account: solana_pubkey::Pubkey) -> &mut Self {
         self.from_token_account = Some(from_token_account);
         self
@@ -180,11 +185,6 @@ impl TransferBuilder {
     #[inline(always)]
     pub fn to_token_account(&mut self, to_token_account: solana_pubkey::Pubkey) -> &mut Self {
         self.to_token_account = Some(to_token_account);
-        self
-    }
-    #[inline(always)]
-    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.mint_account = Some(mint_account);
         self
     }
     #[inline(always)]
@@ -234,11 +234,11 @@ impl TransferBuilder {
             permanent_delegate_authority: self
                 .permanent_delegate_authority
                 .expect("permanent_delegate_authority is not set"),
+            mint_account: self.mint_account.expect("mint_account is not set"),
             from_token_account: self
                 .from_token_account
                 .expect("from_token_account is not set"),
             to_token_account: self.to_token_account.expect("to_token_account is not set"),
-            mint_account: self.mint_account.expect("mint_account is not set"),
             transfer_hook_program: self
                 .transfer_hook_program
                 .expect("transfer_hook_program is not set"),
@@ -264,11 +264,11 @@ pub struct TransferCpiAccounts<'a, 'b> {
 
     pub permanent_delegate_authority: &'b solana_account_info::AccountInfo<'a>,
 
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
+
     pub from_token_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub to_token_account: &'b solana_account_info::AccountInfo<'a>,
-
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub transfer_hook_program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -288,11 +288,11 @@ pub struct TransferCpi<'a, 'b> {
 
     pub permanent_delegate_authority: &'b solana_account_info::AccountInfo<'a>,
 
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
+
     pub from_token_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub to_token_account: &'b solana_account_info::AccountInfo<'a>,
-
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub transfer_hook_program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -313,9 +313,9 @@ impl<'a, 'b> TransferCpi<'a, 'b> {
             verification_config: accounts.verification_config,
             instructions_sysvar: accounts.instructions_sysvar,
             permanent_delegate_authority: accounts.permanent_delegate_authority,
+            mint_account: accounts.mint_account,
             from_token_account: accounts.from_token_account,
             to_token_account: accounts.to_token_account,
-            mint_account: accounts.mint_account,
             transfer_hook_program: accounts.transfer_hook_program,
             token_program: accounts.token_program,
             __args: args,
@@ -361,16 +361,16 @@ impl<'a, 'b> TransferCpi<'a, 'b> {
             *self.permanent_delegate_authority.key,
             false,
         ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.mint_account.key,
+            false,
+        ));
         accounts.push(solana_instruction::AccountMeta::new(
             *self.from_token_account.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             *self.to_token_account.key,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.mint_account.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -403,9 +403,9 @@ impl<'a, 'b> TransferCpi<'a, 'b> {
         account_infos.push(self.verification_config.clone());
         account_infos.push(self.instructions_sysvar.clone());
         account_infos.push(self.permanent_delegate_authority.clone());
+        account_infos.push(self.mint_account.clone());
         account_infos.push(self.from_token_account.clone());
         account_infos.push(self.to_token_account.clone());
-        account_infos.push(self.mint_account.clone());
         account_infos.push(self.transfer_hook_program.clone());
         account_infos.push(self.token_program.clone());
         remaining_accounts
@@ -428,9 +428,9 @@ impl<'a, 'b> TransferCpi<'a, 'b> {
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
 ///   3. `[]` permanent_delegate_authority
-///   4. `[writable]` from_token_account
-///   5. `[writable]` to_token_account
-///   6. `[]` mint_account
+///   4. `[]` mint_account
+///   5. `[writable]` from_token_account
+///   6. `[writable]` to_token_account
 ///   7. `[]` transfer_hook_program
 ///   8. `[]` token_program
 #[derive(Clone, Debug)]
@@ -446,9 +446,9 @@ impl<'a, 'b> TransferCpiBuilder<'a, 'b> {
             verification_config: None,
             instructions_sysvar: None,
             permanent_delegate_authority: None,
+            mint_account: None,
             from_token_account: None,
             to_token_account: None,
-            mint_account: None,
             transfer_hook_program: None,
             token_program: None,
             amount: None,
@@ -486,6 +486,14 @@ impl<'a, 'b> TransferCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
+    pub fn mint_account(
+        &mut self,
+        mint_account: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.mint_account = Some(mint_account);
+        self
+    }
+    #[inline(always)]
     pub fn from_token_account(
         &mut self,
         from_token_account: &'b solana_account_info::AccountInfo<'a>,
@@ -499,14 +507,6 @@ impl<'a, 'b> TransferCpiBuilder<'a, 'b> {
         to_token_account: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.to_token_account = Some(to_token_account);
-        self
-    }
-    #[inline(always)]
-    pub fn mint_account(
-        &mut self,
-        mint_account: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.mint_account = Some(mint_account);
         self
     }
     #[inline(always)]
@@ -587,6 +587,11 @@ impl<'a, 'b> TransferCpiBuilder<'a, 'b> {
                 .permanent_delegate_authority
                 .expect("permanent_delegate_authority is not set"),
 
+            mint_account: self
+                .instruction
+                .mint_account
+                .expect("mint_account is not set"),
+
             from_token_account: self
                 .instruction
                 .from_token_account
@@ -596,11 +601,6 @@ impl<'a, 'b> TransferCpiBuilder<'a, 'b> {
                 .instruction
                 .to_token_account
                 .expect("to_token_account is not set"),
-
-            mint_account: self
-                .instruction
-                .mint_account
-                .expect("mint_account is not set"),
 
             transfer_hook_program: self
                 .instruction
@@ -627,9 +627,9 @@ struct TransferCpiBuilderInstruction<'a, 'b> {
     verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
     permanent_delegate_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     from_token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     to_token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     transfer_hook_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     amount: Option<u64>,

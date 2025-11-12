@@ -57,8 +57,8 @@ export type ConvertInstruction<
   TAccountMintTo extends string | AccountMeta<string> = string,
   TAccountTokenAccountFrom extends string | AccountMeta<string> = string,
   TAccountTokenAccountTo extends string | AccountMeta<string> = string,
-  TAccountReceiptAccount extends string | AccountMeta<string> = string,
   TAccountRateAccount extends string | AccountMeta<string> = string,
+  TAccountReceiptAccount extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
     | AccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
@@ -101,12 +101,12 @@ export type ConvertInstruction<
       TAccountTokenAccountTo extends string
         ? WritableAccount<TAccountTokenAccountTo>
         : TAccountTokenAccountTo,
-      TAccountReceiptAccount extends string
-        ? WritableAccount<TAccountReceiptAccount>
-        : TAccountReceiptAccount,
       TAccountRateAccount extends string
         ? ReadonlyAccount<TAccountRateAccount>
         : TAccountRateAccount,
+      TAccountReceiptAccount extends string
+        ? WritableAccount<TAccountReceiptAccount>
+        : TAccountReceiptAccount,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
@@ -162,8 +162,8 @@ export type ConvertInput<
   TAccountMintTo extends string = string,
   TAccountTokenAccountFrom extends string = string,
   TAccountTokenAccountTo extends string = string,
-  TAccountReceiptAccount extends string = string,
   TAccountRateAccount extends string = string,
+  TAccountReceiptAccount extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
@@ -177,8 +177,8 @@ export type ConvertInput<
   mintTo: Address<TAccountMintTo>;
   tokenAccountFrom: Address<TAccountTokenAccountFrom>;
   tokenAccountTo: Address<TAccountTokenAccountTo>;
-  receiptAccount: Address<TAccountReceiptAccount>;
   rateAccount: Address<TAccountRateAccount>;
+  receiptAccount: Address<TAccountReceiptAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   convertArgs: ConvertInstructionDataArgs['convertArgs'];
@@ -195,8 +195,8 @@ export function getConvertInstruction<
   TAccountMintTo extends string,
   TAccountTokenAccountFrom extends string,
   TAccountTokenAccountTo extends string,
-  TAccountReceiptAccount extends string,
   TAccountRateAccount extends string,
+  TAccountReceiptAccount extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends
@@ -213,8 +213,8 @@ export function getConvertInstruction<
     TAccountMintTo,
     TAccountTokenAccountFrom,
     TAccountTokenAccountTo,
-    TAccountReceiptAccount,
     TAccountRateAccount,
+    TAccountReceiptAccount,
     TAccountTokenProgram,
     TAccountSystemProgram
   >,
@@ -231,8 +231,8 @@ export function getConvertInstruction<
   TAccountMintTo,
   TAccountTokenAccountFrom,
   TAccountTokenAccountTo,
-  TAccountReceiptAccount,
   TAccountRateAccount,
+  TAccountReceiptAccount,
   TAccountTokenProgram,
   TAccountSystemProgram
 > {
@@ -264,8 +264,8 @@ export function getConvertInstruction<
       isWritable: true,
     },
     tokenAccountTo: { value: input.tokenAccountTo ?? null, isWritable: true },
-    receiptAccount: { value: input.receiptAccount ?? null, isWritable: true },
     rateAccount: { value: input.rateAccount ?? null, isWritable: false },
+    receiptAccount: { value: input.receiptAccount ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -304,8 +304,8 @@ export function getConvertInstruction<
       getAccountMeta(accounts.mintTo),
       getAccountMeta(accounts.tokenAccountFrom),
       getAccountMeta(accounts.tokenAccountTo),
-      getAccountMeta(accounts.receiptAccount),
       getAccountMeta(accounts.rateAccount),
+      getAccountMeta(accounts.receiptAccount),
       getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.systemProgram),
     ],
@@ -325,8 +325,8 @@ export function getConvertInstruction<
     TAccountMintTo,
     TAccountTokenAccountFrom,
     TAccountTokenAccountTo,
-    TAccountReceiptAccount,
     TAccountRateAccount,
+    TAccountReceiptAccount,
     TAccountTokenProgram,
     TAccountSystemProgram
   >);
@@ -348,8 +348,8 @@ export type ParsedConvertInstruction<
     mintTo: TAccountMetas[7];
     tokenAccountFrom: TAccountMetas[8];
     tokenAccountTo: TAccountMetas[9];
-    receiptAccount: TAccountMetas[10];
-    rateAccount: TAccountMetas[11];
+    rateAccount: TAccountMetas[10];
+    receiptAccount: TAccountMetas[11];
     tokenProgram: TAccountMetas[12];
     systemProgram: TAccountMetas[13];
   };
@@ -387,8 +387,8 @@ export function parseConvertInstruction<
       mintTo: getNextAccount(),
       tokenAccountFrom: getNextAccount(),
       tokenAccountTo: getNextAccount(),
-      receiptAccount: getNextAccount(),
       rateAccount: getNextAccount(),
+      receiptAccount: getNextAccount(),
       tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },

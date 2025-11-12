@@ -588,6 +588,11 @@
           "isSigner": false
         },
         {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "fromTokenAccount",
           "isMut": true,
           "isSigner": false
@@ -595,11 +600,6 @@
         {
           "name": "toTokenAccount",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "mintAccount",
-          "isMut": false,
           "isSigner": false
         },
         {
@@ -824,13 +824,13 @@
           "isSigner": false
         },
         {
-          "name": "receiptAccount",
-          "isMut": true,
+          "name": "rateAccount",
+          "isMut": false,
           "isSigner": false
         },
         {
-          "name": "rateAccount",
-          "isMut": false,
+          "name": "receiptAccount",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -911,13 +911,13 @@
           "isSigner": false
         },
         {
-          "name": "receiptAccount",
-          "isMut": true,
+          "name": "rateAccount",
+          "isMut": false,
           "isSigner": false
         },
         {
-          "name": "rateAccount",
-          "isMut": false,
+          "name": "receiptAccount",
+          "isMut": true,
           "isSigner": false
         },
         {

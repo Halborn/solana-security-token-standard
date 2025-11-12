@@ -46,9 +46,9 @@ export type TransferInstruction<
   TAccountPermanentDelegateAuthority extends
     | string
     | AccountMeta<string> = string,
+  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountFromTokenAccount extends string | AccountMeta<string> = string,
   TAccountToTokenAccount extends string | AccountMeta<string> = string,
-  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountTransferHookProgram extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
@@ -70,15 +70,15 @@ export type TransferInstruction<
       TAccountPermanentDelegateAuthority extends string
         ? ReadonlyAccount<TAccountPermanentDelegateAuthority>
         : TAccountPermanentDelegateAuthority,
+      TAccountMintAccount extends string
+        ? ReadonlyAccount<TAccountMintAccount>
+        : TAccountMintAccount,
       TAccountFromTokenAccount extends string
         ? WritableAccount<TAccountFromTokenAccount>
         : TAccountFromTokenAccount,
       TAccountToTokenAccount extends string
         ? WritableAccount<TAccountToTokenAccount>
         : TAccountToTokenAccount,
-      TAccountMintAccount extends string
-        ? ReadonlyAccount<TAccountMintAccount>
-        : TAccountMintAccount,
       TAccountTransferHookProgram extends string
         ? ReadonlyAccount<TAccountTransferHookProgram>
         : TAccountTransferHookProgram,
@@ -125,9 +125,9 @@ export type TransferInput<
   TAccountVerificationConfig extends string = string,
   TAccountInstructionsSysvar extends string = string,
   TAccountPermanentDelegateAuthority extends string = string,
+  TAccountMintAccount extends string = string,
   TAccountFromTokenAccount extends string = string,
   TAccountToTokenAccount extends string = string,
-  TAccountMintAccount extends string = string,
   TAccountTransferHookProgram extends string = string,
   TAccountTokenProgram extends string = string,
 > = {
@@ -135,9 +135,9 @@ export type TransferInput<
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
   permanentDelegateAuthority: Address<TAccountPermanentDelegateAuthority>;
+  mintAccount: Address<TAccountMintAccount>;
   fromTokenAccount: Address<TAccountFromTokenAccount>;
   toTokenAccount: Address<TAccountToTokenAccount>;
-  mintAccount: Address<TAccountMintAccount>;
   transferHookProgram: Address<TAccountTransferHookProgram>;
   tokenProgram?: Address<TAccountTokenProgram>;
   amount: TransferInstructionDataArgs['amount'];
@@ -148,9 +148,9 @@ export function getTransferInstruction<
   TAccountVerificationConfig extends string,
   TAccountInstructionsSysvar extends string,
   TAccountPermanentDelegateAuthority extends string,
+  TAccountMintAccount extends string,
   TAccountFromTokenAccount extends string,
   TAccountToTokenAccount extends string,
-  TAccountMintAccount extends string,
   TAccountTransferHookProgram extends string,
   TAccountTokenProgram extends string,
   TProgramAddress extends
@@ -161,9 +161,9 @@ export function getTransferInstruction<
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
     TAccountPermanentDelegateAuthority,
+    TAccountMintAccount,
     TAccountFromTokenAccount,
     TAccountToTokenAccount,
-    TAccountMintAccount,
     TAccountTransferHookProgram,
     TAccountTokenProgram
   >,
@@ -174,9 +174,9 @@ export function getTransferInstruction<
   TAccountVerificationConfig,
   TAccountInstructionsSysvar,
   TAccountPermanentDelegateAuthority,
+  TAccountMintAccount,
   TAccountFromTokenAccount,
   TAccountToTokenAccount,
-  TAccountMintAccount,
   TAccountTransferHookProgram,
   TAccountTokenProgram
 > {
@@ -199,12 +199,12 @@ export function getTransferInstruction<
       value: input.permanentDelegateAuthority ?? null,
       isWritable: false,
     },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     fromTokenAccount: {
       value: input.fromTokenAccount ?? null,
       isWritable: true,
     },
     toTokenAccount: { value: input.toTokenAccount ?? null, isWritable: true },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     transferHookProgram: {
       value: input.transferHookProgram ?? null,
       isWritable: false,
@@ -236,9 +236,9 @@ export function getTransferInstruction<
       getAccountMeta(accounts.verificationConfig),
       getAccountMeta(accounts.instructionsSysvar),
       getAccountMeta(accounts.permanentDelegateAuthority),
+      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.fromTokenAccount),
       getAccountMeta(accounts.toTokenAccount),
-      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.transferHookProgram),
       getAccountMeta(accounts.tokenProgram),
     ],
@@ -252,9 +252,9 @@ export function getTransferInstruction<
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
     TAccountPermanentDelegateAuthority,
+    TAccountMintAccount,
     TAccountFromTokenAccount,
     TAccountToTokenAccount,
-    TAccountMintAccount,
     TAccountTransferHookProgram,
     TAccountTokenProgram
   >);
@@ -270,9 +270,9 @@ export type ParsedTransferInstruction<
     verificationConfig: TAccountMetas[1];
     instructionsSysvar: TAccountMetas[2];
     permanentDelegateAuthority: TAccountMetas[3];
-    fromTokenAccount: TAccountMetas[4];
-    toTokenAccount: TAccountMetas[5];
-    mintAccount: TAccountMetas[6];
+    mintAccount: TAccountMetas[4];
+    fromTokenAccount: TAccountMetas[5];
+    toTokenAccount: TAccountMetas[6];
     transferHookProgram: TAccountMetas[7];
     tokenProgram: TAccountMetas[8];
   };
@@ -304,9 +304,9 @@ export function parseTransferInstruction<
       verificationConfig: getNextAccount(),
       instructionsSysvar: getNextAccount(),
       permanentDelegateAuthority: getNextAccount(),
+      mintAccount: getNextAccount(),
       fromTokenAccount: getNextAccount(),
       toTokenAccount: getNextAccount(),
-      mintAccount: getNextAccount(),
       transferHookProgram: getNextAccount(),
       tokenProgram: getNextAccount(),
     },

@@ -55,8 +55,8 @@ export type SplitInstruction<
   TAccountPermanentDelegate extends string | AccountMeta<string> = string,
   TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountTokenAccount extends string | AccountMeta<string> = string,
-  TAccountReceiptAccount extends string | AccountMeta<string> = string,
   TAccountRateAccount extends string | AccountMeta<string> = string,
+  TAccountReceiptAccount extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
     | AccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
@@ -93,12 +93,12 @@ export type SplitInstruction<
       TAccountTokenAccount extends string
         ? WritableAccount<TAccountTokenAccount>
         : TAccountTokenAccount,
-      TAccountReceiptAccount extends string
-        ? WritableAccount<TAccountReceiptAccount>
-        : TAccountReceiptAccount,
       TAccountRateAccount extends string
         ? ReadonlyAccount<TAccountRateAccount>
         : TAccountRateAccount,
+      TAccountReceiptAccount extends string
+        ? WritableAccount<TAccountReceiptAccount>
+        : TAccountReceiptAccount,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
@@ -152,8 +152,8 @@ export type SplitInput<
   TAccountPermanentDelegate extends string = string,
   TAccountMintAccount extends string = string,
   TAccountTokenAccount extends string = string,
-  TAccountReceiptAccount extends string = string,
   TAccountRateAccount extends string = string,
+  TAccountReceiptAccount extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
@@ -165,8 +165,8 @@ export type SplitInput<
   permanentDelegate: Address<TAccountPermanentDelegate>;
   mintAccount: Address<TAccountMintAccount>;
   tokenAccount: Address<TAccountTokenAccount>;
-  receiptAccount: Address<TAccountReceiptAccount>;
   rateAccount: Address<TAccountRateAccount>;
+  receiptAccount: Address<TAccountReceiptAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   splitArgs: SplitInstructionDataArgs['splitArgs'];
@@ -181,8 +181,8 @@ export function getSplitInstruction<
   TAccountPermanentDelegate extends string,
   TAccountMintAccount extends string,
   TAccountTokenAccount extends string,
-  TAccountReceiptAccount extends string,
   TAccountRateAccount extends string,
+  TAccountReceiptAccount extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends
@@ -197,8 +197,8 @@ export function getSplitInstruction<
     TAccountPermanentDelegate,
     TAccountMintAccount,
     TAccountTokenAccount,
-    TAccountReceiptAccount,
     TAccountRateAccount,
+    TAccountReceiptAccount,
     TAccountTokenProgram,
     TAccountSystemProgram
   >,
@@ -213,8 +213,8 @@ export function getSplitInstruction<
   TAccountPermanentDelegate,
   TAccountMintAccount,
   TAccountTokenAccount,
-  TAccountReceiptAccount,
   TAccountRateAccount,
+  TAccountReceiptAccount,
   TAccountTokenProgram,
   TAccountSystemProgram
 > {
@@ -241,8 +241,8 @@ export function getSplitInstruction<
     },
     mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     tokenAccount: { value: input.tokenAccount ?? null, isWritable: true },
-    receiptAccount: { value: input.receiptAccount ?? null, isWritable: true },
     rateAccount: { value: input.rateAccount ?? null, isWritable: false },
+    receiptAccount: { value: input.receiptAccount ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -279,8 +279,8 @@ export function getSplitInstruction<
       getAccountMeta(accounts.permanentDelegate),
       getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.tokenAccount),
-      getAccountMeta(accounts.receiptAccount),
       getAccountMeta(accounts.rateAccount),
+      getAccountMeta(accounts.receiptAccount),
       getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.systemProgram),
     ],
@@ -298,8 +298,8 @@ export function getSplitInstruction<
     TAccountPermanentDelegate,
     TAccountMintAccount,
     TAccountTokenAccount,
-    TAccountReceiptAccount,
     TAccountRateAccount,
+    TAccountReceiptAccount,
     TAccountTokenProgram,
     TAccountSystemProgram
   >);
@@ -319,8 +319,8 @@ export type ParsedSplitInstruction<
     permanentDelegate: TAccountMetas[5];
     mintAccount: TAccountMetas[6];
     tokenAccount: TAccountMetas[7];
-    receiptAccount: TAccountMetas[8];
-    rateAccount: TAccountMetas[9];
+    rateAccount: TAccountMetas[8];
+    receiptAccount: TAccountMetas[9];
     tokenProgram: TAccountMetas[10];
     systemProgram: TAccountMetas[11];
   };
@@ -356,8 +356,8 @@ export function parseSplitInstruction<
       permanentDelegate: getNextAccount(),
       mintAccount: getNextAccount(),
       tokenAccount: getNextAccount(),
-      receiptAccount: getNextAccount(),
       rateAccount: getNextAccount(),
+      receiptAccount: getNextAccount(),
       tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },

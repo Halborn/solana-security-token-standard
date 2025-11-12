@@ -221,9 +221,9 @@ mod idl_gen {
         #[account(2, name = "instructions_sysvar")]
         // Instruction accounts
         #[account(3, name = "permanent_delegate_authority")]
-        #[account(4, writable, name = "from_token_account")]
-        #[account(5, writable, name = "to_token_account")]
-        #[account(6, name = "mint_account")]
+        #[account(4, name = "mint_account")]
+        #[account(5, writable, name = "from_token_account")]
+        #[account(6, writable, name = "to_token_account")]
         #[account(7, name = "transfer_hook_program")]
         #[account(8, name = "token_program")]
         Transfer { amount: u64 } = 12,
@@ -271,8 +271,8 @@ mod idl_gen {
         #[account(5, name = "permanent_delegate")]
         #[account(6, writable, name = "mint_account")]
         #[account(7, writable, name = "token_account")]
-        #[account(8, writable, name = "receipt_account")]
-        #[account(9, name = "rate_account")]
+        #[account(8, name = "rate_account")]
+        #[account(9, writable, name = "receipt_account")]
         #[account(10, name = "token_program")]
         #[account(11, name = "system_program")]
         Split(SplitArgs) = 16,
@@ -289,8 +289,8 @@ mod idl_gen {
         #[account(7, writable, name = "mint_to")]
         #[account(8, writable, name = "token_account_from")]
         #[account(9, writable, name = "token_account_to")]
-        #[account(10, writable, name = "receipt_account")]
-        #[account(11, name = "rate_account")]
+        #[account(10, name = "rate_account")]
+        #[account(11, writable, name = "receipt_account")]
         #[account(12, name = "token_program")]
         #[account(13, name = "system_program")]
         Convert(ConvertArgs) = 17,

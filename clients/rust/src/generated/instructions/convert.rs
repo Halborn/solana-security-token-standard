@@ -34,9 +34,9 @@ pub struct Convert {
 
     pub token_account_to: solana_pubkey::Pubkey,
 
-    pub receipt_account: solana_pubkey::Pubkey,
-
     pub rate_account: solana_pubkey::Pubkey,
+
+    pub receipt_account: solana_pubkey::Pubkey,
 
     pub token_program: solana_pubkey::Pubkey,
 
@@ -85,12 +85,12 @@ impl Convert {
             self.token_account_to,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
-            self.receipt_account,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.rate_account,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            self.receipt_account,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -152,8 +152,8 @@ pub struct ConvertInstructionArgs {
 ///   7. `[writable]` mint_to
 ///   8. `[writable]` token_account_from
 ///   9. `[writable]` token_account_to
-///   10. `[writable]` receipt_account
-///   11. `[]` rate_account
+///   10. `[]` rate_account
+///   11. `[writable]` receipt_account
 ///   12. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 ///   13. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
@@ -168,8 +168,8 @@ pub struct ConvertBuilder {
     mint_to: Option<solana_pubkey::Pubkey>,
     token_account_from: Option<solana_pubkey::Pubkey>,
     token_account_to: Option<solana_pubkey::Pubkey>,
-    receipt_account: Option<solana_pubkey::Pubkey>,
     rate_account: Option<solana_pubkey::Pubkey>,
+    receipt_account: Option<solana_pubkey::Pubkey>,
     token_program: Option<solana_pubkey::Pubkey>,
     system_program: Option<solana_pubkey::Pubkey>,
     convert_args: Option<ConvertArgs>,
@@ -232,13 +232,13 @@ impl ConvertBuilder {
         self
     }
     #[inline(always)]
-    pub fn receipt_account(&mut self, receipt_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.receipt_account = Some(receipt_account);
+    pub fn rate_account(&mut self, rate_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.rate_account = Some(rate_account);
         self
     }
     #[inline(always)]
-    pub fn rate_account(&mut self, rate_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.rate_account = Some(rate_account);
+    pub fn receipt_account(&mut self, receipt_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.receipt_account = Some(receipt_account);
         self
     }
     /// `[optional account, default to 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']`
@@ -294,8 +294,8 @@ impl ConvertBuilder {
                 .token_account_from
                 .expect("token_account_from is not set"),
             token_account_to: self.token_account_to.expect("token_account_to is not set"),
-            receipt_account: self.receipt_account.expect("receipt_account is not set"),
             rate_account: self.rate_account.expect("rate_account is not set"),
+            receipt_account: self.receipt_account.expect("receipt_account is not set"),
             token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
                 "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
             )),
@@ -333,9 +333,9 @@ pub struct ConvertCpiAccounts<'a, 'b> {
 
     pub token_account_to: &'b solana_account_info::AccountInfo<'a>,
 
-    pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub rate_account: &'b solana_account_info::AccountInfo<'a>,
+
+    pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -367,9 +367,9 @@ pub struct ConvertCpi<'a, 'b> {
 
     pub token_account_to: &'b solana_account_info::AccountInfo<'a>,
 
-    pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub rate_account: &'b solana_account_info::AccountInfo<'a>,
+
+    pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -396,8 +396,8 @@ impl<'a, 'b> ConvertCpi<'a, 'b> {
             mint_to: accounts.mint_to,
             token_account_from: accounts.token_account_from,
             token_account_to: accounts.token_account_to,
-            receipt_account: accounts.receipt_account,
             rate_account: accounts.rate_account,
+            receipt_account: accounts.receipt_account,
             token_program: accounts.token_program,
             system_program: accounts.system_program,
             __args: args,
@@ -464,12 +464,12 @@ impl<'a, 'b> ConvertCpi<'a, 'b> {
             *self.token_account_to.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
-            *self.receipt_account.key,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.rate_account.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            *self.receipt_account.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -508,8 +508,8 @@ impl<'a, 'b> ConvertCpi<'a, 'b> {
         account_infos.push(self.mint_to.clone());
         account_infos.push(self.token_account_from.clone());
         account_infos.push(self.token_account_to.clone());
-        account_infos.push(self.receipt_account.clone());
         account_infos.push(self.rate_account.clone());
+        account_infos.push(self.receipt_account.clone());
         account_infos.push(self.token_program.clone());
         account_infos.push(self.system_program.clone());
         remaining_accounts
@@ -538,8 +538,8 @@ impl<'a, 'b> ConvertCpi<'a, 'b> {
 ///   7. `[writable]` mint_to
 ///   8. `[writable]` token_account_from
 ///   9. `[writable]` token_account_to
-///   10. `[writable]` receipt_account
-///   11. `[]` rate_account
+///   10. `[]` rate_account
+///   11. `[writable]` receipt_account
 ///   12. `[]` token_program
 ///   13. `[]` system_program
 #[derive(Clone, Debug)]
@@ -561,8 +561,8 @@ impl<'a, 'b> ConvertCpiBuilder<'a, 'b> {
             mint_to: None,
             token_account_from: None,
             token_account_to: None,
-            receipt_account: None,
             rate_account: None,
+            receipt_account: None,
             token_program: None,
             system_program: None,
             convert_args: None,
@@ -639,19 +639,19 @@ impl<'a, 'b> ConvertCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn receipt_account(
-        &mut self,
-        receipt_account: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.receipt_account = Some(receipt_account);
-        self
-    }
-    #[inline(always)]
     pub fn rate_account(
         &mut self,
         rate_account: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.rate_account = Some(rate_account);
+        self
+    }
+    #[inline(always)]
+    pub fn receipt_account(
+        &mut self,
+        receipt_account: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.receipt_account = Some(receipt_account);
         self
     }
     #[inline(always)]
@@ -757,15 +757,15 @@ impl<'a, 'b> ConvertCpiBuilder<'a, 'b> {
                 .token_account_to
                 .expect("token_account_to is not set"),
 
-            receipt_account: self
-                .instruction
-                .receipt_account
-                .expect("receipt_account is not set"),
-
             rate_account: self
                 .instruction
                 .rate_account
                 .expect("rate_account is not set"),
+
+            receipt_account: self
+                .instruction
+                .receipt_account
+                .expect("receipt_account is not set"),
 
             token_program: self
                 .instruction
@@ -798,8 +798,8 @@ struct ConvertCpiBuilderInstruction<'a, 'b> {
     mint_to: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_account_from: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_account_to: Option<&'b solana_account_info::AccountInfo<'a>>,
-    receipt_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     rate_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    receipt_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     convert_args: Option<ConvertArgs>,
