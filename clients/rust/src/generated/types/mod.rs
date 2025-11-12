@@ -8,6 +8,7 @@
 pub(crate) mod r#close_rate_args;
 pub(crate) mod r#close_receipt_args;
 pub(crate) mod r#convert_args;
+pub(crate) mod r#create_distribution_escrow_args;
 pub(crate) mod r#create_proof_args;
 pub(crate) mod r#create_rate_args;
 pub(crate) mod r#initialize_mint_args;
@@ -29,6 +30,7 @@ pub(crate) mod r#verify_args;
 pub use self::r#close_rate_args::*;
 pub use self::r#close_receipt_args::*;
 pub use self::r#convert_args::*;
+pub use self::r#create_distribution_escrow_args::*;
 pub use self::r#create_proof_args::*;
 pub use self::r#create_rate_args::*;
 pub use self::r#initialize_mint_args::*;

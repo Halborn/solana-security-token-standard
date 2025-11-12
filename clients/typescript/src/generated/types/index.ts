@@ -9,6 +9,7 @@
 export * from './closeRateArgs';
 export * from './closeReceiptArgs';
 export * from './convertArgs';
+export * from './createDistributionEscrowArgs';
 export * from './createProofArgs';
 export * from './createRateArgs';
 export * from './initializeMintArgs';
