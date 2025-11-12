@@ -327,7 +327,7 @@ impl VerificationModule {
         // Validate arguments
         args.validate()?;
 
-        let [mint_info, mint_authority, payer, token_program_info, system_program_info] = accounts
+        let [payer, mint_info, mint_authority, token_program_info, system_program_info] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -836,7 +836,7 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::InitializeVerificationConfigArgs,
     ) -> ProgramResult {
-        let [mint_account, config_account, payer, system_program_info] = &accounts else {
+        let [payer, mint_account, config_account, system_program_info] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_operation_mint_info(verified_mint_info, &mint_account)?;
@@ -908,7 +908,7 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::UpdateVerificationConfigArgs,
     ) -> ProgramResult {
-        let [mint_account, config_account, payer, system_program_info] = accounts else {
+        let [payer, mint_account, config_account, system_program_info] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
