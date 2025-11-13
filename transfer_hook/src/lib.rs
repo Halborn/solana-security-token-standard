@@ -347,9 +347,13 @@ fn process_update_extra_account_meta_list(
     } // Release borrow before realloc
 
     if new_account_size < current_account_size {
-        let [_system_program_info, recipient_info] = rest_accounts else {
+        let [system_program_info, recipient_info] = rest_accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        if system_program_info.key() != &pinocchio_system::ID {
+            return Err(ProgramError::IncorrectProgramId);
+        }
 
         if !recipient_info.is_writable() {
             return Err(ProgramError::InvalidAccountData);
