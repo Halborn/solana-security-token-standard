@@ -555,7 +555,7 @@ impl VerificationModule {
         let mut instruction_data = Vec::with_capacity(1 + args.instruction_data.len());
         instruction_data.push(args.ix);
         instruction_data.extend_from_slice(&args.instruction_data);
-        Self::verify_by_programs(program_id, accounts, args.ix, &instruction_data)?;
+        Self::verify_by_programs(program_id, accounts, &instruction_data)?;
         Ok(())
     }
 
@@ -564,7 +564,6 @@ impl VerificationModule {
     pub fn verify_by_strategy<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
-        ix_discriminator: u8,
         instruction_data: &[u8],
     ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         let [mint_info, verification_config_or_mint_authority, instructions_sysvar_or_signer, _instruction_accounts @ ..] =
@@ -579,12 +578,8 @@ impl VerificationModule {
         let disc = SecurityTokenDiscriminators::try_from(*state_discriminator)?;
         match disc {
             SecurityTokenDiscriminators::VerificationConfigDiscriminator => {
-                let (mint_info, cleaned_accounts) = Self::verify_by_programs(
-                    program_id,
-                    accounts,
-                    ix_discriminator,
-                    instruction_data,
-                )?;
+                let (mint_info, cleaned_accounts) =
+                    Self::verify_by_programs(program_id, accounts, instruction_data)?;
                 Ok((mint_info, cleaned_accounts))
             }
             SecurityTokenDiscriminators::MintAuthorityDiscriminator => {
@@ -620,6 +615,17 @@ impl VerificationModule {
 
         let mint_authority_state = MintAuthority::try_from_bytes(&data)?;
 
+        // CRITICAL: Verify that the authority is for the correct mint and signed by correct creator
+        // These checks prevent using a valid MintAuthority PDA for a different mint/creator combination
+        if mint_authority_state.mint != *mint_info.key() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        if mint_authority_state.mint_creator != *candidate_authority.key() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Use stored bump with derive_pda for optimized PDA verification
         let expected_pda = mint_authority_state.derive_pda()?;
 
         if mint_authority.key() != &expected_pda {
@@ -633,7 +639,6 @@ impl VerificationModule {
     pub fn verify_by_programs<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
-        ix_discriminator: u8,
         instruction_data: &[u8],
     ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         let [mint_info, verification_config, instructions_sysvar, instruction_accounts @ ..] =
@@ -653,16 +658,15 @@ impl VerificationModule {
 
         let config_data = VerificationConfig::from_account_info(verification_config)?;
 
+        // Use stored bump with derive_pda for optimized PDA verification
+        // PDA derivation includes mint in seeds, so successful verification
+        // cryptographically guarantees this config is for the correct mint
         let expected_config_pda = config_data.derive_pda(mint_info.key())?;
 
         if verification_config.key().ne(&expected_config_pda) {
             return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
         }
 
-        // NOTE: I believe this check is redundant since ix_discriminator is part of PDA seeds
-        if config_data.instruction_discriminator != ix_discriminator {
-            return Err(ProgramError::InvalidInstructionData);
-        }
         if config_data.verification_programs.is_empty() {
             // If no verification programs configured, allow
             return Ok((mint_info, instruction_accounts));
