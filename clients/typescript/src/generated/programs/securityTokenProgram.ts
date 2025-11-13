@@ -29,6 +29,7 @@ import {
   type ParsedTransferInstruction,
   type ParsedTrimVerificationConfigInstruction,
   type ParsedUpdateMetadataInstruction,
+  type ParsedUpdateProofAccountInstruction,
   type ParsedUpdateRateAccountInstruction,
   type ParsedUpdateVerificationConfigInstruction,
   type ParsedVerifyInstruction,
@@ -65,6 +66,7 @@ export enum SecurityTokenProgramInstruction {
   Split,
   Convert,
   CreateProofAccount,
+  UpdateProofAccount,
 }
 
 export function identifySecurityTokenProgramInstruction(
@@ -127,6 +129,9 @@ export function identifySecurityTokenProgramInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(18), 0)) {
     return SecurityTokenProgramInstruction.CreateProofAccount;
+  }
+  if (containsBytes(data, getU8Encoder().encode(19), 0)) {
+    return SecurityTokenProgramInstruction.UpdateProofAccount;
   }
   throw new Error(
     'The provided instruction could not be identified as a securityTokenProgram instruction.'
@@ -192,4 +197,7 @@ export type ParsedSecurityTokenProgramInstruction<
     } & ParsedConvertInstruction<TProgram>)
   | ({
       instructionType: SecurityTokenProgramInstruction.CreateProofAccount;
-    } & ParsedCreateProofAccountInstruction<TProgram>);
+    } & ParsedCreateProofAccountInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.UpdateProofAccount;
+    } & ParsedUpdateProofAccountInstruction<TProgram>);
