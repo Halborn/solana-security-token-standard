@@ -6,6 +6,7 @@ use pinocchio::{
     instruction::{Seed, Signer},
     program_error::ProgramError,
     pubkey::{find_program_address, Pubkey},
+    sysvars::{rent::Rent, Sysvar},
     ProgramResult,
 };
 use pinocchio_pubkey::{declare_id, pubkey};
@@ -339,10 +340,37 @@ fn process_update_extra_account_meta_list(
         }
         extra_meta_info.realloc(new_account_size, false)?;
     }
-    // NOTE: Realloc to the smaller size causes panic
-    // new_account_size < current_account_size -> extra_meta_info.realloc(new_account_size, false)?;
-    let mut data = extra_meta_info.try_borrow_mut_data()?;
-    ExtraAccountMetaList::update::<ExecuteInstruction>(&mut data, &extra_account_metas)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+    {
+        let mut data = extra_meta_info.try_borrow_mut_data()?;
+        ExtraAccountMetaList::update::<ExecuteInstruction>(&mut data, &extra_account_metas)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+    } // Release borrow before realloc
+
+    if new_account_size < current_account_size {
+        let [_system_program_info, recipient_info] = rest_accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        if !recipient_info.is_writable() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        extra_meta_info.realloc(new_account_size, false)?;
+        let current_lamports = extra_meta_info.lamports();
+        let required_lamports = Rent::get()?.minimum_balance(new_account_size);
+        let lamports_to_return = current_lamports.saturating_sub(required_lamports);
+
+        if lamports_to_return > 0 {
+            *extra_meta_info.try_borrow_mut_lamports()? = extra_meta_info
+                .lamports()
+                .checked_sub(lamports_to_return)
+                .ok_or(ProgramError::InsufficientFunds)?;
+            *recipient_info.try_borrow_mut_lamports()? = recipient_info
+                .lamports()
+                .checked_add(lamports_to_return)
+                .ok_or(ProgramError::InsufficientFunds)?;
+        }
+    }
+
     Ok(())
 }

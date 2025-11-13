@@ -1017,6 +1017,7 @@ impl VerificationModule {
                 mint_info,
                 transfer_hook_pda_info,
                 system_program_info,
+                Some(payer),
                 &account_metas,
             );
             instruction.invoke_signed(&[signer])?;

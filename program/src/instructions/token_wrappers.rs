@@ -2,7 +2,7 @@
 
 use bytemuck;
 use pinocchio::account_info::AccountInfo;
-use pinocchio::cpi::invoke_signed;
+use pinocchio::cpi::{invoke_signed, slice_invoke_signed};
 use pinocchio::instruction::{AccountMeta, Instruction, Signer};
 use pinocchio::pubkey::Pubkey;
 use pinocchio::ProgramResult;
@@ -451,6 +451,8 @@ pub struct CustomUpdateExtraAccountMetaList<'a> {
     pub authority: &'a AccountInfo,
     /// System program pubkey
     pub system_program: &'a AccountInfo,
+    /// Optional recipient pubkey
+    pub recipient: Option<&'a AccountInfo>,
     /// List of extra account metas to update
     pub metas: &'a [ExtraAccountMeta],
 }
@@ -463,6 +465,7 @@ impl<'a> CustomUpdateExtraAccountMetaList<'a> {
         mint: &'a AccountInfo,
         authority: &'a AccountInfo,
         system_program: &'a AccountInfo,
+        recipient: Option<&'a AccountInfo>,
         metas: &'a [ExtraAccountMeta],
     ) -> Self {
         Self {
@@ -471,6 +474,7 @@ impl<'a> CustomUpdateExtraAccountMetaList<'a> {
             mint,
             authority,
             system_program,
+            recipient,
             metas,
         }
     }
@@ -499,27 +503,30 @@ impl<'a> CustomUpdateExtraAccountMetaList<'a> {
             instruction_data.extend(bytemuck::bytes_of(meta));
         }
 
-        let account_metas: [AccountMeta; 4] = [
+        let mut account_metas = vec![
             AccountMeta::writable(self.extra_account_metas_pda.key()),
             AccountMeta::readonly(self.mint.key()),
             AccountMeta::readonly_signer(self.authority.key()),
             AccountMeta::readonly(self.system_program.key()),
         ];
 
+        let mut account_infos = vec![
+            self.extra_account_metas_pda,
+            self.mint,
+            self.authority,
+            self.system_program,
+        ];
+
+        if let Some(recipient) = self.recipient {
+            account_metas.push(AccountMeta::writable(recipient.key()));
+            account_infos.push(recipient);
+        }
+
         let instruction = Instruction {
             program_id: self.program_id,
             accounts: &account_metas,
             data: &instruction_data,
         };
-        invoke_signed(
-            &instruction,
-            &[
-                self.extra_account_metas_pda,
-                self.mint,
-                self.authority,
-                self.system_program,
-            ],
-            signers,
-        )
+        slice_invoke_signed(&instruction, &account_infos, signers)
     }
 }

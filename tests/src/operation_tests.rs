@@ -916,6 +916,24 @@ async fn test_transfer_hook_extra_account_metas_init_update_trim() {
     assert_eq!(Pubkey::from(metas[2].address_config), program_address_2);
     assert_eq!(Pubkey::from(metas[3].address_config), program_address_3);
 
+    let extra_account_metas_account_before = context
+        .banks_client
+        .get_account(extra_account_metas_pda)
+        .await
+        .unwrap()
+        .expect("extra account metas account should exist");
+
+    let size_before = extra_account_metas_account_before.data.len();
+    let lamports_before = extra_account_metas_account_before.lamports;
+
+    let recipient_balance_before = context
+        .banks_client
+        .get_account(context.payer.pubkey())
+        .await
+        .unwrap()
+        .expect("recipient account should exist")
+        .lamports;
+
     let trim_verification_config_args = TrimVerificationConfigArgs {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
         size: 0,
@@ -972,5 +990,45 @@ async fn test_transfer_hook_extra_account_metas_init_update_trim() {
     assert_eq!(
         Pubkey::from(metas[0].address_config),
         verification_config_pda
+    );
+
+    let size_after = extra_account_metas_account.data.len();
+    assert!(
+        size_after < size_before,
+        "Account size should be reduced after trim"
+    );
+
+    let recipient_balance_after = context
+        .banks_client
+        .get_account(context.payer.pubkey())
+        .await
+        .unwrap()
+        .expect("recipient account should exist")
+        .lamports;
+
+    let lamports_after = extra_account_metas_account.lamports;
+
+    let rent = context.banks_client.get_rent().await.unwrap();
+    let required_lamports_after = rent.minimum_balance(size_after);
+    let expected_returned = lamports_before.saturating_sub(required_lamports_after);
+
+    assert_eq!(
+        lamports_after, required_lamports_after,
+        "Extra account metas PDA should have exact rent-exempt lamports after trim"
+    );
+    assert!(
+        recipient_balance_after > recipient_balance_before,
+        "Recipient balance should increase after receiving returned lamports (before: {}, after: {}, expected increase: {})",
+        recipient_balance_before,
+        recipient_balance_after,
+        expected_returned
+    );
+
+    let actual_increase = recipient_balance_after.saturating_sub(recipient_balance_before);
+    assert!(
+        actual_increase > expected_returned.saturating_sub(10_000),
+        "Recipient should receive most of the returned lamports (received: {}, expected: {})",
+        actual_increase,
+        expected_returned
     );
 }
