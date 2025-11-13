@@ -1,9 +1,10 @@
 //! Verification-related state structures
 
+use crate::constants::seeds::VERIFICATION_CONFIG;
 use crate::state::{
     AccountDeserialize, AccountSerialize, Discriminator, SecurityTokenDiscriminators,
 };
-use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
+use pinocchio::pubkey::{checked_create_program_address, Pubkey, PUBKEY_BYTES};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 use shank::ShankAccount;
 
@@ -149,5 +150,15 @@ impl VerificationConfig {
         let config = VerificationConfig::try_from_bytes(&data)?;
         drop(data);
         Ok(config)
+    }
+
+    pub fn derive_pda(&self, mint: &Pubkey) -> Result<Pubkey, ProgramError> {
+        let seeds = [
+            VERIFICATION_CONFIG,
+            mint.as_ref(),
+            &[self.instruction_discriminator],
+            &[self.bump],
+        ];
+        checked_create_program_address(&seeds, &crate::id())
     }
 }

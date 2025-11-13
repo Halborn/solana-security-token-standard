@@ -6,7 +6,7 @@
 use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::{checked_create_program_address, Pubkey};
+use pinocchio::pubkey::Pubkey;
 use pinocchio::sysvars::Sysvar;
 use pinocchio::sysvars::{instructions::Instructions, rent::Rent};
 use pinocchio::ProgramResult;
@@ -31,7 +31,6 @@ use spl_pod::primitives::PodBool;
 use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 
 use super::utils as verification_utils;
-use crate::constants::seeds::VERIFICATION_CONFIG;
 use crate::constants::{seeds, INSTRUCTION_ACCOUNTS_OFFSET, TRANSFER_HOOK_PROGRAM_ID};
 use crate::error::SecurityTokenError;
 use crate::instruction::SecurityTokenInstruction;
@@ -621,13 +620,7 @@ impl VerificationModule {
 
         let mint_authority_state = MintAuthority::try_from_bytes(&data)?;
 
-        let seeds = [
-            seeds::MINT_AUTHORITY,
-            mint_info.key().as_ref(),
-            candidate_authority.key().as_ref(),
-            &[mint_authority_state.bump],
-        ];
-        let expected_pda = checked_create_program_address(&seeds, program_id)?;
+        let expected_pda = mint_authority_state.derive_pda()?;
 
         if mint_authority.key() != &expected_pda {
             return Err(ProgramError::InvalidSeeds);
@@ -660,13 +653,7 @@ impl VerificationModule {
 
         let config_data = VerificationConfig::from_account_info(verification_config)?;
 
-        let seeds = [
-            VERIFICATION_CONFIG,
-            mint_info.key().as_ref(),
-            &[ix_discriminator],
-            &[config_data.bump],
-        ];
-        let expected_config_pda = checked_create_program_address(&seeds, program_id)?;
+        let expected_config_pda = config_data.derive_pda(mint_info.key())?;
 
         if verification_config.key().ne(&expected_config_pda) {
             return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
@@ -1094,14 +1081,7 @@ impl VerificationModule {
 
         let config = VerificationConfig::from_account_info(config_account)?;
 
-        let seeds = [
-            VERIFICATION_CONFIG,
-            mint_account.key().as_ref(),
-            &[discriminator],
-            &[config.bump],
-        ];
-        // Derive expected PDA address
-        let expected_config_pda = checked_create_program_address(&seeds, program_id)?;
+        let expected_config_pda = config.derive_pda(mint_account.key())?;
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
@@ -1207,14 +1187,7 @@ impl VerificationModule {
 
         let config = VerificationConfig::from_account_info(config_account)?;
 
-        let seeds = [
-            VERIFICATION_CONFIG,
-            mint_account.key().as_ref(),
-            &[discriminator],
-            &[config.bump],
-        ];
-        // Derive expected PDA address
-        let expected_config_pda = checked_create_program_address(&seeds, program_id)?;
+        let expected_config_pda = config.derive_pda(mint_account.key())?;
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {

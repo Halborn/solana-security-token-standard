@@ -6,7 +6,7 @@ use crate::state::{
 use pinocchio::account_info::{AccountInfo, Ref};
 use pinocchio::instruction::Seed;
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
+use pinocchio::pubkey::{checked_create_program_address, Pubkey, PUBKEY_BYTES};
 use shank::ShankAccount;
 
 /// Configuration data stored per mint
@@ -125,5 +125,15 @@ impl MintAuthority {
             Seed::from(self.mint_creator.as_ref()),
             Seed::from(bump_seed.as_ref()),
         ]
+    }
+
+    pub fn derive_pda(&self) -> Result<Pubkey, ProgramError> {
+        let seeds = [
+            seeds::MINT_AUTHORITY,
+            self.mint.as_ref(),
+            self.mint_creator.as_ref(),
+            &[self.bump],
+        ];
+        checked_create_program_address(&seeds, &crate::id())
     }
 }
