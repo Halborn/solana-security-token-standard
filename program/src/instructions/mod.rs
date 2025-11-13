@@ -10,6 +10,11 @@ pub mod create_proof_account {
     pub use super::proof_account::create_proof_account::*;
 }
 
+/// Update Proof account instruction arguments and implementations
+pub mod update_proof_account {
+    pub use super::proof_account::update_proof_account::*;
+}
+
 /// Update Rate account instruction arguments and implementations
 pub mod update_rate_account {
     pub use super::rate_account::update_rate_account::*;

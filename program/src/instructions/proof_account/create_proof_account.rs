@@ -40,7 +40,7 @@ impl CreateProofArgs {
         }
         let action_id = parse_action_id_argument(&data[..ACTION_ID_LEN])?;
         let proof_data = Self::try_proof_data_from_bytes(&data[ACTION_ID_LEN..])?;
-        Self::validate_proof_node_data(&proof_data)?;
+        Self::validate_proof_data(&proof_data)?;
         Ok(Self {
             action_id,
             data: proof_data,
@@ -58,14 +58,14 @@ impl CreateProofArgs {
 
 #[cfg(test)]
 mod tests {
-    use crate::{constants::MERKLE_TREE_NODE_LEN, test_utils::random_pubkey};
+    use crate::{constants::MERKLE_TREE_NODE_LEN, test_utils::random_32_bytes};
 
     use super::*;
     use rstest::rstest;
 
     #[rstest]
-    #[case(5u64, vec![random_pubkey(), random_pubkey(), random_pubkey()])]
-    #[case(u64::MAX, vec![random_pubkey(), random_pubkey()])]
+    #[case(5u64, vec![random_32_bytes(), random_32_bytes(), random_32_bytes()])]
+    #[case(u64::MAX, vec![random_32_bytes(), random_32_bytes()])]
     fn test_create_proof_args_to_bytes_inner_try_from_bytes(
         #[case] action_id: u64,
         #[case] proof_data: ProofData,
@@ -84,15 +84,14 @@ mod tests {
     }
 
     #[rstest]
-    #[case(0u64, vec![random_pubkey(), random_pubkey(), random_pubkey()], "ProofArgs with zero action_id should be invalid")]
-    #[case(5u64, vec![[0u8; MERKLE_TREE_NODE_LEN], random_pubkey(), random_pubkey()], "ProofArgs proof_data with zero node should be invalid")]
+    #[case(0u64, vec![random_32_bytes(), random_32_bytes(), random_32_bytes()], "ProofArgs with zero action_id should be invalid")]
+    #[case(5u64, vec![[0u8; MERKLE_TREE_NODE_LEN], random_32_bytes(), random_32_bytes()], "ProofArgs proof_data with zero node should be invalid")]
     #[case(u64::MAX, vec![], "ProofArgs with with empty data should be invalid")]
     fn test_create_proof_args_validation(
         #[case] action_id: u64,
         #[case] proof_data: ProofData,
         #[case] description: &str,
     ) {
-        println!("proof_data: {:?}", &proof_data);
         let original = CreateProofArgs {
             action_id,
             data: proof_data,

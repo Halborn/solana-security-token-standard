@@ -1,5 +1,6 @@
 //! Proof account state
 use pinocchio::{
+    account_info::AccountInfo,
     instruction::Seed,
     program_error::ProgramError,
     pubkey::{create_program_address, Pubkey},
@@ -16,8 +17,8 @@ use crate::{
     utils::find_proof_pda,
 };
 
-type MerkleTreeNode = [u8; MERKLE_TREE_NODE_LEN];
-pub type ProofData = Vec<MerkleTreeNode>;
+pub type ProofNode = [u8; MERKLE_TREE_NODE_LEN];
+pub type ProofData = Vec<ProofNode>;
 
 #[repr(C)]
 #[derive(Debug, ShankAccount)]
@@ -51,23 +52,30 @@ pub trait ProofDataDeserializer {
             return Err(Self::error());
         }
 
-        let mut proof_data: Vec<MerkleTreeNode> = Vec::with_capacity(proof_nodes_len);
+        let mut proof_data: Vec<ProofNode> = Vec::with_capacity(proof_nodes_len);
 
         let mut offset = Proof::VEC_LEN_PREFIX;
         for _ in 0..proof_nodes_len {
             let node_chunk =
-                <MerkleTreeNode>::try_from(&data[offset..offset + MERKLE_TREE_NODE_LEN])
-                    .map_err(|_| Self::error())?;
-
+                Self::try_proof_node_from_bytes(&data[offset..offset + MERKLE_TREE_NODE_LEN])?;
             proof_data.push(node_chunk);
             offset += MERKLE_TREE_NODE_LEN;
         }
 
         Ok(proof_data)
     }
+
+    /// Deserialize a single Proof node from bytes
+    fn try_proof_node_from_bytes(data: &[u8]) -> Result<ProofNode, ProgramError> {
+        let node =
+            <ProofNode>::try_from(&data[0..MERKLE_TREE_NODE_LEN]).map_err(|_| Self::error())?;
+
+        Ok(node)
+    }
 }
 
 pub trait ProofDataValidator {
+    const ZERO_NODE: ProofNode = [0u8; MERKLE_TREE_NODE_LEN];
     fn error() -> ProgramError;
 
     /// Validate proof data length is sufficient
@@ -79,16 +87,22 @@ pub trait ProofDataValidator {
         Ok(())
     }
     /// Validate each proof node is non-zero
-    fn validate_proof_node_data(proof_data: &ProofData) -> ProgramResult {
-        let zero_proof_node = [0u8; MERKLE_TREE_NODE_LEN];
-        proof_data.iter().try_for_each(|node| {
-            if node.eq(&zero_proof_node) {
-                return Err(Self::error());
-            }
-            Ok(())
-        })?;
-
+    fn validate_proof_data(proof_data: &ProofData) -> ProgramResult {
+        proof_data
+            .iter()
+            .try_for_each(Self::validate_proof_node_data)?;
         Ok(())
+    }
+    /// Validate each proof node is non-zero
+    fn validate_proof_node_data(proof_node: &ProofNode) -> ProgramResult {
+        if Self::is_zero_node(proof_node) {
+            return Err(Self::error());
+        }
+        Ok(())
+    }
+
+    fn is_zero_node(node: &ProofNode) -> bool {
+        node.eq(&Self::ZERO_NODE)
     }
 }
 
@@ -157,7 +171,7 @@ impl Proof {
     }
 
     /// Create new Proof account
-    pub fn new(data: &[MerkleTreeNode], bump: u8) -> Result<Self, ProgramError> {
+    pub fn new(data: &[ProofNode], bump: u8) -> Result<Self, ProgramError> {
         let proof = Self {
             data: data.to_vec(),
             bump,
@@ -166,12 +180,43 @@ impl Proof {
         Ok(proof)
     }
 
+    /// Update proof data at given offset
+    /// ProofNodes::len() offset appends a new node
+    pub fn update_data_at_offset(&mut self, new_node: ProofNode, offset: usize) -> ProgramResult {
+        if offset > self.data.len() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        if offset == self.data.len() {
+            self.data.push(new_node);
+        } else {
+            self.data[offset] = new_node;
+        }
+        self.validate()?;
+        Ok(())
+    }
+
     /// Validate the proof data
     pub fn validate(&self) -> ProgramResult {
         Self::validate_proof_data_len(&self.data)?;
-        Self::validate_proof_node_data(&self.data)?;
+        Self::validate_proof_data(&self.data)?;
 
         Ok(())
+    }
+
+    /// Parse from account info
+    pub fn from_account_info(account_info: &AccountInfo) -> Result<Proof, ProgramError> {
+        if account_info.data_len() < Self::MIN_LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        if !account_info.is_owned_by(&crate::ID) {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+
+        let data_ref = account_info.try_borrow_data()?;
+        let proof = Self::try_from_bytes(&data_ref)?;
+        Ok(proof)
     }
 
     pub fn bump_seed(&self) -> [u8; 1] {
@@ -223,21 +268,21 @@ impl Proof {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::random_pubkey;
+    use crate::test_utils::random_32_bytes;
     use rstest::rstest;
 
     #[rstest]
-    #[case(5u8, &[random_pubkey(), random_pubkey(), random_pubkey()])]
-    #[case(u8::MAX, &[random_pubkey(), random_pubkey()])]
-    fn test_proof_create(#[case] bump: u8, #[case] proof_data: &[MerkleTreeNode]) {
+    #[case(5u8, &[random_32_bytes(), random_32_bytes(), random_32_bytes()])]
+    #[case(u8::MAX, &[random_32_bytes(), random_32_bytes()])]
+    fn test_proof_create(#[case] bump: u8, #[case] proof_data: &[ProofNode]) {
         let proof = Proof::new(proof_data, bump).expect("Should create proof");
         proof.validate().expect("Proof should be valid");
     }
 
     #[rstest]
-    #[case(5u8, &[random_pubkey(), random_pubkey(), random_pubkey()])]
-    #[case(u8::MAX, &[random_pubkey(), random_pubkey()])]
-    fn test_proof_serialize_deserialize(#[case] bump: u8, #[case] proof_data: &[MerkleTreeNode]) {
+    #[case(5u8, &[random_32_bytes(), random_32_bytes(), random_32_bytes()])]
+    #[case(u8::MAX, &[random_32_bytes(), random_32_bytes()])]
+    fn test_proof_serialize_deserialize(#[case] bump: u8, #[case] proof_data: &[ProofNode]) {
         let proof = Proof::new(proof_data, bump).expect("Should create proof");
 
         let serialized = proof.to_bytes();
@@ -249,14 +294,49 @@ mod tests {
     }
 
     #[rstest]
-    #[case(5u8, &[[0u8; MERKLE_TREE_NODE_LEN], random_pubkey(), random_pubkey()], "Should not create proof with zero node")]
+    #[case(5u8, &[[0u8; MERKLE_TREE_NODE_LEN], random_32_bytes(), random_32_bytes()], "Should not create proof with zero node")]
     #[case(u8::MAX, &[], "Should not create proof with empty data")]
     fn test_proof_should_not_create_invalid_proof(
         #[case] bump: u8,
-        #[case] proof_data: &[MerkleTreeNode],
+        #[case] proof_data: &[ProofNode],
         #[case] description: &str,
     ) {
         let proof_error = Proof::new(proof_data, bump).expect_err(description);
         assert_eq!(proof_error, ProgramError::InvalidAccountData);
+    }
+
+    #[test]
+    fn test_proof_update_at_offset() {
+        let bump = 10u8;
+        let proof_data = vec![random_32_bytes(), random_32_bytes()];
+        let mut proof = Proof::new(&proof_data, bump).expect("Should create proof");
+        proof.validate().expect("Proof should be valid");
+
+        let new_node = random_32_bytes();
+        let offset = 0usize; // update first node
+        proof
+            .update_data_at_offset(new_node, offset)
+            .expect("Should update node at offset 0");
+
+        assert_eq!(proof.data[offset], new_node);
+        assert_eq!(proof.data[1], proof_data[1]);
+        assert_eq!(proof.data.len(), 2);
+    }
+
+    #[test]
+    fn test_proof_append_new_node() {
+        let bump = 10u8;
+        let proof_data = vec![random_32_bytes(), random_32_bytes()];
+        let mut proof = Proof::new(&proof_data, bump).expect("Should create proof");
+        proof.validate().expect("Proof should be valid");
+
+        // Append new node
+        let append_node = random_32_bytes();
+        let append_offset = proof.data.len(); // append at end
+        proof
+            .update_data_at_offset(append_node, append_offset)
+            .expect("Should append new node");
+        assert_eq!(proof.data[append_offset], append_node);
+        assert_eq!(proof.data.len(), 3);
     }
 }
