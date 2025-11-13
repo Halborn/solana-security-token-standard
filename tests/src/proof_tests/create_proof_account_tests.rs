@@ -39,9 +39,7 @@ async fn test_should_create_proof_account() {
     .await;
 
     let token_account_pubkey = create_spl_account(context, &mint_keypair, &payer).await;
-
     let action_id = 42u64;
-
     let proof_data = vec![[1u8; 32]];
 
     let create_proof_args = CreateProofArgs {
@@ -108,9 +106,7 @@ async fn test_should_not_create_proof_account_twice() {
     .await;
 
     let token_account_pubkey = create_spl_account(context, &mint_keypair, &payer).await;
-
     let action_id = 42u64;
-
     let proof_data = vec![[1u8; 32]];
 
     let create_proof_args = CreateProofArgs {
@@ -255,8 +251,6 @@ async fn test_should_not_create_proof_account(
         &payer,
     )
     .await;
-    println!("Result error: {:?}", &result);
-    // println!("Result error: {:?}", &result.err());
     assert!(&result.is_err(), "{}", description);
 
     // Verify the proof account was not created
