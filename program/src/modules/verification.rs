@@ -6,7 +6,7 @@
 use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::pubkey::{checked_create_program_address, Pubkey};
 use pinocchio::sysvars::Sysvar;
 use pinocchio::sysvars::{instructions::Instructions, rent::Rent};
 use pinocchio::ProgramResult;
@@ -31,6 +31,7 @@ use spl_pod::primitives::PodBool;
 use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 
 use super::utils as verification_utils;
+use crate::constants::seeds::VERIFICATION_CONFIG;
 use crate::constants::{seeds, INSTRUCTION_ACCOUNTS_OFFSET, TRANSFER_HOOK_PROGRAM_ID};
 use crate::error::SecurityTokenError;
 use crate::instruction::SecurityTokenInstruction;
@@ -664,13 +665,21 @@ impl VerificationModule {
         verify_owner(verification_config, program_id)?;
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
-        let (expected_pda, _bump) =
-            utils::find_verification_config_pda(mint_info.key(), ix_discriminator, program_id);
+        let config_data = VerificationConfig::from_account_info(verification_config)?;
 
-        if verification_config.key().ne(&expected_pda) {
+        let seeds = [
+            VERIFICATION_CONFIG,
+            mint_info.key().as_ref(),
+            &[ix_discriminator],
+            &[config_data.bump],
+        ];
+        let expected_config_pda = checked_create_program_address(&seeds, program_id)?;
+
+        if verification_config.key().ne(&expected_config_pda) {
             return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
         }
-        let config_data = VerificationConfig::from_account_info(verification_config)?;
+
+        // NOTE: I believe this check is redundant since ix_discriminator is part of PDA seeds
         if config_data.instruction_discriminator != ix_discriminator {
             return Err(ProgramError::InvalidInstructionData);
         }
@@ -875,7 +884,7 @@ impl VerificationModule {
 
         // Create the VerificationConfig data first to calculate exact size
         let config =
-            VerificationConfig::new(discriminator, args.cpi_mode, args.program_addresses())?;
+            VerificationConfig::new(discriminator, args.cpi_mode, bump, args.program_addresses())?;
 
         let account_size = config.serialized_size();
 
@@ -1090,9 +1099,16 @@ impl VerificationModule {
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
 
+        let config = VerificationConfig::from_account_info(config_account)?;
+
+        let seeds = [
+            VERIFICATION_CONFIG,
+            mint_account.key().as_ref(),
+            &[discriminator],
+            &[config.bump],
+        ];
         // Derive expected PDA address
-        let (expected_config_pda, _bump) =
-            utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
+        let expected_config_pda = checked_create_program_address(&seeds, program_id)?;
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
@@ -1196,9 +1212,16 @@ impl VerificationModule {
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
 
+        let config = VerificationConfig::from_account_info(config_account)?;
+
+        let seeds = [
+            VERIFICATION_CONFIG,
+            mint_account.key().as_ref(),
+            &[discriminator],
+            &[config.bump],
+        ];
         // Derive expected PDA address
-        let (expected_config_pda, _bump) =
-            utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
+        let expected_config_pda = checked_create_program_address(&seeds, program_id)?;
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {

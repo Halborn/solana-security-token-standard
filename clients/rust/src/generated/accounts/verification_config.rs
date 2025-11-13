@@ -15,6 +15,7 @@ pub struct VerificationConfig {
     pub discriminator: u8,
     pub instruction_discriminator: u8,
     pub cpi_mode: bool,
+    pub bump: u8,
     #[cfg_attr(
         feature = "serde",
         serde(with = "serde_with::As::<Vec<serde_with::DisplayFromStr>>")
