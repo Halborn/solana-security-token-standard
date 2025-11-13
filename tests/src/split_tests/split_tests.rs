@@ -8,15 +8,13 @@ use solana_sdk::{native_token::sol_str_to_lamports, signature::Keypair, signer::
 
 use crate::{
     helpers::{
-        assert_account_exists, assert_transaction_success, create_mint_verification_config,
-        create_spl_account, find_permanent_delegate_pda, find_receipt_pda, from_ui_amount,
-        get_token_account_state, mint_tokens_to, start_with_context,
-        start_with_context_and_accounts,
+        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
+        create_mint_verification_config, create_spl_account, find_permanent_delegate_pda,
+        find_receipt_pda, from_ui_amount, get_token_account_state, mint_tokens_to,
+        start_with_context, start_with_context_and_accounts,
     },
-    rate_tests::rate_helpers::{
-        calculate_rate_amount, create_rate_account, create_security_token_mint,
-    },
-    split_tests::split_helpers::{create_split_verification_config, execute_split, uniq_pubkey},
+    rate_tests::rate_helpers::{calculate_rate_amount, create_rate_account},
+    split_tests::split_helpers::{create_split_verification_config, execute_split},
 };
 
 #[tokio::test]
@@ -31,7 +29,8 @@ async fn test_should_split_with_mint_successfully() {
     let _mint_creator_pubkey = mint_creator.pubkey();
 
     let (mint_authority_pda, _, _) =
-        create_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals).await;
+        create_minimal_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals)
+            .await;
 
     let split_verification_config_pda = create_split_verification_config(
         context,
@@ -149,7 +148,8 @@ async fn test_should_split_with_burn_successfully() {
     let _mint_creator_pubkey = mint_creator.pubkey();
 
     let (mint_authority_pda, _, _) =
-        create_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals).await;
+        create_minimal_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals)
+            .await;
 
     let split_verification_config_pda = create_split_verification_config(
         context,
@@ -267,7 +267,8 @@ async fn test_should_not_split_twice() {
     let _mint_creator_pubkey = mint_creator.pubkey();
 
     let (mint_authority_pda, _, _) =
-        create_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals).await;
+        create_minimal_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals)
+            .await;
 
     let split_verification_config_pda = create_split_verification_config(
         context,
@@ -383,7 +384,8 @@ async fn test_should_not_split_token_zero_amount() {
     let _mint_creator_pubkey = mint_creator.pubkey();
 
     let (mint_authority_pda, _, _) =
-        create_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals).await;
+        create_minimal_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals)
+            .await;
 
     let split_verification_config_pda = create_split_verification_config(
         context,
@@ -456,7 +458,7 @@ async fn test_should_not_split_token_zero_amount() {
 #[rstest]
 // mint, mint_authority, permanent_delegate, token_account, rate, receipt
 #[case(
-    Some(uniq_pubkey()),
+    Some(Pubkey::new_unique()),
     None,
     None,
     None,
@@ -465,7 +467,7 @@ async fn test_should_not_split_token_zero_amount() {
 )]
 #[case(
     None,
-    Some(uniq_pubkey()),
+    Some(Pubkey::new_unique()),
     None,
     None,
     None,
@@ -474,7 +476,7 @@ async fn test_should_not_split_token_zero_amount() {
 #[case(
     None,
     None,
-    Some(uniq_pubkey()),
+    Some(Pubkey::new_unique()),
     None,
     None,
     "Should fail with invalid permanent delegate"
@@ -483,7 +485,7 @@ async fn test_should_not_split_token_zero_amount() {
     None,
     None,
     None,
-    Some(uniq_pubkey()),
+    Some(Pubkey::new_unique()),
     None,
     "Should fail with invalid rate account"
 )]
@@ -492,7 +494,7 @@ async fn test_should_not_split_token_zero_amount() {
     None,
     None,
     None,
-    Some(uniq_pubkey()),
+    Some(Pubkey::new_unique()),
     "Should fail with invalid receipt"
 )]
 #[tokio::test]
@@ -512,7 +514,7 @@ async fn test_should_not_split_with_invalid_random_accounts(
     let valid_mint_creator = &context.payer.insecure_clone();
     let valid_mint_creator_pubkey = valid_mint_creator.pubkey();
 
-    let (valid_mint_authority_pda, _, _) = create_security_token_mint(
+    let (valid_mint_authority_pda, _, _) = create_minimal_security_token_mint(
         context,
         &valid_mint_keypair,
         Some(valid_mint_creator),
@@ -616,7 +618,8 @@ async fn test_should_not_split_not_owned_mint_or_token_account() {
     let mint_creator_pubkey1 = mint_creator1.pubkey();
 
     let (mint_authority_pda1, _, _) =
-        create_security_token_mint(context, &mint_keypair1, Some(mint_creator1), decimals).await;
+        create_minimal_security_token_mint(context, &mint_keypair1, Some(mint_creator1), decimals)
+            .await;
 
     let (permanent_delegate_pda1, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey1);
 
@@ -686,7 +689,8 @@ async fn test_should_not_split_not_owned_mint_or_token_account() {
     let mint_pubkey2 = mint_keypair2.pubkey();
 
     let (mint_authority_pda2, _, _) =
-        create_security_token_mint(context, &mint_keypair2, Some(&mint_creator2), decimals).await;
+        create_minimal_security_token_mint(context, &mint_keypair2, Some(&mint_creator2), decimals)
+            .await;
 
     let (_permanent_delegate_pda2, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey2);
 
