@@ -77,7 +77,7 @@ async fn test_should_create_proof_account() {
         SecurityTokenDiscriminators::ProofDiscriminator as u8,
         "Proof account discriminator should match"
     );
-    assert_eq!(proof.bump, bump, "Proof account action_id should match");
+    assert_eq!(proof.bump, bump, "Proof account bump should match");
     assert_eq!(
         proof.data, create_proof_args.data,
         "Proof account data should match"

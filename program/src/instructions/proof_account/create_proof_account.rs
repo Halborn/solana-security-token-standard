@@ -13,7 +13,7 @@ use crate::{
 pub struct CreateProofArgs {
     /// Action ID for the proof creation
     pub action_id: u64,
-    /// Proof configuration arguments
+    /// Merkle proof data
     #[idl_type("Vec<[u8; 32]>")]
     pub data: ProofData,
 }
@@ -31,7 +31,7 @@ impl ProofDataDeserializer for CreateProofArgs {
 }
 
 impl CreateProofArgs {
-    /// action_id + vec len prefix
+    /// action_id (8 bytes) + vec prefix (4 bytes)
     pub const MIN_LEN: usize = ACTION_ID_LEN + Proof::VEC_LEN_PREFIX;
 
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
@@ -51,21 +51,26 @@ impl CreateProofArgs {
         let mut data = Vec::new();
         data.extend_from_slice(self.action_id.to_le_bytes().as_ref());
         data.extend_from_slice((self.data.len() as u32).to_le_bytes().as_ref());
-        data.extend_from_slice(self.data.as_flattened());
+        for node in &self.data {
+            data.extend_from_slice(node.as_ref());
+        }
         data
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{constants::MERKLE_TREE_NODE_LEN, test_utils::random_32_bytes};
+    use crate::{
+        constants::MERKLE_TREE_NODE_LEN,
+        test_utils::{random_32_bytes, random_32_bytes_vec},
+    };
 
     use super::*;
     use rstest::rstest;
 
     #[rstest]
-    #[case(5u64, vec![random_32_bytes(), random_32_bytes(), random_32_bytes()])]
-    #[case(u64::MAX, vec![random_32_bytes(), random_32_bytes()])]
+    #[case(5u64, random_32_bytes_vec(3))]
+    #[case(u64::MAX, random_32_bytes_vec(2))]
     fn test_create_proof_args_to_bytes_inner_try_from_bytes(
         #[case] action_id: u64,
         #[case] proof_data: ProofData,
@@ -84,9 +89,13 @@ mod tests {
     }
 
     #[rstest]
-    #[case(0u64, vec![random_32_bytes(), random_32_bytes(), random_32_bytes()], "ProofArgs with zero action_id should be invalid")]
+    #[case(
+        0u64,
+        random_32_bytes_vec(3),
+        "ProofArgs with zero action_id should be invalid"
+    )]
     #[case(5u64, vec![[0u8; MERKLE_TREE_NODE_LEN], random_32_bytes(), random_32_bytes()], "ProofArgs proof_data with zero node should be invalid")]
-    #[case(u64::MAX, vec![], "ProofArgs with with empty data should be invalid")]
+    #[case(u64::MAX, vec![], "ProofArgs with empty data should be invalid")]
     fn test_create_proof_args_validation(
         #[case] action_id: u64,
         #[case] proof_data: ProofData,

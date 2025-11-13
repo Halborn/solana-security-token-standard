@@ -91,6 +91,7 @@ pub trait ProgramAccount: AccountDeserialize + AccountSerialize {
             core::cmp::Ordering::Less => {
                 // Payer gets excess lamports
                 let lamports_diff = account_current_lamports.saturating_sub(account_new_lamports);
+                // Lamports can be reduced directly for Program Account
                 *account.try_borrow_mut_lamports()? -= lamports_diff;
                 *payer.try_borrow_mut_lamports()? += lamports_diff;
             }

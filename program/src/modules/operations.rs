@@ -742,8 +742,8 @@ impl OperationsModule {
         let current_proof_account_len = proof_account.data_len();
         proof.update_data_at_offset(proof_node, offset as usize)?;
         let new_proof_account_len = proof.serialized_len();
-        // Extend account size and pay rent difference
-        if new_proof_account_len > current_proof_account_len {
+        // Update account size and pay rent difference
+        if new_proof_account_len != current_proof_account_len {
             Proof::resize_account_and_rent(proof_account, new_proof_account_len, payer)?;
         }
         proof.write_data(proof_account)?;

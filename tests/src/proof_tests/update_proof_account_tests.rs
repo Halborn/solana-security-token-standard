@@ -114,7 +114,7 @@ async fn test_should_update_proof_account() {
     assert_eq!(
         payer_balance_after_update,
         payer_balance_before - TX_FEE,
-        "Payer should not receive any lamports as we don't append to the size"
+        "Payer should only spend transaction fee"
     );
 
     // Append at the end
@@ -161,7 +161,7 @@ async fn test_should_update_proof_account() {
     assert_eq!(
         payer_balance_after_append,
         payer_balance_after_update - TX_FEE - rent_diff,
-        "Payer should not spend lamports for the account rent increase and transaction fee"
+        "Payer should spend lamports for the account rent increase and transaction fee"
     );
 }
 
@@ -198,10 +198,10 @@ async fn test_should_not_update_proof_account() {
 
     let valid_token_account_pubkey = create_spl_account(context, &mint_keypair, &payer).await;
     let create_proof_action_id = 1u64;
-    let inital_proof_data = vec![[1u8; 32], [2u8; 32]];
+    let initial_proof_data = vec![[1u8; 32], [2u8; 32]];
     let create_proof_args = CreateProofArgs {
         action_id: create_proof_action_id,
-        data: inital_proof_data,
+        data: initial_proof_data,
     };
     let (valid_proof_account, _) =
         find_proof_pda(&valid_token_account_pubkey, create_proof_action_id);

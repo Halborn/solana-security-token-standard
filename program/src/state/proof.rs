@@ -19,6 +19,7 @@ use crate::{
 
 pub type ProofNode = [u8; MERKLE_TREE_NODE_LEN];
 pub type ProofData = Vec<ProofNode>;
+const ZERO_NODE: ProofNode = [0u8; MERKLE_TREE_NODE_LEN];
 
 #[repr(C)]
 #[derive(Debug, ShankAccount)]
@@ -75,7 +76,6 @@ pub trait ProofDataDeserializer {
 }
 
 pub trait ProofDataValidator {
-    const ZERO_NODE: ProofNode = [0u8; MERKLE_TREE_NODE_LEN];
     fn error() -> ProgramError;
 
     /// Validate proof data length is sufficient
@@ -86,14 +86,14 @@ pub trait ProofDataValidator {
 
         Ok(())
     }
-    /// Validate each proof node is non-zero
+    /// Validate all proof nodes are non-zero
     fn validate_proof_data(proof_data: &ProofData) -> ProgramResult {
         proof_data
             .iter()
             .try_for_each(Self::validate_proof_node_data)?;
         Ok(())
     }
-    /// Validate each proof node is non-zero
+    /// Validate given proof node is non-zero
     fn validate_proof_node_data(proof_node: &ProofNode) -> ProgramResult {
         if Self::is_zero_node(proof_node) {
             return Err(Self::error());
@@ -102,7 +102,7 @@ pub trait ProofDataValidator {
     }
 
     fn is_zero_node(node: &ProofNode) -> bool {
-        node.eq(&Self::ZERO_NODE)
+        node.eq(&ZERO_NODE)
     }
 }
 
@@ -129,7 +129,9 @@ impl AccountSerialize for Proof {
         // Write vector length (4 bytes)
         data.extend(&(self.data.len() as u32).to_le_bytes());
         // Write each node
-        data.extend_from_slice(self.data.as_flattened());
+        for node in &self.data {
+            data.extend_from_slice(node.as_ref());
+        }
         data
     }
 }
@@ -143,7 +145,6 @@ impl AccountDeserialize for Proof {
         let mut offset = 0;
         let bump = data[offset];
         offset += 1;
-
         let proof_data = Self::try_proof_data_from_bytes(&data[offset..])?;
 
         Ok(Self {
@@ -160,9 +161,9 @@ impl ProgramAccount for Proof {
 }
 
 impl Proof {
+    pub const VEC_LEN_PREFIX: usize = 4;
     /// Minimum size without any data
     /// Discriminator (1 byte) + bump (1 byte) + vector length prefix (4 bytes)
-    pub const VEC_LEN_PREFIX: usize = 4;
     pub const MIN_LEN: usize = 1 + 1 + Self::VEC_LEN_PREFIX;
 
     /// Calculate the actual size needed for serialization
@@ -180,8 +181,7 @@ impl Proof {
         Ok(proof)
     }
 
-    /// Update proof data at given offset
-    /// ProofNodes::len() offset appends a new node
+    /// Update proof data at given offset, or append if offset equals data length
     pub fn update_data_at_offset(&mut self, new_node: ProofNode, offset: usize) -> ProgramResult {
         if offset > self.data.len() {
             return Err(ProgramError::InvalidAccountData);
@@ -223,7 +223,7 @@ impl Proof {
         [self.bump]
     }
 
-    /// Get seeds for signing
+    /// Create seeds for signing
     pub fn seeds<'a>(
         &'a self,
         token_account_address: &'a Pubkey,
@@ -268,20 +268,20 @@ impl Proof {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::random_32_bytes;
+    use crate::test_utils::{random_32_bytes, random_32_bytes_vec};
     use rstest::rstest;
 
     #[rstest]
-    #[case(5u8, &[random_32_bytes(), random_32_bytes(), random_32_bytes()])]
-    #[case(u8::MAX, &[random_32_bytes(), random_32_bytes()])]
+    #[case(5u8, &random_32_bytes_vec(3))]
+    #[case(u8::MAX, &random_32_bytes_vec(2))]
     fn test_proof_create(#[case] bump: u8, #[case] proof_data: &[ProofNode]) {
         let proof = Proof::new(proof_data, bump).expect("Should create proof");
         proof.validate().expect("Proof should be valid");
     }
 
     #[rstest]
-    #[case(5u8, &[random_32_bytes(), random_32_bytes(), random_32_bytes()])]
-    #[case(u8::MAX, &[random_32_bytes(), random_32_bytes()])]
+    #[case(5u8, &random_32_bytes_vec(3))]
+    #[case(u8::MAX, &random_32_bytes_vec(2))]
     fn test_proof_serialize_deserialize(#[case] bump: u8, #[case] proof_data: &[ProofNode]) {
         let proof = Proof::new(proof_data, bump).expect("Should create proof");
 
@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn test_proof_update_at_offset() {
         let bump = 10u8;
-        let proof_data = vec![random_32_bytes(), random_32_bytes()];
+        let proof_data = random_32_bytes_vec(2);
         let mut proof = Proof::new(&proof_data, bump).expect("Should create proof");
         proof.validate().expect("Proof should be valid");
 
@@ -326,7 +326,7 @@ mod tests {
     #[test]
     fn test_proof_append_new_node() {
         let bump = 10u8;
-        let proof_data = vec![random_32_bytes(), random_32_bytes()];
+        let proof_data = random_32_bytes_vec(2);
         let mut proof = Proof::new(&proof_data, bump).expect("Should create proof");
         proof.validate().expect("Proof should be valid");
 
