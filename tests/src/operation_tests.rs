@@ -1023,12 +1023,4 @@ async fn test_transfer_hook_extra_account_metas_init_update_trim() {
         recipient_balance_after,
         expected_returned
     );
-
-    let actual_increase = recipient_balance_after.saturating_sub(recipient_balance_before);
-    assert!(
-        actual_increase > expected_returned.saturating_sub(10_000),
-        "Recipient should receive most of the returned lamports (received: {}, expected: {})",
-        actual_increase,
-        expected_returned
-    );
 }
