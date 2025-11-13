@@ -115,6 +115,10 @@ mod idl_gen {
         #[account(4, writable, name = "config_account")]
         #[account(5, writable, signer, name = "payer")]
         #[account(6, name = "system_program")]
+        // Optional accounts, required by accounts meta management
+        #[account(7, writable, optional, name = "account_metas_pda")]
+        #[account(8, optional, name = "transfer_hook_pda")]
+        #[account(9, optional, name = "transfer_hook_program")]
         InitializeVerificationConfig(InitializeVerificationConfigArgs) = 2,
 
         #[account(0, name = "mint")]
@@ -124,6 +128,10 @@ mod idl_gen {
         #[account(4, writable, name = "config_account")]
         #[account(5, writable, signer, name = "payer")]
         #[account(6, name = "system_program")]
+        // Optional accounts, required by accounts meta management
+        #[account(7, writable, optional, name = "account_metas_pda")]
+        #[account(8, optional, name = "transfer_hook_pda")]
+        #[account(9, optional, name = "transfer_hook_program")]
         UpdateVerificationConfig(UpdateVerificationConfigArgs) = 3,
 
         #[account(0, name = "mint")]
@@ -133,6 +141,10 @@ mod idl_gen {
         #[account(4, writable, name = "config_account")]
         #[account(5, writable, name = "recipient")]
         #[account(6, name = "system_program")]
+        // Optional accounts, required by accounts meta management
+        #[account(7, writable, optional, name = "account_metas_pda")]
+        #[account(8, optional, name = "transfer_hook_pda")]
+        #[account(9, optional, name = "transfer_hook_program")]
         TrimVerificationConfig(TrimVerificationConfigArgs) = 4,
 
         #[account(0, name = "mint")]

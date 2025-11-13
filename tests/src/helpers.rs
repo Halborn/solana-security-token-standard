@@ -18,6 +18,7 @@ use solana_sdk::{
 use spl_token_2022::extension::StateWithExtensionsOwned;
 use spl_token_2022::state::{Account as TokenAccount, Mint as TokenMint};
 use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
+use spl_transfer_hook_interface::get_extra_account_metas_address;
 
 pub const TX_FEE: u64 = 5000;
 
@@ -193,6 +194,13 @@ pub async fn initialize_verification_config_for_payer(
     verification_config_pda: Pubkey,
     args: &InitializeVerificationConfigArgs,
 ) -> Result<(), BanksClientError> {
+    let account_metas_pda = get_extra_account_metas_address(
+        &mint_keypair.pubkey(),
+        &Pubkey::from(security_token_transfer_hook::id()),
+    );
+
+    let (transfer_hook_pda, _bump) = find_transfer_hook_pda(&mint_keypair.pubkey());
+
     let ix = InitializeVerificationConfigBuilder::new()
         .mint(mint_keypair.pubkey())
         .verification_config_or_mint_authority(mint_authority_pda)
@@ -201,6 +209,9 @@ pub async fn initialize_verification_config_for_payer(
         .payer(payer.pubkey())
         .config_account(verification_config_pda)
         .initialize_verification_config_args(args.clone())
+        .account_metas_pda(Some(account_metas_pda))
+        .transfer_hook_pda(Some(transfer_hook_pda))
+        .transfer_hook_program(Some(Pubkey::from(security_token_transfer_hook::id())))
         .instruction();
 
     send_tx(banks_client, vec![ix], &payer.pubkey(), vec![payer]).await
@@ -424,6 +435,13 @@ pub fn find_permanent_delegate_pda(mint: &Pubkey) -> (Pubkey, u8) {
 pub fn find_receipt_pda(mint: &Pubkey, action_id: u64) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[b"receipt", &mint.as_ref(), &action_id.to_le_bytes()],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    )
+}
+
+pub fn find_transfer_hook_pda(mint: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[b"mint.transfer_hook", &mint.as_ref()],
         &SECURITY_TOKEN_PROGRAM_ID,
     )
 }

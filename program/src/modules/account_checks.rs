@@ -1,6 +1,6 @@
 #[cfg(feature = "debug-logs")]
 use crate::acc_info_as_str;
-use crate::debug_log;
+use crate::{constants::TRANSFER_HOOK_PROGRAM_ID, debug_log};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 /// Verify account as writable
@@ -197,5 +197,17 @@ pub fn verify_pda(provided_pda: &Pubkey, expected_pda: &Pubkey) -> Result<(), Pr
         );
         return Err(ProgramError::InvalidSeeds);
     }
+    Ok(())
+}
+
+pub fn verify_transfer_hook_program(transfer_hook_pda: &AccountInfo) -> Result<(), ProgramError> {
+    if transfer_hook_pda.key().ne(&TRANSFER_HOOK_PROGRAM_ID) {
+        debug_log!(
+            "Account {} is not the STP transfer hook",
+            acc_info_as_str!(transfer_hook_pda)
+        );
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
     Ok(())
 }

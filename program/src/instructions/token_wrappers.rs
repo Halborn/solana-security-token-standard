@@ -1,10 +1,13 @@
 //! Token extension wrappers
 
+use bytemuck;
 use pinocchio::account_info::AccountInfo;
-use pinocchio::cpi::invoke_signed;
+use pinocchio::cpi::{invoke_signed, slice_invoke_signed};
 use pinocchio::instruction::{AccountMeta, Instruction, Signer};
+use pinocchio::pubkey::Pubkey;
 use pinocchio::ProgramResult;
 use pinocchio_token_2022::extensions::metadata::InitializeTokenMetadata;
+use spl_tlv_account_resolution::account::ExtraAccountMeta;
 
 /// Wrapper for RemoveKey instruction
 pub struct CustomRemoveKey<'a> {
@@ -345,5 +348,185 @@ impl<'a> CustomTransferChecked<'a> {
             ],
             signers,
         )
+    }
+}
+
+/// Wrapper for InitializeExtraAccountMetaList instruction
+///
+/// This instruction creates the extra_account_metas PDA and initializes it.
+/// The Transfer Hook program will create the PDA via CPI to System Program.
+pub struct CustomInitializeExtraAccountMetaList<'a> {
+    /// The transfer hook program ID
+    pub program_id: &'a Pubkey,
+    /// PDA address for extra account metas (will be created by Transfer Hook program)
+    pub extra_account_metas_pda: &'a AccountInfo,
+    /// Mint pubkey
+    pub mint: &'a AccountInfo,
+    /// Mint authority AccountInfo (needs to sign)
+    pub authority: &'a AccountInfo,
+    /// System program pubkey
+    pub system_program: &'a AccountInfo,
+    /// List of extra account metas to initialize
+    pub metas: &'a [ExtraAccountMeta],
+}
+
+impl<'a> CustomInitializeExtraAccountMetaList<'a> {
+    /// Create a new InitializeExtraAccountMetaList instruction wrapper
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        program_id: &'a Pubkey,
+        extra_account_metas_pda: &'a AccountInfo,
+        mint: &'a AccountInfo,
+        authority: &'a AccountInfo,
+        system_program: &'a AccountInfo,
+        metas: &'a [ExtraAccountMeta],
+    ) -> Self {
+        Self {
+            program_id,
+            extra_account_metas_pda,
+            mint,
+            authority,
+            system_program,
+            metas,
+        }
+    }
+
+    /// Invoke the instruction
+    pub fn invoke(&self) -> ProgramResult {
+        self.invoke_signed(&[])
+    }
+
+    /// Invoke the instruction with signers
+    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
+        // Calculate instruction data size
+        // 8 byte discriminator + 4 bytes vec length + (35 bytes per ExtraAccountMeta)
+        let data_len = 8 + 4 + (self.metas.len() * 35);
+        let mut instruction_data = Vec::with_capacity(data_len);
+
+        // 8-byte ArrayDiscriminator for "spl-transfer-hook-interface:initialize-extra-account-metas"
+        // Calculated via: sha256("spl-transfer-hook-interface:initialize-extra-account-metas")[..8]
+        instruction_data.extend(&[0x2b, 0x22, 0x0d, 0x31, 0xa7, 0x58, 0xeb, 0xeb]);
+
+        instruction_data.extend(&(self.metas.len() as u32).to_le_bytes());
+        for meta in self.metas {
+            instruction_data.extend(bytemuck::bytes_of(meta));
+        }
+
+        let account_metas: [AccountMeta; 4] = [
+            AccountMeta::writable(self.extra_account_metas_pda.key()),
+            AccountMeta::readonly(self.mint.key()),
+            AccountMeta::readonly_signer(self.authority.key()),
+            AccountMeta::readonly(self.system_program.key()),
+        ];
+
+        let instruction = Instruction {
+            program_id: self.program_id,
+            accounts: &account_metas,
+            data: &instruction_data,
+        };
+        invoke_signed(
+            &instruction,
+            &[
+                self.extra_account_metas_pda,
+                self.mint,
+                self.authority,
+                self.system_program,
+            ],
+            signers,
+        )
+    }
+}
+
+/// Wrapper for UpdateExtraAccountMetaList instruction
+///
+/// This instruction updates existing extra account metas in the PDA.
+pub struct CustomUpdateExtraAccountMetaList<'a> {
+    /// The transfer hook program ID
+    pub program_id: &'a Pubkey,
+    /// PDA address for extra account metas (must already exist)
+    pub extra_account_metas_pda: &'a AccountInfo,
+    /// Mint pubkey
+    pub mint: &'a AccountInfo,
+    /// Mint authority AccountInfo (needs to sign)
+    pub authority: &'a AccountInfo,
+    /// System program pubkey
+    pub system_program: &'a AccountInfo,
+    /// Optional recipient pubkey
+    pub recipient: Option<&'a AccountInfo>,
+    /// List of extra account metas to update
+    pub metas: &'a [ExtraAccountMeta],
+}
+
+impl<'a> CustomUpdateExtraAccountMetaList<'a> {
+    /// Create a new UpdateExtraAccountMetaList instruction wrapper
+    pub fn new(
+        program_id: &'a Pubkey,
+        extra_account_metas_pda: &'a AccountInfo,
+        mint: &'a AccountInfo,
+        authority: &'a AccountInfo,
+        system_program: &'a AccountInfo,
+        recipient: Option<&'a AccountInfo>,
+        metas: &'a [ExtraAccountMeta],
+    ) -> Self {
+        Self {
+            program_id,
+            extra_account_metas_pda,
+            mint,
+            authority,
+            system_program,
+            recipient,
+            metas,
+        }
+    }
+
+    /// Invoke the instruction
+    pub fn invoke(&self) -> ProgramResult {
+        self.invoke_signed(&[])
+    }
+
+    /// Invoke the instruction with signers
+    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
+        // Calculate instruction data size
+        // 8 byte discriminator + 4 bytes vec length + (35 bytes per ExtraAccountMeta)
+        let data_len = 8 + 4 + (self.metas.len() * 35);
+        let mut instruction_data = Vec::with_capacity(data_len);
+
+        // 8-byte ArrayDiscriminator for "spl-transfer-hook-interface:update-extra-account-metas"
+        // Calculated via: sha256("spl-transfer-hook-interface:update-extra-account-metas")[..8]
+        instruction_data.extend(&[0x9d, 0x69, 0x2a, 0x92, 0x66, 0x55, 0xf1, 0xae]);
+
+        // Vec length (u32 little-endian)
+        instruction_data.extend(&(self.metas.len() as u32).to_le_bytes());
+
+        // Serialize each ExtraAccountMeta
+        for meta in self.metas {
+            instruction_data.extend(bytemuck::bytes_of(meta));
+        }
+
+        let mut account_metas = vec![
+            AccountMeta::writable(self.extra_account_metas_pda.key()),
+            AccountMeta::readonly(self.mint.key()),
+            AccountMeta::readonly_signer(self.authority.key()),
+            AccountMeta::readonly(self.system_program.key()),
+        ];
+
+        let mut account_infos = vec![
+            self.extra_account_metas_pda,
+            self.mint,
+            self.authority,
+            self.system_program,
+        ];
+
+        if let Some(recipient) = self.recipient {
+            account_metas.push(AccountMeta::writable(recipient.key()));
+            account_infos.push(recipient);
+        }
+
+        let instruction = Instruction {
+            program_id: self.program_id,
+            accounts: &account_metas,
+            data: &instruction_data,
+        };
+        slice_invoke_signed(&instruction, &account_infos, signers)
     }
 }

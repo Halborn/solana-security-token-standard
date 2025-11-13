@@ -27,22 +27,31 @@ use pinocchio_token_2022::{
     extensions::metadata::{Field, TokenMetadata, UpdateField},
     instructions::AuthorityType,
 };
+use spl_pod::primitives::PodBool;
+use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 
 use super::utils as verification_utils;
 use crate::constants::{seeds, INSTRUCTION_ACCOUNTS_OFFSET, TRANSFER_HOOK_PROGRAM_ID};
 use crate::error::SecurityTokenError;
+use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
-use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
+use crate::instructions::{
+    CustomInitializeExtraAccountMetaList, CustomUpdateExtraAccountMetaList, InitializeMintArgs,
+    UpdateMetadataArgs, VerifyArgs,
+};
 use crate::modules::{
-    verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_rent_sysvar,
-    verify_signer, verify_system_program, verify_token22_program, verify_writable,
+    verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_pda,
+    verify_rent_sysvar, verify_signer, verify_system_program, verify_token22_program,
+    verify_transfer_hook_program, verify_writable,
 };
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
     VerificationConfig,
 };
+use crate::utils::find_extra_account_metas_pda;
 use crate::{debug_log, utils};
+use spl_tlv_account_resolution::account::ExtraAccountMeta;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Verification Module - handles all authorization and compliance checks
@@ -836,7 +845,9 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::InitializeVerificationConfigArgs,
     ) -> ProgramResult {
-        let [mint_account, config_account, payer, system_program_info] = &accounts else {
+        let [mint_account, config_account, payer, system_program_info, transfer_hook_accounts @ ..] =
+            &accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_operation_mint_info(verified_mint_info, &mint_account)?;
@@ -898,7 +909,162 @@ impl VerificationModule {
         let mut data = config_account.try_borrow_mut_data()?;
         let config_bytes = config.to_bytes();
         data[..config_bytes.len()].copy_from_slice(&config_bytes);
+
+        if discriminator == SecurityTokenInstruction::Transfer as u8 {
+            // Initialize transfer hook extra account metas
+            Self::initialize_transfer_hook_account_metas(
+                program_id,
+                payer,
+                mint_account,
+                system_program_info,
+                transfer_hook_accounts,
+                *config_account.key(),
+                args.program_addresses(),
+            )?;
+        }
         Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn sync_transfer_hook_account_metas(
+        program_id: &Pubkey,
+        payer: &AccountInfo,
+        mint_info: &AccountInfo,
+        system_program_info: &AccountInfo,
+        transfer_hook_accounts: &[AccountInfo],
+        verification_config_pda: Pubkey,
+        program_addresses: &[Pubkey],
+        is_initialization: bool,
+    ) -> ProgramResult {
+        let [account_metas_pda_info, transfer_hook_pda_info, transfer_hook_program] =
+            transfer_hook_accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_transfer_hook_program(transfer_hook_program)?;
+        let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
+        verify_pda(&transfer_hook_pda, transfer_hook_pda_info.key())?;
+        let (account_metas_pda, _bump) = find_extra_account_metas_pda(mint_info.key());
+        verify_pda(&account_metas_pda, account_metas_pda_info.key())?;
+
+        let mut account_metas: Vec<ExtraAccountMeta> = Vec::new();
+        account_metas.push(ExtraAccountMeta {
+            discriminator: 0,
+            address_config: verification_config_pda,
+            is_signer: PodBool(0),
+            is_writable: PodBool(0),
+        });
+
+        for program_address in program_addresses {
+            account_metas.push(ExtraAccountMeta {
+                discriminator: 0,
+                address_config: *program_address,
+                is_signer: PodBool(0),
+                is_writable: PodBool(0),
+            });
+        }
+
+        let new_account_size = ExtraAccountMetaList::size_of(account_metas.len())
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let rent = Rent::get()?;
+
+        if is_initialization {
+            // Initialize: transfer full rent amount
+            let required_lamports = rent.minimum_balance(new_account_size);
+            let transfer = Transfer {
+                from: payer,
+                to: account_metas_pda_info,
+                lamports: required_lamports,
+            };
+            transfer.invoke()?;
+        } else {
+            let current_account_size = account_metas_pda_info.data_len();
+            if new_account_size > current_account_size {
+                let old_rent = rent.minimum_balance(current_account_size);
+                let new_rent = rent.minimum_balance(new_account_size);
+                let additional_rent = new_rent - old_rent;
+                let transfer = Transfer {
+                    from: payer,
+                    to: account_metas_pda_info,
+                    lamports: additional_rent,
+                };
+                transfer.invoke()?;
+            }
+        }
+
+        let bump_seed = [bump];
+        let seeds = [
+            Seed::from(seeds::TRANSFER_HOOK),
+            Seed::from(mint_info.key().as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+        let signer = Signer::from(&seeds);
+        if is_initialization {
+            let instruction = CustomInitializeExtraAccountMetaList::new(
+                &TRANSFER_HOOK_PROGRAM_ID,
+                account_metas_pda_info,
+                mint_info,
+                transfer_hook_pda_info,
+                system_program_info,
+                &account_metas,
+            );
+            instruction.invoke_signed(&[signer])?;
+        } else {
+            let instruction = CustomUpdateExtraAccountMetaList::new(
+                &TRANSFER_HOOK_PROGRAM_ID,
+                account_metas_pda_info,
+                mint_info,
+                transfer_hook_pda_info,
+                system_program_info,
+                Some(payer),
+                &account_metas,
+            );
+            instruction.invoke_signed(&[signer])?;
+        }
+        Ok(())
+    }
+
+    fn update_transfer_hook_account_metas(
+        program_id: &Pubkey,
+        payer: &AccountInfo,
+        mint_info: &AccountInfo,
+        system_program_info: &AccountInfo,
+        transfer_hook_accounts: &[AccountInfo],
+        verification_config_pda: Pubkey,
+        new_program_addresses: &[Pubkey],
+    ) -> ProgramResult {
+        Self::sync_transfer_hook_account_metas(
+            program_id,
+            payer,
+            mint_info,
+            system_program_info,
+            transfer_hook_accounts,
+            verification_config_pda,
+            new_program_addresses,
+            false,
+        )
+    }
+
+    fn initialize_transfer_hook_account_metas(
+        program_id: &Pubkey,
+        payer: &AccountInfo,
+        mint_info: &AccountInfo,
+        system_program_info: &AccountInfo,
+        transfer_hook_accounts: &[AccountInfo],
+        verification_config_pda: Pubkey,
+        program_addresses: &[Pubkey],
+    ) -> ProgramResult {
+        Self::sync_transfer_hook_account_metas(
+            program_id,
+            payer,
+            mint_info,
+            system_program_info,
+            transfer_hook_accounts,
+            verification_config_pda,
+            program_addresses,
+            true,
+        )
     }
 
     /// Update verification configuration for an instruction
@@ -908,7 +1074,9 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::UpdateVerificationConfigArgs,
     ) -> ProgramResult {
-        let [mint_account, config_account, payer, system_program_info] = accounts else {
+        let [mint_account, config_account, payer, system_program_info, transfer_hook_accounts @ ..] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -972,9 +1140,10 @@ impl VerificationModule {
         let current_size = config_account.data_len();
 
         if new_size > current_size {
-            let additional_space = new_size - current_size;
             let rent = Rent::get()?;
-            let additional_rent = rent.minimum_balance(additional_space);
+            let old_rent = rent.minimum_balance(current_size);
+            let new_rent = rent.minimum_balance(new_size);
+            let additional_rent = new_rent - old_rent;
             let transfer = Transfer {
                 from: payer,
                 to: config_account,
@@ -990,6 +1159,18 @@ impl VerificationModule {
             let mut data = config_account.try_borrow_mut_data()?;
             data[..config_bytes.len()].copy_from_slice(&config_bytes);
         }
+
+        if discriminator == SecurityTokenInstruction::Transfer as u8 {
+            Self::update_transfer_hook_account_metas(
+                program_id,
+                payer,
+                mint_account,
+                system_program_info,
+                transfer_hook_accounts,
+                *config_account.key(),
+                existing_config.verification_programs.as_slice(),
+            )?;
+        }
         Ok(())
     }
 
@@ -1000,7 +1181,9 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &TrimVerificationConfigArgs,
     ) -> ProgramResult {
-        let [mint_account, config_account, recipient, system_program_info] = accounts else {
+        let [mint_account, config_account, recipient, system_program_info, transfer_hook_accounts @ ..] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -1047,57 +1230,74 @@ impl VerificationModule {
             return Err(ProgramError::InvalidArgument);
         }
 
-        if args.close {
-            // Close the account completely - transfer all lamports to recipient
-
+        let (new_program_list, recovered_rent) = if args.close {
             let config_lamports = config_account.lamports();
-
-            // Transfer all lamports to recipient
-            *config_account.try_borrow_mut_lamports()? = 0;
-            *recipient.try_borrow_mut_lamports()? = recipient
-                .lamports()
-                .checked_add(config_lamports)
-                .ok_or(ProgramError::InsufficientFunds)?;
-
-            // Clear account data
-            config_account.realloc(0, false)?;
+            (&[][..], config_lamports)
         } else if new_size < current_program_count {
-            // Trim the verification programs array
+            // Trim: truncate program list, calculate recovered rent
             existing_config.verification_programs.truncate(new_size);
-
-            // Validate the trimmed configuration
             existing_config.validate()?;
 
-            // Calculate new account size
             let new_account_size = existing_config.serialized_size();
             let current_account_size = config_account.data_len();
 
             if new_account_size < current_account_size {
-                // Calculate recovered rent
-                let space_recovered = current_account_size - new_account_size;
                 let rent = Rent::get()?;
-                let recovered_rent = rent.minimum_balance(space_recovered);
-
-                // Transfer recovered rent to recipient
-                *config_account.try_borrow_mut_lamports()? = config_account
-                    .lamports()
-                    .checked_sub(recovered_rent)
-                    .ok_or(ProgramError::InsufficientFunds)?;
-
-                *recipient.try_borrow_mut_lamports()? = recipient
-                    .lamports()
-                    .checked_add(recovered_rent)
-                    .ok_or(ProgramError::InsufficientFunds)?;
-
-                // Resize account to new size
-                config_account.realloc(new_account_size, false)?;
+                let old_rent = rent.minimum_balance(current_account_size);
+                let new_rent = rent.minimum_balance(new_account_size);
+                let recovered = old_rent - new_rent;
+                (existing_config.verification_programs.as_slice(), recovered)
+            } else {
+                // No size change, just update data
+                let config_bytes = existing_config.to_bytes();
+                let mut data = config_account.try_borrow_mut_data()?;
+                data[..config_bytes.len()].copy_from_slice(&config_bytes);
+                return Ok(());
             }
-            // Write the trimmed config back to the account
+        } else {
+            return Ok(());
+        };
+
+        // Update transfer hook BEFORE any balance changes
+        if discriminator == SecurityTokenInstruction::Transfer as u8 {
+            Self::update_transfer_hook_account_metas(
+                program_id,
+                recipient,
+                mint_account,
+                system_program_info,
+                transfer_hook_accounts,
+                *config_account.key(),
+                new_program_list,
+            )?;
+        }
+
+        if args.close {
+            // Close the account completely
+            *config_account.try_borrow_mut_lamports()? = 0;
+            *recipient.try_borrow_mut_lamports()? = recipient
+                .lamports()
+                .checked_add(recovered_rent)
+                .ok_or(ProgramError::InsufficientFunds)?;
+            config_account.realloc(0, false)?;
+        } else {
+            let new_account_size = existing_config.serialized_size();
+            config_account.realloc(new_account_size, false)?;
+
             let config_bytes = existing_config.to_bytes();
             {
                 let mut data = config_account.try_borrow_mut_data()?;
                 data[..config_bytes.len()].copy_from_slice(&config_bytes);
-            } // data borrow is released here
+            }
+
+            *config_account.try_borrow_mut_lamports()? = config_account
+                .lamports()
+                .checked_sub(recovered_rent)
+                .ok_or(ProgramError::InsufficientFunds)?;
+
+            *recipient.try_borrow_mut_lamports()? = recipient
+                .lamports()
+                .checked_add(recovered_rent)
+                .ok_or(ProgramError::InsufficientFunds)?;
         }
         Ok(())
     }
