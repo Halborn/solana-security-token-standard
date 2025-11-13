@@ -1,17 +1,15 @@
 //! Security Token transfer hook implementation
 #![allow(unexpected_cfgs)]
 
-use pinocchio::sysvars::rent::Rent;
-use pinocchio::sysvars::Sysvar;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
     pubkey::{find_program_address, Pubkey},
+    sysvars::{rent::Rent, Sysvar},
     ProgramResult,
 };
 use pinocchio_pubkey::{declare_id, pubkey};
-use pinocchio_system::instructions::Transfer;
 use pinocchio_system::instructions::{Allocate, Assign};
 use solana_pubkey::Pubkey as SolanaPubkey;
 use spl_discriminator::SplDiscriminate;
@@ -22,10 +20,10 @@ use spl_transfer_hook_interface::instruction::{
     ExecuteInstruction, InitializeExtraAccountMetaListInstruction,
     UpdateExtraAccountMetaListInstruction,
 };
-
 pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
     pubkey!("Gwbvvf4L2BWdboD1fT7Ax6JrgVCKv5CN6MqkwsEhjRdH");
 const PERMANENT_DELEGATE_SEED: &[u8] = b"mint.permanent_delegate";
+const TRANSFER_HOOK_SEED: &[u8] = b"mint.transfer_hook";
 const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
 const VERIFICATION_CONFIG_SEED: &[u8] = b"verification_config";
 const TRANSFER_DISCRIMINATOR: u8 = 12; // Security Token transfer instruction discriminator
@@ -217,10 +215,17 @@ fn validate_extra_account_meta_accounts(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // NOTE: In our case the authority must be a signer
-    // We can't sign as a program offchain, clarify this
     if !authority_info.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    let (transfer_hook_pda, _bump) = find_program_address(
+        &[TRANSFER_HOOK_SEED, mint_info.key().as_ref()],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    );
+
+    if authority_info.key() != &transfer_hook_pda {
+        return Err(ProgramError::InvalidAccountData);
     }
 
     if !mint_info.is_owned_by(&pinocchio_token_2022::ID) {
@@ -270,14 +275,9 @@ fn process_initialize_extra_account_meta_list(
     let account_size =
         ExtraAccountMetaList::size_of(count).map_err(|_| ProgramError::InvalidAccountData)?;
 
-    let rent = Rent::get()?;
-    let required_lamports = rent.minimum_balance(account_size);
-    let transfer = Transfer {
-        from: authority_info,
-        to: extra_meta_info,
-        lamports: required_lamports,
-    };
-    transfer.invoke()?;
+    if extra_meta_info.lamports() == 0 {
+        return Err(ProgramError::AccountNotRentExempt);
+    }
 
     let bump_seed = [bump];
     let seeds = [
@@ -292,6 +292,7 @@ fn process_initialize_extra_account_meta_list(
         space: account_size as u64,
     };
     allocate.invoke_signed(&[signer.clone()])?;
+
     let assign = Assign {
         account: extra_meta_info,
         owner: program_id,
@@ -325,47 +326,54 @@ fn process_update_extra_account_meta_list(
         .map_err(|_| ProgramError::InvalidInstructionData)?;
     let extra_account_metas = pod_slice.data().to_vec();
     let new_count = extra_account_metas.len();
+
     let new_account_size =
         ExtraAccountMetaList::size_of(new_count).map_err(|_| ProgramError::InvalidAccountData)?;
-
     let current_account_size = extra_meta_info.data_len();
 
-    // Handle size changes
     if new_account_size > current_account_size {
-        // Verify system program is provided
         if !rest_accounts
             .iter()
             .any(|acc| acc.key() == &pinocchio_system::ID)
         {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
-
-        // Need to add lamports and realloc
-        let additional_space = new_account_size - current_account_size;
-        let rent = Rent::get()?;
-        let additional_rent = rent.minimum_balance(additional_space);
-
-        let transfer = Transfer {
-            from: authority_info,
-            to: extra_meta_info,
-            lamports: additional_rent,
-        };
-        transfer.invoke()?;
-
         extra_meta_info.realloc(new_account_size, false)?;
-    } else if new_account_size < current_account_size {
-        // Can shrink and return lamports
-        extra_meta_info.realloc(new_account_size, false)?;
-        let space_recovered = current_account_size - new_account_size;
-        let rent = Rent::get()?;
-        let recovered_rent = rent.minimum_balance(space_recovered);
-        *extra_meta_info.try_borrow_mut_lamports()? -= recovered_rent;
-        *authority_info.try_borrow_mut_lamports()? += recovered_rent;
     }
     {
         let mut data = extra_meta_info.try_borrow_mut_data()?;
         ExtraAccountMetaList::update::<ExecuteInstruction>(&mut data, &extra_account_metas)
             .map_err(|_| ProgramError::InvalidAccountData)?;
+    } // Release borrow before realloc
+
+    if new_account_size < current_account_size {
+        let [system_program_info, recipient_info] = rest_accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        if system_program_info.key() != &pinocchio_system::ID {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        if !recipient_info.is_writable() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        extra_meta_info.realloc(new_account_size, false)?;
+        let current_lamports = extra_meta_info.lamports();
+        let required_lamports = Rent::get()?.minimum_balance(new_account_size);
+        let lamports_to_return = current_lamports.saturating_sub(required_lamports);
+
+        if lamports_to_return > 0 {
+            *extra_meta_info.try_borrow_mut_lamports()? = extra_meta_info
+                .lamports()
+                .checked_sub(lamports_to_return)
+                .ok_or(ProgramError::InsufficientFunds)?;
+            *recipient_info.try_borrow_mut_lamports()? = recipient_info
+                .lamports()
+                .checked_add(lamports_to_return)
+                .ok_or(ProgramError::InsufficientFunds)?;
+        }
     }
 
     Ok(())

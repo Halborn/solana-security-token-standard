@@ -271,18 +271,7 @@ impl TrimVerificationConfigArgs {
 
     /// Serialize to bytes using manual serialization (following SAS pattern)
     pub fn to_bytes_inner(&self) -> Vec<u8> {
-        let mut data = Vec::new();
-
-        // Write instruction discriminator (1 byte)
-        data.push(self.instruction_discriminator);
-
-        // Write size (1 byte)
-        data.push(self.size);
-
-        // Write close flag (1 byte: 1 for true, 0 for false)
-        data.push(if self.close { 1 } else { 0 });
-
-        data
+        vec![self.instruction_discriminator, self.size, self.close as u8]
     }
 
     /// Deserialize from bytes using manual deserialization (following SAS pattern)

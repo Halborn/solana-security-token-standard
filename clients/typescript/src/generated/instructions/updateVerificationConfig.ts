@@ -58,6 +58,9 @@ export type UpdateVerificationConfigInstruction<
   TAccountSystemProgram extends
     | string
     | AccountMeta<string> = '11111111111111111111111111111111',
+  TAccountAccountMetasPda extends string | AccountMeta<string> = string,
+  TAccountTransferHookPda extends string | AccountMeta<string> = string,
+  TAccountTransferHookProgram extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -85,6 +88,15 @@ export type UpdateVerificationConfigInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
+      TAccountAccountMetasPda extends string
+        ? WritableAccount<TAccountAccountMetasPda>
+        : TAccountAccountMetasPda,
+      TAccountTransferHookPda extends string
+        ? ReadonlyAccount<TAccountTransferHookPda>
+        : TAccountTransferHookPda,
+      TAccountTransferHookProgram extends string
+        ? ReadonlyAccount<TAccountTransferHookProgram>
+        : TAccountTransferHookProgram,
       ...TRemainingAccounts,
     ]
   >;
@@ -139,6 +151,9 @@ export type UpdateVerificationConfigInput<
   TAccountMintAccount extends string = string,
   TAccountConfigAccount extends string = string,
   TAccountSystemProgram extends string = string,
+  TAccountAccountMetasPda extends string = string,
+  TAccountTransferHookPda extends string = string,
+  TAccountTransferHookProgram extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
@@ -147,6 +162,9 @@ export type UpdateVerificationConfigInput<
   mintAccount: Address<TAccountMintAccount>;
   configAccount: Address<TAccountConfigAccount>;
   systemProgram?: Address<TAccountSystemProgram>;
+  accountMetasPda?: Address<TAccountAccountMetasPda>;
+  transferHookPda?: Address<TAccountTransferHookPda>;
+  transferHookProgram?: Address<TAccountTransferHookProgram>;
   updateVerificationConfigArgs: UpdateVerificationConfigInstructionDataArgs['updateVerificationConfigArgs'];
 };
 
@@ -158,6 +176,9 @@ export function getUpdateVerificationConfigInstruction<
   TAccountMintAccount extends string,
   TAccountConfigAccount extends string,
   TAccountSystemProgram extends string,
+  TAccountAccountMetasPda extends string,
+  TAccountTransferHookPda extends string,
+  TAccountTransferHookProgram extends string,
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
 >(
@@ -168,7 +189,10 @@ export function getUpdateVerificationConfigInstruction<
     TAccountPayer,
     TAccountMintAccount,
     TAccountConfigAccount,
-    TAccountSystemProgram
+    TAccountSystemProgram,
+    TAccountAccountMetasPda,
+    TAccountTransferHookPda,
+    TAccountTransferHookProgram
   >,
   config?: { programAddress?: TProgramAddress }
 ): UpdateVerificationConfigInstruction<
@@ -179,7 +203,10 @@ export function getUpdateVerificationConfigInstruction<
   TAccountPayer,
   TAccountMintAccount,
   TAccountConfigAccount,
-  TAccountSystemProgram
+  TAccountSystemProgram,
+  TAccountAccountMetasPda,
+  TAccountTransferHookPda,
+  TAccountTransferHookProgram
 > {
   // Program address.
   const programAddress =
@@ -200,6 +227,15 @@ export function getUpdateVerificationConfigInstruction<
     mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     configAccount: { value: input.configAccount ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    accountMetasPda: { value: input.accountMetasPda ?? null, isWritable: true },
+    transferHookPda: {
+      value: input.transferHookPda ?? null,
+      isWritable: false,
+    },
+    transferHookProgram: {
+      value: input.transferHookProgram ?? null,
+      isWritable: false,
+    },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -225,6 +261,9 @@ export function getUpdateVerificationConfigInstruction<
       getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.configAccount),
       getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.accountMetasPda),
+      getAccountMeta(accounts.transferHookPda),
+      getAccountMeta(accounts.transferHookProgram),
     ],
     data: getUpdateVerificationConfigInstructionDataEncoder().encode(
       args as UpdateVerificationConfigInstructionDataArgs
@@ -238,7 +277,10 @@ export function getUpdateVerificationConfigInstruction<
     TAccountPayer,
     TAccountMintAccount,
     TAccountConfigAccount,
-    TAccountSystemProgram
+    TAccountSystemProgram,
+    TAccountAccountMetasPda,
+    TAccountTransferHookPda,
+    TAccountTransferHookProgram
   >);
 }
 
@@ -255,6 +297,9 @@ export type ParsedUpdateVerificationConfigInstruction<
     mintAccount: TAccountMetas[4];
     configAccount: TAccountMetas[5];
     systemProgram: TAccountMetas[6];
+    accountMetasPda?: TAccountMetas[7] | undefined;
+    transferHookPda?: TAccountMetas[8] | undefined;
+    transferHookProgram?: TAccountMetas[9] | undefined;
   };
   data: UpdateVerificationConfigInstructionData;
 };
@@ -267,7 +312,7 @@ export function parseUpdateVerificationConfigInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
 ): ParsedUpdateVerificationConfigInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 7) {
+  if (instruction.accounts.length < 10) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -276,6 +321,12 @@ export function parseUpdateVerificationConfigInstruction<
     const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
     accountIndex += 1;
     return accountMeta;
+  };
+  const getNextOptionalAccount = () => {
+    const accountMeta = getNextAccount();
+    return accountMeta.address === SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS
+      ? undefined
+      : accountMeta;
   };
   return {
     programAddress: instruction.programAddress,
@@ -287,6 +338,9 @@ export function parseUpdateVerificationConfigInstruction<
       mintAccount: getNextAccount(),
       configAccount: getNextAccount(),
       systemProgram: getNextAccount(),
+      accountMetasPda: getNextOptionalAccount(),
+      transferHookPda: getNextOptionalAccount(),
+      transferHookProgram: getNextOptionalAccount(),
     },
     data: getUpdateVerificationConfigInstructionDataDecoder().decode(
       instruction.data

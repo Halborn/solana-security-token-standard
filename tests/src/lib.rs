@@ -1,7 +1,7 @@
 //! Security Token Standard Test Suite
 
 #[cfg(test)]
-pub mod integration_tests;
+pub mod core_instruction_tests;
 
 #[cfg(test)]
 pub mod verification_tests;
@@ -10,7 +10,7 @@ pub mod verification_tests;
 pub mod helpers;
 
 #[cfg(test)]
-pub mod operations;
+pub mod operation_tests;
 
 #[cfg(test)]
 pub mod rate_tests;
