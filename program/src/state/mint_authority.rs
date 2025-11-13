@@ -128,7 +128,7 @@ impl MintAuthority {
     }
 
     /// Derive the PDA address for this MintAuthority using stored bump seed
-    /// 
+    ///
     /// # Returns
     /// The derived PDA address or an error if derivation fails
     pub fn derive_pda(&self) -> Result<Pubkey, ProgramError> {
