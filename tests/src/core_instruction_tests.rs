@@ -8,7 +8,9 @@ use security_token_client::instructions::{
 };
 use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
 
-use crate::helpers::{assert_transaction_success, initialize_mint, initialize_verification_config};
+use crate::helpers::{
+    assert_transaction_success, initialize_mint, initialize_verification_config, send_tx,
+};
 use security_token_client::types::{
     InitializeMintArgs, InitializeVerificationConfigArgs, MetadataPointerArgs, MintArgs,
     ScaledUiAmountConfigArgs, TokenMetadataArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
@@ -55,7 +57,7 @@ async fn test_program_loads() {
 async fn test_unknown_instruction_discriminator() {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(true);
-    let (banks_client, payer, recent_blockhash) = pt.start().await;
+    let (banks_client, payer, _recent_blockhash) = pt.start().await;
 
     let unknown_discriminator = 99u8;
     let instruction_data = vec![unknown_discriminator];
@@ -65,11 +67,14 @@ async fn test_unknown_instruction_discriminator() {
         accounts: vec![],
         data: instruction_data,
     };
-    let mut transaction =
-        solana_sdk::transaction::Transaction::new_with_payer(&[instruction], Some(&payer.pubkey()));
-    transaction.sign(&[&payer], recent_blockhash);
 
-    let result = banks_client.process_transaction(transaction).await;
+    let result = send_tx(
+        &banks_client,
+        vec![instruction],
+        &payer.pubkey(),
+        vec![&payer],
+    )
+    .await;
     let error = result.unwrap_err();
     let error_string = format!("{:?}", error);
     assert!(
@@ -480,20 +485,14 @@ async fn test_update_metadata() {
         .update_metadata_args(update_metadata_args)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
-    let tx_update_metadata = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[update_metadata_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
     // Process transaction
-    let result = context
-        .banks_client
-        .process_transaction(tx_update_metadata)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![update_metadata_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
 
     assert_transaction_success(result);
 
@@ -754,7 +753,6 @@ async fn test_verification_config() {
     // Create mint keypair - we need this to derive the verification config PDA
     let mint_keypair = solana_sdk::signature::Keypair::new();
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let (mint_authority_pda, _bump) = Pubkey::find_program_address(
         &[
             b"mint.authority",
@@ -884,14 +882,13 @@ async fn test_verification_config() {
         .update_verification_config_args(update_verification_config_args)
         .instruction();
 
-    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[update_config_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context.banks_client.process_transaction(transaction).await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![update_config_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     // Verify the updated configuration
@@ -955,17 +952,13 @@ async fn test_verification_config() {
         .trim_verification_config_args(trim_verification_config_args)
         .instruction();
 
-    let trim_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[trim_verification_config_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(trim_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![trim_verification_config_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
 
     assert_transaction_success(result);
 
@@ -1036,14 +1029,13 @@ async fn test_verification_config() {
     // Get config account balance before closing
     let config_balance_before_close = trimmed_config_account.lamports;
 
-    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[close_verification_config_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context.banks_client.process_transaction(transaction).await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![close_verification_config_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     // Verify the account was closed

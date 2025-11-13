@@ -123,8 +123,6 @@ async fn test_basic_t22_operations() {
         verification_configs.push(verification_config_pda);
     }
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
     let create_destination_account_ix =
         spl_associated_token_account::instruction::create_associated_token_account_idempotent(
             &context.payer.pubkey(),
@@ -133,17 +131,13 @@ async fn test_basic_t22_operations() {
             &TOKEN_22_PROGRAM_ID,
         );
 
-    let create_destination_account_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[create_destination_account_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(create_destination_account_tx)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![create_destination_account_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
 
     assert_transaction_success(result);
 
@@ -160,19 +154,13 @@ async fn test_basic_t22_operations() {
         .amount(1_000_000)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
-    let mint_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[mint_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(mint_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![mint_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     let mint_state_after = get_mint_state(&mut context.banks_client, mint_keypair.pubkey()).await;
@@ -197,18 +185,13 @@ async fn test_basic_t22_operations() {
         .amount(500_000)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
-    let burn_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[burn_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-    let result = context
-        .banks_client
-        .process_transaction(burn_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![burn_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     let mint_state_after_burn =
@@ -227,17 +210,13 @@ async fn test_basic_t22_operations() {
         .token_account(destination_account)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let freeze_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[freeze_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-    let result = context
-        .banks_client
-        .process_transaction(freeze_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![freeze_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     let frozen_account =
@@ -252,16 +231,13 @@ async fn test_basic_t22_operations() {
         .token_account(destination_account)
         .instruction();
 
-    let thaw_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[thaw_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-    let result = context
-        .banks_client
-        .process_transaction(thaw_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![thaw_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
     let thawed_account =
         get_token_account_state(&mut context.banks_client, destination_account).await;
@@ -309,8 +285,6 @@ async fn test_t22_extension_operations() {
     )
     .await;
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
     let (pause_authority_pda, _bump) = Pubkey::find_program_address(
         &[b"mint.pause_authority", &mint_keypair.pubkey().to_bytes()],
         &SECURITY_TOKEN_PROGRAM_ID,
@@ -346,17 +320,14 @@ async fn test_t22_extension_operations() {
         .pause_authority(pause_authority_pda)
         .instruction();
 
-    let pause_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[pause_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(pause_transaction)
-        .await;
+    // Pause the mint
+    let result = send_tx(
+        &context.banks_client,
+        vec![pause_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     let mint_state: StateWithExtensionsOwned<TokenMint> =
@@ -397,18 +368,13 @@ async fn test_t22_extension_operations() {
         .pause_authority(pause_authority_pda)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let resume_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[resume_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(resume_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![resume_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     let mint_state: StateWithExtensionsOwned<TokenMint> =
@@ -521,17 +487,13 @@ async fn test_t22_transfer_operations() {
         .amount(100_000)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let transfer_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[transfer_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-    let result = context
-        .banks_client
-        .process_transaction(transfer_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![transfer_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
     let destination_account_state =
         get_token_account_state(&mut context.banks_client, destination_account).await;
@@ -738,15 +700,13 @@ async fn test_p2p_transfer_direct_spl() {
     .await
     .expect("add extra metas");
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[spl_transfer_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &source_owner],
-        recent_blockhash,
-    );
-
-    let result = context.banks_client.process_transaction(transaction).await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![spl_transfer_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer, &source_owner],
+    )
+    .await;
     assert_transaction_success(result);
 
     let source_state = get_token_account_state(&mut context.banks_client, source_account).await;
