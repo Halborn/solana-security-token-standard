@@ -614,13 +614,6 @@ impl VerificationModule {
         verify_owner(mint_authority, program_id)?;
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
-        let (expected_pda, expected_bump) =
-            utils::find_mint_authority_pda(mint_info.key(), candidate_authority.key(), program_id);
-
-        if mint_authority.key() != &expected_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
-
         let data = mint_authority.try_borrow_data()?;
         if data.len() < MintAuthority::LEN {
             return Err(ProgramError::InvalidAccountData);
@@ -628,16 +621,16 @@ impl VerificationModule {
 
         let mint_authority_state = MintAuthority::try_from_bytes(&data)?;
 
-        if mint_authority_state.mint != *mint_info.key() {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let seeds = [
+            seeds::MINT_AUTHORITY,
+            mint_info.key().as_ref(),
+            candidate_authority.key().as_ref(),
+            &[mint_authority_state.bump],
+        ];
+        let expected_pda = checked_create_program_address(&seeds, program_id)?;
 
-        if mint_authority_state.mint_creator != *candidate_authority.key() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        if mint_authority_state.bump != expected_bump {
-            return Err(ProgramError::InvalidAccountData);
+        if mint_authority.key() != &expected_pda {
+            return Err(ProgramError::InvalidSeeds);
         }
 
         Ok(mint_info)
