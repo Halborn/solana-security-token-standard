@@ -9,6 +9,7 @@
 export * from './burn';
 export * from './closeRateAccount';
 export * from './convert';
+export * from './createProofAccount';
 export * from './createRateAccount';
 export * from './freeze';
 export * from './initializeMint';

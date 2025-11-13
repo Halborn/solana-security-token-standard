@@ -997,6 +997,63 @@
         "type": "u8",
         "value": 17
       }
+    },
+    {
+      "name": "CreateProofAccount",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvar",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "proofAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "createProofArgs",
+          "type": {
+            "defined": "CreateProofArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 18
+      }
     }
   ],
   "accounts": [
@@ -1272,6 +1329,32 @@
                 "defined": "ScaledUiAmountConfigArgs"
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateProofArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "actionId",
+            "type": "u64"
+          },
+          {
+            "name": "data",
+            "type": {
+              "vec": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            },
+            "attrs": [
+              "idl-type"
+            ]
           }
         ]
       }

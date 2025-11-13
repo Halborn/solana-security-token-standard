@@ -8,6 +8,7 @@
 
 export * from './closeRateArgs';
 export * from './convertArgs';
+export * from './createProofArgs';
 export * from './createRateArgs';
 export * from './initializeMintArgs';
 export * from './initializeVerificationConfigArgs';
