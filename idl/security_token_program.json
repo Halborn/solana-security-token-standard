@@ -1080,6 +1080,10 @@
             "type": "bool"
           },
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "verificationPrograms",
             "type": {
               "vec": "publicKey"

@@ -1,9 +1,10 @@
 //! Verification-related state structures
 
+use crate::constants::seeds::VERIFICATION_CONFIG;
 use crate::state::{
     AccountDeserialize, AccountSerialize, Discriminator, SecurityTokenDiscriminators,
 };
-use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
+use pinocchio::pubkey::{checked_create_program_address, Pubkey, PUBKEY_BYTES};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 use shank::ShankAccount;
 
@@ -13,7 +14,10 @@ use shank::ShankAccount;
 pub struct VerificationConfig {
     /// Instruction discriminator this config applies to
     pub instruction_discriminator: u8,
+    /// Indicates if this config is for CPI mode
     pub cpi_mode: bool,
+    /// PDA bump seed used for address derivation
+    pub bump: u8,
     /// Required verification programs
     pub verification_programs: Vec<Pubkey>,
 }
@@ -31,6 +35,9 @@ impl AccountSerialize for VerificationConfig {
 
         // Write cpi_mode (1 byte)
         data.push(self.cpi_mode as u8);
+
+        // Write bump (1 byte)
+        data.push(self.bump);
 
         // Write program count (4 bytes)
         data.extend(&(self.verification_programs.len() as u32).to_le_bytes());
@@ -60,6 +67,9 @@ impl AccountDeserialize for VerificationConfig {
         let cpi_mode = data[offset] != 0;
         offset += 1;
 
+        let bump = data[offset];
+        offset += 1;
+
         // Read program count (4 bytes)
         let program_count = u32::from_le_bytes(
             data[offset..offset + 4]
@@ -86,6 +96,7 @@ impl AccountDeserialize for VerificationConfig {
         let config = Self {
             instruction_discriminator,
             cpi_mode,
+            bump,
             verification_programs,
         };
 
@@ -101,11 +112,13 @@ impl VerificationConfig {
     pub fn new(
         instruction_discriminator: u8,
         cpi_mode: bool,
+        bump: u8,
         verification_program_addresses: &[Pubkey],
     ) -> Result<Self, ProgramError> {
         Ok(Self {
             instruction_discriminator,
             cpi_mode,
+            bump,
             verification_programs: verification_program_addresses.to_vec(),
         })
     }
@@ -129,6 +142,7 @@ impl VerificationConfig {
         1 // account discriminator
             + 1 // instruction discriminator
             + 1 // cpi_mode
+            + 1 // bump
             + 4 // vector length prefix
             + (self.verification_programs.len() * PUBKEY_BYTES)
     }
@@ -138,5 +152,22 @@ impl VerificationConfig {
         let config = VerificationConfig::try_from_bytes(&data)?;
         drop(data);
         Ok(config)
+    }
+
+    /// Derive the PDA address for this VerificationConfig using stored bump seed
+    ///
+    /// # Arguments
+    /// * `mint` - The mint address this config is associated with
+    ///
+    /// # Returns
+    /// The derived PDA address or an error if derivation fails
+    pub fn derive_pda(&self, mint: &Pubkey) -> Result<Pubkey, ProgramError> {
+        let seeds = [
+            VERIFICATION_CONFIG,
+            mint.as_ref(),
+            &[self.instruction_discriminator],
+            &[self.bump],
+        ];
+        checked_create_program_address(&seeds, &crate::id())
     }
 }

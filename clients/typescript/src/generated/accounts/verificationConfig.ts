@@ -39,6 +39,7 @@ export type VerificationConfig = {
   discriminator: number;
   instructionDiscriminator: number;
   cpiMode: boolean;
+  bump: number;
   verificationPrograms: Array<Address>;
 };
 
@@ -49,6 +50,7 @@ export function getVerificationConfigEncoder(): Encoder<VerificationConfigArgs> 
     ['discriminator', getU8Encoder()],
     ['instructionDiscriminator', getU8Encoder()],
     ['cpiMode', getBooleanEncoder()],
+    ['bump', getU8Encoder()],
     ['verificationPrograms', getArrayEncoder(getAddressEncoder())],
   ]);
 }
@@ -58,6 +60,7 @@ export function getVerificationConfigDecoder(): Decoder<VerificationConfig> {
     ['discriminator', getU8Decoder()],
     ['instructionDiscriminator', getU8Decoder()],
     ['cpiMode', getBooleanDecoder()],
+    ['bump', getU8Decoder()],
     ['verificationPrograms', getArrayDecoder(getAddressDecoder())],
   ]);
 }

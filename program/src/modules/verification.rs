@@ -613,13 +613,6 @@ impl VerificationModule {
         verify_owner(mint_authority, program_id)?;
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
-        let (expected_pda, expected_bump) =
-            utils::find_mint_authority_pda(mint_info.key(), candidate_authority.key(), program_id);
-
-        if mint_authority.key() != &expected_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
-
         let data = mint_authority.try_borrow_data()?;
         if data.len() < MintAuthority::LEN {
             return Err(ProgramError::InvalidAccountData);
@@ -627,6 +620,8 @@ impl VerificationModule {
 
         let mint_authority_state = MintAuthority::try_from_bytes(&data)?;
 
+        // CRITICAL: Verify that the authority is for the correct mint and signed by correct creator
+        // These checks prevent using a valid MintAuthority PDA for a different mint/creator combination
         if mint_authority_state.mint != *mint_info.key() {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -635,8 +630,11 @@ impl VerificationModule {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        if mint_authority_state.bump != expected_bump {
-            return Err(ProgramError::InvalidAccountData);
+        // Use stored bump with derive_pda for optimized PDA verification
+        let expected_pda = mint_authority_state.derive_pda()?;
+
+        if mint_authority.key() != &expected_pda {
+            return Err(ProgramError::InvalidSeeds);
         }
 
         Ok(mint_info)
@@ -664,16 +662,25 @@ impl VerificationModule {
         verify_owner(verification_config, program_id)?;
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
-        let (expected_pda, _bump) =
-            utils::find_verification_config_pda(mint_info.key(), ix_discriminator, program_id);
+        let config_data = VerificationConfig::from_account_info(verification_config)?;
 
-        if verification_config.key().ne(&expected_pda) {
+        // CRITICAL: Verify that the config is for the expected instruction discriminator
+        // This prevents instruction substitution attacks where attacker provides
+        // a valid VerificationConfig PDA for instruction X when code expects instruction Y
+        if config_data.instruction_discriminator != ix_discriminator {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Use stored bump with derive_pda for optimized PDA verification
+        // PDA derivation includes mint and instruction_discriminator in seeds,
+        // so successful verification cryptographically guarantees this config
+        // is for the correct mint and instruction type
+        let expected_config_pda = config_data.derive_pda(mint_info.key())?;
+
+        if verification_config.key().ne(&expected_config_pda) {
             return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
         }
-        let config_data = VerificationConfig::from_account_info(verification_config)?;
-        if config_data.instruction_discriminator != ix_discriminator {
-            return Err(ProgramError::InvalidInstructionData);
-        }
+
         if config_data.verification_programs.is_empty() {
             // If no verification programs configured, allow
             return Ok((mint_info, instruction_accounts));
@@ -875,7 +882,7 @@ impl VerificationModule {
 
         // Create the VerificationConfig data first to calculate exact size
         let config =
-            VerificationConfig::new(discriminator, args.cpi_mode, args.program_addresses())?;
+            VerificationConfig::new(discriminator, args.cpi_mode, bump, args.program_addresses())?;
 
         let account_size = config.serialized_size();
 
@@ -1090,9 +1097,9 @@ impl VerificationModule {
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
 
-        // Derive expected PDA address
-        let (expected_config_pda, _bump) =
-            utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
+        let config = VerificationConfig::from_account_info(config_account)?;
+
+        let expected_config_pda = config.derive_pda(mint_account.key())?;
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
@@ -1196,9 +1203,9 @@ impl VerificationModule {
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
 
-        // Derive expected PDA address
-        let (expected_config_pda, _bump) =
-            utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
+        let config = VerificationConfig::from_account_info(config_account)?;
+
+        let expected_config_pda = config.derive_pda(mint_account.key())?;
 
         // Verify that the provided config account matches the expected PDA
         if *config_account.key() != expected_config_pda {
