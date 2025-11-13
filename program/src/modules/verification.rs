@@ -555,7 +555,7 @@ impl VerificationModule {
         let mut instruction_data = Vec::with_capacity(1 + args.instruction_data.len());
         instruction_data.push(args.ix);
         instruction_data.extend_from_slice(&args.instruction_data);
-        Self::verify_by_programs(program_id, accounts, &instruction_data)?;
+        Self::verify_by_programs(program_id, accounts, args.ix, &instruction_data)?;
         Ok(())
     }
 
@@ -564,6 +564,7 @@ impl VerificationModule {
     pub fn verify_by_strategy<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
+        ix_discriminator: u8,
         instruction_data: &[u8],
     ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         let [mint_info, verification_config_or_mint_authority, instructions_sysvar_or_signer, _instruction_accounts @ ..] =
@@ -578,8 +579,12 @@ impl VerificationModule {
         let disc = SecurityTokenDiscriminators::try_from(*state_discriminator)?;
         match disc {
             SecurityTokenDiscriminators::VerificationConfigDiscriminator => {
-                let (mint_info, cleaned_accounts) =
-                    Self::verify_by_programs(program_id, accounts, instruction_data)?;
+                let (mint_info, cleaned_accounts) = Self::verify_by_programs(
+                    program_id,
+                    accounts,
+                    ix_discriminator,
+                    instruction_data,
+                )?;
                 Ok((mint_info, cleaned_accounts))
             }
             SecurityTokenDiscriminators::MintAuthorityDiscriminator => {
@@ -639,6 +644,7 @@ impl VerificationModule {
     pub fn verify_by_programs<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
+        ix_discriminator: u8,
         instruction_data: &[u8],
     ) -> Result<(&'a AccountInfo, &'a [AccountInfo]), ProgramError> {
         let [mint_info, verification_config, instructions_sysvar, instruction_accounts @ ..] =
@@ -658,9 +664,17 @@ impl VerificationModule {
 
         let config_data = VerificationConfig::from_account_info(verification_config)?;
 
+        // CRITICAL: Verify that the config is for the expected instruction discriminator
+        // This prevents instruction substitution attacks where attacker provides
+        // a valid VerificationConfig PDA for instruction X when code expects instruction Y
+        if config_data.instruction_discriminator != ix_discriminator {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         // Use stored bump with derive_pda for optimized PDA verification
-        // PDA derivation includes mint in seeds, so successful verification
-        // cryptographically guarantees this config is for the correct mint
+        // PDA derivation includes mint and instruction_discriminator in seeds,
+        // so successful verification cryptographically guarantees this config
+        // is for the correct mint and instruction type
         let expected_config_pda = config_data.derive_pda(mint_info.key())?;
 
         if verification_config.key().ne(&expected_config_pda) {
