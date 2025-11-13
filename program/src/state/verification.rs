@@ -14,7 +14,9 @@ use shank::ShankAccount;
 pub struct VerificationConfig {
     /// Instruction discriminator this config applies to
     pub instruction_discriminator: u8,
+    /// Indicates if this config is for CPI mode
     pub cpi_mode: bool,
+    /// PDA bump seed used for address derivation
     pub bump: u8,
     /// Required verification programs
     pub verification_programs: Vec<Pubkey>,
@@ -152,6 +154,13 @@ impl VerificationConfig {
         Ok(config)
     }
 
+    /// Derive the PDA address for this VerificationConfig using stored bump seed
+    ///
+    /// # Arguments
+    /// * `mint` - The mint address this config is associated with
+    ///
+    /// # Returns
+    /// The derived PDA address or an error if derivation fails
     pub fn derive_pda(&self, mint: &Pubkey) -> Result<Pubkey, ProgramError> {
         let seeds = [
             VERIFICATION_CONFIG,
