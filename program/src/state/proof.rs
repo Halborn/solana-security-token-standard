@@ -1,4 +1,4 @@
-//! Receipt account state
+//! Proof account state
 use pinocchio::{
     instruction::Seed,
     program_error::ProgramError,
@@ -17,6 +17,7 @@ use crate::{
 };
 
 type MerkleTreeNode = [u8; MERKLE_TREE_NODE_LEN];
+pub type ProofData = Vec<MerkleTreeNode>;
 
 #[repr(C)]
 #[derive(Debug, ShankAccount)]
@@ -25,7 +26,82 @@ pub struct Proof {
     bump: u8,
     /// Merkle proof data
     #[idl_type("Vec<[u8; 32]>")]
-    data: Vec<MerkleTreeNode>,
+    data: ProofData,
+}
+
+pub trait ProofDataDeserializer {
+    fn error() -> ProgramError;
+
+    fn try_proof_data_from_bytes(data: &[u8]) -> Result<ProofData, ProgramError> {
+        if data.len() < Proof::VEC_LEN_PREFIX {
+            return Err(Self::error());
+        }
+
+        let proof_nodes_len = u32::from_le_bytes(
+            data[0..Proof::VEC_LEN_PREFIX]
+                .try_into()
+                .map_err(|_| Self::error())?,
+        ) as usize;
+
+        if proof_nodes_len == 0 {
+            return Err(Self::error());
+        }
+
+        if data.len() < Proof::VEC_LEN_PREFIX + (proof_nodes_len * MERKLE_TREE_NODE_LEN) {
+            return Err(Self::error());
+        }
+
+        let mut proof_data: Vec<MerkleTreeNode> = Vec::with_capacity(proof_nodes_len);
+
+        let mut offset = Proof::VEC_LEN_PREFIX;
+        for _ in 0..proof_nodes_len {
+            let node_chunk =
+                <MerkleTreeNode>::try_from(&data[offset..offset + MERKLE_TREE_NODE_LEN])
+                    .map_err(|_| Self::error())?;
+
+            proof_data.push(node_chunk);
+            offset += MERKLE_TREE_NODE_LEN;
+        }
+
+        Ok(proof_data)
+    }
+}
+
+pub trait ProofDataValidator {
+    fn error() -> ProgramError;
+
+    /// Validate proof data length is sufficient
+    fn validate_proof_data_len(data: &ProofData) -> ProgramResult {
+        if data.is_empty() {
+            return Err(Self::error());
+        }
+
+        Ok(())
+    }
+    /// Validate each proof node is non-zero
+    fn validate_proof_node_data(proof_data: &ProofData) -> ProgramResult {
+        let zero_proof_node = [0u8; MERKLE_TREE_NODE_LEN];
+        proof_data.iter().try_for_each(|node| {
+            if node.eq(&zero_proof_node) {
+                return Err(Self::error());
+            }
+            Ok(())
+        })?;
+
+        Ok(())
+    }
+}
+
+impl ProofDataValidator for Proof {
+    fn error() -> ProgramError {
+        ProgramError::InvalidAccountData
+    }
+}
+
+impl ProofDataDeserializer for Proof {
+    fn error() -> ProgramError {
+        ProgramError::InvalidAccountData
+    }
 }
 
 impl Discriminator for Proof {
@@ -54,28 +130,7 @@ impl AccountDeserialize for Proof {
         let bump = data[offset];
         offset += 1;
 
-        // Read proofs len (first 4 bytes)
-        let proof_nodes_len = u32::from_le_bytes(
-            data[offset..(offset + Self::VEC_LEN_PREFIX)]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidAccountData)?,
-        ) as usize;
-        offset += Self::VEC_LEN_PREFIX;
-
-        if data.len() < offset + (proof_nodes_len * MERKLE_TREE_NODE_LEN) {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let mut proof_data: Vec<MerkleTreeNode> = Vec::with_capacity(proof_nodes_len);
-
-        for _ in 0..proof_nodes_len {
-            let node_chunk =
-                <MerkleTreeNode>::try_from(&data[offset..offset + MERKLE_TREE_NODE_LEN])
-                    .map_err(|_| ProgramError::InvalidAccountData)?;
-
-            proof_data.push(node_chunk);
-            offset += MERKLE_TREE_NODE_LEN;
-        }
+        let proof_data = Self::try_proof_data_from_bytes(&data[offset..])?;
 
         Ok(Self {
             bump,
@@ -113,17 +168,8 @@ impl Proof {
 
     /// Validate the proof data
     pub fn validate(&self) -> ProgramResult {
-        if self.data.is_empty() {
-            return Err(ProgramError::InvalidAccountData);
-        };
-
-        let zero_proof_node = [0u8; MERKLE_TREE_NODE_LEN];
-        self.data.iter().try_for_each(|node| {
-            if node.eq(&zero_proof_node) {
-                return Err(ProgramError::InvalidAccountData);
-            }
-            Ok(())
-        })?;
+        Self::validate_proof_data_len(&self.data)?;
+        Self::validate_proof_node_data(&self.data)?;
 
         Ok(())
     }

@@ -11,10 +11,10 @@ use crate::modules::{
     verify_operation_mint_info, verify_owner, verify_pda, verify_signer, verify_system_program,
     verify_token22_program, verify_writable,
 };
-use crate::state::{MintAuthority, ProgramAccount, Rate, Receipt, Rounding};
+use crate::state::{MintAuthority, ProgramAccount, Proof, ProofData, Rate, Receipt, Rounding};
 use crate::utils::{
     find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda,
-    find_rate_pda, find_receipt_pda,
+    find_proof_pda, find_rate_pda, find_receipt_pda,
 };
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
@@ -659,6 +659,47 @@ impl OperationsModule {
             action_id,
             receipt_bump,
         )?;
+
+        Ok(())
+    }
+
+    /// Execute token conversion at predefined rate
+    pub fn execute_create_proof_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+        proof_data: ProofData,
+    ) -> ProgramResult {
+        let [payer, mint_account, proof_account, token_account, system_program_info] = accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_signer(payer)?;
+        verify_writable(payer)?;
+        verify_account_not_initialized(proof_account)?;
+        verify_writable(proof_account)?;
+        verify_system_program(system_program_info)?;
+
+        let token = TokenAccount::from_account_info(token_account)?;
+        // Verify token account belongs to the mint
+        let token_account_key = token_account.key();
+        if token.mint().ne(mint_account.key()) {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let (expected_proof_pda, bump) = find_proof_pda(token_account_key, action_id, program_id);
+        verify_pda(proof_account.key(), &expected_proof_pda)?;
+
+        // Create Proof account
+        let proof = Proof::new(&proof_data, bump)?;
+        let action_id_seed = &action_id.to_le_bytes();
+        let bump_seed = &proof.bump_seed();
+        let seeds = proof.seeds(token_account_key, action_id_seed, bump_seed);
+        proof.init(payer, proof_account, &seeds)?;
+        proof.write_data(proof_account)?;
 
         Ok(())
     }
