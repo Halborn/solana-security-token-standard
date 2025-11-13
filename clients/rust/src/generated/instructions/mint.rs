@@ -19,9 +19,9 @@ pub struct Mint {
 
     pub instructions_sysvar: solana_pubkey::Pubkey,
 
-    pub mint_account: solana_pubkey::Pubkey,
-
     pub mint_authority: solana_pubkey::Pubkey,
+
+    pub mint_account: solana_pubkey::Pubkey,
 
     pub destination: solana_pubkey::Pubkey,
 
@@ -52,11 +52,11 @@ impl Mint {
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
-            self.mint_account,
+            self.mint_authority,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
-            self.mint_authority,
+            self.mint_account,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
@@ -111,8 +111,8 @@ pub struct MintInstructionArgs {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
-///   3. `[writable]` mint_account
-///   4. `[writable]` mint_authority
+///   3. `[writable]` mint_authority
+///   4. `[writable]` mint_account
 ///   5. `[writable]` destination
 ///   6. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 #[derive(Clone, Debug, Default)]
@@ -120,8 +120,8 @@ pub struct MintBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config: Option<solana_pubkey::Pubkey>,
     instructions_sysvar: Option<solana_pubkey::Pubkey>,
-    mint_account: Option<solana_pubkey::Pubkey>,
     mint_authority: Option<solana_pubkey::Pubkey>,
+    mint_account: Option<solana_pubkey::Pubkey>,
     destination: Option<solana_pubkey::Pubkey>,
     token_program: Option<solana_pubkey::Pubkey>,
     amount: Option<u64>,
@@ -149,13 +149,13 @@ impl MintBuilder {
         self
     }
     #[inline(always)]
-    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.mint_account = Some(mint_account);
+    pub fn mint_authority(&mut self, mint_authority: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_authority = Some(mint_authority);
         self
     }
     #[inline(always)]
-    pub fn mint_authority(&mut self, mint_authority: solana_pubkey::Pubkey) -> &mut Self {
-        self.mint_authority = Some(mint_authority);
+    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_account = Some(mint_account);
         self
     }
     #[inline(always)]
@@ -199,8 +199,8 @@ impl MintBuilder {
             instructions_sysvar: self.instructions_sysvar.unwrap_or(solana_pubkey::pubkey!(
                 "Sysvar1nstructions1111111111111111111111111"
             )),
-            mint_account: self.mint_account.expect("mint_account is not set"),
             mint_authority: self.mint_authority.expect("mint_authority is not set"),
+            mint_account: self.mint_account.expect("mint_account is not set"),
             destination: self.destination.expect("destination is not set"),
             token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
                 "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
@@ -222,9 +222,9 @@ pub struct MintCpiAccounts<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
+
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub destination: &'b solana_account_info::AccountInfo<'a>,
 
@@ -242,9 +242,9 @@ pub struct MintCpi<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
+
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub destination: &'b solana_account_info::AccountInfo<'a>,
 
@@ -264,8 +264,8 @@ impl<'a, 'b> MintCpi<'a, 'b> {
             mint: accounts.mint,
             verification_config: accounts.verification_config,
             instructions_sysvar: accounts.instructions_sysvar,
-            mint_account: accounts.mint_account,
             mint_authority: accounts.mint_authority,
+            mint_account: accounts.mint_account,
             destination: accounts.destination,
             token_program: accounts.token_program,
             __args: args,
@@ -308,11 +308,11 @@ impl<'a, 'b> MintCpi<'a, 'b> {
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
-            *self.mint_account.key,
+            *self.mint_authority.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
-            *self.mint_authority.key,
+            *self.mint_account.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new(
@@ -344,8 +344,8 @@ impl<'a, 'b> MintCpi<'a, 'b> {
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config.clone());
         account_infos.push(self.instructions_sysvar.clone());
-        account_infos.push(self.mint_account.clone());
         account_infos.push(self.mint_authority.clone());
+        account_infos.push(self.mint_account.clone());
         account_infos.push(self.destination.clone());
         account_infos.push(self.token_program.clone());
         remaining_accounts
@@ -367,8 +367,8 @@ impl<'a, 'b> MintCpi<'a, 'b> {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
-///   3. `[writable]` mint_account
-///   4. `[writable]` mint_authority
+///   3. `[writable]` mint_authority
+///   4. `[writable]` mint_account
 ///   5. `[writable]` destination
 ///   6. `[]` token_program
 #[derive(Clone, Debug)]
@@ -383,8 +383,8 @@ impl<'a, 'b> MintCpiBuilder<'a, 'b> {
             mint: None,
             verification_config: None,
             instructions_sysvar: None,
-            mint_account: None,
             mint_authority: None,
+            mint_account: None,
             destination: None,
             token_program: None,
             amount: None,
@@ -414,19 +414,19 @@ impl<'a, 'b> MintCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn mint_account(
-        &mut self,
-        mint_account: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.mint_account = Some(mint_account);
-        self
-    }
-    #[inline(always)]
     pub fn mint_authority(
         &mut self,
         mint_authority: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.mint_authority = Some(mint_authority);
+        self
+    }
+    #[inline(always)]
+    pub fn mint_account(
+        &mut self,
+        mint_account: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.mint_account = Some(mint_account);
         self
     }
     #[inline(always)]
@@ -502,15 +502,15 @@ impl<'a, 'b> MintCpiBuilder<'a, 'b> {
                 .instructions_sysvar
                 .expect("instructions_sysvar is not set"),
 
-            mint_account: self
-                .instruction
-                .mint_account
-                .expect("mint_account is not set"),
-
             mint_authority: self
                 .instruction
                 .mint_authority
                 .expect("mint_authority is not set"),
+
+            mint_account: self
+                .instruction
+                .mint_account
+                .expect("mint_account is not set"),
 
             destination: self
                 .instruction
@@ -536,8 +536,8 @@ struct MintCpiBuilderInstruction<'a, 'b> {
     mint: Option<&'b solana_account_info::AccountInfo<'a>>,
     verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
-    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     destination: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     amount: Option<u64>,

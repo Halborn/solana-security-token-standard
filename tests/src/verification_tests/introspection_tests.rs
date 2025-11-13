@@ -1,8 +1,11 @@
-use crate::{helpers::{
-    assert_security_token_error, assert_transaction_success, find_mint_authority_pda,
-    find_mint_freeze_authority_pda, find_verification_config_pda, initialize_mint,
-    initialize_verification_config, send_tx,
-}, verification_tests::verification_helpers::dummy_program_processor};
+use crate::{
+    helpers::{
+        assert_security_token_error, assert_transaction_success, find_mint_authority_pda,
+        find_mint_freeze_authority_pda, find_verification_config_pda, initialize_mint,
+        initialize_verification_config, send_tx,
+    },
+    verification_tests::verification_helpers::dummy_program_processor,
+};
 use borsh::BorshSerialize;
 use rstest::*;
 use security_token_client::{
@@ -552,9 +555,9 @@ async fn test_update_metadata_under_verification() {
         Instruction {
             program_id: dummy_program_1_id,
             accounts: vec![
-                AccountMeta::new_readonly(mint_keypair.pubkey(), false),
                 AccountMeta::new_readonly(mint_authority_pda, false),
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
+                AccountMeta::new_readonly(mint_keypair.pubkey(), false),
                 AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
@@ -563,9 +566,9 @@ async fn test_update_metadata_under_verification() {
         Instruction {
             program_id: dummy_program_2_id,
             accounts: vec![
-                AccountMeta::new_readonly(mint_keypair.pubkey(), false),
                 AccountMeta::new_readonly(mint_authority_pda, false),
                 AccountMeta::new_readonly(context.payer.pubkey(), false),
+                AccountMeta::new_readonly(mint_keypair.pubkey(), false),
                 AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],

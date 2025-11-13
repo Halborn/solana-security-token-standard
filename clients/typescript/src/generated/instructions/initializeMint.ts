@@ -46,8 +46,8 @@ export function getInitializeMintDiscriminatorBytes() {
 export type InitializeMintInstruction<
   TProgram extends string = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
   TAccountMint extends string | AccountMeta<string> = string,
-  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountAuthority extends string | AccountMeta<string> = string,
+  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
     | AccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
@@ -65,13 +65,13 @@ export type InitializeMintInstruction<
       TAccountMint extends string
         ? WritableSignerAccount<TAccountMint> & AccountSignerMeta<TAccountMint>
         : TAccountMint,
+      TAccountAuthority extends string
+        ? WritableAccount<TAccountAuthority>
+        : TAccountAuthority,
       TAccountPayer extends string
         ? WritableSignerAccount<TAccountPayer> &
             AccountSignerMeta<TAccountPayer>
         : TAccountPayer,
-      TAccountAuthority extends string
-        ? WritableAccount<TAccountAuthority>
-        : TAccountAuthority,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
@@ -123,15 +123,15 @@ export function getInitializeMintInstructionDataCodec(): Codec<
 
 export type InitializeMintInput<
   TAccountMint extends string = string,
-  TAccountPayer extends string = string,
   TAccountAuthority extends string = string,
+  TAccountPayer extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
   TAccountRentSysvar extends string = string,
 > = {
   mint: TransactionSigner<TAccountMint>;
-  payer: TransactionSigner<TAccountPayer>;
   authority: Address<TAccountAuthority>;
+  payer: TransactionSigner<TAccountPayer>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   rentSysvar?: Address<TAccountRentSysvar>;
@@ -140,8 +140,8 @@ export type InitializeMintInput<
 
 export function getInitializeMintInstruction<
   TAccountMint extends string,
-  TAccountPayer extends string,
   TAccountAuthority extends string,
+  TAccountPayer extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
   TAccountRentSysvar extends string,
@@ -150,8 +150,8 @@ export function getInitializeMintInstruction<
 >(
   input: InitializeMintInput<
     TAccountMint,
-    TAccountPayer,
     TAccountAuthority,
+    TAccountPayer,
     TAccountTokenProgram,
     TAccountSystemProgram,
     TAccountRentSysvar
@@ -160,8 +160,8 @@ export function getInitializeMintInstruction<
 ): InitializeMintInstruction<
   TProgramAddress,
   TAccountMint,
-  TAccountPayer,
   TAccountAuthority,
+  TAccountPayer,
   TAccountTokenProgram,
   TAccountSystemProgram,
   TAccountRentSysvar
@@ -173,8 +173,8 @@ export function getInitializeMintInstruction<
   // Original accounts.
   const originalAccounts = {
     mint: { value: input.mint ?? null, isWritable: true },
-    payer: { value: input.payer ?? null, isWritable: true },
     authority: { value: input.authority ?? null, isWritable: true },
+    payer: { value: input.payer ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     rentSysvar: { value: input.rentSysvar ?? null, isWritable: false },
@@ -205,8 +205,8 @@ export function getInitializeMintInstruction<
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.mint),
-      getAccountMeta(accounts.payer),
       getAccountMeta(accounts.authority),
+      getAccountMeta(accounts.payer),
       getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.rentSysvar),
@@ -218,8 +218,8 @@ export function getInitializeMintInstruction<
   } as InitializeMintInstruction<
     TProgramAddress,
     TAccountMint,
-    TAccountPayer,
     TAccountAuthority,
+    TAccountPayer,
     TAccountTokenProgram,
     TAccountSystemProgram,
     TAccountRentSysvar
@@ -233,8 +233,8 @@ export type ParsedInitializeMintInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     mint: TAccountMetas[0];
-    payer: TAccountMetas[1];
-    authority: TAccountMetas[2];
+    authority: TAccountMetas[1];
+    payer: TAccountMetas[2];
     tokenProgram: TAccountMetas[3];
     systemProgram: TAccountMetas[4];
     rentSysvar: TAccountMetas[5];
@@ -264,8 +264,8 @@ export function parseInitializeMintInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       mint: getNextAccount(),
-      payer: getNextAccount(),
       authority: getNextAccount(),
+      payer: getNextAccount(),
       tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
       rentSysvar: getNextAccount(),

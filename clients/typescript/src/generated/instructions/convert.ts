@@ -50,12 +50,13 @@ export type ConvertInstruction<
   TAccountInstructionsSysvar extends
     | string
     | AccountMeta<string> = 'Sysvar1nstructions1111111111111111111111111',
+  TAccountMintAuthority extends string | AccountMeta<string> = string,
+  TAccountPermanentDelegate extends string | AccountMeta<string> = string,
+  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountMintFrom extends string | AccountMeta<string> = string,
   TAccountMintTo extends string | AccountMeta<string> = string,
   TAccountTokenAccountFrom extends string | AccountMeta<string> = string,
   TAccountTokenAccountTo extends string | AccountMeta<string> = string,
-  TAccountMintAuthority extends string | AccountMeta<string> = string,
-  TAccountPermanentDelegate extends string | AccountMeta<string> = string,
   TAccountRateAccount extends string | AccountMeta<string> = string,
   TAccountReceiptAccount extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
@@ -64,7 +65,6 @@ export type ConvertInstruction<
   TAccountSystemProgram extends
     | string
     | AccountMeta<string> = '11111111111111111111111111111111',
-  TAccountPayer extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -79,6 +79,16 @@ export type ConvertInstruction<
       TAccountInstructionsSysvar extends string
         ? ReadonlyAccount<TAccountInstructionsSysvar>
         : TAccountInstructionsSysvar,
+      TAccountMintAuthority extends string
+        ? ReadonlyAccount<TAccountMintAuthority>
+        : TAccountMintAuthority,
+      TAccountPermanentDelegate extends string
+        ? ReadonlyAccount<TAccountPermanentDelegate>
+        : TAccountPermanentDelegate,
+      TAccountPayer extends string
+        ? WritableSignerAccount<TAccountPayer> &
+            AccountSignerMeta<TAccountPayer>
+        : TAccountPayer,
       TAccountMintFrom extends string
         ? WritableAccount<TAccountMintFrom>
         : TAccountMintFrom,
@@ -91,12 +101,6 @@ export type ConvertInstruction<
       TAccountTokenAccountTo extends string
         ? WritableAccount<TAccountTokenAccountTo>
         : TAccountTokenAccountTo,
-      TAccountMintAuthority extends string
-        ? ReadonlyAccount<TAccountMintAuthority>
-        : TAccountMintAuthority,
-      TAccountPermanentDelegate extends string
-        ? ReadonlyAccount<TAccountPermanentDelegate>
-        : TAccountPermanentDelegate,
       TAccountRateAccount extends string
         ? ReadonlyAccount<TAccountRateAccount>
         : TAccountRateAccount,
@@ -109,10 +113,6 @@ export type ConvertInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      TAccountPayer extends string
-        ? WritableSignerAccount<TAccountPayer> &
-            AccountSignerMeta<TAccountPayer>
-        : TAccountPayer,
       ...TRemainingAccounts,
     ]
   >;
@@ -155,32 +155,32 @@ export type ConvertInput<
   TAccountMint extends string = string,
   TAccountVerificationConfig extends string = string,
   TAccountInstructionsSysvar extends string = string,
+  TAccountMintAuthority extends string = string,
+  TAccountPermanentDelegate extends string = string,
+  TAccountPayer extends string = string,
   TAccountMintFrom extends string = string,
   TAccountMintTo extends string = string,
   TAccountTokenAccountFrom extends string = string,
   TAccountTokenAccountTo extends string = string,
-  TAccountMintAuthority extends string = string,
-  TAccountPermanentDelegate extends string = string,
   TAccountRateAccount extends string = string,
   TAccountReceiptAccount extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
-  TAccountPayer extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
+  mintAuthority: Address<TAccountMintAuthority>;
+  permanentDelegate: Address<TAccountPermanentDelegate>;
+  payer: TransactionSigner<TAccountPayer>;
   mintFrom: Address<TAccountMintFrom>;
   mintTo: Address<TAccountMintTo>;
   tokenAccountFrom: Address<TAccountTokenAccountFrom>;
   tokenAccountTo: Address<TAccountTokenAccountTo>;
-  mintAuthority: Address<TAccountMintAuthority>;
-  permanentDelegate: Address<TAccountPermanentDelegate>;
   rateAccount: Address<TAccountRateAccount>;
   receiptAccount: Address<TAccountReceiptAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
-  payer: TransactionSigner<TAccountPayer>;
   convertArgs: ConvertInstructionDataArgs['convertArgs'];
 };
 
@@ -188,17 +188,17 @@ export function getConvertInstruction<
   TAccountMint extends string,
   TAccountVerificationConfig extends string,
   TAccountInstructionsSysvar extends string,
+  TAccountMintAuthority extends string,
+  TAccountPermanentDelegate extends string,
+  TAccountPayer extends string,
   TAccountMintFrom extends string,
   TAccountMintTo extends string,
   TAccountTokenAccountFrom extends string,
   TAccountTokenAccountTo extends string,
-  TAccountMintAuthority extends string,
-  TAccountPermanentDelegate extends string,
   TAccountRateAccount extends string,
   TAccountReceiptAccount extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
-  TAccountPayer extends string,
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
 >(
@@ -206,17 +206,17 @@ export function getConvertInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
+    TAccountMintAuthority,
+    TAccountPermanentDelegate,
+    TAccountPayer,
     TAccountMintFrom,
     TAccountMintTo,
     TAccountTokenAccountFrom,
     TAccountTokenAccountTo,
-    TAccountMintAuthority,
-    TAccountPermanentDelegate,
     TAccountRateAccount,
     TAccountReceiptAccount,
     TAccountTokenProgram,
-    TAccountSystemProgram,
-    TAccountPayer
+    TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress }
 ): ConvertInstruction<
@@ -224,17 +224,17 @@ export function getConvertInstruction<
   TAccountMint,
   TAccountVerificationConfig,
   TAccountInstructionsSysvar,
+  TAccountMintAuthority,
+  TAccountPermanentDelegate,
+  TAccountPayer,
   TAccountMintFrom,
   TAccountMintTo,
   TAccountTokenAccountFrom,
   TAccountTokenAccountTo,
-  TAccountMintAuthority,
-  TAccountPermanentDelegate,
   TAccountRateAccount,
   TAccountReceiptAccount,
   TAccountTokenProgram,
-  TAccountSystemProgram,
-  TAccountPayer
+  TAccountSystemProgram
 > {
   // Program address.
   const programAddress =
@@ -251,6 +251,12 @@ export function getConvertInstruction<
       value: input.instructionsSysvar ?? null,
       isWritable: false,
     },
+    mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
+    permanentDelegate: {
+      value: input.permanentDelegate ?? null,
+      isWritable: false,
+    },
+    payer: { value: input.payer ?? null, isWritable: true },
     mintFrom: { value: input.mintFrom ?? null, isWritable: true },
     mintTo: { value: input.mintTo ?? null, isWritable: true },
     tokenAccountFrom: {
@@ -258,16 +264,10 @@ export function getConvertInstruction<
       isWritable: true,
     },
     tokenAccountTo: { value: input.tokenAccountTo ?? null, isWritable: true },
-    mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
-    permanentDelegate: {
-      value: input.permanentDelegate ?? null,
-      isWritable: false,
-    },
     rateAccount: { value: input.rateAccount ?? null, isWritable: false },
     receiptAccount: { value: input.receiptAccount ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
-    payer: { value: input.payer ?? null, isWritable: true },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -297,17 +297,17 @@ export function getConvertInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfig),
       getAccountMeta(accounts.instructionsSysvar),
+      getAccountMeta(accounts.mintAuthority),
+      getAccountMeta(accounts.permanentDelegate),
+      getAccountMeta(accounts.payer),
       getAccountMeta(accounts.mintFrom),
       getAccountMeta(accounts.mintTo),
       getAccountMeta(accounts.tokenAccountFrom),
       getAccountMeta(accounts.tokenAccountTo),
-      getAccountMeta(accounts.mintAuthority),
-      getAccountMeta(accounts.permanentDelegate),
       getAccountMeta(accounts.rateAccount),
       getAccountMeta(accounts.receiptAccount),
       getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.systemProgram),
-      getAccountMeta(accounts.payer),
     ],
     data: getConvertInstructionDataEncoder().encode(
       args as ConvertInstructionDataArgs
@@ -318,17 +318,17 @@ export function getConvertInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
+    TAccountMintAuthority,
+    TAccountPermanentDelegate,
+    TAccountPayer,
     TAccountMintFrom,
     TAccountMintTo,
     TAccountTokenAccountFrom,
     TAccountTokenAccountTo,
-    TAccountMintAuthority,
-    TAccountPermanentDelegate,
     TAccountRateAccount,
     TAccountReceiptAccount,
     TAccountTokenProgram,
-    TAccountSystemProgram,
-    TAccountPayer
+    TAccountSystemProgram
   >);
 }
 
@@ -341,17 +341,17 @@ export type ParsedConvertInstruction<
     mint: TAccountMetas[0];
     verificationConfig: TAccountMetas[1];
     instructionsSysvar: TAccountMetas[2];
-    mintFrom: TAccountMetas[3];
-    mintTo: TAccountMetas[4];
-    tokenAccountFrom: TAccountMetas[5];
-    tokenAccountTo: TAccountMetas[6];
-    mintAuthority: TAccountMetas[7];
-    permanentDelegate: TAccountMetas[8];
-    rateAccount: TAccountMetas[9];
-    receiptAccount: TAccountMetas[10];
-    tokenProgram: TAccountMetas[11];
-    systemProgram: TAccountMetas[12];
-    payer: TAccountMetas[13];
+    mintAuthority: TAccountMetas[3];
+    permanentDelegate: TAccountMetas[4];
+    payer: TAccountMetas[5];
+    mintFrom: TAccountMetas[6];
+    mintTo: TAccountMetas[7];
+    tokenAccountFrom: TAccountMetas[8];
+    tokenAccountTo: TAccountMetas[9];
+    rateAccount: TAccountMetas[10];
+    receiptAccount: TAccountMetas[11];
+    tokenProgram: TAccountMetas[12];
+    systemProgram: TAccountMetas[13];
   };
   data: ConvertInstructionData;
 };
@@ -380,17 +380,17 @@ export function parseConvertInstruction<
       mint: getNextAccount(),
       verificationConfig: getNextAccount(),
       instructionsSysvar: getNextAccount(),
+      mintAuthority: getNextAccount(),
+      permanentDelegate: getNextAccount(),
+      payer: getNextAccount(),
       mintFrom: getNextAccount(),
       mintTo: getNextAccount(),
       tokenAccountFrom: getNextAccount(),
       tokenAccountTo: getNextAccount(),
-      mintAuthority: getNextAccount(),
-      permanentDelegate: getNextAccount(),
       rateAccount: getNextAccount(),
       receiptAccount: getNextAccount(),
       tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
-      payer: getNextAccount(),
     },
     data: getConvertInstructionDataDecoder().decode(instruction.data),
   };

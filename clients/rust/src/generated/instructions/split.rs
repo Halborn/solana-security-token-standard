@@ -20,23 +20,23 @@ pub struct Split {
 
     pub instructions_sysvar: solana_pubkey::Pubkey,
 
-    pub mint_account: solana_pubkey::Pubkey,
-
     pub mint_authority: solana_pubkey::Pubkey,
 
     pub permanent_delegate: solana_pubkey::Pubkey,
+
+    pub payer: solana_pubkey::Pubkey,
+
+    pub mint_account: solana_pubkey::Pubkey,
+
+    pub token_account: solana_pubkey::Pubkey,
 
     pub rate_account: solana_pubkey::Pubkey,
 
     pub receipt_account: solana_pubkey::Pubkey,
 
-    pub token_account: solana_pubkey::Pubkey,
-
     pub token_program: solana_pubkey::Pubkey,
 
     pub system_program: solana_pubkey::Pubkey,
-
-    pub payer: solana_pubkey::Pubkey,
 }
 
 impl Split {
@@ -62,16 +62,21 @@ impl Split {
             self.instructions_sysvar,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
-            self.mint_account,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint_authority,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.permanent_delegate,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
+        accounts.push(solana_instruction::AccountMeta::new(
+            self.mint_account,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            self.token_account,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -82,10 +87,6 @@ impl Split {
             self.receipt_account,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
-            self.token_account,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.token_program,
             false,
@@ -94,7 +95,6 @@ impl Split {
             self.system_program,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
         accounts.extend_from_slice(remaining_accounts);
         let mut data = borsh::to_vec(&SplitInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
@@ -139,29 +139,29 @@ pub struct SplitInstructionArgs {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
-///   3. `[writable]` mint_account
-///   4. `[]` mint_authority
-///   5. `[]` permanent_delegate
-///   6. `[]` rate_account
-///   7. `[writable]` receipt_account
-///   8. `[writable]` token_account
-///   9. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
-///   10. `[optional]` system_program (default to `11111111111111111111111111111111`)
-///   11. `[writable, signer]` payer
+///   3. `[]` mint_authority
+///   4. `[]` permanent_delegate
+///   5. `[writable, signer]` payer
+///   6. `[writable]` mint_account
+///   7. `[writable]` token_account
+///   8. `[]` rate_account
+///   9. `[writable]` receipt_account
+///   10. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
+///   11. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct SplitBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config: Option<solana_pubkey::Pubkey>,
     instructions_sysvar: Option<solana_pubkey::Pubkey>,
-    mint_account: Option<solana_pubkey::Pubkey>,
     mint_authority: Option<solana_pubkey::Pubkey>,
     permanent_delegate: Option<solana_pubkey::Pubkey>,
+    payer: Option<solana_pubkey::Pubkey>,
+    mint_account: Option<solana_pubkey::Pubkey>,
+    token_account: Option<solana_pubkey::Pubkey>,
     rate_account: Option<solana_pubkey::Pubkey>,
     receipt_account: Option<solana_pubkey::Pubkey>,
-    token_account: Option<solana_pubkey::Pubkey>,
     token_program: Option<solana_pubkey::Pubkey>,
     system_program: Option<solana_pubkey::Pubkey>,
-    payer: Option<solana_pubkey::Pubkey>,
     split_args: Option<SplitArgs>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
@@ -187,11 +187,6 @@ impl SplitBuilder {
         self
     }
     #[inline(always)]
-    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.mint_account = Some(mint_account);
-        self
-    }
-    #[inline(always)]
     pub fn mint_authority(&mut self, mint_authority: solana_pubkey::Pubkey) -> &mut Self {
         self.mint_authority = Some(mint_authority);
         self
@@ -199,6 +194,21 @@ impl SplitBuilder {
     #[inline(always)]
     pub fn permanent_delegate(&mut self, permanent_delegate: solana_pubkey::Pubkey) -> &mut Self {
         self.permanent_delegate = Some(permanent_delegate);
+        self
+    }
+    #[inline(always)]
+    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
+        self.payer = Some(payer);
+        self
+    }
+    #[inline(always)]
+    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_account = Some(mint_account);
+        self
+    }
+    #[inline(always)]
+    pub fn token_account(&mut self, token_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.token_account = Some(token_account);
         self
     }
     #[inline(always)]
@@ -211,11 +221,6 @@ impl SplitBuilder {
         self.receipt_account = Some(receipt_account);
         self
     }
-    #[inline(always)]
-    pub fn token_account(&mut self, token_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.token_account = Some(token_account);
-        self
-    }
     /// `[optional account, default to 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']`
     #[inline(always)]
     pub fn token_program(&mut self, token_program: solana_pubkey::Pubkey) -> &mut Self {
@@ -226,11 +231,6 @@ impl SplitBuilder {
     #[inline(always)]
     pub fn system_program(&mut self, system_program: solana_pubkey::Pubkey) -> &mut Self {
         self.system_program = Some(system_program);
-        self
-    }
-    #[inline(always)]
-    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
-        self.payer = Some(payer);
         self
     }
     #[inline(always)]
@@ -263,21 +263,21 @@ impl SplitBuilder {
             instructions_sysvar: self.instructions_sysvar.unwrap_or(solana_pubkey::pubkey!(
                 "Sysvar1nstructions1111111111111111111111111"
             )),
-            mint_account: self.mint_account.expect("mint_account is not set"),
             mint_authority: self.mint_authority.expect("mint_authority is not set"),
             permanent_delegate: self
                 .permanent_delegate
                 .expect("permanent_delegate is not set"),
+            payer: self.payer.expect("payer is not set"),
+            mint_account: self.mint_account.expect("mint_account is not set"),
+            token_account: self.token_account.expect("token_account is not set"),
             rate_account: self.rate_account.expect("rate_account is not set"),
             receipt_account: self.receipt_account.expect("receipt_account is not set"),
-            token_account: self.token_account.expect("token_account is not set"),
             token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
                 "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
             )),
             system_program: self
                 .system_program
                 .unwrap_or(solana_pubkey::pubkey!("11111111111111111111111111111111")),
-            payer: self.payer.expect("payer is not set"),
         };
         let args = SplitInstructionArgs {
             split_args: self.split_args.clone().expect("split_args is not set"),
@@ -295,23 +295,23 @@ pub struct SplitCpiAccounts<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
 
     pub permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
+
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
+
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
+
+    pub token_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub rate_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub token_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
-
-    pub payer: &'b solana_account_info::AccountInfo<'a>,
 }
 
 /// `split` CPI instruction.
@@ -325,23 +325,23 @@ pub struct SplitCpi<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
 
     pub permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
+
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
+
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
+
+    pub token_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub rate_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub token_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
-
-    pub payer: &'b solana_account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
     pub __args: SplitInstructionArgs,
 }
@@ -357,15 +357,15 @@ impl<'a, 'b> SplitCpi<'a, 'b> {
             mint: accounts.mint,
             verification_config: accounts.verification_config,
             instructions_sysvar: accounts.instructions_sysvar,
-            mint_account: accounts.mint_account,
             mint_authority: accounts.mint_authority,
             permanent_delegate: accounts.permanent_delegate,
+            payer: accounts.payer,
+            mint_account: accounts.mint_account,
+            token_account: accounts.token_account,
             rate_account: accounts.rate_account,
             receipt_account: accounts.receipt_account,
-            token_account: accounts.token_account,
             token_program: accounts.token_program,
             system_program: accounts.system_program,
-            payer: accounts.payer,
             __args: args,
         }
     }
@@ -405,16 +405,21 @@ impl<'a, 'b> SplitCpi<'a, 'b> {
             *self.instructions_sysvar.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
-            *self.mint_account.key,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint_authority.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.permanent_delegate.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
+        accounts.push(solana_instruction::AccountMeta::new(
+            *self.mint_account.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            *self.token_account.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -425,10 +430,6 @@ impl<'a, 'b> SplitCpi<'a, 'b> {
             *self.receipt_account.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
-            *self.token_account.key,
-            false,
-        ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.token_program.key,
             false,
@@ -437,7 +438,6 @@ impl<'a, 'b> SplitCpi<'a, 'b> {
             *self.system_program.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
@@ -459,15 +459,15 @@ impl<'a, 'b> SplitCpi<'a, 'b> {
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config.clone());
         account_infos.push(self.instructions_sysvar.clone());
-        account_infos.push(self.mint_account.clone());
         account_infos.push(self.mint_authority.clone());
         account_infos.push(self.permanent_delegate.clone());
+        account_infos.push(self.payer.clone());
+        account_infos.push(self.mint_account.clone());
+        account_infos.push(self.token_account.clone());
         account_infos.push(self.rate_account.clone());
         account_infos.push(self.receipt_account.clone());
-        account_infos.push(self.token_account.clone());
         account_infos.push(self.token_program.clone());
         account_infos.push(self.system_program.clone());
-        account_infos.push(self.payer.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -487,15 +487,15 @@ impl<'a, 'b> SplitCpi<'a, 'b> {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
-///   3. `[writable]` mint_account
-///   4. `[]` mint_authority
-///   5. `[]` permanent_delegate
-///   6. `[]` rate_account
-///   7. `[writable]` receipt_account
-///   8. `[writable]` token_account
-///   9. `[]` token_program
-///   10. `[]` system_program
-///   11. `[writable, signer]` payer
+///   3. `[]` mint_authority
+///   4. `[]` permanent_delegate
+///   5. `[writable, signer]` payer
+///   6. `[writable]` mint_account
+///   7. `[writable]` token_account
+///   8. `[]` rate_account
+///   9. `[writable]` receipt_account
+///   10. `[]` token_program
+///   11. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct SplitCpiBuilder<'a, 'b> {
     instruction: Box<SplitCpiBuilderInstruction<'a, 'b>>,
@@ -508,15 +508,15 @@ impl<'a, 'b> SplitCpiBuilder<'a, 'b> {
             mint: None,
             verification_config: None,
             instructions_sysvar: None,
-            mint_account: None,
             mint_authority: None,
             permanent_delegate: None,
+            payer: None,
+            mint_account: None,
+            token_account: None,
             rate_account: None,
             receipt_account: None,
-            token_account: None,
             token_program: None,
             system_program: None,
-            payer: None,
             split_args: None,
             __remaining_accounts: Vec::new(),
         });
@@ -544,14 +544,6 @@ impl<'a, 'b> SplitCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn mint_account(
-        &mut self,
-        mint_account: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.mint_account = Some(mint_account);
-        self
-    }
-    #[inline(always)]
     pub fn mint_authority(
         &mut self,
         mint_authority: &'b solana_account_info::AccountInfo<'a>,
@@ -565,6 +557,27 @@ impl<'a, 'b> SplitCpiBuilder<'a, 'b> {
         permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.permanent_delegate = Some(permanent_delegate);
+        self
+    }
+    #[inline(always)]
+    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.payer = Some(payer);
+        self
+    }
+    #[inline(always)]
+    pub fn mint_account(
+        &mut self,
+        mint_account: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.mint_account = Some(mint_account);
+        self
+    }
+    #[inline(always)]
+    pub fn token_account(
+        &mut self,
+        token_account: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.token_account = Some(token_account);
         self
     }
     #[inline(always)]
@@ -584,14 +597,6 @@ impl<'a, 'b> SplitCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn token_account(
-        &mut self,
-        token_account: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.token_account = Some(token_account);
-        self
-    }
-    #[inline(always)]
     pub fn token_program(
         &mut self,
         token_program: &'b solana_account_info::AccountInfo<'a>,
@@ -605,11 +610,6 @@ impl<'a, 'b> SplitCpiBuilder<'a, 'b> {
         system_program: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.system_program = Some(system_program);
-        self
-    }
-    #[inline(always)]
-    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.payer = Some(payer);
         self
     }
     #[inline(always)]
@@ -673,11 +673,6 @@ impl<'a, 'b> SplitCpiBuilder<'a, 'b> {
                 .instructions_sysvar
                 .expect("instructions_sysvar is not set"),
 
-            mint_account: self
-                .instruction
-                .mint_account
-                .expect("mint_account is not set"),
-
             mint_authority: self
                 .instruction
                 .mint_authority
@@ -687,6 +682,18 @@ impl<'a, 'b> SplitCpiBuilder<'a, 'b> {
                 .instruction
                 .permanent_delegate
                 .expect("permanent_delegate is not set"),
+
+            payer: self.instruction.payer.expect("payer is not set"),
+
+            mint_account: self
+                .instruction
+                .mint_account
+                .expect("mint_account is not set"),
+
+            token_account: self
+                .instruction
+                .token_account
+                .expect("token_account is not set"),
 
             rate_account: self
                 .instruction
@@ -698,11 +705,6 @@ impl<'a, 'b> SplitCpiBuilder<'a, 'b> {
                 .receipt_account
                 .expect("receipt_account is not set"),
 
-            token_account: self
-                .instruction
-                .token_account
-                .expect("token_account is not set"),
-
             token_program: self
                 .instruction
                 .token_program
@@ -712,8 +714,6 @@ impl<'a, 'b> SplitCpiBuilder<'a, 'b> {
                 .instruction
                 .system_program
                 .expect("system_program is not set"),
-
-            payer: self.instruction.payer.expect("payer is not set"),
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -729,15 +729,15 @@ struct SplitCpiBuilderInstruction<'a, 'b> {
     mint: Option<&'b solana_account_info::AccountInfo<'a>>,
     verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
-    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     permanent_delegate: Option<&'b solana_account_info::AccountInfo<'a>>,
+    payer: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     rate_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     receipt_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-    token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    payer: Option<&'b solana_account_info::AccountInfo<'a>>,
     split_args: Option<SplitArgs>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,

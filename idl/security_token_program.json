@@ -11,14 +11,14 @@
           "isSigner": true
         },
         {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
           "name": "authority",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
         },
         {
           "name": "tokenProgram",
@@ -68,11 +68,6 @@
           "isSigner": false
         },
         {
-          "name": "mintAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "mintAuthority",
           "isMut": false,
           "isSigner": false
@@ -81,6 +76,11 @@
           "name": "payer",
           "isMut": true,
           "isSigner": true
+        },
+        {
+          "name": "mintAccount",
+          "isMut": true,
+          "isSigner": false
         },
         {
           "name": "tokenProgram",
@@ -125,6 +125,11 @@
           "isSigner": false
         },
         {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
           "name": "mintAccount",
           "isMut": false,
           "isSigner": false
@@ -133,11 +138,6 @@
           "name": "configAccount",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -195,6 +195,11 @@
           "isSigner": false
         },
         {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
           "name": "mintAccount",
           "isMut": false,
           "isSigner": false
@@ -203,11 +208,6 @@
           "name": "configAccount",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -367,12 +367,12 @@
           "isSigner": false
         },
         {
-          "name": "mintAccount",
+          "name": "mintAuthority",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "mintAuthority",
+          "name": "mintAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -417,13 +417,13 @@
           "isSigner": false
         },
         {
-          "name": "mintAccount",
-          "isMut": true,
+          "name": "permanentDelegate",
+          "isMut": false,
           "isSigner": false
         },
         {
-          "name": "permanentDelegate",
-          "isMut": false,
+          "name": "mintAccount",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -467,13 +467,13 @@
           "isSigner": false
         },
         {
-          "name": "mintAccount",
-          "isMut": true,
+          "name": "pauseAuthority",
+          "isMut": false,
           "isSigner": false
         },
         {
-          "name": "pauseAuthority",
-          "isMut": false,
+          "name": "mintAccount",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -507,13 +507,13 @@
           "isSigner": false
         },
         {
-          "name": "mintAccount",
-          "isMut": true,
+          "name": "pauseAuthority",
+          "isMut": false,
           "isSigner": false
         },
         {
-          "name": "pauseAuthority",
-          "isMut": false,
+          "name": "mintAccount",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -547,12 +547,12 @@
           "isSigner": false
         },
         {
-          "name": "mintAccount",
+          "name": "freezeAuthority",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "freezeAuthority",
+          "name": "mintAccount",
           "isMut": false,
           "isSigner": false
         },
@@ -592,12 +592,12 @@
           "isSigner": false
         },
         {
-          "name": "mintAccount",
+          "name": "freezeAuthority",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "freezeAuthority",
+          "name": "mintAccount",
           "isMut": false,
           "isSigner": false
         },
@@ -637,12 +637,12 @@
           "isSigner": false
         },
         {
-          "name": "mintAccount",
+          "name": "permanentDelegateAuthority",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "permanentDelegateAuthority",
+          "name": "mintAccount",
           "isMut": false,
           "isSigner": false
         },
@@ -697,6 +697,11 @@
           "isSigner": false
         },
         {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
           "name": "rateAccount",
           "isMut": true,
           "isSigner": false
@@ -710,11 +715,6 @@
           "name": "mintTo",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -806,6 +806,11 @@
           "isSigner": false
         },
         {
+          "name": "destination",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "mintFrom",
           "isMut": false,
           "isSigner": false
@@ -813,11 +818,6 @@
         {
           "name": "mintTo",
           "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "destination",
-          "isMut": true,
           "isSigner": false
         }
       ],
@@ -853,11 +853,6 @@
           "isSigner": false
         },
         {
-          "name": "mintAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "mintAuthority",
           "isMut": false,
           "isSigner": false
@@ -865,6 +860,21 @@
         {
           "name": "permanentDelegate",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "mintAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenAccount",
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -878,11 +888,6 @@
           "isSigner": false
         },
         {
-          "name": "tokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -891,11 +896,6 @@
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
         }
       ],
       "args": [
@@ -930,6 +930,21 @@
           "isSigner": false
         },
         {
+          "name": "mintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "permanentDelegate",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
           "name": "mintFrom",
           "isMut": true,
           "isSigner": false
@@ -947,16 +962,6 @@
         {
           "name": "tokenAccountTo",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "mintAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "permanentDelegate",
-          "isMut": false,
           "isSigner": false
         },
         {
@@ -978,11 +983,6 @@
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
         }
       ],
       "args": [

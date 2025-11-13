@@ -41,8 +41,8 @@ export type FreezeInstruction<
   TAccountInstructionsSysvar extends
     | string
     | AccountMeta<string> = 'Sysvar1nstructions1111111111111111111111111',
-  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountFreezeAuthority extends string | AccountMeta<string> = string,
+  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountTokenAccount extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
@@ -61,12 +61,12 @@ export type FreezeInstruction<
       TAccountInstructionsSysvar extends string
         ? ReadonlyAccount<TAccountInstructionsSysvar>
         : TAccountInstructionsSysvar,
-      TAccountMintAccount extends string
-        ? ReadonlyAccount<TAccountMintAccount>
-        : TAccountMintAccount,
       TAccountFreezeAuthority extends string
         ? ReadonlyAccount<TAccountFreezeAuthority>
         : TAccountFreezeAuthority,
+      TAccountMintAccount extends string
+        ? ReadonlyAccount<TAccountMintAccount>
+        : TAccountMintAccount,
       TAccountTokenAccount extends string
         ? WritableAccount<TAccountTokenAccount>
         : TAccountTokenAccount,
@@ -106,16 +106,16 @@ export type FreezeInput<
   TAccountMint extends string = string,
   TAccountVerificationConfig extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountMintAccount extends string = string,
   TAccountFreezeAuthority extends string = string,
+  TAccountMintAccount extends string = string,
   TAccountTokenAccount extends string = string,
   TAccountTokenProgram extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
-  mintAccount: Address<TAccountMintAccount>;
   freezeAuthority: Address<TAccountFreezeAuthority>;
+  mintAccount: Address<TAccountMintAccount>;
   tokenAccount: Address<TAccountTokenAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
 };
@@ -124,8 +124,8 @@ export function getFreezeInstruction<
   TAccountMint extends string,
   TAccountVerificationConfig extends string,
   TAccountInstructionsSysvar extends string,
-  TAccountMintAccount extends string,
   TAccountFreezeAuthority extends string,
+  TAccountMintAccount extends string,
   TAccountTokenAccount extends string,
   TAccountTokenProgram extends string,
   TProgramAddress extends
@@ -135,8 +135,8 @@ export function getFreezeInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
     TAccountFreezeAuthority,
+    TAccountMintAccount,
     TAccountTokenAccount,
     TAccountTokenProgram
   >,
@@ -146,8 +146,8 @@ export function getFreezeInstruction<
   TAccountMint,
   TAccountVerificationConfig,
   TAccountInstructionsSysvar,
-  TAccountMintAccount,
   TAccountFreezeAuthority,
+  TAccountMintAccount,
   TAccountTokenAccount,
   TAccountTokenProgram
 > {
@@ -166,11 +166,11 @@ export function getFreezeInstruction<
       value: input.instructionsSysvar ?? null,
       isWritable: false,
     },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     freezeAuthority: {
       value: input.freezeAuthority ?? null,
       isWritable: false,
     },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     tokenAccount: { value: input.tokenAccount ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
   };
@@ -195,8 +195,8 @@ export function getFreezeInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfig),
       getAccountMeta(accounts.instructionsSysvar),
-      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.freezeAuthority),
+      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.tokenAccount),
       getAccountMeta(accounts.tokenProgram),
     ],
@@ -207,8 +207,8 @@ export function getFreezeInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
     TAccountFreezeAuthority,
+    TAccountMintAccount,
     TAccountTokenAccount,
     TAccountTokenProgram
   >);
@@ -223,8 +223,8 @@ export type ParsedFreezeInstruction<
     mint: TAccountMetas[0];
     verificationConfig: TAccountMetas[1];
     instructionsSysvar: TAccountMetas[2];
-    mintAccount: TAccountMetas[3];
-    freezeAuthority: TAccountMetas[4];
+    freezeAuthority: TAccountMetas[3];
+    mintAccount: TAccountMetas[4];
     tokenAccount: TAccountMetas[5];
     tokenProgram: TAccountMetas[6];
   };
@@ -255,8 +255,8 @@ export function parseFreezeInstruction<
       mint: getNextAccount(),
       verificationConfig: getNextAccount(),
       instructionsSysvar: getNextAccount(),
-      mintAccount: getNextAccount(),
       freezeAuthority: getNextAccount(),
+      mintAccount: getNextAccount(),
       tokenAccount: getNextAccount(),
       tokenProgram: getNextAccount(),
     },

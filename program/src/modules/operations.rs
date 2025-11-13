@@ -34,7 +34,7 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
-        let [mint_info, mint_authority, destination_account_info, token_program] = accounts else {
+        let [mint_authority, mint_info, destination_account_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -68,7 +68,7 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
-        let [mint_info, permanent_delegate_authority, token_account, token_program] = accounts
+        let [permanent_delegate_authority, mint_info, token_account, token_program] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -105,7 +105,7 @@ impl OperationsModule {
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
     ) -> ProgramResult {
-        let [mint_info, pause_authority, token_program] = accounts else {
+        let [pause_authority, mint_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -141,7 +141,7 @@ impl OperationsModule {
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
     ) -> ProgramResult {
-        let [mint_info, pause_authority, token_program] = accounts else {
+        let [pause_authority, mint_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_operation_mint_info(verified_mint_info, &mint_info)?;
@@ -176,7 +176,7 @@ impl OperationsModule {
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
     ) -> ProgramResult {
-        let [mint_info, freeze_authority, token_account, token_program] = accounts else {
+        let [freeze_authority, mint_info, token_account, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -211,7 +211,7 @@ impl OperationsModule {
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
     ) -> ProgramResult {
-        let [mint_info, freeze_authority, token_account, token_program] = accounts else {
+        let [freeze_authority, mint_info, token_account, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -246,7 +246,7 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
-        let [mint_info, permanent_delegate_authority, from_token_account, to_token_account, transfer_hook_program, token_program] =
+        let [permanent_delegate_authority, mint_info, from_token_account, to_token_account, transfer_hook_program, token_program] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -322,7 +322,7 @@ impl OperationsModule {
         denominator: u8,
         rounding: u8,
     ) -> ProgramResult {
-        let [rate_account, mint_from_account, mint_to_account, payer, system_program_info] =
+        let [payer, rate_account, mint_from_account, mint_to_account, system_program_info] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -405,7 +405,7 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         action_id: u64,
     ) -> ProgramResult {
-        let [rate_account_info, mint_from_account, mint_to_info_account, destination_account] =
+        let [rate_account_info, destination_account, mint_from_account, mint_to_info_account] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -440,7 +440,7 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         action_id: u64,
     ) -> ProgramResult {
-        let [mint_account, mint_authority, permanent_delegate, rate_account, receipt_account, token_account, token_program, system_program, payer] =
+        let [mint_authority, permanent_delegate, payer, mint_account, token_account, rate_account, receipt_account, token_program, system_program] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -548,7 +548,7 @@ impl OperationsModule {
         action_id: u64,
         amount_to_convert: u64,
     ) -> ProgramResult {
-        let [mint_from_account, mint_to_account, token_account_from, token_account_to, mint_authority, permanent_delegate, rate_account, receipt_account, token_program, system_program, payer] =
+        let [mint_authority, permanent_delegate, payer, mint_from_account, mint_to_account, token_account_from, token_account_to, rate_account, receipt_account, token_program, system_program] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);

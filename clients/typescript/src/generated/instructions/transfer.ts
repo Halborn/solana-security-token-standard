@@ -43,10 +43,10 @@ export type TransferInstruction<
   TAccountInstructionsSysvar extends
     | string
     | AccountMeta<string> = 'Sysvar1nstructions1111111111111111111111111',
-  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountPermanentDelegateAuthority extends
     | string
     | AccountMeta<string> = string,
+  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountFromTokenAccount extends string | AccountMeta<string> = string,
   TAccountToTokenAccount extends string | AccountMeta<string> = string,
   TAccountTransferHookProgram extends string | AccountMeta<string> = string,
@@ -67,12 +67,12 @@ export type TransferInstruction<
       TAccountInstructionsSysvar extends string
         ? ReadonlyAccount<TAccountInstructionsSysvar>
         : TAccountInstructionsSysvar,
-      TAccountMintAccount extends string
-        ? ReadonlyAccount<TAccountMintAccount>
-        : TAccountMintAccount,
       TAccountPermanentDelegateAuthority extends string
         ? ReadonlyAccount<TAccountPermanentDelegateAuthority>
         : TAccountPermanentDelegateAuthority,
+      TAccountMintAccount extends string
+        ? ReadonlyAccount<TAccountMintAccount>
+        : TAccountMintAccount,
       TAccountFromTokenAccount extends string
         ? WritableAccount<TAccountFromTokenAccount>
         : TAccountFromTokenAccount,
@@ -124,8 +124,8 @@ export type TransferInput<
   TAccountMint extends string = string,
   TAccountVerificationConfig extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountMintAccount extends string = string,
   TAccountPermanentDelegateAuthority extends string = string,
+  TAccountMintAccount extends string = string,
   TAccountFromTokenAccount extends string = string,
   TAccountToTokenAccount extends string = string,
   TAccountTransferHookProgram extends string = string,
@@ -134,8 +134,8 @@ export type TransferInput<
   mint: Address<TAccountMint>;
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
-  mintAccount: Address<TAccountMintAccount>;
   permanentDelegateAuthority: Address<TAccountPermanentDelegateAuthority>;
+  mintAccount: Address<TAccountMintAccount>;
   fromTokenAccount: Address<TAccountFromTokenAccount>;
   toTokenAccount: Address<TAccountToTokenAccount>;
   transferHookProgram: Address<TAccountTransferHookProgram>;
@@ -147,8 +147,8 @@ export function getTransferInstruction<
   TAccountMint extends string,
   TAccountVerificationConfig extends string,
   TAccountInstructionsSysvar extends string,
-  TAccountMintAccount extends string,
   TAccountPermanentDelegateAuthority extends string,
+  TAccountMintAccount extends string,
   TAccountFromTokenAccount extends string,
   TAccountToTokenAccount extends string,
   TAccountTransferHookProgram extends string,
@@ -160,8 +160,8 @@ export function getTransferInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
     TAccountPermanentDelegateAuthority,
+    TAccountMintAccount,
     TAccountFromTokenAccount,
     TAccountToTokenAccount,
     TAccountTransferHookProgram,
@@ -173,8 +173,8 @@ export function getTransferInstruction<
   TAccountMint,
   TAccountVerificationConfig,
   TAccountInstructionsSysvar,
-  TAccountMintAccount,
   TAccountPermanentDelegateAuthority,
+  TAccountMintAccount,
   TAccountFromTokenAccount,
   TAccountToTokenAccount,
   TAccountTransferHookProgram,
@@ -195,11 +195,11 @@ export function getTransferInstruction<
       value: input.instructionsSysvar ?? null,
       isWritable: false,
     },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     permanentDelegateAuthority: {
       value: input.permanentDelegateAuthority ?? null,
       isWritable: false,
     },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     fromTokenAccount: {
       value: input.fromTokenAccount ?? null,
       isWritable: true,
@@ -235,8 +235,8 @@ export function getTransferInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfig),
       getAccountMeta(accounts.instructionsSysvar),
-      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.permanentDelegateAuthority),
+      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.fromTokenAccount),
       getAccountMeta(accounts.toTokenAccount),
       getAccountMeta(accounts.transferHookProgram),
@@ -251,8 +251,8 @@ export function getTransferInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
     TAccountPermanentDelegateAuthority,
+    TAccountMintAccount,
     TAccountFromTokenAccount,
     TAccountToTokenAccount,
     TAccountTransferHookProgram,
@@ -269,8 +269,8 @@ export type ParsedTransferInstruction<
     mint: TAccountMetas[0];
     verificationConfig: TAccountMetas[1];
     instructionsSysvar: TAccountMetas[2];
-    mintAccount: TAccountMetas[3];
-    permanentDelegateAuthority: TAccountMetas[4];
+    permanentDelegateAuthority: TAccountMetas[3];
+    mintAccount: TAccountMetas[4];
     fromTokenAccount: TAccountMetas[5];
     toTokenAccount: TAccountMetas[6];
     transferHookProgram: TAccountMetas[7];
@@ -303,8 +303,8 @@ export function parseTransferInstruction<
       mint: getNextAccount(),
       verificationConfig: getNextAccount(),
       instructionsSysvar: getNextAccount(),
-      mintAccount: getNextAccount(),
       permanentDelegateAuthority: getNextAccount(),
+      mintAccount: getNextAccount(),
       fromTokenAccount: getNextAccount(),
       toTokenAccount: getNextAccount(),
       transferHookProgram: getNextAccount(),

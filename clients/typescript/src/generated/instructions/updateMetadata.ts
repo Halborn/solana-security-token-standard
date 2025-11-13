@@ -52,9 +52,9 @@ export type UpdateMetadataInstruction<
   TAccountInstructionsSysvarOrCreator extends
     | string
     | AccountMeta<string> = string,
-  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountMintAuthority extends string | AccountMeta<string> = string,
   TAccountPayer extends string | AccountMeta<string> = string,
+  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
     | AccountMeta<string> = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
@@ -75,9 +75,6 @@ export type UpdateMetadataInstruction<
       TAccountInstructionsSysvarOrCreator extends string
         ? ReadonlyAccount<TAccountInstructionsSysvarOrCreator>
         : TAccountInstructionsSysvarOrCreator,
-      TAccountMintAccount extends string
-        ? WritableAccount<TAccountMintAccount>
-        : TAccountMintAccount,
       TAccountMintAuthority extends string
         ? ReadonlyAccount<TAccountMintAuthority>
         : TAccountMintAuthority,
@@ -85,6 +82,9 @@ export type UpdateMetadataInstruction<
         ? WritableSignerAccount<TAccountPayer> &
             AccountSignerMeta<TAccountPayer>
         : TAccountPayer,
+      TAccountMintAccount extends string
+        ? WritableAccount<TAccountMintAccount>
+        : TAccountMintAccount,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
@@ -135,18 +135,18 @@ export type UpdateMetadataInput<
   TAccountMint extends string = string,
   TAccountVerificationConfigOrMintAuthority extends string = string,
   TAccountInstructionsSysvarOrCreator extends string = string,
-  TAccountMintAccount extends string = string,
   TAccountMintAuthority extends string = string,
   TAccountPayer extends string = string,
+  TAccountMintAccount extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
   instructionsSysvarOrCreator: Address<TAccountInstructionsSysvarOrCreator>;
-  mintAccount: Address<TAccountMintAccount>;
   mintAuthority: Address<TAccountMintAuthority>;
   payer: TransactionSigner<TAccountPayer>;
+  mintAccount: Address<TAccountMintAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   updateMetadataArgs: UpdateMetadataInstructionDataArgs['updateMetadataArgs'];
@@ -156,9 +156,9 @@ export function getUpdateMetadataInstruction<
   TAccountMint extends string,
   TAccountVerificationConfigOrMintAuthority extends string,
   TAccountInstructionsSysvarOrCreator extends string,
-  TAccountMintAccount extends string,
   TAccountMintAuthority extends string,
   TAccountPayer extends string,
+  TAccountMintAccount extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends
@@ -168,9 +168,9 @@ export function getUpdateMetadataInstruction<
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
-    TAccountMintAccount,
     TAccountMintAuthority,
     TAccountPayer,
+    TAccountMintAccount,
     TAccountTokenProgram,
     TAccountSystemProgram
   >,
@@ -180,9 +180,9 @@ export function getUpdateMetadataInstruction<
   TAccountMint,
   TAccountVerificationConfigOrMintAuthority,
   TAccountInstructionsSysvarOrCreator,
-  TAccountMintAccount,
   TAccountMintAuthority,
   TAccountPayer,
+  TAccountMintAccount,
   TAccountTokenProgram,
   TAccountSystemProgram
 > {
@@ -201,9 +201,9 @@ export function getUpdateMetadataInstruction<
       value: input.instructionsSysvarOrCreator ?? null,
       isWritable: false,
     },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
     payer: { value: input.payer ?? null, isWritable: true },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -231,9 +231,9 @@ export function getUpdateMetadataInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfigOrMintAuthority),
       getAccountMeta(accounts.instructionsSysvarOrCreator),
-      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.mintAuthority),
       getAccountMeta(accounts.payer),
+      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.systemProgram),
     ],
@@ -246,9 +246,9 @@ export function getUpdateMetadataInstruction<
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
-    TAccountMintAccount,
     TAccountMintAuthority,
     TAccountPayer,
+    TAccountMintAccount,
     TAccountTokenProgram,
     TAccountSystemProgram
   >);
@@ -263,9 +263,9 @@ export type ParsedUpdateMetadataInstruction<
     mint: TAccountMetas[0];
     verificationConfigOrMintAuthority: TAccountMetas[1];
     instructionsSysvarOrCreator: TAccountMetas[2];
-    mintAccount: TAccountMetas[3];
-    mintAuthority: TAccountMetas[4];
-    payer: TAccountMetas[5];
+    mintAuthority: TAccountMetas[3];
+    payer: TAccountMetas[4];
+    mintAccount: TAccountMetas[5];
     tokenProgram: TAccountMetas[6];
     systemProgram: TAccountMetas[7];
   };
@@ -296,9 +296,9 @@ export function parseUpdateMetadataInstruction<
       mint: getNextAccount(),
       verificationConfigOrMintAuthority: getNextAccount(),
       instructionsSysvarOrCreator: getNextAccount(),
-      mintAccount: getNextAccount(),
       mintAuthority: getNextAccount(),
       payer: getNextAccount(),
+      mintAccount: getNextAccount(),
       tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },

@@ -72,7 +72,7 @@ impl VerificationModule {
         let metadata_opt = &args.ix_metadata;
         let scaled_ui_amount_opt = &args.ix_scaled_ui_amount;
 
-        let [mint_info, creator_info, mint_authority_account, token_program_info, system_program_info, rent_info] =
+        let [mint_info, mint_authority_account, creator_info, token_program_info, system_program_info, rent_info] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -336,7 +336,7 @@ impl VerificationModule {
         // Validate arguments
         args.validate()?;
 
-        let [mint_info, mint_authority, payer, token_program_info, system_program_info] = accounts
+        let [mint_authority, payer, mint_info, token_program_info, system_program_info] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -845,7 +845,7 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::InitializeVerificationConfigArgs,
     ) -> ProgramResult {
-        let [mint_account, config_account, payer, system_program_info, transfer_hook_accounts @ ..] =
+        let [payer, mint_account, config_account, system_program_info, transfer_hook_accounts @ ..] =
             &accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -1074,7 +1074,7 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &crate::instructions::UpdateVerificationConfigArgs,
     ) -> ProgramResult {
-        let [mint_account, config_account, payer, system_program_info, transfer_hook_accounts @ ..] =
+        let [payer, mint_account, config_account, system_program_info, transfer_hook_accounts @ ..] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);

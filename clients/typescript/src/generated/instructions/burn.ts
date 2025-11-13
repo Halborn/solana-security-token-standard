@@ -43,8 +43,8 @@ export type BurnInstruction<
   TAccountInstructionsSysvar extends
     | string
     | AccountMeta<string> = 'Sysvar1nstructions1111111111111111111111111',
-  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountPermanentDelegate extends string | AccountMeta<string> = string,
+  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountTokenAccount extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
@@ -63,12 +63,12 @@ export type BurnInstruction<
       TAccountInstructionsSysvar extends string
         ? ReadonlyAccount<TAccountInstructionsSysvar>
         : TAccountInstructionsSysvar,
-      TAccountMintAccount extends string
-        ? WritableAccount<TAccountMintAccount>
-        : TAccountMintAccount,
       TAccountPermanentDelegate extends string
         ? ReadonlyAccount<TAccountPermanentDelegate>
         : TAccountPermanentDelegate,
+      TAccountMintAccount extends string
+        ? WritableAccount<TAccountMintAccount>
+        : TAccountMintAccount,
       TAccountTokenAccount extends string
         ? WritableAccount<TAccountTokenAccount>
         : TAccountTokenAccount,
@@ -114,16 +114,16 @@ export type BurnInput<
   TAccountMint extends string = string,
   TAccountVerificationConfig extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountMintAccount extends string = string,
   TAccountPermanentDelegate extends string = string,
+  TAccountMintAccount extends string = string,
   TAccountTokenAccount extends string = string,
   TAccountTokenProgram extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfig: Address<TAccountVerificationConfig>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
-  mintAccount: Address<TAccountMintAccount>;
   permanentDelegate: Address<TAccountPermanentDelegate>;
+  mintAccount: Address<TAccountMintAccount>;
   tokenAccount: Address<TAccountTokenAccount>;
   tokenProgram?: Address<TAccountTokenProgram>;
   amount: BurnInstructionDataArgs['amount'];
@@ -133,8 +133,8 @@ export function getBurnInstruction<
   TAccountMint extends string,
   TAccountVerificationConfig extends string,
   TAccountInstructionsSysvar extends string,
-  TAccountMintAccount extends string,
   TAccountPermanentDelegate extends string,
+  TAccountMintAccount extends string,
   TAccountTokenAccount extends string,
   TAccountTokenProgram extends string,
   TProgramAddress extends
@@ -144,8 +144,8 @@ export function getBurnInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
     TAccountPermanentDelegate,
+    TAccountMintAccount,
     TAccountTokenAccount,
     TAccountTokenProgram
   >,
@@ -155,8 +155,8 @@ export function getBurnInstruction<
   TAccountMint,
   TAccountVerificationConfig,
   TAccountInstructionsSysvar,
-  TAccountMintAccount,
   TAccountPermanentDelegate,
+  TAccountMintAccount,
   TAccountTokenAccount,
   TAccountTokenProgram
 > {
@@ -175,11 +175,11 @@ export function getBurnInstruction<
       value: input.instructionsSysvar ?? null,
       isWritable: false,
     },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     permanentDelegate: {
       value: input.permanentDelegate ?? null,
       isWritable: false,
     },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     tokenAccount: { value: input.tokenAccount ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
   };
@@ -207,8 +207,8 @@ export function getBurnInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfig),
       getAccountMeta(accounts.instructionsSysvar),
-      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.permanentDelegate),
+      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.tokenAccount),
       getAccountMeta(accounts.tokenProgram),
     ],
@@ -221,8 +221,8 @@ export function getBurnInstruction<
     TAccountMint,
     TAccountVerificationConfig,
     TAccountInstructionsSysvar,
-    TAccountMintAccount,
     TAccountPermanentDelegate,
+    TAccountMintAccount,
     TAccountTokenAccount,
     TAccountTokenProgram
   >);
@@ -237,8 +237,8 @@ export type ParsedBurnInstruction<
     mint: TAccountMetas[0];
     verificationConfig: TAccountMetas[1];
     instructionsSysvar: TAccountMetas[2];
-    mintAccount: TAccountMetas[3];
-    permanentDelegate: TAccountMetas[4];
+    permanentDelegate: TAccountMetas[3];
+    mintAccount: TAccountMetas[4];
     tokenAccount: TAccountMetas[5];
     tokenProgram: TAccountMetas[6];
   };
@@ -269,8 +269,8 @@ export function parseBurnInstruction<
       mint: getNextAccount(),
       verificationConfig: getNextAccount(),
       instructionsSysvar: getNextAccount(),
-      mintAccount: getNextAccount(),
       permanentDelegate: getNextAccount(),
+      mintAccount: getNextAccount(),
       tokenAccount: getNextAccount(),
       tokenProgram: getNextAccount(),
     },

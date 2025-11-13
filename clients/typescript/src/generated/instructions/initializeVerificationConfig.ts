@@ -52,9 +52,9 @@ export type InitializeVerificationConfigInstruction<
   TAccountInstructionsSysvarOrCreator extends
     | string
     | AccountMeta<string> = string,
+  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountConfigAccount extends string | AccountMeta<string> = string,
-  TAccountPayer extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends
     | string
     | AccountMeta<string> = '11111111111111111111111111111111',
@@ -75,16 +75,16 @@ export type InitializeVerificationConfigInstruction<
       TAccountInstructionsSysvarOrCreator extends string
         ? ReadonlyAccount<TAccountInstructionsSysvarOrCreator>
         : TAccountInstructionsSysvarOrCreator,
+      TAccountPayer extends string
+        ? WritableSignerAccount<TAccountPayer> &
+            AccountSignerMeta<TAccountPayer>
+        : TAccountPayer,
       TAccountMintAccount extends string
         ? ReadonlyAccount<TAccountMintAccount>
         : TAccountMintAccount,
       TAccountConfigAccount extends string
         ? WritableAccount<TAccountConfigAccount>
         : TAccountConfigAccount,
-      TAccountPayer extends string
-        ? WritableSignerAccount<TAccountPayer> &
-            AccountSignerMeta<TAccountPayer>
-        : TAccountPayer,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -150,9 +150,9 @@ export type InitializeVerificationConfigInput<
   TAccountMint extends string = string,
   TAccountVerificationConfigOrMintAuthority extends string = string,
   TAccountInstructionsSysvarOrCreator extends string = string,
+  TAccountPayer extends string = string,
   TAccountMintAccount extends string = string,
   TAccountConfigAccount extends string = string,
-  TAccountPayer extends string = string,
   TAccountSystemProgram extends string = string,
   TAccountAccountMetasPda extends string = string,
   TAccountTransferHookPda extends string = string,
@@ -161,9 +161,9 @@ export type InitializeVerificationConfigInput<
   mint: Address<TAccountMint>;
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
   instructionsSysvarOrCreator: Address<TAccountInstructionsSysvarOrCreator>;
+  payer: TransactionSigner<TAccountPayer>;
   mintAccount: Address<TAccountMintAccount>;
   configAccount: Address<TAccountConfigAccount>;
-  payer: TransactionSigner<TAccountPayer>;
   systemProgram?: Address<TAccountSystemProgram>;
   accountMetasPda?: Address<TAccountAccountMetasPda>;
   transferHookPda?: Address<TAccountTransferHookPda>;
@@ -175,9 +175,9 @@ export function getInitializeVerificationConfigInstruction<
   TAccountMint extends string,
   TAccountVerificationConfigOrMintAuthority extends string,
   TAccountInstructionsSysvarOrCreator extends string,
+  TAccountPayer extends string,
   TAccountMintAccount extends string,
   TAccountConfigAccount extends string,
-  TAccountPayer extends string,
   TAccountSystemProgram extends string,
   TAccountAccountMetasPda extends string,
   TAccountTransferHookPda extends string,
@@ -189,9 +189,9 @@ export function getInitializeVerificationConfigInstruction<
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
+    TAccountPayer,
     TAccountMintAccount,
     TAccountConfigAccount,
-    TAccountPayer,
     TAccountSystemProgram,
     TAccountAccountMetasPda,
     TAccountTransferHookPda,
@@ -203,9 +203,9 @@ export function getInitializeVerificationConfigInstruction<
   TAccountMint,
   TAccountVerificationConfigOrMintAuthority,
   TAccountInstructionsSysvarOrCreator,
+  TAccountPayer,
   TAccountMintAccount,
   TAccountConfigAccount,
-  TAccountPayer,
   TAccountSystemProgram,
   TAccountAccountMetasPda,
   TAccountTransferHookPda,
@@ -226,9 +226,9 @@ export function getInitializeVerificationConfigInstruction<
       value: input.instructionsSysvarOrCreator ?? null,
       isWritable: false,
     },
+    payer: { value: input.payer ?? null, isWritable: true },
     mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     configAccount: { value: input.configAccount ?? null, isWritable: true },
-    payer: { value: input.payer ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     accountMetasPda: { value: input.accountMetasPda ?? null, isWritable: true },
     transferHookPda: {
@@ -260,9 +260,9 @@ export function getInitializeVerificationConfigInstruction<
       getAccountMeta(accounts.mint),
       getAccountMeta(accounts.verificationConfigOrMintAuthority),
       getAccountMeta(accounts.instructionsSysvarOrCreator),
+      getAccountMeta(accounts.payer),
       getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.configAccount),
-      getAccountMeta(accounts.payer),
       getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.accountMetasPda),
       getAccountMeta(accounts.transferHookPda),
@@ -277,9 +277,9 @@ export function getInitializeVerificationConfigInstruction<
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
+    TAccountPayer,
     TAccountMintAccount,
     TAccountConfigAccount,
-    TAccountPayer,
     TAccountSystemProgram,
     TAccountAccountMetasPda,
     TAccountTransferHookPda,
@@ -296,9 +296,9 @@ export type ParsedInitializeVerificationConfigInstruction<
     mint: TAccountMetas[0];
     verificationConfigOrMintAuthority: TAccountMetas[1];
     instructionsSysvarOrCreator: TAccountMetas[2];
-    mintAccount: TAccountMetas[3];
-    configAccount: TAccountMetas[4];
-    payer: TAccountMetas[5];
+    payer: TAccountMetas[3];
+    mintAccount: TAccountMetas[4];
+    configAccount: TAccountMetas[5];
     systemProgram: TAccountMetas[6];
     accountMetasPda?: TAccountMetas[7] | undefined;
     transferHookPda?: TAccountMetas[8] | undefined;
@@ -337,9 +337,9 @@ export function parseInitializeVerificationConfigInstruction<
       mint: getNextAccount(),
       verificationConfigOrMintAuthority: getNextAccount(),
       instructionsSysvarOrCreator: getNextAccount(),
+      payer: getNextAccount(),
       mintAccount: getNextAccount(),
       configAccount: getNextAccount(),
-      payer: getNextAccount(),
       systemProgram: getNextAccount(),
       accountMetasPda: getNextOptionalAccount(),
       transferHookPda: getNextOptionalAccount(),

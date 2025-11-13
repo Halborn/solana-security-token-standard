@@ -20,6 +20,12 @@ pub struct Convert {
 
     pub instructions_sysvar: solana_pubkey::Pubkey,
 
+    pub mint_authority: solana_pubkey::Pubkey,
+
+    pub permanent_delegate: solana_pubkey::Pubkey,
+
+    pub payer: solana_pubkey::Pubkey,
+
     pub mint_from: solana_pubkey::Pubkey,
 
     pub mint_to: solana_pubkey::Pubkey,
@@ -28,10 +34,6 @@ pub struct Convert {
 
     pub token_account_to: solana_pubkey::Pubkey,
 
-    pub mint_authority: solana_pubkey::Pubkey,
-
-    pub permanent_delegate: solana_pubkey::Pubkey,
-
     pub rate_account: solana_pubkey::Pubkey,
 
     pub receipt_account: solana_pubkey::Pubkey,
@@ -39,8 +41,6 @@ pub struct Convert {
     pub token_program: solana_pubkey::Pubkey,
 
     pub system_program: solana_pubkey::Pubkey,
-
-    pub payer: solana_pubkey::Pubkey,
 }
 
 impl Convert {
@@ -66,6 +66,15 @@ impl Convert {
             self.instructions_sysvar,
             false,
         ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.mint_authority,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.permanent_delegate,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
         accounts.push(solana_instruction::AccountMeta::new(self.mint_from, false));
         accounts.push(solana_instruction::AccountMeta::new(self.mint_to, false));
         accounts.push(solana_instruction::AccountMeta::new(
@@ -74,14 +83,6 @@ impl Convert {
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             self.token_account_to,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.mint_authority,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.permanent_delegate,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -100,7 +101,6 @@ impl Convert {
             self.system_program,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
         accounts.extend_from_slice(remaining_accounts);
         let mut data = borsh::to_vec(&ConvertInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
@@ -145,33 +145,33 @@ pub struct ConvertInstructionArgs {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
-///   3. `[writable]` mint_from
-///   4. `[writable]` mint_to
-///   5. `[writable]` token_account_from
-///   6. `[writable]` token_account_to
-///   7. `[]` mint_authority
-///   8. `[]` permanent_delegate
-///   9. `[]` rate_account
-///   10. `[writable]` receipt_account
-///   11. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
-///   12. `[optional]` system_program (default to `11111111111111111111111111111111`)
-///   13. `[writable, signer]` payer
+///   3. `[]` mint_authority
+///   4. `[]` permanent_delegate
+///   5. `[writable, signer]` payer
+///   6. `[writable]` mint_from
+///   7. `[writable]` mint_to
+///   8. `[writable]` token_account_from
+///   9. `[writable]` token_account_to
+///   10. `[]` rate_account
+///   11. `[writable]` receipt_account
+///   12. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
+///   13. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct ConvertBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config: Option<solana_pubkey::Pubkey>,
     instructions_sysvar: Option<solana_pubkey::Pubkey>,
+    mint_authority: Option<solana_pubkey::Pubkey>,
+    permanent_delegate: Option<solana_pubkey::Pubkey>,
+    payer: Option<solana_pubkey::Pubkey>,
     mint_from: Option<solana_pubkey::Pubkey>,
     mint_to: Option<solana_pubkey::Pubkey>,
     token_account_from: Option<solana_pubkey::Pubkey>,
     token_account_to: Option<solana_pubkey::Pubkey>,
-    mint_authority: Option<solana_pubkey::Pubkey>,
-    permanent_delegate: Option<solana_pubkey::Pubkey>,
     rate_account: Option<solana_pubkey::Pubkey>,
     receipt_account: Option<solana_pubkey::Pubkey>,
     token_program: Option<solana_pubkey::Pubkey>,
     system_program: Option<solana_pubkey::Pubkey>,
-    payer: Option<solana_pubkey::Pubkey>,
     convert_args: Option<ConvertArgs>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
@@ -197,6 +197,21 @@ impl ConvertBuilder {
         self
     }
     #[inline(always)]
+    pub fn mint_authority(&mut self, mint_authority: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_authority = Some(mint_authority);
+        self
+    }
+    #[inline(always)]
+    pub fn permanent_delegate(&mut self, permanent_delegate: solana_pubkey::Pubkey) -> &mut Self {
+        self.permanent_delegate = Some(permanent_delegate);
+        self
+    }
+    #[inline(always)]
+    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
+        self.payer = Some(payer);
+        self
+    }
+    #[inline(always)]
     pub fn mint_from(&mut self, mint_from: solana_pubkey::Pubkey) -> &mut Self {
         self.mint_from = Some(mint_from);
         self
@@ -214,16 +229,6 @@ impl ConvertBuilder {
     #[inline(always)]
     pub fn token_account_to(&mut self, token_account_to: solana_pubkey::Pubkey) -> &mut Self {
         self.token_account_to = Some(token_account_to);
-        self
-    }
-    #[inline(always)]
-    pub fn mint_authority(&mut self, mint_authority: solana_pubkey::Pubkey) -> &mut Self {
-        self.mint_authority = Some(mint_authority);
-        self
-    }
-    #[inline(always)]
-    pub fn permanent_delegate(&mut self, permanent_delegate: solana_pubkey::Pubkey) -> &mut Self {
-        self.permanent_delegate = Some(permanent_delegate);
         self
     }
     #[inline(always)]
@@ -246,11 +251,6 @@ impl ConvertBuilder {
     #[inline(always)]
     pub fn system_program(&mut self, system_program: solana_pubkey::Pubkey) -> &mut Self {
         self.system_program = Some(system_program);
-        self
-    }
-    #[inline(always)]
-    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
-        self.payer = Some(payer);
         self
     }
     #[inline(always)]
@@ -283,16 +283,17 @@ impl ConvertBuilder {
             instructions_sysvar: self.instructions_sysvar.unwrap_or(solana_pubkey::pubkey!(
                 "Sysvar1nstructions1111111111111111111111111"
             )),
+            mint_authority: self.mint_authority.expect("mint_authority is not set"),
+            permanent_delegate: self
+                .permanent_delegate
+                .expect("permanent_delegate is not set"),
+            payer: self.payer.expect("payer is not set"),
             mint_from: self.mint_from.expect("mint_from is not set"),
             mint_to: self.mint_to.expect("mint_to is not set"),
             token_account_from: self
                 .token_account_from
                 .expect("token_account_from is not set"),
             token_account_to: self.token_account_to.expect("token_account_to is not set"),
-            mint_authority: self.mint_authority.expect("mint_authority is not set"),
-            permanent_delegate: self
-                .permanent_delegate
-                .expect("permanent_delegate is not set"),
             rate_account: self.rate_account.expect("rate_account is not set"),
             receipt_account: self.receipt_account.expect("receipt_account is not set"),
             token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
@@ -301,7 +302,6 @@ impl ConvertBuilder {
             system_program: self
                 .system_program
                 .unwrap_or(solana_pubkey::pubkey!("11111111111111111111111111111111")),
-            payer: self.payer.expect("payer is not set"),
         };
         let args = ConvertInstructionArgs {
             convert_args: self.convert_args.clone().expect("convert_args is not set"),
@@ -319,6 +319,12 @@ pub struct ConvertCpiAccounts<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
+    pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
+
+    pub permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
+
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
+
     pub mint_from: &'b solana_account_info::AccountInfo<'a>,
 
     pub mint_to: &'b solana_account_info::AccountInfo<'a>,
@@ -327,10 +333,6 @@ pub struct ConvertCpiAccounts<'a, 'b> {
 
     pub token_account_to: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
-
-    pub permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
-
     pub rate_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
@@ -338,8 +340,6 @@ pub struct ConvertCpiAccounts<'a, 'b> {
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
-
-    pub payer: &'b solana_account_info::AccountInfo<'a>,
 }
 
 /// `convert` CPI instruction.
@@ -353,6 +353,12 @@ pub struct ConvertCpi<'a, 'b> {
 
     pub instructions_sysvar: &'b solana_account_info::AccountInfo<'a>,
 
+    pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
+
+    pub permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
+
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
+
     pub mint_from: &'b solana_account_info::AccountInfo<'a>,
 
     pub mint_to: &'b solana_account_info::AccountInfo<'a>,
@@ -361,10 +367,6 @@ pub struct ConvertCpi<'a, 'b> {
 
     pub token_account_to: &'b solana_account_info::AccountInfo<'a>,
 
-    pub mint_authority: &'b solana_account_info::AccountInfo<'a>,
-
-    pub permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
-
     pub rate_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
@@ -372,8 +374,6 @@ pub struct ConvertCpi<'a, 'b> {
     pub token_program: &'b solana_account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_account_info::AccountInfo<'a>,
-
-    pub payer: &'b solana_account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
     pub __args: ConvertInstructionArgs,
 }
@@ -389,17 +389,17 @@ impl<'a, 'b> ConvertCpi<'a, 'b> {
             mint: accounts.mint,
             verification_config: accounts.verification_config,
             instructions_sysvar: accounts.instructions_sysvar,
+            mint_authority: accounts.mint_authority,
+            permanent_delegate: accounts.permanent_delegate,
+            payer: accounts.payer,
             mint_from: accounts.mint_from,
             mint_to: accounts.mint_to,
             token_account_from: accounts.token_account_from,
             token_account_to: accounts.token_account_to,
-            mint_authority: accounts.mint_authority,
-            permanent_delegate: accounts.permanent_delegate,
             rate_account: accounts.rate_account,
             receipt_account: accounts.receipt_account,
             token_program: accounts.token_program,
             system_program: accounts.system_program,
-            payer: accounts.payer,
             __args: args,
         }
     }
@@ -439,6 +439,15 @@ impl<'a, 'b> ConvertCpi<'a, 'b> {
             *self.instructions_sysvar.key,
             false,
         ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.mint_authority.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.permanent_delegate.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
         accounts.push(solana_instruction::AccountMeta::new(
             *self.mint_from.key,
             false,
@@ -453,14 +462,6 @@ impl<'a, 'b> ConvertCpi<'a, 'b> {
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             *self.token_account_to.key,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.mint_authority.key,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.permanent_delegate.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -479,7 +480,6 @@ impl<'a, 'b> ConvertCpi<'a, 'b> {
             *self.system_program.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
@@ -501,17 +501,17 @@ impl<'a, 'b> ConvertCpi<'a, 'b> {
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config.clone());
         account_infos.push(self.instructions_sysvar.clone());
+        account_infos.push(self.mint_authority.clone());
+        account_infos.push(self.permanent_delegate.clone());
+        account_infos.push(self.payer.clone());
         account_infos.push(self.mint_from.clone());
         account_infos.push(self.mint_to.clone());
         account_infos.push(self.token_account_from.clone());
         account_infos.push(self.token_account_to.clone());
-        account_infos.push(self.mint_authority.clone());
-        account_infos.push(self.permanent_delegate.clone());
         account_infos.push(self.rate_account.clone());
         account_infos.push(self.receipt_account.clone());
         account_infos.push(self.token_program.clone());
         account_infos.push(self.system_program.clone());
-        account_infos.push(self.payer.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -531,17 +531,17 @@ impl<'a, 'b> ConvertCpi<'a, 'b> {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
-///   3. `[writable]` mint_from
-///   4. `[writable]` mint_to
-///   5. `[writable]` token_account_from
-///   6. `[writable]` token_account_to
-///   7. `[]` mint_authority
-///   8. `[]` permanent_delegate
-///   9. `[]` rate_account
-///   10. `[writable]` receipt_account
-///   11. `[]` token_program
-///   12. `[]` system_program
-///   13. `[writable, signer]` payer
+///   3. `[]` mint_authority
+///   4. `[]` permanent_delegate
+///   5. `[writable, signer]` payer
+///   6. `[writable]` mint_from
+///   7. `[writable]` mint_to
+///   8. `[writable]` token_account_from
+///   9. `[writable]` token_account_to
+///   10. `[]` rate_account
+///   11. `[writable]` receipt_account
+///   12. `[]` token_program
+///   13. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct ConvertCpiBuilder<'a, 'b> {
     instruction: Box<ConvertCpiBuilderInstruction<'a, 'b>>,
@@ -554,17 +554,17 @@ impl<'a, 'b> ConvertCpiBuilder<'a, 'b> {
             mint: None,
             verification_config: None,
             instructions_sysvar: None,
+            mint_authority: None,
+            permanent_delegate: None,
+            payer: None,
             mint_from: None,
             mint_to: None,
             token_account_from: None,
             token_account_to: None,
-            mint_authority: None,
-            permanent_delegate: None,
             rate_account: None,
             receipt_account: None,
             token_program: None,
             system_program: None,
-            payer: None,
             convert_args: None,
             __remaining_accounts: Vec::new(),
         });
@@ -592,6 +592,27 @@ impl<'a, 'b> ConvertCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
+    pub fn mint_authority(
+        &mut self,
+        mint_authority: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.mint_authority = Some(mint_authority);
+        self
+    }
+    #[inline(always)]
+    pub fn permanent_delegate(
+        &mut self,
+        permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.permanent_delegate = Some(permanent_delegate);
+        self
+    }
+    #[inline(always)]
+    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.payer = Some(payer);
+        self
+    }
+    #[inline(always)]
     pub fn mint_from(&mut self, mint_from: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.mint_from = Some(mint_from);
         self
@@ -615,22 +636,6 @@ impl<'a, 'b> ConvertCpiBuilder<'a, 'b> {
         token_account_to: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.token_account_to = Some(token_account_to);
-        self
-    }
-    #[inline(always)]
-    pub fn mint_authority(
-        &mut self,
-        mint_authority: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.mint_authority = Some(mint_authority);
-        self
-    }
-    #[inline(always)]
-    pub fn permanent_delegate(
-        &mut self,
-        permanent_delegate: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.permanent_delegate = Some(permanent_delegate);
         self
     }
     #[inline(always)]
@@ -663,11 +668,6 @@ impl<'a, 'b> ConvertCpiBuilder<'a, 'b> {
         system_program: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.system_program = Some(system_program);
-        self
-    }
-    #[inline(always)]
-    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.payer = Some(payer);
         self
     }
     #[inline(always)]
@@ -731,6 +731,18 @@ impl<'a, 'b> ConvertCpiBuilder<'a, 'b> {
                 .instructions_sysvar
                 .expect("instructions_sysvar is not set"),
 
+            mint_authority: self
+                .instruction
+                .mint_authority
+                .expect("mint_authority is not set"),
+
+            permanent_delegate: self
+                .instruction
+                .permanent_delegate
+                .expect("permanent_delegate is not set"),
+
+            payer: self.instruction.payer.expect("payer is not set"),
+
             mint_from: self.instruction.mint_from.expect("mint_from is not set"),
 
             mint_to: self.instruction.mint_to.expect("mint_to is not set"),
@@ -744,16 +756,6 @@ impl<'a, 'b> ConvertCpiBuilder<'a, 'b> {
                 .instruction
                 .token_account_to
                 .expect("token_account_to is not set"),
-
-            mint_authority: self
-                .instruction
-                .mint_authority
-                .expect("mint_authority is not set"),
-
-            permanent_delegate: self
-                .instruction
-                .permanent_delegate
-                .expect("permanent_delegate is not set"),
 
             rate_account: self
                 .instruction
@@ -774,8 +776,6 @@ impl<'a, 'b> ConvertCpiBuilder<'a, 'b> {
                 .instruction
                 .system_program
                 .expect("system_program is not set"),
-
-            payer: self.instruction.payer.expect("payer is not set"),
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -791,17 +791,17 @@ struct ConvertCpiBuilderInstruction<'a, 'b> {
     mint: Option<&'b solana_account_info::AccountInfo<'a>>,
     verification_config: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+    permanent_delegate: Option<&'b solana_account_info::AccountInfo<'a>>,
+    payer: Option<&'b solana_account_info::AccountInfo<'a>>,
     mint_from: Option<&'b solana_account_info::AccountInfo<'a>>,
     mint_to: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_account_from: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_account_to: Option<&'b solana_account_info::AccountInfo<'a>>,
-    mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
-    permanent_delegate: Option<&'b solana_account_info::AccountInfo<'a>>,
     rate_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     receipt_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    payer: Option<&'b solana_account_info::AccountInfo<'a>>,
     convert_args: Option<ConvertArgs>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
