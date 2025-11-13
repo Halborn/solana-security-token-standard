@@ -460,6 +460,13 @@ pub fn find_verification_config_pda(mint: Pubkey, instruction_discriminator: u8)
     )
 }
 
+pub fn find_mint_pause_authority_pda(mint: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[b"mint.pause_authority", mint.as_ref()],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    )
+}
+
 /// Create a minimal security token mint without metadata and scaled amount
 pub async fn create_minimal_security_token_mint(
     context: &mut solana_program_test::ProgramTestContext,

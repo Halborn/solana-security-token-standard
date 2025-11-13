@@ -18,9 +18,9 @@ use spl_type_length_value::state::TlvStateBorrowed;
 
 use crate::helpers::{
     assert_transaction_success, create_spl_account, find_mint_authority_pda,
-    find_mint_freeze_authority_pda, find_permanent_delegate_pda, find_transfer_hook_pda,
-    find_verification_config_pda, get_mint_state, get_token_account_state, initialize_mint,
-    initialize_mint_verification_and_mint_to_account, initialize_program,
+    find_mint_freeze_authority_pda, find_mint_pause_authority_pda, find_permanent_delegate_pda,
+    find_transfer_hook_pda, find_verification_config_pda, get_mint_state, get_token_account_state,
+    initialize_mint, initialize_mint_verification_and_mint_to_account, initialize_program,
     initialize_verification_config, send_tx,
 };
 use security_token_transfer_hook;
@@ -258,10 +258,7 @@ async fn test_t22_extension_operations() {
     )
     .await;
 
-    let (pause_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.pause_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (pause_authority_pda, _bump) = find_mint_pause_authority_pda(&mint_keypair.pubkey());
 
     let (verification_config_pda, _bump) =
         find_verification_config_pda(mint_keypair.pubkey(), PAUSE_DISCRIMINATOR);
