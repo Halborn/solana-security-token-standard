@@ -18,8 +18,8 @@ use spl_type_length_value::state::TlvStateBorrowed;
 
 use crate::helpers::{
     assert_transaction_success, create_spl_account, find_mint_authority_pda,
-    find_mint_freeze_authority_pda, find_transfer_hook_pda, find_verification_config_pda,
-    get_mint_state, get_token_account_state, initialize_mint,
+    find_mint_freeze_authority_pda, find_permanent_delegate_pda, find_transfer_hook_pda,
+    find_verification_config_pda, get_mint_state, get_token_account_state, initialize_mint,
     initialize_mint_verification_and_mint_to_account, initialize_program,
     initialize_verification_config, send_tx,
 };
@@ -46,19 +46,10 @@ async fn test_basic_t22_operations() {
 
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
 
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
     let destination_account =
         spl_associated_token_account::get_associated_token_address_with_program_id(
@@ -97,14 +88,8 @@ async fn test_basic_t22_operations() {
     let mut verification_configs = vec![];
     // NOTE: Move to fixture?
     for discriminator in instructions {
-        let (verification_config_pda, _bump) = Pubkey::find_program_address(
-            &[
-                b"verification_config",
-                mint_keypair.pubkey().as_ref(),
-                &[discriminator],
-            ],
-            &SECURITY_TOKEN_PROGRAM_ID,
-        );
+        let (verification_config_pda, _bump) =
+            find_verification_config_pda(mint_keypair.pubkey(), discriminator);
 
         let initialize_verification_config_args = InitializeVerificationConfigArgs {
             instruction_discriminator: discriminator,
@@ -170,10 +155,7 @@ async fn test_basic_t22_operations() {
         get_token_account_state(&mut context.banks_client, destination_account).await;
     assert_eq!(token_account_after.base.amount, 1_000_000);
 
-    let (permanent_delegate_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.permanent_delegate", mint_keypair.pubkey().as_ref()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (permanent_delegate_pda, _bump) = find_permanent_delegate_pda(&mint_keypair.pubkey());
 
     let burn_ix = BurnBuilder::new()
         .mint(mint_keypair.pubkey())
@@ -252,19 +234,10 @@ async fn test_t22_extension_operations() {
     let mint_keypair = Keypair::new();
 
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
     let initialize_mint_args = InitializeMintArgs {
         ix_mint: MintArgs {
@@ -290,14 +263,8 @@ async fn test_t22_extension_operations() {
         &SECURITY_TOKEN_PROGRAM_ID,
     );
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[PAUSE_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), PAUSE_DISCRIMINATOR);
 
     let pause_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: PAUSE_DISCRIMINATOR,
@@ -337,14 +304,8 @@ async fn test_t22_extension_operations() {
         .expect("Pausable extension should exist");
     assert_eq!(pausable.paused, PodBool(1));
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[RESUME_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), RESUME_DISCRIMINATOR);
 
     let resume_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: RESUME_DISCRIMINATOR,
@@ -401,33 +362,15 @@ async fn test_t22_transfer_operations() {
     let source_keypair = Keypair::new();
     let destination_keypair = Keypair::new();
 
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (permanent_delegate_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.permanent_delegate", mint_keypair.pubkey().as_ref()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (permanent_delegate_pda, _bump) = find_permanent_delegate_pda(&mint_keypair.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[TRANSFER_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), TRANSFER_DISCRIMINATOR);
 
     let initialize_mint_args = InitializeMintArgs {
         ix_mint: MintArgs {
@@ -551,28 +494,13 @@ async fn test_p2p_transfer_direct_spl() {
     let source_owner = Keypair::new();
     let destination_owner = Keypair::new();
 
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[TRANSFER_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), TRANSFER_DISCRIMINATOR);
 
     let initialize_mint_args = InitializeMintArgs {
         ix_mint: MintArgs {

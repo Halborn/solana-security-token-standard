@@ -87,10 +87,19 @@ pub fn assert_custom_error(result: Result<(), BanksClientError>, expected_error_
                 "Expected error code 0x{:04X}, but got 0x{:04X}",
                 expected_error_code, actual_code
             );
-            println!("Test passed: Got expected error code 0x{:04X}", expected_error_code);
+            println!(
+                "Test passed: Got expected error code 0x{:04X}",
+                expected_error_code
+            );
         }
-        Err(e) => panic!("Expected custom error 0x{:04X}, but got: {:?}", expected_error_code, e),
-        Ok(_) => panic!("Expected transaction to fail with error code 0x{:04X}, but it succeeded", expected_error_code),
+        Err(e) => panic!(
+            "Expected custom error 0x{:04X}, but got: {:?}",
+            expected_error_code, e
+        ),
+        Ok(_) => panic!(
+            "Expected transaction to fail with error code 0x{:04X}, but it succeeded",
+            expected_error_code
+        ),
     }
 }
 
@@ -261,14 +270,8 @@ pub async fn initialize_mint_verification_and_mint_to_account(
     account_to_mint: Pubkey,
     amount: u64,
 ) {
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[MINT_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), MINT_DISCRIMINATOR);
     let mint_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: MINT_DISCRIMINATOR,
         cpi_mode: false,
