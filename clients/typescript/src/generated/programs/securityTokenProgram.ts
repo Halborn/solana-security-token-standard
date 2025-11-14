@@ -43,7 +43,6 @@ export enum SecurityTokenProgramAccount {
   MintAuthority,
   Proof,
   Rate,
-  Receipt,
   VerificationConfig,
 }
 

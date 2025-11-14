@@ -1136,11 +1136,6 @@
           "isSigner": false
         },
         {
-          "name": "rateAccount",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "mintAccount",
           "isMut": false,
           "isSigner": false
@@ -1230,26 +1225,6 @@
           {
             "name": "denominator",
             "type": "u8"
-          },
-          {
-            "name": "bump",
-            "type": "u8"
-          }
-        ]
-      }
-    },
-    {
-      "name": "Receipt",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "mint",
-            "type": "publicKey"
-          },
-          {
-            "name": "actionId",
-            "type": "u64"
           },
           {
             "name": "bump",

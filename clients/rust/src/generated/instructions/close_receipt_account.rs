@@ -22,8 +22,6 @@ pub struct CloseReceiptAccount {
 
     pub receipt_account: solana_pubkey::Pubkey,
 
-    pub rate_account: solana_pubkey::Pubkey,
-
     pub mint_account: solana_pubkey::Pubkey,
 
     pub destination: solana_pubkey::Pubkey,
@@ -43,7 +41,7 @@ impl CloseReceiptAccount {
         args: CloseReceiptAccountInstructionArgs,
         remaining_accounts: &[solana_instruction::AccountMeta],
     ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint, false,
         ));
@@ -57,10 +55,6 @@ impl CloseReceiptAccount {
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             self.receipt_account,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.rate_account,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -116,16 +110,14 @@ pub struct CloseReceiptAccountInstructionArgs {
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
 ///   3. `[writable]` receipt_account
-///   4. `[]` rate_account
-///   5. `[]` mint_account
-///   6. `[writable]` destination
+///   4. `[]` mint_account
+///   5. `[writable]` destination
 #[derive(Clone, Debug, Default)]
 pub struct CloseReceiptAccountBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config_or_mint_authority: Option<solana_pubkey::Pubkey>,
     instructions_sysvar_or_creator: Option<solana_pubkey::Pubkey>,
     receipt_account: Option<solana_pubkey::Pubkey>,
-    rate_account: Option<solana_pubkey::Pubkey>,
     mint_account: Option<solana_pubkey::Pubkey>,
     destination: Option<solana_pubkey::Pubkey>,
     close_receipt_args: Option<CloseReceiptArgs>,
@@ -160,11 +152,6 @@ impl CloseReceiptAccountBuilder {
     #[inline(always)]
     pub fn receipt_account(&mut self, receipt_account: solana_pubkey::Pubkey) -> &mut Self {
         self.receipt_account = Some(receipt_account);
-        self
-    }
-    #[inline(always)]
-    pub fn rate_account(&mut self, rate_account: solana_pubkey::Pubkey) -> &mut Self {
-        self.rate_account = Some(rate_account);
         self
     }
     #[inline(always)]
@@ -208,7 +195,6 @@ impl CloseReceiptAccountBuilder {
                 .instructions_sysvar_or_creator
                 .expect("instructions_sysvar_or_creator is not set"),
             receipt_account: self.receipt_account.expect("receipt_account is not set"),
-            rate_account: self.rate_account.expect("rate_account is not set"),
             mint_account: self.mint_account.expect("mint_account is not set"),
             destination: self.destination.expect("destination is not set"),
         };
@@ -233,8 +219,6 @@ pub struct CloseReceiptAccountCpiAccounts<'a, 'b> {
 
     pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub rate_account: &'b solana_account_info::AccountInfo<'a>,
-
     pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub destination: &'b solana_account_info::AccountInfo<'a>,
@@ -252,8 +236,6 @@ pub struct CloseReceiptAccountCpi<'a, 'b> {
     pub instructions_sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>,
 
     pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
-
-    pub rate_account: &'b solana_account_info::AccountInfo<'a>,
 
     pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
@@ -274,7 +256,6 @@ impl<'a, 'b> CloseReceiptAccountCpi<'a, 'b> {
             verification_config_or_mint_authority: accounts.verification_config_or_mint_authority,
             instructions_sysvar_or_creator: accounts.instructions_sysvar_or_creator,
             receipt_account: accounts.receipt_account,
-            rate_account: accounts.rate_account,
             mint_account: accounts.mint_account,
             destination: accounts.destination,
             __args: args,
@@ -303,7 +284,7 @@ impl<'a, 'b> CloseReceiptAccountCpi<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
         remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
     ) -> solana_program_error::ProgramResult {
-        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint.key,
             false,
@@ -318,10 +299,6 @@ impl<'a, 'b> CloseReceiptAccountCpi<'a, 'b> {
         ));
         accounts.push(solana_instruction::AccountMeta::new(
             *self.receipt_account.key,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.rate_account.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
@@ -348,13 +325,12 @@ impl<'a, 'b> CloseReceiptAccountCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(8 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(7 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config_or_mint_authority.clone());
         account_infos.push(self.instructions_sysvar_or_creator.clone());
         account_infos.push(self.receipt_account.clone());
-        account_infos.push(self.rate_account.clone());
         account_infos.push(self.mint_account.clone());
         account_infos.push(self.destination.clone());
         remaining_accounts
@@ -377,9 +353,8 @@ impl<'a, 'b> CloseReceiptAccountCpi<'a, 'b> {
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
 ///   3. `[writable]` receipt_account
-///   4. `[]` rate_account
-///   5. `[]` mint_account
-///   6. `[writable]` destination
+///   4. `[]` mint_account
+///   5. `[writable]` destination
 #[derive(Clone, Debug)]
 pub struct CloseReceiptAccountCpiBuilder<'a, 'b> {
     instruction: Box<CloseReceiptAccountCpiBuilderInstruction<'a, 'b>>,
@@ -393,7 +368,6 @@ impl<'a, 'b> CloseReceiptAccountCpiBuilder<'a, 'b> {
             verification_config_or_mint_authority: None,
             instructions_sysvar_or_creator: None,
             receipt_account: None,
-            rate_account: None,
             mint_account: None,
             destination: None,
             close_receipt_args: None,
@@ -429,14 +403,6 @@ impl<'a, 'b> CloseReceiptAccountCpiBuilder<'a, 'b> {
         receipt_account: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.receipt_account = Some(receipt_account);
-        self
-    }
-    #[inline(always)]
-    pub fn rate_account(
-        &mut self,
-        rate_account: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.rate_account = Some(rate_account);
         self
     }
     #[inline(always)]
@@ -521,11 +487,6 @@ impl<'a, 'b> CloseReceiptAccountCpiBuilder<'a, 'b> {
                 .receipt_account
                 .expect("receipt_account is not set"),
 
-            rate_account: self
-                .instruction
-                .rate_account
-                .expect("rate_account is not set"),
-
             mint_account: self
                 .instruction
                 .mint_account
@@ -551,7 +512,6 @@ struct CloseReceiptAccountCpiBuilderInstruction<'a, 'b> {
     verification_config_or_mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar_or_creator: Option<&'b solana_account_info::AccountInfo<'a>>,
     receipt_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-    rate_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     destination: Option<&'b solana_account_info::AccountInfo<'a>>,
     close_receipt_args: Option<CloseReceiptArgs>,
