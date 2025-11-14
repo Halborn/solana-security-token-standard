@@ -115,18 +115,20 @@ pub fn find_common_action_receipt_pda(
 }
 
 /// Derive receipt PDA for Claim operation
-/// Seeds: ["receipt", token_account, action_id, proof]
+/// Seeds: ["receipt", mint, action_id, token_account, proof]
 pub fn find_claim_receipt_pda(
-    token_account: &Pubkey,
+    mint: &Pubkey,
     action_id: u64,
+    token_account: &Pubkey,
     proof: &[u8; 32],
     program_id: &Pubkey,
 ) -> (Pubkey, u8) {
     find_program_address(
         &[
             seeds::RECEIPT_ACCOUNT,
-            token_account.as_ref(),
+            mint.as_ref(),
             action_id.to_le_bytes().as_ref(),
+            token_account.as_ref(),
             proof.as_ref(),
         ],
         program_id,

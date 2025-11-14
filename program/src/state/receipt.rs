@@ -84,15 +84,17 @@ impl Receipt {
 
     /// Seeds for Claim operation
     pub fn claim_action_seeds<'a>(
-        token_account: &'a Pubkey,
+        mint: &'a Pubkey,
         action_id_seed: &'a [u8],
+        token_account: &'a Pubkey,
         proof_seed: &'a [u8],
         bump_seed: &'a [u8; 1],
-    ) -> [Seed<'a>; 5] {
+    ) -> [Seed<'a>; 6] {
         [
             Seed::from(RECEIPT_ACCOUNT),
-            Seed::from(token_account.as_ref()),
+            Seed::from(mint.as_ref()),
             Seed::from(action_id_seed),
+            Seed::from(token_account.as_ref()),
             Seed::from(proof_seed),
             Seed::from(bump_seed.as_ref()),
         ]
@@ -100,10 +102,11 @@ impl Receipt {
 
     /// Find receipt PDA for Claim operation
     pub fn find_claim_action_pda(
-        token_account: &Pubkey,
+        mint: &Pubkey,
         action_id: u64,
+        token_account: &Pubkey,
         proof: &[u8; 32],
     ) -> (Pubkey, u8) {
-        find_claim_receipt_pda(token_account, action_id, proof, &crate::id())
+        find_claim_receipt_pda(mint, action_id, token_account, proof, &crate::id())
     }
 }
