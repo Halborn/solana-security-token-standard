@@ -1,5 +1,4 @@
 use security_token_client::{
-    accounts::Receipt,
     types::{CreateRateArgs, RateArgs, Rounding},
 };
 use solana_sdk::{native_token::sol_str_to_lamports, signature::Keypair, signer::Signer};
@@ -110,7 +109,7 @@ async fn test_should_convert_successfully() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, receipt_bump) = find_receipt_pda(&mint_pubkey_to, action_id);
+    let (receipt_pda, _) = find_receipt_pda(&mint_pubkey_to, action_id);
 
     let ui_amount_to_convert = 900u64;
     let amount_to_convert = from_ui_amount(ui_amount_to_convert, decimals_from);
@@ -155,18 +154,10 @@ async fn test_should_convert_successfully() {
     );
     assert_eq!(token_account_to_after.base.amount, expected_amount_to);
 
-    // // Verify receipt account has been created
-    let receipt_account = assert_account_exists(context, receipt_pda, true)
+    // Verify receipt account has been created
+    assert_account_exists(context, receipt_pda, true)
         .await
         .expect("Receipt should be created");
-    let receipt_state =
-        Receipt::from_bytes(&receipt_account.data).expect("Should deserialize Receipt");
-    assert_eq!(
-        receipt_state.action_id, action_id,
-        "Receipt action_id mismatch"
-    );
-    assert_eq!(receipt_state.bump, receipt_bump, "Receipt bump mismatch");
-    assert_eq!(receipt_state.mint, mint_pubkey_to, "Receipt mint mismatch");
 }
 
 #[tokio::test]
@@ -261,7 +252,7 @@ async fn test_should_not_convert_twice() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, receipt_bump) = find_receipt_pda(&mint_pubkey_to, action_id);
+    let (receipt_pda, _) = find_receipt_pda(&mint_pubkey_to, action_id);
 
     let ui_amount_to_convert = 900u64;
     let amount_to_convert = from_ui_amount(ui_amount_to_convert, decimals_from);
@@ -283,18 +274,10 @@ async fn test_should_not_convert_twice() {
     .await;
     assert_transaction_success(convert_result);
 
-    // // Verify receipt account has been created
-    let receipt_account = assert_account_exists(context, receipt_pda, true)
+    // Verify receipt account has been created
+    assert_account_exists(context, receipt_pda, true)
         .await
         .expect("Receipt should be created");
-    let receipt_state =
-        Receipt::from_bytes(&receipt_account.data).expect("Should deserialize Receipt");
-    assert_eq!(
-        receipt_state.action_id, action_id,
-        "Receipt action_id mismatch"
-    );
-    assert_eq!(receipt_state.bump, receipt_bump, "Receipt bump mismatch");
-    assert_eq!(receipt_state.mint, mint_pubkey_to, "Receipt mint mismatch");
 
     let second_conversion = execute_convert(
         &context.banks_client,

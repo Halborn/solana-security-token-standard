@@ -14,7 +14,6 @@ pub async fn close_receipt_account(
     verification_config_or_mint_authority: Pubkey,
     instructions_sysvar_or_creator: Pubkey,
     receipt_account: Pubkey,
-    rate_account: Pubkey,
     mint_account: Pubkey,
     destination: &Keypair,
     close_receipt_args: CloseReceiptArgs,
@@ -24,7 +23,6 @@ pub async fn close_receipt_account(
         verification_config_or_mint_authority,
         instructions_sysvar_or_creator,
         receipt_account,
-        rate_account,
         mint_account,
         destination: destination.pubkey(),
     }

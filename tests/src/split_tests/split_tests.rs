@@ -1,6 +1,5 @@
 use rstest::*;
 use security_token_client::{
-    accounts::Receipt,
     types::{CreateRateArgs, RateArgs, Rounding},
 };
 use solana_pubkey::Pubkey;
@@ -95,7 +94,7 @@ async fn test_should_split_with_mint_successfully() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_keypair.pubkey());
-    let (receipt_pda, receipt_bump) = find_receipt_pda(&mint_pubkey, action_id);
+    let (receipt_pda, _) = find_receipt_pda(&mint_pubkey, action_id);
 
     // Execute split
     let split_result = execute_split(
@@ -124,17 +123,9 @@ async fn test_should_split_with_mint_successfully() {
     assert_eq!(token_account_after.base.amount, expected_amount);
 
     // Verify receipt account exists
-    let receipt_account = assert_account_exists(context, receipt_pda, true)
+    assert_account_exists(context, receipt_pda, true)
         .await
         .expect("Receipt should be created");
-    let receipt_state =
-        Receipt::from_bytes(&receipt_account.data).expect("Should deserialize Receipt");
-    assert_eq!(
-        receipt_state.action_id, action_id,
-        "Receipt action_id mismatch"
-    );
-    assert_eq!(receipt_state.bump, receipt_bump, "Receipt bump mismatch");
-    assert_eq!(receipt_state.mint, mint_pubkey, "Receipt mint mismatch");
 }
 
 #[tokio::test]
@@ -213,7 +204,7 @@ async fn test_should_split_with_burn_successfully() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey);
-    let (receipt_pda, receipt_bump) = find_receipt_pda(&mint_pubkey, action_id);
+    let (receipt_pda, _) = find_receipt_pda(&mint_pubkey, action_id);
 
     // Execute split
     let split_result = execute_split(
@@ -242,17 +233,9 @@ async fn test_should_split_with_burn_successfully() {
     assert_eq!(token_account_after.base.amount, expected_amount);
 
     // Verify receipt account exists
-    let receipt_account = assert_account_exists(context, receipt_pda, true)
+    assert_account_exists(context, receipt_pda, true)
         .await
-        .unwrap();
-    let receipt_state =
-        Receipt::from_bytes(&receipt_account.data).expect("Should deserialize Receipt");
-    assert_eq!(
-        receipt_state.action_id, action_id,
-        "Receipt action_id mismatch"
-    );
-    assert_eq!(receipt_state.bump, receipt_bump, "Receipt bump mismatch");
-    assert_eq!(receipt_state.mint, mint_pubkey, "Receipt mint mismatch");
+        .expect("Receipt should be created");
 }
 
 #[tokio::test]

@@ -1,5 +1,5 @@
 use security_token_client::types::{
-    CloseRateArgs, CloseReceiptArgs, CreateRateArgs, RateArgs, Rounding,
+    CloseReceiptArgs, CreateRateArgs, RateArgs, Rounding,
 };
 use solana_program_test::*;
 use solana_sdk::{
@@ -16,7 +16,7 @@ use crate::{
         start_with_context_and_accounts, TX_FEE,
     },
     rate_tests::rate_helpers::{
-        close_rate_account, create_rate_account, create_security_token_mint,
+        create_rate_account, create_security_token_mint,
     },
     receipt_tests::receipt_helpers::close_receipt_account,
     split_tests::split_helpers::{create_split_verification_config, execute_split},
@@ -124,38 +124,6 @@ async fn test_should_close_receipt_account_after_split() {
         .await
         .expect("Receipt should be created");
 
-    let result = close_receipt_account(
-        context,
-        mint_keypair.pubkey(),
-        mint_authority_pda,
-        mint_creator.pubkey(),
-        receipt_pda,
-        rate_pda,
-        mint_from_pubkey,
-        &mint_creator,
-        CloseReceiptArgs { action_id },
-    )
-    .await;
-    assert!(
-        result.is_err(),
-        "Should not close Receipt if Rate not closed"
-    );
-
-    // Close Rate account
-    let result = close_rate_account(
-        context,
-        mint_keypair.pubkey(),
-        mint_authority_pda,
-        context.payer.pubkey(),
-        mint_from_pubkey,
-        mint_from_pubkey,
-        None,
-        CloseRateArgs { action_id },
-    )
-    .await;
-    assert_transaction_success(result);
-    assert_account_exists(context, rate_pda, false).await;
-
     let balance_before = get_balance(&mut context.banks_client, mint_creator.pubkey()).await;
 
     let result = close_receipt_account(
@@ -164,7 +132,6 @@ async fn test_should_close_receipt_account_after_split() {
         mint_authority_pda,
         mint_creator.pubkey(),
         receipt_pda,
-        rate_pda,
         mint_from_pubkey,
         &mint_creator,
         CloseReceiptArgs { action_id },
@@ -191,7 +158,6 @@ async fn test_should_close_receipt_account_after_split() {
         mint_authority_pda,
         mint_creator.pubkey(),
         receipt_pda,
-        rate_pda,
         mint_from_pubkey,
         &mint_creator,
         CloseReceiptArgs { action_id },
@@ -311,39 +277,6 @@ async fn test_should_close_receipt_account_after_convert() {
         .await
         .expect("Receipt should be created");
 
-    // Try closing Receipt account before closing Rate account
-    let result = close_receipt_account(
-        context,
-        mint_keypair_to.pubkey(),
-        mint_authority_pda_to,
-        mint_creator.pubkey(),
-        receipt_pda,
-        rate_pda,
-        mint_to_pubkey,
-        &mint_creator,
-        CloseReceiptArgs { action_id },
-    )
-    .await;
-    assert!(
-        result.is_err(),
-        "Should not close Receipt if Rate not closed"
-    );
-
-    // Close Rate account
-    let result = close_rate_account(
-        context,
-        mint_keypair_to.pubkey(),
-        mint_authority_pda_to,
-        context.payer.pubkey(),
-        mint_from_pubkey,
-        mint_to_pubkey,
-        None,
-        CloseRateArgs { action_id },
-    )
-    .await;
-    assert_transaction_success(result);
-    assert_account_exists(context, rate_pda, false).await;
-
     let balance_before = get_balance(&mut context.banks_client, mint_creator.pubkey()).await;
 
     let result = close_receipt_account(
@@ -352,7 +285,6 @@ async fn test_should_close_receipt_account_after_convert() {
         mint_authority_pda_to,
         mint_creator.pubkey(),
         receipt_pda,
-        rate_pda,
         mint_to_pubkey,
         &mint_creator,
         CloseReceiptArgs { action_id },
@@ -379,7 +311,6 @@ async fn test_should_close_receipt_account_after_convert() {
         mint_authority_pda_to,
         mint_creator.pubkey(),
         receipt_pda,
-        rate_pda,
         mint_to_pubkey,
         &mint_creator,
         CloseReceiptArgs { action_id },
@@ -389,7 +320,7 @@ async fn test_should_close_receipt_account_after_convert() {
 }
 
 #[tokio::test]
-async fn test_should_close_not_owned_receipt_account() {
+async fn test_should_not_close_not_owned_receipt_account() {
     let kp2 = Keypair::new();
     let mut context =
         &mut start_with_context_and_accounts(vec![(&kp2, sol_str_to_lamports("2").unwrap())]).await;
@@ -497,27 +428,11 @@ async fn test_should_close_not_owned_receipt_account() {
             .await
             .expect("Receipt should be created");
 
-        // Close Rate account
-        let result = close_rate_account(
-            context,
-            mint_pubkey,
-            mint_authority_pda,
-            mint_creator.pubkey(),
-            mint_pubkey,
-            mint_pubkey,
-            Some(mint_creator),
-            CloseRateArgs { action_id },
-        )
-        .await;
-        assert_transaction_success(result);
-        assert_account_exists(context, rate_pda, false).await;
-
         let ix_data = (
             mint_keypair.pubkey(),
             mint_authority_pda,
             mint_creator.pubkey(),
             receipt_pda,
-            rate_pda,
             mint_pubkey,
             mint_creator.insecure_clone(),
             CloseReceiptArgs { action_id },
@@ -531,7 +446,6 @@ async fn test_should_close_not_owned_receipt_account() {
         mint_authority_pda_1,
         mint_creator_pubkey_1,
         receipt_pda_1,
-        rate_pda_1,
         mint_from_pubkey_1,
         mint_creator_1,
         close_receipt_args_1,
@@ -540,7 +454,6 @@ async fn test_should_close_not_owned_receipt_account() {
         mint_authority_pda_2,
         mint_creator_pubkey_2,
         receipt_pda_2,
-        rate_pda_2,
         mint_from_pubkey_2,
         mint_creator_2,
         close_receipt_args_2,
@@ -555,7 +468,6 @@ async fn test_should_close_not_owned_receipt_account() {
         *mint_authority_pda_1,
         *mint_creator_pubkey_1,
         *receipt_pda_2,
-        *rate_pda_1,
         *mint_from_pubkey_1,
         &mint_creator_1,
         close_receipt_args_1.clone(),
@@ -568,7 +480,6 @@ async fn test_should_close_not_owned_receipt_account() {
         *mint_authority_pda_1,
         *mint_creator_pubkey_2,
         *receipt_pda_2,
-        *rate_pda_1,
         *mint_from_pubkey_2,
         &mint_creator_1,
         close_receipt_args_2.clone(),
@@ -583,7 +494,6 @@ async fn test_should_close_not_owned_receipt_account() {
         *mint_authority_pda_1,
         *mint_creator_pubkey_1,
         *receipt_pda_1,
-        *rate_pda_1,
         *mint_from_pubkey_1,
         &mint_creator_1,
         close_receipt_args_1.clone(),
@@ -597,7 +507,6 @@ async fn test_should_close_not_owned_receipt_account() {
         *mint_authority_pda_2,
         *mint_creator_pubkey_2,
         *receipt_pda_2,
-        *rate_pda_2,
         *mint_from_pubkey_2,
         &mint_creator_2,
         close_receipt_args_2.clone(),
