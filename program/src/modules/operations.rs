@@ -15,8 +15,7 @@ use crate::state::{
     MintAuthority, ProgramAccount, Proof, ProofData, ProofNode, Rate, Receipt, Rounding,
 };
 use crate::utils::{
-    find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda,
-    find_proof_pda, find_rate_pda, find_receipt_pda,
+    find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda, find_proof_pda, find_rate_pda
 };
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
@@ -435,30 +434,26 @@ impl OperationsModule {
         Ok(())
     }
 
-    /// Close Receipt account
+    /// Close Receipt account of common action (Split, Convert)
     pub fn execute_close_receipt_account(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         action_id: u64,
     ) -> ProgramResult {
-        let [receipt_account, rate_account, mint_account, destination_account] = accounts else {
+        let [receipt_account, mint_account, destination_account] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         verify_operation_mint_info(verified_mint_info, &mint_account)?;
         verify_writable(destination_account)?;
         verify_writable(receipt_account)?;
-        // Rate account must be closed before closing Receipt
-        verify_account_not_initialized(rate_account)?;
 
-        // Deserialize and ensure Receipt is valid account
+        // Validate Receipt
         verify_account_initialized(receipt_account)?;
-        let receipt = Receipt::from_account_info(receipt_account)?;
-        if receipt.action_id.ne(&action_id) || receipt.mint.ne(mint_account.key()) {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-        let expected_receipt_pda = receipt.derive_pda()?;
+        verify_owner(receipt_account, program_id)?;
+        let (expected_receipt_pda, _bump) =
+            Receipt::find_common_action_pda(mint_account.key(), action_id);
         verify_pda(receipt_account.key(), &expected_receipt_pda)?;
 
         Receipt::close(receipt_account, destination_account)?;
@@ -521,7 +516,7 @@ impl OperationsModule {
         verify_writable(receipt_account)?;
         verify_account_not_initialized(receipt_account)?;
         let (expected_receipt_pda, receipt_bump) =
-            find_receipt_pda(mint_split_key, action_id, program_id);
+            Receipt::find_common_action_pda(mint_split_key, action_id);
         verify_pda(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify System program
@@ -561,14 +556,13 @@ impl OperationsModule {
                 permanent_delegate_bump,
             )?;
         }
+
         // Create Receipt PDA account for Split operation
-        Receipt::issue(
-            receipt_account,
-            payer,
-            *mint_split_key,
-            action_id,
-            receipt_bump,
-        )?;
+        let action_id_seed = action_id.to_le_bytes();
+        let bump_seed = [receipt_bump];
+        let seeds = Receipt::common_action_seeds(mint_split_key, &action_id_seed, &bump_seed);
+        Receipt::issue(receipt_account, payer, &seeds)?;
+
         Ok(())
     }
 
@@ -645,7 +639,7 @@ impl OperationsModule {
         verify_writable(receipt_account)?;
         verify_account_not_initialized(receipt_account)?;
         let (expected_receipt_pda, receipt_bump) =
-            find_receipt_pda(verified_mint_key, action_id, program_id);
+            Receipt::find_common_action_pda(verified_mint_key, action_id);
         verify_pda(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify System program
@@ -684,13 +678,10 @@ impl OperationsModule {
         )?;
 
         // Create Receipt PDA account for Convert operation
-        Receipt::issue(
-            receipt_account,
-            payer,
-            *verified_mint_key,
-            action_id,
-            receipt_bump,
-        )?;
+        let action_id_seed = action_id.to_le_bytes();
+        let bump_seed = [receipt_bump];
+        let seeds = Receipt::common_action_seeds(verified_mint_key, &action_id_seed, &bump_seed);
+        Receipt::issue(receipt_account, payer, &seeds)?;
 
         Ok(())
     }

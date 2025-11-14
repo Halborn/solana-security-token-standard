@@ -338,9 +338,8 @@ mod idl_gen {
         #[account(1, name = "verification_config_or_mint_authority")]
         #[account(2, name = "instructions_sysvar_or_creator")]
         #[account(3, writable, name = "receipt_account")]
-        #[account(4, name = "rate_account")]
-        #[account(5, name = "mint_account")]
-        #[account(6, writable, name = "destination")]
+        #[account(4, name = "mint_account")]
+        #[account(5, writable, name = "destination")]
         CloseReceiptAccount(CloseReceiptArgs) = 20,
     }
 }

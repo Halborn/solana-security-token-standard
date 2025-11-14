@@ -97,14 +97,33 @@ pub fn find_rate_pda(
     )
 }
 
-/// Derive receipt PDA
+/// Derive receipt PDA for any operation connected to action id, like Split, Convert,
 /// Seeds: ["receipt", mint, action_id]
-pub fn find_receipt_pda(mint: &Pubkey, action_id: u64, program_id: &Pubkey) -> (Pubkey, u8) {
+pub fn find_action_receipt_pda(mint: &Pubkey, action_id: u64, program_id: &Pubkey) -> (Pubkey, u8) {
     find_program_address(
         &[
             seeds::RECEIPT_ACCOUNT,
             mint.as_ref(),
             action_id.to_le_bytes().as_ref(),
+        ],
+        program_id,
+    )
+}
+
+/// Derive receipt PDA for Claim operation
+/// Seeds: ["receipt", token_account, action_id, proof]
+pub fn find_claim_receipt_pda(
+    token_account: &Pubkey,
+    action_id: u64,
+    proof: &[u8; 32],
+    program_id: &Pubkey,
+) -> (Pubkey, u8) {
+    find_program_address(
+        &[
+            seeds::RECEIPT_ACCOUNT,
+            token_account.as_ref(),
+            action_id.to_le_bytes().as_ref(),
+            proof.as_ref(),
         ],
         program_id,
     )
