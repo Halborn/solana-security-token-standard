@@ -7,7 +7,8 @@ use solana_sdk::{
 
 use crate::{
     helpers::{
-        TX_FEE, assert_account_exists, assert_transaction_success, get_balance, start_with_context, start_with_context_and_accounts
+        assert_account_exists, assert_transaction_success, get_balance, start_with_context,
+        start_with_context_and_accounts, TX_FEE,
     },
     rate_tests::rate_helpers::{
         close_rate_account, create_rate_account, create_security_token_mint,
@@ -97,7 +98,8 @@ async fn test_should_close_rate_account() {
     assert_account_exists(context, rate_pda2, true).await;
 
     // Check payer received rent lamports from closed account
-    let payer_balance_after_close1 = get_balance(&context.banks_client, context.payer.pubkey()).await;
+    let payer_balance_after_close1 =
+        get_balance(&context.banks_client, context.payer.pubkey()).await;
 
     let rent_refund1 = payer_balance_after_close1 - payer_balance_before + TX_FEE;
     let rate_account_rent1 = rate_account1.lamports;
@@ -123,7 +125,8 @@ async fn test_should_close_rate_account() {
     assert_account_exists(context, rate_pda1, false).await;
     assert_account_exists(context, rate_pda2, false).await;
 
-    let payer_balance_after_close2 = get_balance(&context.banks_client, context.payer.pubkey()).await;
+    let payer_balance_after_close2 =
+        get_balance(&context.banks_client, context.payer.pubkey()).await;
 
     let rent_refund2 = payer_balance_after_close2 - payer_balance_after_close1 + TX_FEE;
     let rate_account_rent2 = rate_account2.lamports;

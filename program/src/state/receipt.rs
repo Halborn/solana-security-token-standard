@@ -1,9 +1,6 @@
 //! Receipt account state
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::Seed,
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    account_info::AccountInfo, instruction::Seed, program_error::ProgramError, pubkey::Pubkey,
     ProgramResult,
 };
 
@@ -13,7 +10,7 @@ use crate::{
         AccountDeserialize, AccountSerialize, Discriminator, ProgramAccount,
         SecurityTokenDiscriminators,
     },
-    utils::{find_action_receipt_pda, find_claim_receipt_pda},
+    utils::{find_claim_receipt_pda, find_common_action_receipt_pda},
 };
 
 /// Receipt account structure
@@ -66,7 +63,7 @@ impl Receipt {
         Ok(())
     }
 
-    /// Seeds for any operation connected to action id, like Split, Convert
+    /// Seeds for common operation connected to action id and mint (e.g. Split, Convert)
     pub fn common_action_seeds<'a>(
         mint: &'a Pubkey,
         action_id_seed: &'a [u8],
@@ -80,9 +77,9 @@ impl Receipt {
         ]
     }
 
-    /// Find receipt PDA for common operation connected to action id, like Split, Convert
+    /// Find receipt PDA for common operation connected to action id and mint (e.g. Split, Convert)
     pub fn find_common_action_pda(mint: &Pubkey, action_id: u64) -> (Pubkey, u8) {
-        find_action_receipt_pda(mint, action_id, &crate::id())
+        find_common_action_receipt_pda(mint, action_id, &crate::id())
     }
 
     /// Seeds for Claim operation

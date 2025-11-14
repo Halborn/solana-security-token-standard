@@ -1,6 +1,4 @@
-use security_token_client::types::{
-    CloseReceiptArgs, CreateRateArgs, RateArgs, Rounding,
-};
+use security_token_client::types::{CloseReceiptArgs, CreateRateArgs, RateArgs, Rounding};
 use solana_program_test::*;
 use solana_sdk::{
     native_token::sol_str_to_lamports,
@@ -11,13 +9,11 @@ use crate::{
     convert_tests::convert_helpers::{create_convert_verification_config, execute_convert},
     helpers::{
         assert_account_exists, assert_transaction_success, create_mint_verification_config,
-        create_spl_account, create_token_account_and_mint_tokens, find_permanent_delegate_pda,
-        find_receipt_pda, from_ui_amount, get_balance, mint_tokens_to, start_with_context,
-        start_with_context_and_accounts, TX_FEE,
+        create_spl_account, create_token_account_and_mint_tokens, find_common_action_receipt_pda,
+        find_permanent_delegate_pda, from_ui_amount, get_balance, mint_tokens_to,
+        start_with_context, start_with_context_and_accounts, TX_FEE,
     },
-    rate_tests::rate_helpers::{
-        create_rate_account, create_security_token_mint,
-    },
+    rate_tests::rate_helpers::{create_rate_account, create_security_token_mint},
     receipt_tests::receipt_helpers::close_receipt_account,
     split_tests::split_helpers::{create_split_verification_config, execute_split},
 };
@@ -64,7 +60,7 @@ async fn test_should_close_receipt_account_after_split() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda, _) = find_permanent_delegate_pda(&mint_keypair.pubkey());
-    let (receipt_pda, _) = find_receipt_pda(&mint_from_pubkey, action_id);
+    let (receipt_pda, _) = find_common_action_receipt_pda(&mint_from_pubkey, action_id);
 
     assert_account_exists(context, rate_pda, true)
         .await
@@ -151,7 +147,7 @@ async fn test_should_close_receipt_account_after_split() {
         "Payer should receive rent lamports from closed Receipt account"
     );
 
-    // // Try closing already closed Receipt account
+    // Try closing already closed Receipt account
     let result = close_receipt_account(
         context,
         mint_keypair.pubkey(),
@@ -212,7 +208,7 @@ async fn test_should_close_receipt_account_after_convert() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _) = find_permanent_delegate_pda(&mint_keypair_from.pubkey());
-    let (receipt_pda, _) = find_receipt_pda(&mint_to_pubkey, action_id);
+    let (receipt_pda, _) = find_common_action_receipt_pda(&mint_to_pubkey, action_id);
 
     assert_account_exists(context, rate_pda, true)
         .await
@@ -369,7 +365,7 @@ async fn test_should_not_close_not_owned_receipt_account() {
 
         // Derive permanent delegate & receipt PDAs
         let (permanent_delegate_pda, _) = find_permanent_delegate_pda(&mint_pubkey);
-        let (receipt_pda, _) = find_receipt_pda(&mint_pubkey, action_id);
+        let (receipt_pda, _) = find_common_action_receipt_pda(&mint_pubkey, action_id);
 
         assert_account_exists(context, rate_pda, true)
             .await
