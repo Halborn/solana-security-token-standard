@@ -1,2 +1,0 @@
-# Security Token Standard
-pending
