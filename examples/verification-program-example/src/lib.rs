@@ -36,8 +36,8 @@ use pinocchio_log::log;
 
 // Import argument types from the Rust client for complex argument parsing
 use security_token_client::types::{
-    CloseRateArgs, CreateRateArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
-    UpdateMetadataArgs, UpdateRateArgs, UpdateVerificationConfigArgs,
+    CloseRateArgs, ConvertArgs, CreateRateArgs, InitializeVerificationConfigArgs, SplitArgs,
+    TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateRateArgs, UpdateVerificationConfigArgs,
 };
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -457,7 +457,9 @@ fn verify_close_rate_account(accounts: &[AccountInfo], instruction_data: &[u8]) 
 
 /// Verify Split operation
 ///
-/// Instruction data: [action_id: u64]
+/// Instruction data: [SplitArgs (serialized)]
+///
+/// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
 fn verify_split(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
     let [mint_authority, permanent_delegate, payer, mint_account, token_account, rate_account, receipt_account, token_program, system_program] =
@@ -466,19 +468,13 @@ fn verify_split(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    // Parse args
-    if instruction_data.len() < 8 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let action_id = u64::from_le_bytes(
-        instruction_data[0..8]
-            .try_into()
-            .map_err(|_| ProgramError::InvalidInstructionData)?,
-    );
+    // Parse args using types from security_token_client
+    let args = borsh::from_slice::<SplitArgs>(instruction_data)
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     log!(
         "Split verification: action_id={}, token_account={}",
-        action_id,
+        args.action_id,
         token_account.key
     );
     // Your validation logic here
@@ -487,7 +483,9 @@ fn verify_split(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
 
 /// Verify Convert operation
 ///
-/// Instruction data: [action_id: u64, amount: u64]
+/// Instruction data: [ConvertArgs (serialized)]
+///
+/// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
 fn verify_convert(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
     let [mint_authority, permanent_delegate, payer, mint_from_account, mint_to_account, token_account_from, token_account_to, rate_account, receipt_account, token_program, system_program] =
@@ -496,24 +494,14 @@ fn verify_convert(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    // Parse args
-    if instruction_data.len() < 16 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let action_id = u64::from_le_bytes(
-        instruction_data[0..8]
-            .try_into()
-            .map_err(|_| ProgramError::InvalidInstructionData)?,
-    );
-    let amount = u64::from_le_bytes(
-        instruction_data[8..16]
-            .try_into()
-            .map_err(|_| ProgramError::InvalidInstructionData)?,
-    );
+    // Parse args using types from security_token_client
+    let args = borsh::from_slice::<ConvertArgs>(instruction_data)
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+
     log!(
         "Convert verification: action_id={}, amount={}, from={}, to={}",
-        action_id,
-        amount,
+        args.action_id,
+        args.amount_to_convert,
         token_account_from.key,
         token_account_to.key
     );
