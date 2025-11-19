@@ -4,6 +4,7 @@ use shank::ShankType;
 use crate::{
     constants::{ACTION_ID_LEN, MERKLE_ROOT_LEN},
     instructions::rate_account::shared::parse_action_id_argument,
+    merkle_tree_utils::MerkleTreeRoot,
 };
 
 /// Arguments to create a Distribution Escrow
@@ -13,7 +14,8 @@ pub struct CreateDistributionEscrowArgs {
     /// Action ID for the distribution operation
     pub action_id: u64,
     /// Merkle tree root
-    pub merkle_root: [u8; 32],
+    #[idl_type("[u8; 32]")]
+    pub merkle_root: MerkleTreeRoot,
 }
 
 impl CreateDistributionEscrowArgs {
@@ -27,10 +29,10 @@ impl CreateDistributionEscrowArgs {
         let action_id = parse_action_id_argument(&data[..ACTION_ID_LEN])?;
 
         let merkle_root =
-            <[u8; 32]>::try_from(&data[ACTION_ID_LEN..(MERKLE_ROOT_LEN + ACTION_ID_LEN)])
+            <MerkleTreeRoot>::try_from(&data[ACTION_ID_LEN..(MERKLE_ROOT_LEN + ACTION_ID_LEN)])
                 .map_err(|_| ProgramError::InvalidArgument)?;
 
-        if merkle_root == [0u8; 32] {
+        if merkle_root == [0u8; MERKLE_ROOT_LEN] {
             return Err(ProgramError::InvalidArgument);
         }
 
@@ -60,7 +62,7 @@ mod tests {
     #[case(u64::MAX, random_32_bytes())]
     fn test_create_distribution_escrow_args_to_bytes(
         #[case] action_id: u64,
-        #[case] merkle_root: [u8; 32],
+        #[case] merkle_root: MerkleTreeRoot,
     ) {
         let original = CreateDistributionEscrowArgs {
             action_id,
@@ -80,7 +82,7 @@ mod tests {
     #[case(1u64, [0u8; 32], "Empty merkle root should be invalid")]
     fn test_create_distribution_escrow_args_validation(
         #[case] action_id: u64,
-        #[case] merkle_root: [u8; 32],
+        #[case] merkle_root: MerkleTreeRoot,
         #[case] description: &str,
     ) {
         let original = CreateDistributionEscrowArgs {

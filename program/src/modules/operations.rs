@@ -6,6 +6,7 @@
 use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
 use crate::debug_log;
 use crate::instructions::{CustomPause, CustomResume, CustomTransferChecked};
+use crate::merkle_tree_utils::MerkleTreeRoot;
 use crate::modules::{
     burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
     verify_associated_token_program, verify_operation_mint_info, verify_owner, verify_pda,
@@ -312,7 +313,7 @@ impl OperationsModule {
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         action_id: u64,
-        merkle_root: &[u8; 32],
+        merkle_root: &MerkleTreeRoot,
     ) -> ProgramResult {
         let [distribution_escrow_authority, payer, distribution_token_account, distribution_mint, token_program, associated_token_account_program, system_program] =
             accounts
