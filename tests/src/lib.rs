@@ -23,3 +23,6 @@ pub mod convert_tests;
 
 #[cfg(test)]
 pub mod proof_tests;
+
+#[cfg(test)]
+pub mod receipt_tests;

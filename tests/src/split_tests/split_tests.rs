@@ -1,16 +1,13 @@
 use rstest::*;
-use security_token_client::{
-    accounts::Receipt,
-    types::{CreateRateArgs, RateArgs, Rounding},
-};
+use security_token_client::types::{CreateRateArgs, RateArgs, Rounding};
 use solana_pubkey::Pubkey;
 use solana_sdk::{native_token::sol_str_to_lamports, signature::Keypair, signer::Signer};
 
 use crate::{
     helpers::{
         assert_account_exists, assert_transaction_success, create_mint_verification_config,
-        create_spl_account, find_permanent_delegate_pda, find_receipt_pda, from_ui_amount,
-        get_token_account_state, mint_tokens_to, start_with_context,
+        create_spl_account, find_common_action_receipt_pda, find_permanent_delegate_pda,
+        from_ui_amount, get_token_account_state, mint_tokens_to, start_with_context,
         start_with_context_and_accounts,
     },
     rate_tests::rate_helpers::{
@@ -95,7 +92,7 @@ async fn test_should_split_with_mint_successfully() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_keypair.pubkey());
-    let (receipt_pda, receipt_bump) = find_receipt_pda(&mint_pubkey, action_id);
+    let (receipt_pda, _) = find_common_action_receipt_pda(&mint_pubkey, action_id);
 
     // Execute split
     let split_result = execute_split(
@@ -124,17 +121,9 @@ async fn test_should_split_with_mint_successfully() {
     assert_eq!(token_account_after.base.amount, expected_amount);
 
     // Verify receipt account exists
-    let receipt_account = assert_account_exists(context, receipt_pda, true)
+    assert_account_exists(context, receipt_pda, true)
         .await
         .expect("Receipt should be created");
-    let receipt_state =
-        Receipt::from_bytes(&receipt_account.data).expect("Should deserialize Receipt");
-    assert_eq!(
-        receipt_state.action_id, action_id,
-        "Receipt action_id mismatch"
-    );
-    assert_eq!(receipt_state.bump, receipt_bump, "Receipt bump mismatch");
-    assert_eq!(receipt_state.mint, mint_pubkey, "Receipt mint mismatch");
 }
 
 #[tokio::test]
@@ -213,7 +202,7 @@ async fn test_should_split_with_burn_successfully() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey);
-    let (receipt_pda, receipt_bump) = find_receipt_pda(&mint_pubkey, action_id);
+    let (receipt_pda, _) = find_common_action_receipt_pda(&mint_pubkey, action_id);
 
     // Execute split
     let split_result = execute_split(
@@ -242,17 +231,9 @@ async fn test_should_split_with_burn_successfully() {
     assert_eq!(token_account_after.base.amount, expected_amount);
 
     // Verify receipt account exists
-    let receipt_account = assert_account_exists(context, receipt_pda, true)
+    assert_account_exists(context, receipt_pda, true)
         .await
-        .unwrap();
-    let receipt_state =
-        Receipt::from_bytes(&receipt_account.data).expect("Should deserialize Receipt");
-    assert_eq!(
-        receipt_state.action_id, action_id,
-        "Receipt action_id mismatch"
-    );
-    assert_eq!(receipt_state.bump, receipt_bump, "Receipt bump mismatch");
-    assert_eq!(receipt_state.mint, mint_pubkey, "Receipt mint mismatch");
+        .expect("Receipt should be created");
 }
 
 #[tokio::test]
@@ -329,7 +310,7 @@ async fn test_should_not_split_twice() {
     assert_transaction_success(rate_create_result);
 
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey);
-    let (receipt_pda, _receipt_bump) = find_receipt_pda(&mint_pubkey, action_id);
+    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(&mint_pubkey, action_id);
 
     // Execute split
     let split_result = execute_split(
@@ -432,7 +413,7 @@ async fn test_should_not_split_token_zero_amount() {
     assert_transaction_success(rate_create_result);
 
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey);
-    let (receipt_pda, _receipt_bump) = find_receipt_pda(&mint_pubkey, action_id);
+    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(&mint_pubkey, action_id);
 
     let split_result = execute_split(
         &context.banks_client,
@@ -583,7 +564,8 @@ async fn test_should_not_split_with_invalid_random_accounts(
     .await;
     assert_transaction_success(rate_create_result);
 
-    let (valid_receipt_pda, _receipt_bump) = find_receipt_pda(&valid_mint_pubkey, action_id);
+    let (valid_receipt_pda, _receipt_bump) =
+        find_common_action_receipt_pda(&valid_mint_pubkey, action_id);
 
     // Execute split
     let split_result = execute_split(
@@ -678,7 +660,7 @@ async fn test_should_not_split_not_owned_mint_or_token_account() {
     .await;
     assert_transaction_success(rate_create_result);
 
-    let (receipt_pda, _receipt_bump) = find_receipt_pda(&mint_pubkey1, action_id);
+    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(&mint_pubkey1, action_id);
 
     // Create security mint for mint creator 2
     let mint_creator_pubkey2 = mint_creator2.pubkey();

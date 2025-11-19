@@ -397,6 +397,7 @@ async fn test_should_not_update_closed_rate_account() {
         context.payer.pubkey(),
         mint_from_pubkey,
         mint_to_pubkey,
+        None,
         CloseRateArgs { action_id },
     )
     .await;

@@ -7,6 +7,7 @@
  */
 
 export * from './closeRateArgs';
+export * from './closeReceiptArgs';
 export * from './convertArgs';
 export * from './createProofArgs';
 export * from './createRateArgs';

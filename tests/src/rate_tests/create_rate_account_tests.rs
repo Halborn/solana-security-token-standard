@@ -479,6 +479,7 @@ async fn test_should_re_create_closed_rate_account() {
         context.payer.pubkey(),
         rate_mint_pubkey,
         rate_mint_pubkey,
+        None,
         CloseRateArgs { action_id },
     )
     .await;

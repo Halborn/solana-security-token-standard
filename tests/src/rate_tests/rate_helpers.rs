@@ -111,9 +111,13 @@ pub async fn close_rate_account(
     instructions_sysvar_or_creator: Pubkey,
     mint_from: Pubkey,
     mint_to: Pubkey,
+    destination: Option<&Keypair>,
     close_rate_args: CloseRateArgs,
 ) -> Result<(), BanksClientError> {
     let (rate_pda, _bump) = find_rate_pda(close_rate_args.action_id, &mint_from, &mint_to);
+
+    let destination_pubkey = destination.map_or(context.payer.pubkey(), |d| d.pubkey());
+    let destination_keypair = destination.unwrap_or(&context.payer);
 
     let close_rate_ix = CloseRateAccount {
         mint: security_token_mint,
@@ -122,16 +126,15 @@ pub async fn close_rate_account(
         rate_account: rate_pda,
         mint_from,
         mint_to,
-        destination: context.payer.pubkey(),
+        destination: destination_pubkey,
     }
     .instruction(CloseRateAccountInstructionArgs { close_rate_args });
 
-    let payer = &context.payer;
     send_tx(
         &context.banks_client,
         vec![close_rate_ix],
-        &payer.pubkey(),
-        vec![&payer],
+        &destination_pubkey,
+        vec![&destination_keypair],
     )
     .await
 }
