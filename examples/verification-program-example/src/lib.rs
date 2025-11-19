@@ -28,6 +28,7 @@
 //! Use this as a template to implement your own verification logic
 //! (KYC checks, compliance rules, rate limits, etc.)
 
+use borsh::BorshDeserialize;
 use pinocchio::{
     account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey::Pubkey,
     ProgramResult,
@@ -42,26 +43,6 @@ use security_token_client::types::{
 
 #[cfg(not(feature = "no-entrypoint"))]
 entrypoint!(process_instruction);
-
-/// Operation discriminators from Security Token Program
-pub mod discriminators {
-    pub const UPDATE_METADATA: u8 = 1;
-    pub const INITIALIZE_VERIFICATION_CONFIG: u8 = 2;
-    pub const UPDATE_VERIFICATION_CONFIG: u8 = 3;
-    pub const TRIM_VERIFICATION_CONFIG: u8 = 4;
-    pub const MINT: u8 = 6;
-    pub const BURN: u8 = 7;
-    pub const PAUSE: u8 = 8;
-    pub const RESUME: u8 = 9;
-    pub const FREEZE: u8 = 10;
-    pub const THAW: u8 = 11;
-    pub const TRANSFER: u8 = 12;
-    pub const CREATE_RATE_ACCOUNT: u8 = 13;
-    pub const UPDATE_RATE_ACCOUNT: u8 = 14;
-    pub const CLOSE_RATE_ACCOUNT: u8 = 15;
-    pub const SPLIT: u8 = 16;
-    pub const CONVERT: u8 = 17;
-}
 
 /// Program entry point
 pub fn process_instruction(
@@ -78,28 +59,48 @@ pub fn process_instruction(
 
     // Route to appropriate handler based on operation type
     match discriminator {
-        discriminators::UPDATE_METADATA => verify_update_metadata(accounts, args_data),
-        discriminators::INITIALIZE_VERIFICATION_CONFIG => {
+        security_token_client::instructions::UPDATE_METADATA_DISCRIMINATOR => {
+            verify_update_metadata(accounts, args_data)
+        }
+        security_token_client::instructions::INITIALIZE_VERIFICATION_CONFIG_DISCRIMINATOR => {
             verify_initialize_verification_config(accounts, args_data)
         }
-        discriminators::UPDATE_VERIFICATION_CONFIG => {
+        security_token_client::instructions::UPDATE_VERIFICATION_CONFIG_DISCRIMINATOR => {
             verify_update_verification_config(accounts, args_data)
         }
-        discriminators::TRIM_VERIFICATION_CONFIG => {
+        security_token_client::instructions::TRIM_VERIFICATION_CONFIG_DISCRIMINATOR => {
             verify_trim_verification_config(accounts, args_data)
         }
-        discriminators::MINT => verify_mint(accounts, args_data),
-        discriminators::BURN => verify_burn(accounts, args_data),
-        discriminators::PAUSE => verify_pause(accounts, args_data),
-        discriminators::RESUME => verify_resume(accounts, args_data),
-        discriminators::FREEZE => verify_freeze(accounts, args_data),
-        discriminators::THAW => verify_thaw(accounts, args_data),
-        discriminators::TRANSFER => verify_transfer(accounts, args_data),
-        discriminators::CREATE_RATE_ACCOUNT => verify_create_rate_account(accounts, args_data),
-        discriminators::UPDATE_RATE_ACCOUNT => verify_update_rate_account(accounts, args_data),
-        discriminators::CLOSE_RATE_ACCOUNT => verify_close_rate_account(accounts, args_data),
-        discriminators::SPLIT => verify_split(accounts, args_data),
-        discriminators::CONVERT => verify_convert(accounts, args_data),
+        security_token_client::instructions::MINT_DISCRIMINATOR => verify_mint(accounts, args_data),
+        security_token_client::instructions::BURN_DISCRIMINATOR => verify_burn(accounts, args_data),
+        security_token_client::instructions::PAUSE_DISCRIMINATOR => {
+            verify_pause(accounts, args_data)
+        }
+        security_token_client::instructions::RESUME_DISCRIMINATOR => {
+            verify_resume(accounts, args_data)
+        }
+        security_token_client::instructions::FREEZE_DISCRIMINATOR => {
+            verify_freeze(accounts, args_data)
+        }
+        security_token_client::instructions::THAW_DISCRIMINATOR => verify_thaw(accounts, args_data),
+        security_token_client::instructions::TRANSFER_DISCRIMINATOR => {
+            verify_transfer(accounts, args_data)
+        }
+        security_token_client::instructions::CREATE_RATE_ACCOUNT_DISCRIMINATOR => {
+            verify_create_rate_account(accounts, args_data)
+        }
+        security_token_client::instructions::UPDATE_RATE_ACCOUNT_DISCRIMINATOR => {
+            verify_update_rate_account(accounts, args_data)
+        }
+        security_token_client::instructions::CLOSE_RATE_ACCOUNT_DISCRIMINATOR => {
+            verify_close_rate_account(accounts, args_data)
+        }
+        security_token_client::instructions::SPLIT_DISCRIMINATOR => {
+            verify_split(accounts, args_data)
+        }
+        security_token_client::instructions::CONVERT_DISCRIMINATOR => {
+            verify_convert(accounts, args_data)
+        }
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }
@@ -117,17 +118,9 @@ fn verify_update_metadata(accounts: &[AccountInfo], instruction_data: &[u8]) -> 
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-
     // Parse args using types from security_token_client
-    let args = borsh::from_slice::<UpdateMetadataArgs>(instruction_data)
+    let args = UpdateMetadataArgs::try_from_slice(instruction_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
-
-    log!(
-        "UpdateMetadata verification: name={}, symbol={}, uri={}",
-        args.metadata.name,
-        args.metadata.symbol,
-        args.metadata.uri
-    );
 
     // Your validation logic here
     Ok(())
@@ -149,9 +142,8 @@ fn verify_initialize_verification_config(
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-
     // Parse args using types from security_token_client
-    let args = borsh::from_slice::<InitializeVerificationConfigArgs>(instruction_data)
+    let args = InitializeVerificationConfigArgs::try_from_slice(instruction_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     log!(
@@ -180,9 +172,8 @@ fn verify_update_verification_config(
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-
     // Parse args using types from security_token_client
-    let args = borsh::from_slice::<UpdateVerificationConfigArgs>(instruction_data)
+    let args = UpdateVerificationConfigArgs::try_from_slice(instruction_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     log!(
@@ -211,18 +202,11 @@ fn verify_trim_verification_config(
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-
     // Parse args using types from security_token_client
-    let args = borsh::from_slice::<TrimVerificationConfigArgs>(instruction_data)
+    let args = TrimVerificationConfigArgs::try_from_slice(instruction_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-    log!(
-        "TrimVerificationConfig verification: discriminators_count={}",
-        args.discriminators.len()
-    );
-
     // Your validation logic here
-
     Ok(())
 }
 
@@ -248,7 +232,7 @@ fn verify_mint(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResu
     log!(
         "Mint verification: amount={}, destination={}",
         amount,
-        destination_account_info.key
+        destination_account_info.key()
     );
 
     // Your validation logic here
@@ -277,7 +261,7 @@ fn verify_burn(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResu
     log!(
         "Burn verification: amount={}, source={}",
         amount,
-        token_account.key
+        token_account.key()
     );
 
     // Your validation logic here
@@ -308,8 +292,8 @@ fn verify_transfer(accounts: &[AccountInfo], instruction_data: &[u8]) -> Program
     log!(
         "Transfer verification: amount={}, from={}, to={}",
         amount,
-        from_token_account.key,
-        to_token_account.key
+        from_token_account.key(),
+        to_token_account.key()
     );
 
     // Your validation logic here
@@ -325,7 +309,7 @@ fn verify_pause(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramRe
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    log!("Pause verification: mint={}", mint_info.key);
+    log!("Pause verification: mint={}", mint_info.key());
 
     // Your validation logic here
     Ok(())
@@ -340,7 +324,7 @@ fn verify_resume(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramR
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    log!("Resume verification: mint={}", mint_info.key);
+    log!("Resume verification: mint={}", mint_info.key());
 
     // Your validation logic here
     Ok(())
@@ -355,7 +339,7 @@ fn verify_freeze(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramR
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    log!("Freeze verification: target={}", token_account.key);
+    log!("Freeze verification: target={}", token_account.key());
 
     // Your validation logic here
     Ok(())
@@ -370,7 +354,7 @@ fn verify_thaw(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramRes
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    log!("Thaw verification: target={}", token_account.key);
+    log!("Thaw verification: target={}", token_account.key());
     // Your validation logic here
     Ok(())
 }
@@ -386,9 +370,8 @@ fn verify_create_rate_account(accounts: &[AccountInfo], instruction_data: &[u8])
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-
     // Parse args using types from security_token_client
-    let args = borsh::from_slice::<CreateRateArgs>(instruction_data)
+    let args = CreateRateArgs::try_from_slice(instruction_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     log!(
@@ -412,9 +395,8 @@ fn verify_update_rate_account(accounts: &[AccountInfo], instruction_data: &[u8])
     let [rate_account_info, mint_from_account, mint_to_info_account] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-
     // Parse args using types from security_token_client
-    let args = borsh::from_slice::<UpdateRateArgs>(instruction_data)
+    let args = UpdateRateArgs::try_from_slice(instruction_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     log!(
@@ -440,9 +422,8 @@ fn verify_close_rate_account(accounts: &[AccountInfo], instruction_data: &[u8]) 
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-
     // Parse args using types from security_token_client
-    let args = borsh::from_slice::<CloseRateArgs>(instruction_data)
+    let args = CloseRateArgs::try_from_slice(instruction_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     log!(
@@ -467,15 +448,14 @@ fn verify_split(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-
     // Parse args using types from security_token_client
-    let args = borsh::from_slice::<SplitArgs>(instruction_data)
+    let args = SplitArgs::try_from_slice(instruction_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     log!(
         "Split verification: action_id={}, token_account={}",
         args.action_id,
-        token_account.key
+        token_account.key()
     );
     // Your validation logic here
     Ok(())
@@ -493,17 +473,16 @@ fn verify_convert(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-
     // Parse args using types from security_token_client
-    let args = borsh::from_slice::<ConvertArgs>(instruction_data)
+    let args = ConvertArgs::try_from_slice(instruction_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     log!(
         "Convert verification: action_id={}, amount={}, from={}, to={}",
         args.action_id,
         args.amount_to_convert,
-        token_account_from.key,
-        token_account_to.key
+        token_account_from.key(),
+        token_account_to.key()
     );
     // Your validation logic here
     Ok(())
