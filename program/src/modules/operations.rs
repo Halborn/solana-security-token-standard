@@ -347,8 +347,8 @@ impl OperationsModule {
             account: distribution_token_account,
             wallet: distribution_escrow_authority,
             mint: distribution_mint,
-            system_program: system_program,
-            token_program: token_program,
+            system_program,
+            token_program,
         }
         .invoke()?;
 
