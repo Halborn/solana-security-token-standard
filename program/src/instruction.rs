@@ -356,8 +356,8 @@ mod idl_gen {
         // Instruction accounts
         #[account(3, name = "distribution_escrow_authority")]
         #[account(4, writable, signer, name = "payer")]
-        #[account(5, name = "distribution_mint")]
-        #[account(6, writable, name = "distribution_token_account")]
+        #[account(5, writable, name = "distribution_token_account")]
+        #[account(6, name = "distribution_mint")]
         #[account(7, name = "token_program")]
         #[account(8, name = "associated_token_account_program")]
         #[account(9, name = "system_program")]

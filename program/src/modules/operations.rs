@@ -314,40 +314,40 @@ impl OperationsModule {
         action_id: u64,
         merkle_root: &[u8; 32],
     ) -> ProgramResult {
-        let [distribution_escrow_authority_info, payer_info, distribution_mint_info, distribution_token_account_info, token_program_info, associated_token_account_program_info, system_program_info] =
+        let [distribution_escrow_authority, payer, distribution_token_account, distribution_mint, token_program, associated_token_account_program, system_program] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         // Verify mint is valid
-        verify_operation_mint_info(verified_mint_info, &distribution_mint_info)?;
+        verify_operation_mint_info(verified_mint_info, &distribution_mint)?;
         // Verify token account is not initialized
-        verify_writable(distribution_token_account_info)?;
-        verify_account_not_initialized(distribution_token_account_info)?;
+        verify_writable(distribution_token_account)?;
+        verify_account_not_initialized(distribution_token_account)?;
         // Verify payer
-        verify_signer(payer_info)?;
-        verify_writable(payer_info)?;
+        verify_signer(payer)?;
+        verify_writable(payer)?;
         // Verify programs
-        verify_token22_program(token_program_info)?;
-        verify_associated_token_program(associated_token_account_program_info)?;
-        verify_system_program(system_program_info)?;
+        verify_token22_program(token_program)?;
+        verify_associated_token_program(associated_token_account_program)?;
+        verify_system_program(system_program)?;
 
-        let mint_pubkey = distribution_mint_info.key();
+        let mint_pubkey = distribution_mint.key();
         let (distribution_escrow_authority_pda, _) =
             DistributionEscrowAuthority::find_pda(mint_pubkey, action_id, merkle_root);
         verify_pda(
-            distribution_escrow_authority_info.key(),
+            distribution_escrow_authority.key(),
             &distribution_escrow_authority_pda,
         )?;
 
         CreateTokenAccount {
-            funding_account: payer_info,
-            account: distribution_token_account_info,
-            wallet: distribution_escrow_authority_info,
-            mint: distribution_mint_info,
-            system_program: system_program_info,
-            token_program: token_program_info,
+            funding_account: payer,
+            account: distribution_token_account,
+            wallet: distribution_escrow_authority,
+            mint: distribution_mint,
+            system_program: system_program,
+            token_program: token_program,
         }
         .invoke()?;
 

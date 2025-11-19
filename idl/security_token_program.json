@@ -1188,13 +1188,13 @@
           "isSigner": true
         },
         {
-          "name": "distributionMint",
-          "isMut": false,
+          "name": "distributionTokenAccount",
+          "isMut": true,
           "isSigner": false
         },
         {
-          "name": "distributionTokenAccount",
-          "isMut": true,
+          "name": "distributionMint",
+          "isMut": false,
           "isSigner": false
         },
         {
