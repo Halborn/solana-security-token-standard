@@ -4,7 +4,7 @@ use shank::ShankType;
 use crate::{
     constants::{ACTION_ID_LEN, MERKLE_ROOT_LEN},
     instructions::rate_account::shared::parse_action_id_argument,
-    merkle_tree_utils::MerkleTreeRoot,
+    merkle_tree_utils::{MerkleTreeRoot, EMPTY_MERKLE_ROOT},
 };
 
 /// Arguments to create a Distribution Escrow
@@ -32,7 +32,7 @@ impl CreateDistributionEscrowArgs {
             <MerkleTreeRoot>::try_from(&data[ACTION_ID_LEN..(MERKLE_ROOT_LEN + ACTION_ID_LEN)])
                 .map_err(|_| ProgramError::InvalidArgument)?;
 
-        if merkle_root == [0u8; MERKLE_ROOT_LEN] {
+        if merkle_root == EMPTY_MERKLE_ROOT {
             return Err(ProgramError::InvalidArgument);
         }
 

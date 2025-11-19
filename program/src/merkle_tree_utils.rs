@@ -3,6 +3,7 @@ use solana_keccak_hasher::hashv;
 use crate::constants::MERKLE_ROOT_LEN;
 
 pub type MerkleTreeRoot = [u8; MERKLE_ROOT_LEN];
+pub const EMPTY_MERKLE_ROOT: MerkleTreeRoot = [0u8; MERKLE_ROOT_LEN];
 
 /// Verifies a Merkle proof for a given leaf node and root
 ///
