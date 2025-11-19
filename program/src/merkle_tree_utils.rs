@@ -20,6 +20,14 @@ pub fn verify_merkle_proof(
     proof: &[[u8; 32]],
     leaf_index: u32,
 ) -> bool {
+    if !proof.is_empty() {
+        let levels = proof.len();
+        let max_leaves = 1u32 << levels;
+        if leaf_index >= max_leaves {
+            return false;
+        }
+    }
+
     let mut hash = *node;
     for (i, sibling) in proof.iter().enumerate() {
         if (leaf_index >> i) & 1 == 0 {
