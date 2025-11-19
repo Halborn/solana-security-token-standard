@@ -50,8 +50,8 @@ export type CloseReceiptAccountInstruction<
     | string
     | AccountMeta<string> = string,
   TAccountReceiptAccount extends string | AccountMeta<string> = string,
-  TAccountMintAccount extends string | AccountMeta<string> = string,
   TAccountDestination extends string | AccountMeta<string> = string,
+  TAccountMintAccount extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -69,12 +69,12 @@ export type CloseReceiptAccountInstruction<
       TAccountReceiptAccount extends string
         ? WritableAccount<TAccountReceiptAccount>
         : TAccountReceiptAccount,
-      TAccountMintAccount extends string
-        ? ReadonlyAccount<TAccountMintAccount>
-        : TAccountMintAccount,
       TAccountDestination extends string
         ? WritableAccount<TAccountDestination>
         : TAccountDestination,
+      TAccountMintAccount extends string
+        ? ReadonlyAccount<TAccountMintAccount>
+        : TAccountMintAccount,
       ...TRemainingAccounts,
     ]
   >;
@@ -123,15 +123,15 @@ export type CloseReceiptAccountInput<
   TAccountVerificationConfigOrMintAuthority extends string = string,
   TAccountInstructionsSysvarOrCreator extends string = string,
   TAccountReceiptAccount extends string = string,
-  TAccountMintAccount extends string = string,
   TAccountDestination extends string = string,
+  TAccountMintAccount extends string = string,
 > = {
   mint: Address<TAccountMint>;
   verificationConfigOrMintAuthority: Address<TAccountVerificationConfigOrMintAuthority>;
   instructionsSysvarOrCreator: Address<TAccountInstructionsSysvarOrCreator>;
   receiptAccount: Address<TAccountReceiptAccount>;
-  mintAccount: Address<TAccountMintAccount>;
   destination: Address<TAccountDestination>;
+  mintAccount: Address<TAccountMintAccount>;
   closeReceiptArgs: CloseReceiptAccountInstructionDataArgs['closeReceiptArgs'];
 };
 
@@ -140,8 +140,8 @@ export function getCloseReceiptAccountInstruction<
   TAccountVerificationConfigOrMintAuthority extends string,
   TAccountInstructionsSysvarOrCreator extends string,
   TAccountReceiptAccount extends string,
-  TAccountMintAccount extends string,
   TAccountDestination extends string,
+  TAccountMintAccount extends string,
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
 >(
@@ -150,8 +150,8 @@ export function getCloseReceiptAccountInstruction<
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
     TAccountReceiptAccount,
-    TAccountMintAccount,
-    TAccountDestination
+    TAccountDestination,
+    TAccountMintAccount
   >,
   config?: { programAddress?: TProgramAddress }
 ): CloseReceiptAccountInstruction<
@@ -160,8 +160,8 @@ export function getCloseReceiptAccountInstruction<
   TAccountVerificationConfigOrMintAuthority,
   TAccountInstructionsSysvarOrCreator,
   TAccountReceiptAccount,
-  TAccountMintAccount,
-  TAccountDestination
+  TAccountDestination,
+  TAccountMintAccount
 > {
   // Program address.
   const programAddress =
@@ -179,8 +179,8 @@ export function getCloseReceiptAccountInstruction<
       isWritable: false,
     },
     receiptAccount: { value: input.receiptAccount ?? null, isWritable: true },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     destination: { value: input.destination ?? null, isWritable: true },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -197,8 +197,8 @@ export function getCloseReceiptAccountInstruction<
       getAccountMeta(accounts.verificationConfigOrMintAuthority),
       getAccountMeta(accounts.instructionsSysvarOrCreator),
       getAccountMeta(accounts.receiptAccount),
-      getAccountMeta(accounts.mintAccount),
       getAccountMeta(accounts.destination),
+      getAccountMeta(accounts.mintAccount),
     ],
     data: getCloseReceiptAccountInstructionDataEncoder().encode(
       args as CloseReceiptAccountInstructionDataArgs
@@ -210,8 +210,8 @@ export function getCloseReceiptAccountInstruction<
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
     TAccountReceiptAccount,
-    TAccountMintAccount,
-    TAccountDestination
+    TAccountDestination,
+    TAccountMintAccount
   >);
 }
 
@@ -225,8 +225,8 @@ export type ParsedCloseReceiptAccountInstruction<
     verificationConfigOrMintAuthority: TAccountMetas[1];
     instructionsSysvarOrCreator: TAccountMetas[2];
     receiptAccount: TAccountMetas[3];
-    mintAccount: TAccountMetas[4];
-    destination: TAccountMetas[5];
+    destination: TAccountMetas[4];
+    mintAccount: TAccountMetas[5];
   };
   data: CloseReceiptAccountInstructionData;
 };
@@ -256,8 +256,8 @@ export function parseCloseReceiptAccountInstruction<
       verificationConfigOrMintAuthority: getNextAccount(),
       instructionsSysvarOrCreator: getNextAccount(),
       receiptAccount: getNextAccount(),
-      mintAccount: getNextAccount(),
       destination: getNextAccount(),
+      mintAccount: getNextAccount(),
     },
     data: getCloseReceiptAccountInstructionDataDecoder().decode(
       instruction.data

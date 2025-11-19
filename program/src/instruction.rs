@@ -87,7 +87,11 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        CloseReceiptArgs, CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs, close_rate_account::CloseRateArgs, convert::ConvertArgs, create_proof_account::CreateProofArgs, split::SplitArgs, update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs
+        close_rate_account::CloseRateArgs, convert::ConvertArgs,
+        create_proof_account::CreateProofArgs, split::SplitArgs,
+        update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs,
+        CloseReceiptArgs, CreateRateArgs, InitializeMintArgs, InitializeVerificationConfigArgs,
+        TrimVerificationConfigArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -338,8 +342,8 @@ mod idl_gen {
         #[account(1, name = "verification_config_or_mint_authority")]
         #[account(2, name = "instructions_sysvar_or_creator")]
         #[account(3, writable, name = "receipt_account")]
-        #[account(4, name = "mint_account")]
-        #[account(5, writable, name = "destination")]
+        #[account(4, writable, name = "destination")]
+        #[account(5, name = "mint_account")]
         CloseReceiptAccount(CloseReceiptArgs) = 20,
     }
 }

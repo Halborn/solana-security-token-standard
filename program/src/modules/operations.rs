@@ -15,7 +15,8 @@ use crate::state::{
     MintAuthority, ProgramAccount, Proof, ProofData, ProofNode, Rate, Receipt, Rounding,
 };
 use crate::utils::{
-    find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda, find_proof_pda, find_rate_pda
+    find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda,
+    find_proof_pda, find_rate_pda,
 };
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
@@ -441,7 +442,7 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         action_id: u64,
     ) -> ProgramResult {
-        let [receipt_account, mint_account, destination_account] = accounts else {
+        let [receipt_account, destination_account, mint_account] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 

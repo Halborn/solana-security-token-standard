@@ -1136,13 +1136,13 @@
           "isSigner": false
         },
         {
-          "name": "mintAccount",
-          "isMut": false,
+          "name": "destination",
+          "isMut": true,
           "isSigner": false
         },
         {
-          "name": "destination",
-          "isMut": true,
+          "name": "mintAccount",
+          "isMut": false,
           "isSigner": false
         }
       ],
