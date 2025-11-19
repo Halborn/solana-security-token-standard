@@ -139,10 +139,6 @@ pub async fn get_account(
         .unwrap()
 }
 
-pub async fn get_balance(banks_client: &BanksClient, account_pubkey: Pubkey) -> u64 {
-    banks_client.get_balance(account_pubkey).await.unwrap()
-}
-
 pub async fn initialize_mint(
     mint_keypair: &Keypair,
     context: &mut ProgramTestContext,
