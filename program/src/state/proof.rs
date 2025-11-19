@@ -10,6 +10,7 @@ use shank::ShankAccount;
 
 use crate::{
     constants::{seeds::PROOF_ACCOUNT, MERKLE_TREE_NODE_LEN},
+    merkle_tree_utils::{MerkleTreeNode, ProofData, ProofNode, EMPTY_MERKLE_TREE_NODE},
     state::{
         AccountDeserialize, AccountSerialize, Discriminator, ProgramAccount,
         SecurityTokenDiscriminators,
@@ -17,18 +18,14 @@ use crate::{
     utils::find_proof_pda,
 };
 
-pub type ProofNode = [u8; MERKLE_TREE_NODE_LEN];
-pub type ProofData = Vec<ProofNode>;
-const ZERO_NODE: ProofNode = [0u8; MERKLE_TREE_NODE_LEN];
-
 #[repr(C)]
 #[derive(Debug, ShankAccount)]
 pub struct Proof {
     /// Bump seed for PDA
-    bump: u8,
+    pub bump: u8,
     /// Merkle proof data
     #[idl_type("Vec<[u8; 32]>")]
-    data: ProofData,
+    pub data: ProofData,
 }
 
 pub trait ProofDataDeserializer {
@@ -57,7 +54,7 @@ pub trait ProofDataDeserializer {
 
         let mut offset = Proof::VEC_LEN_PREFIX;
         for _ in 0..proof_nodes_len {
-            let node_chunk =
+            let node_chunk: [u8; 32] =
                 Self::try_proof_node_from_bytes(&data[offset..offset + MERKLE_TREE_NODE_LEN])?;
             proof_data.push(node_chunk);
             offset += MERKLE_TREE_NODE_LEN;
@@ -86,6 +83,7 @@ pub trait ProofDataValidator {
 
         Ok(())
     }
+
     /// Validate all proof nodes are non-zero
     fn validate_proof_data(proof_data: &ProofData) -> ProgramResult {
         proof_data
@@ -93,16 +91,22 @@ pub trait ProofDataValidator {
             .try_for_each(Self::validate_proof_node_data)?;
         Ok(())
     }
+
     /// Validate given proof node is non-zero
     fn validate_proof_node_data(proof_node: &ProofNode) -> ProgramResult {
-        if Self::is_zero_node(proof_node) {
+        Self::validate_non_zero_node(proof_node)
+    }
+
+    /// Validate non-zero node
+    fn validate_non_zero_node(node: &MerkleTreeNode) -> ProgramResult {
+        if Self::is_zero_node(node) {
             return Err(Self::error());
         }
         Ok(())
     }
 
     fn is_zero_node(node: &ProofNode) -> bool {
-        node.eq(&ZERO_NODE)
+        node.eq(&EMPTY_MERKLE_TREE_NODE)
     }
 }
 

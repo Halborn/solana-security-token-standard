@@ -27,6 +27,8 @@ pub mod create_rate_account {
 pub mod close_rate_account {
     pub use super::rate_account::close_rate_account::*;
 }
+/// Claim instruction arguments and implementations
+pub mod claim_distribution;
 /// Close Receipt account instruction arguments and implementations
 pub mod close_receipt_account;
 /// Convert instruction arguments and implementations
@@ -47,11 +49,18 @@ pub mod verification_config;
 pub mod verify;
 
 // Re-export all public types for easy access
+pub use claim_distribution::*;
+pub use close_rate_account::*;
 pub use close_receipt_account::*;
+pub use convert::*;
 pub use create_distribution_escrow::*;
+pub use create_proof_account::*;
 pub use create_rate_account::*;
 pub use initialize_mint::*;
+pub use split::*;
 pub use token_wrappers::*;
 pub use update_metadata::*;
+pub use update_proof_account::*;
+pub use update_rate_account::*;
 pub use verification_config::*;
 pub use verify::VerifyArgs;

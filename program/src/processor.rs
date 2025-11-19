@@ -4,9 +4,9 @@ use crate::{
         close_rate_account::CloseRateArgs, convert::ConvertArgs,
         create_proof_account::CreateProofArgs, split::SplitArgs,
         update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs,
-        CloseReceiptArgs, CreateDistributionEscrowArgs, CreateRateArgs, InitializeMintArgs,
-        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
-        UpdateVerificationConfigArgs, VerifyArgs,
+        ClaimDistributionArgs, CloseReceiptArgs, CreateDistributionEscrowArgs, CreateRateArgs,
+        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     },
     modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
@@ -38,7 +38,7 @@ impl Processor {
             | TrimVerificationConfig
             | UpdateMetadata => VerificationProgramsOrMintAuthority,
             Burn | Mint | Pause | Resume | Freeze | Thaw | Transfer | Split | Convert
-            | CreateProofAccount | UpdateProofAccount => VerificationPrograms,
+            | CreateProofAccount | UpdateProofAccount | ClaimDistribution => VerificationPrograms,
         }
     }
 
@@ -213,6 +213,12 @@ impl Processor {
                     args_data,
                 )
             }
+            SecurityTokenInstruction::ClaimDistribution => Self::process_claim_distribution(
+                program_id,
+                verified_mint_info,
+                instruction_accounts,
+                args_data,
+            ),
         }
     }
 
@@ -514,6 +520,35 @@ impl Processor {
             accounts,
             action_id,
             &merkle_root,
+        )?;
+        Ok(())
+    }
+
+    fn process_claim_distribution(
+        program_id: &Pubkey,
+        mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        pinocchio_log::log!("claim_distribution: deserialize ClaimDistributionArgs");
+        let ClaimDistributionArgs {
+            action_id,
+            amount,
+            merkle_root,
+            leaf_index,
+            merkle_proof,
+        } = ClaimDistributionArgs::try_from_bytes(args_data)?;
+
+        pinocchio_log::log!("claim_distribution: process_claim_distribution operation starts!");
+        OperationsModule::execute_claim_distribution(
+            program_id,
+            mint_info,
+            accounts,
+            amount,
+            action_id,
+            &merkle_root,
+            leaf_index,
+            merkle_proof,
         )?;
         Ok(())
     }

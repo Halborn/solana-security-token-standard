@@ -1,9 +1,14 @@
+use pinocchio::pubkey::Pubkey;
 use solana_keccak_hasher::hashv;
 
-use crate::constants::MERKLE_ROOT_LEN;
+use crate::constants::{MERKLE_ROOT_LEN, MERKLE_TREE_NODE_LEN};
 
 pub type MerkleTreeRoot = [u8; MERKLE_ROOT_LEN];
+pub type MerkleTreeNode = [u8; MERKLE_TREE_NODE_LEN];
+pub type ProofNode = MerkleTreeNode;
+pub type ProofData = Vec<ProofNode>;
 pub const EMPTY_MERKLE_ROOT: MerkleTreeRoot = [0u8; MERKLE_ROOT_LEN];
+pub const EMPTY_MERKLE_TREE_NODE: ProofNode = [0u8; MERKLE_TREE_NODE_LEN];
 
 /// Verifies a Merkle proof for a given leaf node and root
 ///
@@ -40,10 +45,36 @@ pub fn verify_merkle_proof(
     &hash == root
 }
 
+/// Creates a hashed leaf node from eligible claimer data
+///
+/// # Arguments
+/// * `eligible_token_account` - Pubkey of the eligible token account
+/// * `mint` - Pubkey of the mint
+/// * `action_id` - The action identifier
+/// * `amount` - Eligible amount to claim
+///
+/// # Returns
+/// Returns `[u8; 32]` representing the leaf node hash
+pub fn create_merkle_tree_leaf_node(
+    eligible_token_account: &Pubkey,
+    mint: &Pubkey,
+    action_id: u64,
+    amount: u64,
+) -> MerkleTreeNode {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(eligible_token_account.as_ref());
+    bytes.extend_from_slice(mint.as_ref());
+    bytes.extend_from_slice(action_id.to_le_bytes().as_ref());
+    bytes.extend_from_slice(amount.to_le_bytes().as_ref());
+
+    let leaf_hash = hashv(&[&bytes]);
+    leaf_hash.to_bytes()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{random_32_bytes, random_32_bytes_vec};
+    use crate::test_utils::{random_32_bytes, random_32_bytes_vec, random_pubkey};
     use rstest::rstest;
     use spl_merkle_tree_reference::MerkleTree;
 
@@ -115,5 +146,41 @@ mod tests {
                 idx
             );
         }
+    }
+
+    #[test]
+    fn test_merkle_tree_utils_should_create_and_verify_leaf_node() {
+        let action_id = 42u64;
+        let amount = 1000u64;
+        let nodes = vec![
+            create_merkle_tree_leaf_node(&random_pubkey(), &random_pubkey(), action_id, amount),
+            create_merkle_tree_leaf_node(&random_pubkey(), &random_pubkey(), action_id, amount),
+            create_merkle_tree_leaf_node(&random_pubkey(), &random_pubkey(), action_id, amount),
+        ];
+        let merkle_tree = MerkleTree::new(&nodes);
+        let root = merkle_tree.root;
+        let leaf_index = 1u32;
+        let node = nodes[leaf_index as usize];
+        let proof = merkle_tree.get_proof_of_leaf(leaf_index as usize);
+        let invalid_node =
+            create_merkle_tree_leaf_node(&random_pubkey(), &random_pubkey(), action_id, amount);
+
+        assert!(
+            !verify_merkle_proof(&invalid_node, &root, &proof, leaf_index),
+            "Merkle proof should be invalid for incorrect node"
+        );
+        assert!(
+            !verify_merkle_proof(&node, &root, &proof, 123u32),
+            "Merkle proof should be invalid for incorrect leaf index"
+        );
+        assert!(
+            !verify_merkle_proof(&node, &root, &vec![invalid_node], 123u32),
+            "Merkle proof should be invalid for incorrect proof"
+        );
+
+        assert!(
+            verify_merkle_proof(&node, &root, &proof, leaf_index),
+            "Merkle proof should be valid"
+        );
     }
 }

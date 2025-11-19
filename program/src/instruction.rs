@@ -26,6 +26,7 @@ pub enum SecurityTokenInstruction {
     UpdateProofAccount = 19,
     CloseReceiptAccount = 20,
     CreateDistributionEscrow = 21,
+    ClaimDistribution = 22,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -55,6 +56,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             19 => Ok(SecurityTokenInstruction::UpdateProofAccount),
             20 => Ok(SecurityTokenInstruction::CloseReceiptAccount),
             21 => Ok(SecurityTokenInstruction::CreateDistributionEscrow),
+            22 => Ok(SecurityTokenInstruction::ClaimDistribution),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -92,9 +94,9 @@ mod idl_gen {
         close_rate_account::CloseRateArgs, convert::ConvertArgs,
         create_proof_account::CreateProofArgs, split::SplitArgs,
         update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs,
-        CloseReceiptArgs, CreateDistributionEscrowArgs, CreateRateArgs, InitializeMintArgs,
-        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
-        UpdateVerificationConfigArgs, VerifyArgs,
+        ClaimDistributionArgs, CloseReceiptArgs, CreateDistributionEscrowArgs, CreateRateArgs,
+        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -362,5 +364,22 @@ mod idl_gen {
         #[account(8, name = "associated_token_account_program")]
         #[account(9, name = "system_program")]
         CreateDistributionEscrow(CreateDistributionEscrowArgs) = 21,
+
+        // Verification overhead
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        // Instruction accounts
+        #[account(3, name = "permanent_delegate_authority")]
+        #[account(4, writable, signer, name = "payer")]
+        #[account(5, name = "mint_account")]
+        #[account(6, writable, name = "eligible_token_account")]
+        #[account(7, writable, optional, name = "escrow_token_account")]
+        #[account(8, writable, name = "receipt_account")]
+        #[account(9, optional, name = "proof_account")]
+        #[account(10, name = "transfer_hook_program")]
+        #[account(11, name = "token_program")]
+        #[account(12, name = "system_program")]
+        ClaimDistribution(ClaimDistributionArgs) = 22,
     }
 }

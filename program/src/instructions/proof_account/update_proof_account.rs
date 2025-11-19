@@ -4,7 +4,8 @@ use shank::ShankType;
 use crate::{
     constants::{ACTION_ID_LEN, MERKLE_TREE_NODE_LEN},
     instructions::rate_account::shared::parse_action_id_argument,
-    state::{ProofDataDeserializer, ProofDataValidator, ProofNode},
+    merkle_tree_utils::ProofNode,
+    state::{ProofDataDeserializer, ProofDataValidator},
 };
 
 /// Arguments to update Proof account data
