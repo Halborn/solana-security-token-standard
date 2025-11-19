@@ -2,7 +2,18 @@
 //!
 //! Contains optimized wrappers for SPL Token 2022 operations
 
+mod proof_account;
 mod rate_account;
+
+/// Create Proof account instruction arguments and implementations
+pub mod create_proof_account {
+    pub use super::proof_account::create_proof_account::*;
+}
+
+/// Update Proof account instruction arguments and implementations
+pub mod update_proof_account {
+    pub use super::proof_account::update_proof_account::*;
+}
 
 /// Update Rate account instruction arguments and implementations
 pub mod update_rate_account {

@@ -22,6 +22,8 @@ pub enum SecurityTokenInstruction {
     CloseRateAccount = 15,
     Split = 16,
     Convert = 17,
+    CreateProofAccount = 18,
+    UpdateProofAccount = 19,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -47,6 +49,8 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             15 => Ok(SecurityTokenInstruction::CloseRateAccount),
             16 => Ok(SecurityTokenInstruction::Split),
             17 => Ok(SecurityTokenInstruction::Convert),
+            18 => Ok(SecurityTokenInstruction::CreateProofAccount),
+            19 => Ok(SecurityTokenInstruction::UpdateProofAccount),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -81,10 +85,11 @@ impl SecurityTokenInstruction {
 mod idl_gen {
 
     use crate::instructions::{
-        close_rate_account::CloseRateArgs, convert::ConvertArgs, split::SplitArgs,
-        update_rate_account::UpdateRateArgs, CreateRateArgs, InitializeMintArgs,
-        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
-        UpdateVerificationConfigArgs, VerifyArgs,
+        close_rate_account::CloseRateArgs, convert::ConvertArgs,
+        create_proof_account::CreateProofArgs, split::SplitArgs,
+        update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs, CreateRateArgs,
+        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -306,5 +311,29 @@ mod idl_gen {
         #[account(12, name = "token_program")]
         #[account(13, name = "system_program")]
         Convert(ConvertArgs) = 17,
+
+        // Verification overhead
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        // Instruction accounts
+        #[account(3, writable, signer, name = "payer")]
+        #[account(4, name = "mint_account")]
+        #[account(5, writable, name = "proof_account")]
+        #[account(6, name = "token_account")]
+        #[account(7, name = "system_program")]
+        CreateProofAccount(CreateProofArgs) = 18,
+
+        // Verification overhead
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config")]
+        #[account(2, name = "instructions_sysvar")]
+        // Instruction accounts
+        #[account(3, writable, signer, name = "payer")]
+        #[account(4, name = "mint_account")]
+        #[account(5, writable, name = "proof_account")]
+        #[account(6, name = "token_account")]
+        #[account(7, name = "system_program")]
+        UpdateProofAccount(UpdateProofArgs) = 19,
     }
 }

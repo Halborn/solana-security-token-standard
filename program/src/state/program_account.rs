@@ -5,7 +5,7 @@ use pinocchio::{
     sysvars::{rent::Rent, Sysvar},
     ProgramResult,
 };
-use pinocchio_system::instructions::CreateAccount;
+use pinocchio_system::instructions::{CreateAccount, Transfer};
 
 use crate::state::{AccountDeserialize, AccountSerialize};
 
@@ -58,6 +58,49 @@ pub trait ProgramAccount: AccountDeserialize + AccountSerialize {
         let mut data = to_account.try_borrow_mut_data()?;
         let account_bytes = self.to_bytes();
         data[..account_bytes.len()].copy_from_slice(&account_bytes);
+
+        Ok(())
+    }
+
+    /// Resize account data and adjust lamports for rent-exemption
+    fn resize_account_and_rent(
+        account: &AccountInfo,
+        new_size: usize,
+        payer: &AccountInfo,
+    ) -> ProgramResult {
+        if new_size == account.data_len() {
+            return Ok(());
+        }
+
+        let account_current_lamports = account.lamports();
+        let rent = Rent::get()?;
+        let account_new_lamports = rent.minimum_balance(new_size);
+
+        // Adjust lamports for rent-exemption
+        match account_new_lamports.cmp(&account_current_lamports) {
+            core::cmp::Ordering::Greater => {
+                // Payer transfers more lamports for rent exemption
+                let lamports_diff = account_new_lamports.saturating_sub(account_current_lamports);
+                Transfer {
+                    from: payer,
+                    to: account,
+                    lamports: lamports_diff,
+                }
+                .invoke()?;
+            }
+            core::cmp::Ordering::Less => {
+                // Payer gets excess lamports
+                let lamports_diff = account_current_lamports.saturating_sub(account_new_lamports);
+                // Lamports can be reduced directly for Program Account
+                *account.try_borrow_mut_lamports()? -= lamports_diff;
+                *payer.try_borrow_mut_lamports()? += lamports_diff;
+            }
+            core::cmp::Ordering::Equal => {
+                // No lamport transfer needed
+            }
+        }
+
+        account.realloc(new_size, false)?;
 
         Ok(())
     }

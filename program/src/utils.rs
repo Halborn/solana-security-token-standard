@@ -96,6 +96,7 @@ pub fn find_rate_pda(
         program_id,
     )
 }
+
 /// Derive receipt PDA
 /// Seeds: ["receipt", mint, action_id]
 pub fn find_receipt_pda(mint: &Pubkey, action_id: u64, program_id: &Pubkey) -> (Pubkey, u8) {
@@ -103,6 +104,23 @@ pub fn find_receipt_pda(mint: &Pubkey, action_id: u64, program_id: &Pubkey) -> (
         &[
             seeds::RECEIPT_ACCOUNT,
             mint.as_ref(),
+            action_id.to_le_bytes().as_ref(),
+        ],
+        program_id,
+    )
+}
+
+/// Derive proof PDA
+/// Seeds: ["proof", token_account_address, action_id]
+pub fn find_proof_pda(
+    token_account_address: &Pubkey,
+    action_id: u64,
+    program_id: &Pubkey,
+) -> (Pubkey, u8) {
+    find_program_address(
+        &[
+            seeds::PROOF_ACCOUNT,
+            token_account_address.as_ref(),
             action_id.to_le_bytes().as_ref(),
         ],
         program_id,

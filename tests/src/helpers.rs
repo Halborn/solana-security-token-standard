@@ -99,11 +99,7 @@ pub async fn assert_account_exists(
     account_pubkey: Pubkey,
     should_check_existence: bool,
 ) -> Option<Account> {
-    let account_info = context
-        .banks_client
-        .get_account(account_pubkey)
-        .await
-        .unwrap();
+    let account_info = get_account(context, account_pubkey).await;
 
     if should_check_existence {
         assert!(
@@ -121,6 +117,21 @@ pub async fn assert_account_exists(
 
     println!("Test passed: Account {} exists", account_pubkey);
     account_info
+}
+
+pub async fn get_account(
+    context: &mut ProgramTestContext,
+    account_pubkey: Pubkey,
+) -> Option<Account> {
+    context
+        .banks_client
+        .get_account(account_pubkey)
+        .await
+        .unwrap()
+}
+
+pub async fn get_balance(banks_client: &BanksClient, account_pubkey: Pubkey) -> u64 {
+    banks_client.get_balance(account_pubkey).await.unwrap()
 }
 
 pub async fn initialize_mint(

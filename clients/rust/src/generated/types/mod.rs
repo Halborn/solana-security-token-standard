@@ -7,6 +7,7 @@
 
 pub(crate) mod r#close_rate_args;
 pub(crate) mod r#convert_args;
+pub(crate) mod r#create_proof_args;
 pub(crate) mod r#create_rate_args;
 pub(crate) mod r#initialize_mint_args;
 pub(crate) mod r#initialize_verification_config_args;
@@ -19,12 +20,14 @@ pub(crate) mod r#split_args;
 pub(crate) mod r#token_metadata_args;
 pub(crate) mod r#trim_verification_config_args;
 pub(crate) mod r#update_metadata_args;
+pub(crate) mod r#update_proof_args;
 pub(crate) mod r#update_rate_args;
 pub(crate) mod r#update_verification_config_args;
 pub(crate) mod r#verify_args;
 
 pub use self::r#close_rate_args::*;
 pub use self::r#convert_args::*;
+pub use self::r#create_proof_args::*;
 pub use self::r#create_rate_args::*;
 pub use self::r#initialize_mint_args::*;
 pub use self::r#initialize_verification_config_args::*;
@@ -37,6 +40,7 @@ pub use self::r#split_args::*;
 pub use self::r#token_metadata_args::*;
 pub use self::r#trim_verification_config_args::*;
 pub use self::r#update_metadata_args::*;
+pub use self::r#update_proof_args::*;
 pub use self::r#update_rate_args::*;
 pub use self::r#update_verification_config_args::*;
 pub use self::r#verify_args::*;
