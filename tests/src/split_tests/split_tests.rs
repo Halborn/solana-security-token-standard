@@ -5,11 +5,13 @@ use solana_sdk::{native_token::sol_str_to_lamports, signature::Keypair, signer::
 
 use crate::{
     helpers::{
-        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint, create_mint_verification_config, create_spl_account, find_common_action_receipt_pda, find_permanent_delegate_pda, from_ui_amount, get_token_account_state, mint_tokens_to, start_with_context, start_with_context_and_accounts
+        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
+        create_mint_verification_config, create_spl_account, find_permanent_delegate_pda,
+        from_ui_amount, get_token_account_state, mint_tokens_to, start_with_context,
+        start_with_context_and_accounts,
     },
-    rate_tests::rate_helpers::{
-        calculate_rate_amount, create_rate_account,
-    },
+    rate_tests::rate_helpers::{calculate_rate_amount, create_rate_account},
+    receipt_tests::receipt_helpers::find_common_action_receipt_pda,
     split_tests::split_helpers::{create_split_verification_config, execute_split, uniq_pubkey},
 };
 
