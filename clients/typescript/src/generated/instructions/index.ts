@@ -7,6 +7,7 @@
  */
 
 export * from './burn';
+export * from './claimDistribution';
 export * from './closeRateAccount';
 export * from './closeReceiptAccount';
 export * from './convert';
