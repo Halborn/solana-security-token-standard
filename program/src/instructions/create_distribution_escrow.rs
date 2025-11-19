@@ -2,9 +2,9 @@ use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
 use crate::{
-    constants::{ACTION_ID_LEN, MERKLE_ROOT_LEN},
+    constants::ACTION_ID_LEN,
     instructions::rate_account::shared::parse_action_id_argument,
-    merkle_tree_utils::{MerkleTreeRoot, EMPTY_MERKLE_ROOT},
+    merkle_tree_utils::{MerkleTreeRoot, EMPTY_MERKLE_ROOT, MERKLE_ROOT_LEN},
 };
 
 /// Arguments to create a Distribution Escrow

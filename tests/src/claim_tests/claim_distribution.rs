@@ -39,7 +39,6 @@ async fn test_should_claim_distribution_settlement_proof_argument() {
     let action_id = 42u64;
     let eligible_owners = vec![Keypair::new(), Keypair::new(), Keypair::new()];
     let owner_with_token_account_index = 1;
-    // let token_accounts = create_token_accounts_for_owners(context, &eligible_owners, &distribution_mint_keypair).await;
     // Create token account for one owner and generate random pubkeys for others to speed up test
     let token_account_pubkey = create_spl_account(
         context,
@@ -150,7 +149,7 @@ async fn test_should_claim_distribution_settlement_proof_account() {
     let total_distribution_ui_amount = 1000u64;
     let action_id = 42u64;
     let eligible_owners = vec![Keypair::new(), Keypair::new(), Keypair::new()];
-    let owner_with_token_account_index = 0 as usize;
+    let owner_with_token_account_index = 0;
     let token_account_pubkey = create_spl_account(
         context,
         &distribution_mint_keypair,
@@ -287,7 +286,7 @@ async fn test_should_claim_distribution_external_settlement_proof_argument() {
     let total_distribution_ui_amount = 1000u64;
     let action_id = 42u64;
     let eligible_owners = vec![Keypair::new(), Keypair::new(), Keypair::new()];
-    let owner_with_token_account_index = 0 as usize;
+    let owner_with_token_account_index = 0;
     let token_account_pubkey = create_spl_account(
         context,
         &distribution_mint_keypair,
@@ -401,7 +400,7 @@ async fn test_should_claim_distribution_external_settlement_proof_account() {
     let total_distribution_ui_amount = 1000u64;
     let action_id = 42u64;
     let eligible_owners = vec![Keypair::new(), Keypair::new(), Keypair::new()];
-    let owner_with_token_account_index = 0 as usize;
+    let owner_with_token_account_index = 0;
     let token_account_pubkey = create_spl_account(
         context,
         &distribution_mint_keypair,
@@ -810,7 +809,7 @@ async fn test_should_not_claim_distribution_with_invalid_leaf_data() {
     .await;
     assert!(
         result.is_err(),
-        "Should not be able to claim distribution of with incorrect amount"
+        "Should not be able to claim distribution with incorrect amount"
     );
 }
 
@@ -1046,5 +1045,3 @@ async fn test_should_not_claim_distribution_with_invalid_proof_account() {
         "Should not claim distribution with invalid proof account but valid proof argument"
     );
 }
-
-// TODO: test failures:

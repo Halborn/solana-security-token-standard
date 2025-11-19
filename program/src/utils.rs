@@ -125,11 +125,7 @@ pub fn find_claim_receipt_pda(
     proof: &ProofData,
     program_id: &Pubkey,
 ) -> (Pubkey, u8) {
-    let proof_data = proof
-        .iter()
-        .flat_map(|proof_node| *proof_node)
-        .collect::<Vec<u8>>();
-    let proof_hash = hashv(&[&proof_data]).to_bytes();
+    let proof_hash = hash_from_proof_data(proof);
 
     find_program_address(
         &[
@@ -141,6 +137,15 @@ pub fn find_claim_receipt_pda(
         ],
         program_id,
     )
+}
+
+/// Helper to compute proof hash to be used in claim_action Receipt seeds
+pub fn hash_from_proof_data(proof: &ProofData) -> [u8; 32] {
+    let proof_data = proof
+        .iter()
+        .flat_map(|proof_node| *proof_node)
+        .collect::<Vec<u8>>();
+    hashv(&[&proof_data]).to_bytes()
 }
 
 /// Derive proof PDA

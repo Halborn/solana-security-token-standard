@@ -5,7 +5,7 @@ use pinocchio::{
 };
 use pinocchio_token_2022::instructions::{BurnChecked, MintToChecked};
 
-use crate::{constants::seeds, state::MintAuthority};
+use crate::{constants::seeds, instructions::CustomTransferChecked, state::MintAuthority};
 
 /// Burn tokens from token account using permanent delegate authority
 pub fn burn_checked(
@@ -53,4 +53,36 @@ pub fn mint_to_checked(
         decimals,
     }
     .invoke_signed(&[mint_authority_signer])
+}
+
+/// Transfer tokens using permanent delegate authority
+#[allow(clippy::too_many_arguments)]
+pub fn transfer_checked(
+    amount: u64,
+    decimals: u8,
+    mint_info: &AccountInfo,
+    from_token_account: &AccountInfo,
+    to_token_account: &AccountInfo,
+    transfer_hook_program: &AccountInfo,
+    permanent_delegate_authority: &AccountInfo,
+    permanent_delegate_bump: u8,
+) -> ProgramResult {
+    let bump_seed = [permanent_delegate_bump];
+    let seeds = [
+        Seed::from(seeds::PERMANENT_DELEGATE),
+        Seed::from(mint_info.key().as_ref()),
+        Seed::from(bump_seed.as_ref()),
+    ];
+    let permanent_delegate_signer = Signer::from(&seeds);
+
+    CustomTransferChecked::new(
+        mint_info,
+        from_token_account,
+        to_token_account,
+        permanent_delegate_authority,
+        amount,
+        decimals,
+        transfer_hook_program,
+    )
+    .invoke_signed(&[permanent_delegate_signer])
 }

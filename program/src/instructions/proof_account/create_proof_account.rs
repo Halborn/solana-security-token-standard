@@ -62,7 +62,7 @@ impl CreateProofArgs {
 #[cfg(test)]
 mod tests {
     use crate::{
-        constants::MERKLE_TREE_NODE_LEN,
+        merkle_tree_utils::MERKLE_TREE_NODE_LEN,
         test_utils::{random_32_bytes, random_32_bytes_vec},
     };
 

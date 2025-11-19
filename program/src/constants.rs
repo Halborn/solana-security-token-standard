@@ -33,5 +33,3 @@ pub const TRANSFER_HOOK_PROGRAM_ID: Pubkey =
     pubkey!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
 pub const ACTION_ID_LEN: usize = 8;
 pub const MAX_VERIFICATION_PROGRAMS: usize = 10;
-pub const MERKLE_TREE_NODE_LEN: usize = 32;
-pub const MERKLE_ROOT_LEN: usize = 32;

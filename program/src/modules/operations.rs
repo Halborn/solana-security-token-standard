@@ -3,16 +3,17 @@
 //! Executes token operations after successful verification.
 //! All operations are wrappers around SPL Token 2022 instructions.
 
-use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
+use crate::constants::seeds;
 use crate::debug_log;
-use crate::instructions::{CustomPause, CustomResume, CustomTransferChecked};
+use crate::instructions::{CustomPause, CustomResume};
 use crate::merkle_tree_utils::{
     create_merkle_tree_leaf_node, verify_merkle_proof, MerkleTreeRoot, ProofData, ProofNode,
 };
 use crate::modules::{
-    burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
-    verify_associated_token_program, verify_operation_mint_info, verify_owner, verify_pda,
-    verify_signer, verify_system_program, verify_token22_program, verify_writable,
+    burn_checked, mint_to_checked, transfer_checked, verify_account_initialized,
+    verify_account_not_initialized, verify_associated_token_program, verify_operation_mint_info,
+    verify_owner, verify_pda, verify_signer, verify_system_program, verify_token22_program,
+    verify_transfer_hook_program, verify_writable,
 };
 use crate::state::{
     DistributionEscrowAuthority, MintAuthority, ProgramAccount, Proof, Rate, Receipt, Rounding,
@@ -258,12 +259,9 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+        verify_transfer_hook_program(transfer_hook_program)?;
 
-        if transfer_hook_program.key() != &TRANSFER_HOOK_PROGRAM_ID {
-            return Err(ProgramError::IncorrectProgramId);
-        }
-
-        let (permanent_delegate_pda, bump) =
+        let (permanent_delegate_pda, permanent_delegate_bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
         if permanent_delegate_authority.key() != &permanent_delegate_pda {
             return Err(ProgramError::InvalidSeeds);
@@ -273,24 +271,16 @@ impl OperationsModule {
         let decimals = mint_account.decimals();
         drop(mint_account);
 
-        let transfer_instruction = CustomTransferChecked::new(
+        transfer_checked(
+            amount,
+            decimals,
             mint_info,
             from_token_account,
             to_token_account,
-            permanent_delegate_authority,
-            amount,
-            decimals,
             transfer_hook_program,
-        );
-
-        let bump_seed = [bump];
-        let seeds = [
-            Seed::from(seeds::PERMANENT_DELEGATE),
-            Seed::from(mint_info.key().as_ref()),
-            Seed::from(bump_seed.as_ref()),
-        ];
-        let permanent_delegate_signer = Signer::from(&seeds);
-        transfer_instruction.invoke_signed(&[permanent_delegate_signer])?;
+            permanent_delegate_authority,
+            permanent_delegate_bump,
+        )?;
         Ok(())
     }
 
@@ -320,30 +310,13 @@ impl OperationsModule {
         verify_signer(payer)?;
         verify_writable(payer)?;
 
-        // Verify proof
-        let proof = match (proof_account.key(), merkle_proof) {
-            (key, None) if key.eq(program_id) => {
-                // Neither proof account nor proof data provided
-                return Err(ProgramError::InvalidInstructionData);
-            }
-            (key, None) => {
-                // Proof provided via account
-                verify_account_initialized(proof_account)?;
-                let proof_state = Proof::from_account_info(proof_account)?;
-                let expected_proof_pda =
-                    proof_state.derive_pda(eligible_token_account.key(), action_id)?;
-                verify_pda(key, &expected_proof_pda)?;
-                proof_state.data
-            }
-            (key, Some(proof_data)) => {
-                // Proof provided from arguments
-                // Sanity check - ensure proof account is not provided along with proof argument
-                if key.ne(program_id) {
-                    return Err(ProgramError::InvalidInstructionData);
-                }
-                proof_data
-            }
-        };
+        // Retrieve proof data either from argument or from account and verify proof account
+        let proof = Proof::get_proof_data_from_instruction(
+            eligible_token_account.key(),
+            action_id,
+            proof_account,
+            merkle_proof,
+        )?;
 
         // Verify receipt account
         verify_writable(receipt_account)?;
@@ -357,13 +330,11 @@ impl OperationsModule {
         verify_pda(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify programs
-        if transfer_hook_program.key() != &TRANSFER_HOOK_PROGRAM_ID {
-            return Err(ProgramError::IncorrectProgramId);
-        }
+        verify_transfer_hook_program(transfer_hook_program)?;
         verify_token22_program(token_program)?;
         verify_system_program(system_program)?;
 
-        // Verify merkle proof
+        // Verify claimer node belongs to merkle tree
         let node = create_merkle_tree_leaf_node(
             eligible_token_account.key(),
             mint_pubkey,
@@ -377,9 +348,9 @@ impl OperationsModule {
         // With external settlement the escrow_token_account is not provided
         let is_external_settlement = escrow_token_account.key().eq(program_id);
         // With external settlement only the Receipt is issued
-        // With internal settlement tokens are transferred from escrow to eligible account
+        // With internal settlement tokens are transferred and Receipt is issued
         if !is_external_settlement {
-            let (permanent_delegate_pda, bump) =
+            let (permanent_delegate_pda, permanent_delegate_bump) =
                 find_permanent_delegate_pda(mint_pubkey, program_id);
             verify_pda(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
 
@@ -399,26 +370,19 @@ impl OperationsModule {
             drop(eligible_token);
 
             // Transfer tokens from distribution escrow to eligible token account
-            let transfer_instruction = CustomTransferChecked::new(
+            transfer_checked(
+                amount,
+                decimals,
                 mint_account,
                 escrow_token_account,
                 eligible_token_account,
-                permanent_delegate_authority,
-                amount,
-                decimals,
                 transfer_hook_program,
-            );
-            let bump_seed = [bump];
-            let seeds = [
-                Seed::from(seeds::PERMANENT_DELEGATE),
-                Seed::from(mint_pubkey.as_ref()),
-                Seed::from(bump_seed.as_ref()),
-            ];
-            let signer = Signer::from(&seeds);
-            transfer_instruction.invoke_signed(&[signer])?;
+                permanent_delegate_authority,
+                permanent_delegate_bump,
+            )?;
         }
 
-        // Create Receipt account for any settlement
+        // Issue Receipt
         let action_id_seed = action_id.to_le_bytes();
         let bump_seed = [receipt_bump];
         let proof_seed = Receipt::proof_seed(&proof);

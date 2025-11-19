@@ -1,14 +1,15 @@
 use pinocchio::pubkey::Pubkey;
 use solana_keccak_hasher::hashv;
 
-use crate::constants::{MERKLE_ROOT_LEN, MERKLE_TREE_NODE_LEN};
-
 pub type MerkleTreeRoot = [u8; MERKLE_ROOT_LEN];
 pub type MerkleTreeNode = [u8; MERKLE_TREE_NODE_LEN];
 pub type ProofNode = MerkleTreeNode;
 pub type ProofData = Vec<ProofNode>;
-pub const EMPTY_MERKLE_ROOT: MerkleTreeRoot = [0u8; MERKLE_ROOT_LEN];
+
+pub const MERKLE_TREE_NODE_LEN: usize = 32;
+pub const MERKLE_ROOT_LEN: usize = 32;
 pub const EMPTY_MERKLE_TREE_NODE: ProofNode = [0u8; MERKLE_TREE_NODE_LEN];
+pub const EMPTY_MERKLE_ROOT: MerkleTreeRoot = EMPTY_MERKLE_TREE_NODE;
 
 /// Verifies a Merkle proof for a given leaf node and root
 ///
@@ -21,9 +22,9 @@ pub const EMPTY_MERKLE_TREE_NODE: ProofNode = [0u8; MERKLE_TREE_NODE_LEN];
 /// # Returns
 /// Returns `true` if the leaf is part of the Merkle tree with the given root, `false` otherwise
 pub fn verify_merkle_proof(
-    node: &[u8; 32],
-    root: &[u8; 32],
-    proof: &[[u8; 32]],
+    node: &MerkleTreeNode,
+    root: &MerkleTreeRoot,
+    proof: &ProofData,
     leaf_index: u32,
 ) -> bool {
     if !proof.is_empty() {
@@ -67,8 +68,7 @@ pub fn create_merkle_tree_leaf_node(
     bytes.extend_from_slice(action_id.to_le_bytes().as_ref());
     bytes.extend_from_slice(amount.to_le_bytes().as_ref());
 
-    let leaf_hash = hashv(&[&bytes]);
-    leaf_hash.to_bytes()
+    hashv(&[&bytes]).to_bytes()
 }
 
 #[cfg(test)]
@@ -90,12 +90,12 @@ mod tests {
     #[case(random_32_bytes_vec(86))]
     #[case(random_32_bytes_vec(100))]
     #[case(random_32_bytes_vec(122))]
-    fn test_merkle_tree_utils_should_verify_merkle_proof(#[case] leaves: Vec<[u8; 32]>) {
+    fn test_merkle_tree_utils_should_verify_merkle_proof(#[case] leaves: Vec<MerkleTreeNode>) {
         println!("Leaves len: {:?}", leaves.len());
         let hashed_leaves = leaves
             .iter()
             .map(|leaf| hashv(&[leaf]).to_bytes())
-            .collect::<Vec<[u8; 32]>>();
+            .collect::<Vec<MerkleTreeNode>>();
 
         let merkle_tree = MerkleTree::new(&hashed_leaves);
         let root = merkle_tree.root;
@@ -120,13 +120,13 @@ mod tests {
     #[case(random_32_bytes_vec(100))]
     #[case(random_32_bytes_vec(122))]
     fn test_merkle_tree_utils_should_not_verify_merkle_proof_unsorted(
-        #[case] leaves: Vec<[u8; 32]>,
+        #[case] leaves: Vec<MerkleTreeNode>,
     ) {
         println!("Leaves len: {:?}", leaves.len());
         let hashed_leaves = leaves
             .iter()
             .map(|leaf| hashv(&[leaf]).to_bytes())
-            .collect::<Vec<[u8; 32]>>();
+            .collect::<Vec<MerkleTreeNode>>();
 
         let merkle_tree = MerkleTree::new(&hashed_leaves);
         let root = merkle_tree.root;

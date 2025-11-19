@@ -530,7 +530,6 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        pinocchio_log::log!("claim_distribution: deserialize ClaimDistributionArgs");
         let ClaimDistributionArgs {
             action_id,
             amount,
@@ -538,8 +537,6 @@ impl Processor {
             leaf_index,
             merkle_proof,
         } = ClaimDistributionArgs::try_from_bytes(args_data)?;
-
-        pinocchio_log::log!("claim_distribution: process_claim_distribution operation starts!");
         OperationsModule::execute_claim_distribution(
             program_id,
             mint_info,

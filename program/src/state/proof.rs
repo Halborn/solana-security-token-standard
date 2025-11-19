@@ -9,8 +9,11 @@ use pinocchio::{
 use shank::ShankAccount;
 
 use crate::{
-    constants::{seeds::PROOF_ACCOUNT, MERKLE_TREE_NODE_LEN},
-    merkle_tree_utils::{MerkleTreeNode, ProofData, ProofNode, EMPTY_MERKLE_TREE_NODE},
+    constants::seeds::PROOF_ACCOUNT,
+    merkle_tree_utils::{
+        MerkleTreeNode, ProofData, ProofNode, EMPTY_MERKLE_TREE_NODE, MERKLE_TREE_NODE_LEN,
+    },
+    modules::{verify_account_initialized, verify_pda},
     state::{
         AccountDeserialize, AccountSerialize, Discriminator, ProgramAccount,
         SecurityTokenDiscriminators,
@@ -54,7 +57,7 @@ pub trait ProofDataDeserializer {
 
         let mut offset = Proof::VEC_LEN_PREFIX;
         for _ in 0..proof_nodes_len {
-            let node_chunk: [u8; 32] =
+            let node_chunk =
                 Self::try_proof_node_from_bytes(&data[offset..offset + MERKLE_TREE_NODE_LEN])?;
             proof_data.push(node_chunk);
             offset += MERKLE_TREE_NODE_LEN;
@@ -221,6 +224,40 @@ impl Proof {
         let data_ref = account_info.try_borrow_data()?;
         let proof = Self::try_from_bytes(&data_ref)?;
         Ok(proof)
+    }
+
+    /// Helper function to get proof data either from account or argument
+    /// Proof data can be provided either via account or instruction argument
+    /// If both are provided, error is returned
+    pub fn get_proof_data_from_instruction(
+        eligible_token_account: &Pubkey,
+        action_id: u64,
+        proof_account: &AccountInfo,
+        proof_data_argument: Option<ProofData>,
+    ) -> Result<ProofData, ProgramError> {
+        match (proof_account.key(), proof_data_argument) {
+            (key, None) if key.eq(&crate::id()) => {
+                // Neither proof account nor proof data provided
+                Err(ProgramError::InvalidInstructionData)
+            }
+            (key, None) => {
+                // Proof provided via account
+                verify_account_initialized(proof_account)?;
+                let proof_state = Proof::from_account_info(proof_account)?;
+                let expected_proof_pda =
+                    proof_state.derive_pda(eligible_token_account, action_id)?;
+                verify_pda(key, &expected_proof_pda)?;
+                Ok(proof_state.data)
+            }
+            (key, Some(merkle_proof_arg)) => {
+                // Proof provided from arguments
+                // Sanity check - ensure proof account is not provided along with proof argument
+                if key.ne(&crate::id()) {
+                    return Err(ProgramError::InvalidInstructionData);
+                }
+                Ok(merkle_proof_arg)
+            }
+        }
     }
 
     pub fn bump_seed(&self) -> [u8; 1] {

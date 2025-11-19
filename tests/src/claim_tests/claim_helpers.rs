@@ -156,7 +156,6 @@ pub async fn create_distribution_for_users(
         merkle_root,
     };
 
-    println!("execute_create_distribution_escrow_account");
     let result = execute_create_distribution_escrow_account(
         &context.banks_client,
         distribution_mint.clone(),
@@ -203,7 +202,6 @@ pub async fn create_distribution_for_users(
         Some(&mint_creator),
     )
     .await;
-    // let claim_distribution_verification_config = Pubkey::new_unique();
 
     let (permanent_delegate_authority, _) = find_permanent_delegate_pda(&distribution_mint);
 

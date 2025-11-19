@@ -3,7 +3,6 @@ use pinocchio::{
     account_info::AccountInfo, instruction::Seed, program_error::ProgramError, pubkey::Pubkey,
     ProgramResult,
 };
-use solana_keccak_hasher::hashv;
 
 use crate::{
     constants::seeds::RECEIPT_ACCOUNT,
@@ -12,7 +11,7 @@ use crate::{
         AccountDeserialize, AccountSerialize, Discriminator, ProgramAccount,
         SecurityTokenDiscriminators,
     },
-    utils::{find_claim_receipt_pda, find_common_action_receipt_pda},
+    utils::{find_claim_receipt_pda, find_common_action_receipt_pda, hash_from_proof_data},
 };
 
 /// Receipt account structure
@@ -102,13 +101,9 @@ impl Receipt {
         ]
     }
 
-    /// Helper to compute proof hash for claim receipt PDA seeds
+    /// Helper to compute proof hash for claim_action_seeds
     pub fn proof_seed(proof: &ProofData) -> [u8; 32] {
-        let proof_data = proof
-            .iter()
-            .flat_map(|proof_node| *proof_node)
-            .collect::<Vec<u8>>();
-        hashv(&[&proof_data]).to_bytes()
+        hash_from_proof_data(proof)
     }
 
     /// Find receipt PDA for Claim operation

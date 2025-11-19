@@ -7,12 +7,9 @@ use security_token_client::{
     types::{InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs},
 };
 use solana_program::example_mocks::solana_sdk::sysvar;
-use solana_program_test::{
-    BanksClient, BanksClientError, ProgramTest, ProgramTestBanksClientExt, ProgramTestContext,
-};
+use solana_program_test::{BanksClient, BanksClientError, ProgramTest, ProgramTestContext};
 use solana_sdk::{
     account::Account,
-    hash::Hash,
     instruction::InstructionError,
     pubkey::Pubkey,
     signature::{Keypair, Signer},

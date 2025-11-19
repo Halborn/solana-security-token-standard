@@ -2,9 +2,9 @@ use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
 use crate::{
-    constants::{ACTION_ID_LEN, MERKLE_ROOT_LEN},
+    constants::ACTION_ID_LEN,
     instructions::rate_account::shared::parse_action_id_argument,
-    merkle_tree_utils::{MerkleTreeRoot, ProofData},
+    merkle_tree_utils::{MerkleTreeRoot, ProofData, MERKLE_ROOT_LEN},
     state::{ProofDataDeserializer, ProofDataValidator},
 };
 
@@ -48,32 +48,33 @@ impl ClaimDistributionArgs {
         if data.len() < Self::MIN_LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
+
         let mut offset = 0;
         let action_id = parse_action_id_argument(&data[..ACTION_ID_LEN])?;
         offset += ACTION_ID_LEN;
 
+        offset += 8;
         let amount = u64::from_le_bytes(
-            data[offset..offset + 8]
+            data[ACTION_ID_LEN..offset]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidArgument)?,
         );
         if amount == 0 {
             return Err(ProgramError::InvalidArgument);
         }
-        offset += 8;
 
         let merkle_root = MerkleTreeRoot::try_from(&data[offset..offset + MERKLE_ROOT_LEN])
             .map_err(|_| ProgramError::InvalidArgument)?;
         Self::validate_non_zero_node(&merkle_root)?;
-        offset += MERKLE_ROOT_LEN;
 
+        offset += MERKLE_ROOT_LEN;
         let leaf_index = u32::from_le_bytes(
             data[offset..offset + 4]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidArgument)?,
         );
-        offset += 4;
 
+        offset += 4;
         let proof_option_prefix = data[offset];
         let merkle_proof = match proof_option_prefix {
             0 => None,
