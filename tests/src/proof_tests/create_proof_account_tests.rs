@@ -25,7 +25,7 @@ async fn test_should_create_proof_account() {
     let mint_pubkey = mint_keypair.pubkey();
     let payer = context.payer.insecure_clone();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
+    let (mint_authority_pda, _freeze_authority_pda) =
         create_minimal_security_token_mint(&mut context, &mint_keypair, Some(&payer), decimals)
             .await;
 
@@ -92,7 +92,7 @@ async fn test_should_not_create_proof_account_twice() {
     let mint_pubkey = mint_keypair.pubkey();
     let payer = context.payer.insecure_clone();
     let decimals = 6u8;
-    let (mint_authority_pda, _freeze_authority_pda, _spl_token_2022_program) =
+    let (mint_authority_pda, _freeze_authority_pda) =
         create_minimal_security_token_mint(&mut context, &mint_keypair, Some(&payer), decimals)
             .await;
 

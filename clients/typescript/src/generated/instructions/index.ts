@@ -10,6 +10,7 @@ export * from './burn';
 export * from './closeRateAccount';
 export * from './closeReceiptAccount';
 export * from './convert';
+export * from './createDistributionEscrow';
 export * from './createProofAccount';
 export * from './createRateAccount';
 export * from './freeze';

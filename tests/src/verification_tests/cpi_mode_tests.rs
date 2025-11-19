@@ -58,7 +58,7 @@ async fn test_mint_cpi_mode() {
     let source_owner = Keypair::new();
     let mut context = pt.start_with_context().await;
 
-    let (mint_authority_pda, _freeze_authority_pda, _token_program) =
+    let (mint_authority_pda, _freeze_authority_pda) =
         create_minimal_security_token_mint(&mut context, &mint_keypair, None, 6).await;
 
     let (verification_config_pda, _) =
@@ -143,7 +143,7 @@ async fn test_mint_cpi_mode_error_cases() {
     let source_owner = Keypair::new();
     let mut context = pt.start_with_context().await;
 
-    let (mint_authority_pda, _freeze_authority_pda, _token_program) =
+    let (mint_authority_pda, _freeze_authority_pda) =
         create_minimal_security_token_mint(&mut context, &mint_keypair, None, 6).await;
 
     let (verification_config_pda, _) =

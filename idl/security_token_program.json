@@ -1158,6 +1158,73 @@
         "type": "u8",
         "value": 20
       }
+    },
+    {
+      "name": "CreateDistributionEscrow",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfigOrMintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvarOrCreator",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "distributionEscrowAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "distributionTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "distributionMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenAccountProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "createDistributionEscrowArgs",
+          "type": {
+            "defined": "CreateDistributionEscrowArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 21
+      }
     }
   ],
   "accounts": [
@@ -1285,6 +1352,30 @@
           {
             "name": "amountToConvert",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateDistributionEscrowArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "actionId",
+            "type": "u64"
+          },
+          {
+            "name": "merkleRoot",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            },
+            "attrs": [
+              "idl-type"
+            ]
           }
         ]
       }

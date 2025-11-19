@@ -6,6 +6,7 @@
 //! - Discriminator configurations
 
 pub mod discriminator;
+pub mod distribution_escrow_authority;
 pub mod mint_authority;
 pub mod program_account;
 pub mod proof;
@@ -15,6 +16,7 @@ pub mod verification;
 
 // Re-export all structures for convenience
 pub use discriminator::*;
+pub use distribution_escrow_authority::*;
 pub use mint_authority::*;
 pub use program_account::*;
 pub use proof::*;

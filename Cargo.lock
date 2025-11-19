@@ -2870,6 +2870,15 @@ version = "0.8.4"
 source = "git+https://github.com/Nagaprasadvr/pinocchio.git?rev=4fb37bb#4fb37bbcd3d5262564845e5db02bc12a8cbe4a6f"
 
 [[package]]
+name = "pinocchio-associated-token-account"
+version = "0.1.1"
+source = "git+https://github.com/Nagaprasadvr/pinocchio.git?rev=4fb37bb#4fb37bbcd3d5262564845e5db02bc12a8cbe4a6f"
+dependencies = [
+ "pinocchio",
+ "pinocchio-pubkey",
+]
+
+[[package]]
 name = "pinocchio-log"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3721,6 +3730,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "pinocchio",
+ "pinocchio-associated-token-account",
  "pinocchio-log",
  "pinocchio-pubkey",
  "pinocchio-system",
@@ -3729,6 +3739,8 @@ dependencies = [
  "rand 0.8.5",
  "rstest",
  "shank",
+ "solana-keccak-hasher",
+ "spl-merkle-tree-reference",
  "spl-pod 0.5.1",
  "spl-tlv-account-resolution 0.9.0",
  "thiserror 2.0.16",
@@ -3744,6 +3756,7 @@ dependencies = [
  "security-token-client",
  "security-token-program",
  "security-token-transfer-hook",
+ "solana-keccak-hasher",
  "solana-program",
  "solana-program-test",
  "solana-pubkey",
@@ -3751,6 +3764,7 @@ dependencies = [
  "solana-system-interface",
  "spl-associated-token-account",
  "spl-discriminator",
+ "spl-merkle-tree-reference",
  "spl-pod 0.5.1",
  "spl-tlv-account-resolution 0.9.0",
  "spl-token-2022 9.0.0",
@@ -7279,6 +7293,16 @@ dependencies = [
  "solana-program-entrypoint",
  "solana-program-error",
  "solana-pubkey",
+]
+
+[[package]]
+name = "spl-merkle-tree-reference"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0123db043acb0209f23da2d9a06a7186e5a16ed8c843d6cf7edde18edd21c4d2"
+dependencies = [
+ "solana-program",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
