@@ -1,5 +1,5 @@
 {
-  "name": "@hoodies/security-token-client",
+  "name": "security-token-client",
   "version": "0.1.0",
   "description": "TypeScript client for Security Token Program",
   "main": "dist/index.js",
@@ -18,7 +18,6 @@
     "typescript": "^5.3.3"
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ]
 }
