@@ -1,4 +1,4 @@
-use security_token_client::types::{CloseRateArgs, CreateRateArgs, RateArgs, Rounding};
+use security_token_client::types::{CloseRateArgs, CreateRateArgs, RateConfig, Rounding};
 use solana_program_test::*;
 use solana_sdk::{
     native_token::sol_str_to_lamports,
@@ -36,7 +36,7 @@ async fn test_should_close_rate_account() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -182,7 +182,7 @@ async fn test_should_not_close_not_owned_rate_account() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -222,7 +222,7 @@ async fn test_should_not_close_not_owned_rate_account() {
 
     let create_rate_args2 = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,

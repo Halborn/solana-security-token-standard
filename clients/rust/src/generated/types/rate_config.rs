@@ -10,7 +10,7 @@ use borsh::BorshSerialize;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct RateArgs {
+pub struct RateConfig {
     pub rounding: u8,
     pub numerator: u8,
     pub denominator: u8,

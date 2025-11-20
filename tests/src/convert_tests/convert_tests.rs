@@ -1,6 +1,6 @@
 use security_token_client::{
     accounts::Receipt,
-    types::{CreateRateArgs, RateArgs, Rounding},
+    types::{CreateRateArgs, RateConfig, Rounding},
 };
 use solana_sdk::{native_token::sol_str_to_lamports, signature::Keypair, signer::Signer};
 use std::ops::Mul;
@@ -89,7 +89,7 @@ async fn test_should_convert_successfully() {
     let denominator = 1u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -240,7 +240,7 @@ async fn test_should_not_convert_twice() {
     let denominator = 1u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -380,7 +380,7 @@ async fn test_should_not_convert_insufficient_tokens_amount() {
     let denominator = 10u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -534,7 +534,7 @@ async fn test_should_fail_when_conversion_target_amount_zero() {
     let denominator = 255u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -652,7 +652,7 @@ async fn test_should_not_panic_when_overflow_occur() {
     let denominator = 1u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -749,7 +749,7 @@ async fn test_should_not_convert_token_from_wrong_mint() {
     let denominator = 1u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,

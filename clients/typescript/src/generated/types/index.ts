@@ -13,7 +13,7 @@ export * from './initializeMintArgs';
 export * from './initializeVerificationConfigArgs';
 export * from './metadataPointerArgs';
 export * from './mintArgs';
-export * from './rateArgs';
+export * from './rateConfig';
 export * from './rounding';
 export * from './scaledUiAmountConfigArgs';
 export * from './splitArgs';

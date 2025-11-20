@@ -2,7 +2,7 @@ use borsh::BorshDeserialize;
 use rstest::rstest;
 use security_token_client::{
     accounts::Rate,
-    types::{CloseRateArgs, CreateRateArgs, RateArgs, Rounding, UpdateRateArgs},
+    types::{CloseRateArgs, CreateRateArgs, RateConfig, Rounding, UpdateRateArgs},
 };
 use solana_program_test::*;
 use solana_sdk::{
@@ -42,7 +42,7 @@ async fn test_should_update_existing_rate_account() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -68,7 +68,7 @@ async fn test_should_update_existing_rate_account() {
 
     let update_rate_args = UpdateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding: new_rounding,
             numerator: new_numerator,
             denominator: new_denominator,
@@ -137,7 +137,7 @@ async fn test_should_fail_invalid_update_rate_account(
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding: Rounding::Up as u8,
             numerator: 3u8,
             denominator: 2u8,
@@ -160,7 +160,7 @@ async fn test_should_fail_invalid_update_rate_account(
     // Try update with invalid args
     let update_rate_args = UpdateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -204,7 +204,7 @@ async fn test_should_not_update_not_owned_rate_account() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -249,7 +249,7 @@ async fn test_should_not_update_not_owned_rate_account() {
 
     let create_rate_args2 = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -271,7 +271,7 @@ async fn test_should_not_update_not_owned_rate_account() {
 
     let update_rate_args = UpdateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding: Rounding::Down as u8,
             numerator: 5,
             denominator: 20,
@@ -327,7 +327,7 @@ async fn test_should_not_update_not_existed_rate_account() {
 
     let update_rate_args = UpdateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding: Rounding::Down as u8,
             numerator: 5,
             denominator: 20,
@@ -369,7 +369,7 @@ async fn test_should_not_update_closed_rate_account() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -405,7 +405,7 @@ async fn test_should_not_update_closed_rate_account() {
 
     let update_rate_args = UpdateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding: Rounding::Down as u8,
             numerator: 5,
             denominator: 20,
