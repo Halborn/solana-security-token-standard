@@ -303,13 +303,20 @@ impl OperationsModule {
         };
 
         // Verify mint
-        let mint_pubkey = mint_account.key();
         verify_operation_mint_info(verified_mint_info, &mint_account)?;
+
+        // Verify programs
+        verify_transfer_hook_program(transfer_hook_program)?;
+        verify_token22_program(token_program)?;
+        verify_system_program(system_program)?;
 
         // Verify payer
         verify_signer(payer)?;
         verify_writable(payer)?;
 
+        // Verify receipt account
+        verify_writable(receipt_account)?;
+        verify_account_not_initialized(receipt_account)?;
         // Retrieve proof data either from argument or from account and verify proof account
         let proof = Proof::get_proof_data_from_instruction(
             eligible_token_account.key(),
@@ -317,10 +324,7 @@ impl OperationsModule {
             proof_account,
             merkle_proof,
         )?;
-
-        // Verify receipt account
-        verify_writable(receipt_account)?;
-        verify_account_not_initialized(receipt_account)?;
+        let mint_pubkey = mint_account.key();
         let (expected_receipt_pda, receipt_bump) = Receipt::find_claim_action_pda(
             mint_pubkey,
             eligible_token_account.key(),
@@ -328,11 +332,6 @@ impl OperationsModule {
             &proof,
         );
         verify_pda(receipt_account.key(), &expected_receipt_pda)?;
-
-        // Verify programs
-        verify_transfer_hook_program(transfer_hook_program)?;
-        verify_token22_program(token_program)?;
-        verify_system_program(system_program)?;
 
         // Verify claimer node belongs to merkle tree
         let node = create_merkle_tree_leaf_node(
@@ -345,15 +344,16 @@ impl OperationsModule {
             return Err(ProgramError::InvalidInstructionData);
         }
 
+        // Verify permanent delegate authority
+        let (permanent_delegate_pda, permanent_delegate_bump) =
+            find_permanent_delegate_pda(mint_pubkey, program_id);
+        verify_pda(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
+
         // With external settlement the escrow_token_account is not provided
         let is_external_settlement = escrow_token_account.key().eq(program_id);
         // With external settlement only the Receipt is issued
         // With internal settlement tokens are transferred and Receipt is issued
         if !is_external_settlement {
-            let (permanent_delegate_pda, permanent_delegate_bump) =
-                find_permanent_delegate_pda(mint_pubkey, program_id);
-            verify_pda(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
-
             let mint = Mint::from_account_info(mint_account)?;
             let escrow_token = TokenAccount::from_account_info(escrow_token_account)?;
             let eligible_token = TokenAccount::from_account_info(eligible_token_account)?;
