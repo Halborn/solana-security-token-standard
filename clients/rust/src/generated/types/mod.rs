@@ -6,8 +6,9 @@
 //!
 
 pub(crate) mod r#claim_distribution_args;
+pub(crate) mod r#close_action_receipt_args;
+pub(crate) mod r#close_claim_receipt_args;
 pub(crate) mod r#close_rate_args;
-pub(crate) mod r#close_receipt_args;
 pub(crate) mod r#convert_args;
 pub(crate) mod r#create_distribution_escrow_args;
 pub(crate) mod r#create_proof_args;
@@ -29,8 +30,9 @@ pub(crate) mod r#update_verification_config_args;
 pub(crate) mod r#verify_args;
 
 pub use self::r#claim_distribution_args::*;
+pub use self::r#close_action_receipt_args::*;
+pub use self::r#close_claim_receipt_args::*;
 pub use self::r#close_rate_args::*;
-pub use self::r#close_receipt_args::*;
 pub use self::r#convert_args::*;
 pub use self::r#create_distribution_escrow_args::*;
 pub use self::r#create_proof_args::*;

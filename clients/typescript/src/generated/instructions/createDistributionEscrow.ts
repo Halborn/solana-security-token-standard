@@ -37,7 +37,7 @@ import {
   type CreateDistributionEscrowArgsArgs,
 } from '../types';
 
-export const CREATE_DISTRIBUTION_ESCROW_DISCRIMINATOR = 21;
+export const CREATE_DISTRIBUTION_ESCROW_DISCRIMINATOR = 20;
 
 export function getCreateDistributionEscrowDiscriminatorBytes() {
   return getU8Encoder().encode(CREATE_DISTRIBUTION_ESCROW_DISCRIMINATOR);

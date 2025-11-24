@@ -17,24 +17,24 @@ import {
   type FixedSizeEncoder,
 } from '@solana/kit';
 
-export type CloseReceiptArgs = { actionId: bigint };
+export type CloseActionReceiptArgs = { actionId: bigint };
 
-export type CloseReceiptArgsArgs = { actionId: number | bigint };
+export type CloseActionReceiptArgsArgs = { actionId: number | bigint };
 
-export function getCloseReceiptArgsEncoder(): FixedSizeEncoder<CloseReceiptArgsArgs> {
+export function getCloseActionReceiptArgsEncoder(): FixedSizeEncoder<CloseActionReceiptArgsArgs> {
   return getStructEncoder([['actionId', getU64Encoder()]]);
 }
 
-export function getCloseReceiptArgsDecoder(): FixedSizeDecoder<CloseReceiptArgs> {
+export function getCloseActionReceiptArgsDecoder(): FixedSizeDecoder<CloseActionReceiptArgs> {
   return getStructDecoder([['actionId', getU64Decoder()]]);
 }
 
-export function getCloseReceiptArgsCodec(): FixedSizeCodec<
-  CloseReceiptArgsArgs,
-  CloseReceiptArgs
+export function getCloseActionReceiptArgsCodec(): FixedSizeCodec<
+  CloseActionReceiptArgsArgs,
+  CloseActionReceiptArgs
 > {
   return combineCodec(
-    getCloseReceiptArgsEncoder(),
-    getCloseReceiptArgsDecoder()
+    getCloseActionReceiptArgsEncoder(),
+    getCloseActionReceiptArgsDecoder()
   );
 }

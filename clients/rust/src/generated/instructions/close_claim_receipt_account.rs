@@ -5,40 +5,36 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use crate::generated::types::CreateDistributionEscrowArgs;
+use crate::generated::types::CloseClaimReceiptArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
-pub const CREATE_DISTRIBUTION_ESCROW_DISCRIMINATOR: u8 = 20;
+pub const CLOSE_CLAIM_RECEIPT_ACCOUNT_DISCRIMINATOR: u8 = 23;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct CreateDistributionEscrow {
+pub struct CloseClaimReceiptAccount {
     pub mint: solana_pubkey::Pubkey,
 
     pub verification_config_or_mint_authority: solana_pubkey::Pubkey,
 
     pub instructions_sysvar_or_creator: solana_pubkey::Pubkey,
 
-    pub distribution_escrow_authority: solana_pubkey::Pubkey,
+    pub receipt_account: solana_pubkey::Pubkey,
 
-    pub payer: solana_pubkey::Pubkey,
+    pub destination: solana_pubkey::Pubkey,
 
-    pub distribution_token_account: solana_pubkey::Pubkey,
+    pub mint_account: solana_pubkey::Pubkey,
 
-    pub distribution_mint: solana_pubkey::Pubkey,
+    pub eligible_token_account: solana_pubkey::Pubkey,
 
-    pub token_program: solana_pubkey::Pubkey,
-
-    pub associated_token_account_program: solana_pubkey::Pubkey,
-
-    pub system_program: solana_pubkey::Pubkey,
+    pub proof_account: Option<solana_pubkey::Pubkey>,
 }
 
-impl CreateDistributionEscrow {
+impl CloseClaimReceiptAccount {
     pub fn instruction(
         &self,
-        args: CreateDistributionEscrowInstructionArgs,
+        args: CloseClaimReceiptAccountInstructionArgs,
     ) -> solana_instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
@@ -46,10 +42,10 @@ impl CreateDistributionEscrow {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: CreateDistributionEscrowInstructionArgs,
+        args: CloseClaimReceiptAccountInstructionArgs,
         remaining_accounts: &[solana_instruction::AccountMeta],
     ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(10 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint, false,
         ));
@@ -61,33 +57,35 @@ impl CreateDistributionEscrow {
             self.instructions_sysvar_or_creator,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.distribution_escrow_authority,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
         accounts.push(solana_instruction::AccountMeta::new(
-            self.distribution_token_account,
+            self.receipt_account,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            self.destination,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.distribution_mint,
+            self.mint_account,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.token_program,
+            self.eligible_token_account,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.associated_token_account_program,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.system_program,
-            false,
-        ));
+        if let Some(proof_account) = self.proof_account {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                proof_account,
+                false,
+            ));
+        } else {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                crate::SECURITY_TOKEN_PROGRAM_ID,
+                false,
+            ));
+        }
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&CreateDistributionEscrowInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&CloseClaimReceiptAccountInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
@@ -101,17 +99,17 @@ impl CreateDistributionEscrow {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CreateDistributionEscrowInstructionData {
+pub struct CloseClaimReceiptAccountInstructionData {
     discriminator: u8,
 }
 
-impl CreateDistributionEscrowInstructionData {
+impl CloseClaimReceiptAccountInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 20 }
+        Self { discriminator: 23 }
     }
 }
 
-impl Default for CreateDistributionEscrowInstructionData {
+impl Default for CloseClaimReceiptAccountInstructionData {
     fn default() -> Self {
         Self::new()
     }
@@ -119,41 +117,37 @@ impl Default for CreateDistributionEscrowInstructionData {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CreateDistributionEscrowInstructionArgs {
-    pub create_distribution_escrow_args: CreateDistributionEscrowArgs,
+pub struct CloseClaimReceiptAccountInstructionArgs {
+    pub close_claim_receipt_args: CloseClaimReceiptArgs,
 }
 
-/// Instruction builder for `CreateDistributionEscrow`.
+/// Instruction builder for `CloseClaimReceiptAccount`.
 ///
 /// ### Accounts:
 ///
 ///   0. `[]` mint
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
-///   3. `[]` distribution_escrow_authority
-///   4. `[writable, signer]` payer
-///   5. `[writable]` distribution_token_account
-///   6. `[]` distribution_mint
-///   7. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
-///   8. `[]` associated_token_account_program
-///   9. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   3. `[writable]` receipt_account
+///   4. `[writable]` destination
+///   5. `[]` mint_account
+///   6. `[]` eligible_token_account
+///   7. `[optional]` proof_account
 #[derive(Clone, Debug, Default)]
-pub struct CreateDistributionEscrowBuilder {
+pub struct CloseClaimReceiptAccountBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config_or_mint_authority: Option<solana_pubkey::Pubkey>,
     instructions_sysvar_or_creator: Option<solana_pubkey::Pubkey>,
-    distribution_escrow_authority: Option<solana_pubkey::Pubkey>,
-    payer: Option<solana_pubkey::Pubkey>,
-    distribution_token_account: Option<solana_pubkey::Pubkey>,
-    distribution_mint: Option<solana_pubkey::Pubkey>,
-    token_program: Option<solana_pubkey::Pubkey>,
-    associated_token_account_program: Option<solana_pubkey::Pubkey>,
-    system_program: Option<solana_pubkey::Pubkey>,
-    create_distribution_escrow_args: Option<CreateDistributionEscrowArgs>,
+    receipt_account: Option<solana_pubkey::Pubkey>,
+    destination: Option<solana_pubkey::Pubkey>,
+    mint_account: Option<solana_pubkey::Pubkey>,
+    eligible_token_account: Option<solana_pubkey::Pubkey>,
+    proof_account: Option<solana_pubkey::Pubkey>,
+    close_claim_receipt_args: Option<CloseClaimReceiptArgs>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
-impl CreateDistributionEscrowBuilder {
+impl CloseClaimReceiptAccountBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -179,57 +173,40 @@ impl CreateDistributionEscrowBuilder {
         self
     }
     #[inline(always)]
-    pub fn distribution_escrow_authority(
+    pub fn receipt_account(&mut self, receipt_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.receipt_account = Some(receipt_account);
+        self
+    }
+    #[inline(always)]
+    pub fn destination(&mut self, destination: solana_pubkey::Pubkey) -> &mut Self {
+        self.destination = Some(destination);
+        self
+    }
+    #[inline(always)]
+    pub fn mint_account(&mut self, mint_account: solana_pubkey::Pubkey) -> &mut Self {
+        self.mint_account = Some(mint_account);
+        self
+    }
+    #[inline(always)]
+    pub fn eligible_token_account(
         &mut self,
-        distribution_escrow_authority: solana_pubkey::Pubkey,
+        eligible_token_account: solana_pubkey::Pubkey,
     ) -> &mut Self {
-        self.distribution_escrow_authority = Some(distribution_escrow_authority);
+        self.eligible_token_account = Some(eligible_token_account);
+        self
+    }
+    /// `[optional account]`
+    #[inline(always)]
+    pub fn proof_account(&mut self, proof_account: Option<solana_pubkey::Pubkey>) -> &mut Self {
+        self.proof_account = proof_account;
         self
     }
     #[inline(always)]
-    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
-        self.payer = Some(payer);
-        self
-    }
-    #[inline(always)]
-    pub fn distribution_token_account(
+    pub fn close_claim_receipt_args(
         &mut self,
-        distribution_token_account: solana_pubkey::Pubkey,
+        close_claim_receipt_args: CloseClaimReceiptArgs,
     ) -> &mut Self {
-        self.distribution_token_account = Some(distribution_token_account);
-        self
-    }
-    #[inline(always)]
-    pub fn distribution_mint(&mut self, distribution_mint: solana_pubkey::Pubkey) -> &mut Self {
-        self.distribution_mint = Some(distribution_mint);
-        self
-    }
-    /// `[optional account, default to 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']`
-    #[inline(always)]
-    pub fn token_program(&mut self, token_program: solana_pubkey::Pubkey) -> &mut Self {
-        self.token_program = Some(token_program);
-        self
-    }
-    #[inline(always)]
-    pub fn associated_token_account_program(
-        &mut self,
-        associated_token_account_program: solana_pubkey::Pubkey,
-    ) -> &mut Self {
-        self.associated_token_account_program = Some(associated_token_account_program);
-        self
-    }
-    /// `[optional account, default to '11111111111111111111111111111111']`
-    #[inline(always)]
-    pub fn system_program(&mut self, system_program: solana_pubkey::Pubkey) -> &mut Self {
-        self.system_program = Some(system_program);
-        self
-    }
-    #[inline(always)]
-    pub fn create_distribution_escrow_args(
-        &mut self,
-        create_distribution_escrow_args: CreateDistributionEscrowArgs,
-    ) -> &mut Self {
-        self.create_distribution_escrow_args = Some(create_distribution_escrow_args);
+        self.close_claim_receipt_args = Some(close_claim_receipt_args);
         self
     }
     /// Add an additional account to the instruction.
@@ -249,7 +226,7 @@ impl CreateDistributionEscrowBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_instruction::Instruction {
-        let accounts = CreateDistributionEscrow {
+        let accounts = CloseClaimReceiptAccount {
             mint: self.mint.expect("mint is not set"),
             verification_config_or_mint_authority: self
                 .verification_config_or_mint_authority
@@ -257,62 +234,46 @@ impl CreateDistributionEscrowBuilder {
             instructions_sysvar_or_creator: self
                 .instructions_sysvar_or_creator
                 .expect("instructions_sysvar_or_creator is not set"),
-            distribution_escrow_authority: self
-                .distribution_escrow_authority
-                .expect("distribution_escrow_authority is not set"),
-            payer: self.payer.expect("payer is not set"),
-            distribution_token_account: self
-                .distribution_token_account
-                .expect("distribution_token_account is not set"),
-            distribution_mint: self
-                .distribution_mint
-                .expect("distribution_mint is not set"),
-            token_program: self.token_program.unwrap_or(solana_pubkey::pubkey!(
-                "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
-            )),
-            associated_token_account_program: self
-                .associated_token_account_program
-                .expect("associated_token_account_program is not set"),
-            system_program: self
-                .system_program
-                .unwrap_or(solana_pubkey::pubkey!("11111111111111111111111111111111")),
+            receipt_account: self.receipt_account.expect("receipt_account is not set"),
+            destination: self.destination.expect("destination is not set"),
+            mint_account: self.mint_account.expect("mint_account is not set"),
+            eligible_token_account: self
+                .eligible_token_account
+                .expect("eligible_token_account is not set"),
+            proof_account: self.proof_account,
         };
-        let args = CreateDistributionEscrowInstructionArgs {
-            create_distribution_escrow_args: self
-                .create_distribution_escrow_args
+        let args = CloseClaimReceiptAccountInstructionArgs {
+            close_claim_receipt_args: self
+                .close_claim_receipt_args
                 .clone()
-                .expect("create_distribution_escrow_args is not set"),
+                .expect("close_claim_receipt_args is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
     }
 }
 
-/// `create_distribution_escrow` CPI accounts.
-pub struct CreateDistributionEscrowCpiAccounts<'a, 'b> {
+/// `close_claim_receipt_account` CPI accounts.
+pub struct CloseClaimReceiptAccountCpiAccounts<'a, 'b> {
     pub mint: &'b solana_account_info::AccountInfo<'a>,
 
     pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
 
     pub instructions_sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>,
 
-    pub distribution_escrow_authority: &'b solana_account_info::AccountInfo<'a>,
+    pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub payer: &'b solana_account_info::AccountInfo<'a>,
+    pub destination: &'b solana_account_info::AccountInfo<'a>,
 
-    pub distribution_token_account: &'b solana_account_info::AccountInfo<'a>,
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub distribution_mint: &'b solana_account_info::AccountInfo<'a>,
+    pub eligible_token_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub token_program: &'b solana_account_info::AccountInfo<'a>,
-
-    pub associated_token_account_program: &'b solana_account_info::AccountInfo<'a>,
-
-    pub system_program: &'b solana_account_info::AccountInfo<'a>,
+    pub proof_account: Option<&'b solana_account_info::AccountInfo<'a>>,
 }
 
-/// `create_distribution_escrow` CPI instruction.
-pub struct CreateDistributionEscrowCpi<'a, 'b> {
+/// `close_claim_receipt_account` CPI instruction.
+pub struct CloseClaimReceiptAccountCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -322,41 +283,35 @@ pub struct CreateDistributionEscrowCpi<'a, 'b> {
 
     pub instructions_sysvar_or_creator: &'b solana_account_info::AccountInfo<'a>,
 
-    pub distribution_escrow_authority: &'b solana_account_info::AccountInfo<'a>,
+    pub receipt_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub payer: &'b solana_account_info::AccountInfo<'a>,
+    pub destination: &'b solana_account_info::AccountInfo<'a>,
 
-    pub distribution_token_account: &'b solana_account_info::AccountInfo<'a>,
+    pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub distribution_mint: &'b solana_account_info::AccountInfo<'a>,
+    pub eligible_token_account: &'b solana_account_info::AccountInfo<'a>,
 
-    pub token_program: &'b solana_account_info::AccountInfo<'a>,
-
-    pub associated_token_account_program: &'b solana_account_info::AccountInfo<'a>,
-
-    pub system_program: &'b solana_account_info::AccountInfo<'a>,
+    pub proof_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     /// The arguments for the instruction.
-    pub __args: CreateDistributionEscrowInstructionArgs,
+    pub __args: CloseClaimReceiptAccountInstructionArgs,
 }
 
-impl<'a, 'b> CreateDistributionEscrowCpi<'a, 'b> {
+impl<'a, 'b> CloseClaimReceiptAccountCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_account_info::AccountInfo<'a>,
-        accounts: CreateDistributionEscrowCpiAccounts<'a, 'b>,
-        args: CreateDistributionEscrowInstructionArgs,
+        accounts: CloseClaimReceiptAccountCpiAccounts<'a, 'b>,
+        args: CloseClaimReceiptAccountInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
             mint: accounts.mint,
             verification_config_or_mint_authority: accounts.verification_config_or_mint_authority,
             instructions_sysvar_or_creator: accounts.instructions_sysvar_or_creator,
-            distribution_escrow_authority: accounts.distribution_escrow_authority,
-            payer: accounts.payer,
-            distribution_token_account: accounts.distribution_token_account,
-            distribution_mint: accounts.distribution_mint,
-            token_program: accounts.token_program,
-            associated_token_account_program: accounts.associated_token_account_program,
-            system_program: accounts.system_program,
+            receipt_account: accounts.receipt_account,
+            destination: accounts.destination,
+            mint_account: accounts.mint_account,
+            eligible_token_account: accounts.eligible_token_account,
+            proof_account: accounts.proof_account,
             __args: args,
         }
     }
@@ -383,7 +338,7 @@ impl<'a, 'b> CreateDistributionEscrowCpi<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
         remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
     ) -> solana_program_error::ProgramResult {
-        let mut accounts = Vec::with_capacity(10 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint.key,
             false,
@@ -396,31 +351,33 @@ impl<'a, 'b> CreateDistributionEscrowCpi<'a, 'b> {
             *self.instructions_sysvar_or_creator.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.distribution_escrow_authority.key,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
         accounts.push(solana_instruction::AccountMeta::new(
-            *self.distribution_token_account.key,
+            *self.receipt_account.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new(
+            *self.destination.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.distribution_mint.key,
+            *self.mint_account.key,
             false,
         ));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.token_program.key,
+            *self.eligible_token_account.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.associated_token_account_program.key,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            *self.system_program.key,
-            false,
-        ));
+        if let Some(proof_account) = self.proof_account {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                *proof_account.key,
+                false,
+            ));
+        } else {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+                crate::SECURITY_TOKEN_PROGRAM_ID,
+                false,
+            ));
+        }
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
@@ -428,7 +385,7 @@ impl<'a, 'b> CreateDistributionEscrowCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&CreateDistributionEscrowInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&CloseClaimReceiptAccountInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
@@ -437,18 +394,18 @@ impl<'a, 'b> CreateDistributionEscrowCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(11 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(9 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.mint.clone());
         account_infos.push(self.verification_config_or_mint_authority.clone());
         account_infos.push(self.instructions_sysvar_or_creator.clone());
-        account_infos.push(self.distribution_escrow_authority.clone());
-        account_infos.push(self.payer.clone());
-        account_infos.push(self.distribution_token_account.clone());
-        account_infos.push(self.distribution_mint.clone());
-        account_infos.push(self.token_program.clone());
-        account_infos.push(self.associated_token_account_program.clone());
-        account_infos.push(self.system_program.clone());
+        account_infos.push(self.receipt_account.clone());
+        account_infos.push(self.destination.clone());
+        account_infos.push(self.mint_account.clone());
+        account_infos.push(self.eligible_token_account.clone());
+        if let Some(proof_account) = self.proof_account {
+            account_infos.push(proof_account.clone());
+        }
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -461,40 +418,36 @@ impl<'a, 'b> CreateDistributionEscrowCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `CreateDistributionEscrow` via CPI.
+/// Instruction builder for `CloseClaimReceiptAccount` via CPI.
 ///
 /// ### Accounts:
 ///
 ///   0. `[]` mint
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
-///   3. `[]` distribution_escrow_authority
-///   4. `[writable, signer]` payer
-///   5. `[writable]` distribution_token_account
-///   6. `[]` distribution_mint
-///   7. `[]` token_program
-///   8. `[]` associated_token_account_program
-///   9. `[]` system_program
+///   3. `[writable]` receipt_account
+///   4. `[writable]` destination
+///   5. `[]` mint_account
+///   6. `[]` eligible_token_account
+///   7. `[optional]` proof_account
 #[derive(Clone, Debug)]
-pub struct CreateDistributionEscrowCpiBuilder<'a, 'b> {
-    instruction: Box<CreateDistributionEscrowCpiBuilderInstruction<'a, 'b>>,
+pub struct CloseClaimReceiptAccountCpiBuilder<'a, 'b> {
+    instruction: Box<CloseClaimReceiptAccountCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> CreateDistributionEscrowCpiBuilder<'a, 'b> {
+impl<'a, 'b> CloseClaimReceiptAccountCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(CreateDistributionEscrowCpiBuilderInstruction {
+        let instruction = Box::new(CloseClaimReceiptAccountCpiBuilderInstruction {
             __program: program,
             mint: None,
             verification_config_or_mint_authority: None,
             instructions_sysvar_or_creator: None,
-            distribution_escrow_authority: None,
-            payer: None,
-            distribution_token_account: None,
-            distribution_mint: None,
-            token_program: None,
-            associated_token_account_program: None,
-            system_program: None,
-            create_distribution_escrow_args: None,
+            receipt_account: None,
+            destination: None,
+            mint_account: None,
+            eligible_token_account: None,
+            proof_account: None,
+            close_claim_receipt_args: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -522,64 +475,52 @@ impl<'a, 'b> CreateDistributionEscrowCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn distribution_escrow_authority(
+    pub fn receipt_account(
         &mut self,
-        distribution_escrow_authority: &'b solana_account_info::AccountInfo<'a>,
+        receipt_account: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.distribution_escrow_authority = Some(distribution_escrow_authority);
+        self.instruction.receipt_account = Some(receipt_account);
         self
     }
     #[inline(always)]
-    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.payer = Some(payer);
+    pub fn destination(
+        &mut self,
+        destination: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.destination = Some(destination);
         self
     }
     #[inline(always)]
-    pub fn distribution_token_account(
+    pub fn mint_account(
         &mut self,
-        distribution_token_account: &'b solana_account_info::AccountInfo<'a>,
+        mint_account: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.distribution_token_account = Some(distribution_token_account);
+        self.instruction.mint_account = Some(mint_account);
         self
     }
     #[inline(always)]
-    pub fn distribution_mint(
+    pub fn eligible_token_account(
         &mut self,
-        distribution_mint: &'b solana_account_info::AccountInfo<'a>,
+        eligible_token_account: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.distribution_mint = Some(distribution_mint);
+        self.instruction.eligible_token_account = Some(eligible_token_account);
+        self
+    }
+    /// `[optional account]`
+    #[inline(always)]
+    pub fn proof_account(
+        &mut self,
+        proof_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    ) -> &mut Self {
+        self.instruction.proof_account = proof_account;
         self
     }
     #[inline(always)]
-    pub fn token_program(
+    pub fn close_claim_receipt_args(
         &mut self,
-        token_program: &'b solana_account_info::AccountInfo<'a>,
+        close_claim_receipt_args: CloseClaimReceiptArgs,
     ) -> &mut Self {
-        self.instruction.token_program = Some(token_program);
-        self
-    }
-    #[inline(always)]
-    pub fn associated_token_account_program(
-        &mut self,
-        associated_token_account_program: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.associated_token_account_program = Some(associated_token_account_program);
-        self
-    }
-    #[inline(always)]
-    pub fn system_program(
-        &mut self,
-        system_program: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.system_program = Some(system_program);
-        self
-    }
-    #[inline(always)]
-    pub fn create_distribution_escrow_args(
-        &mut self,
-        create_distribution_escrow_args: CreateDistributionEscrowArgs,
-    ) -> &mut Self {
-        self.instruction.create_distribution_escrow_args = Some(create_distribution_escrow_args);
+        self.instruction.close_claim_receipt_args = Some(close_claim_receipt_args);
         self
     }
     /// Add an additional account to the instruction.
@@ -616,14 +557,14 @@ impl<'a, 'b> CreateDistributionEscrowCpiBuilder<'a, 'b> {
     #[allow(clippy::clone_on_copy)]
     #[allow(clippy::vec_init_then_push)]
     pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
-        let args = CreateDistributionEscrowInstructionArgs {
-            create_distribution_escrow_args: self
+        let args = CloseClaimReceiptAccountInstructionArgs {
+            close_claim_receipt_args: self
                 .instruction
-                .create_distribution_escrow_args
+                .close_claim_receipt_args
                 .clone()
-                .expect("create_distribution_escrow_args is not set"),
+                .expect("close_claim_receipt_args is not set"),
         };
-        let instruction = CreateDistributionEscrowCpi {
+        let instruction = CloseClaimReceiptAccountCpi {
             __program: self.instruction.__program,
 
             mint: self.instruction.mint.expect("mint is not set"),
@@ -638,37 +579,27 @@ impl<'a, 'b> CreateDistributionEscrowCpiBuilder<'a, 'b> {
                 .instructions_sysvar_or_creator
                 .expect("instructions_sysvar_or_creator is not set"),
 
-            distribution_escrow_authority: self
+            receipt_account: self
                 .instruction
-                .distribution_escrow_authority
-                .expect("distribution_escrow_authority is not set"),
+                .receipt_account
+                .expect("receipt_account is not set"),
 
-            payer: self.instruction.payer.expect("payer is not set"),
-
-            distribution_token_account: self
+            destination: self
                 .instruction
-                .distribution_token_account
-                .expect("distribution_token_account is not set"),
+                .destination
+                .expect("destination is not set"),
 
-            distribution_mint: self
+            mint_account: self
                 .instruction
-                .distribution_mint
-                .expect("distribution_mint is not set"),
+                .mint_account
+                .expect("mint_account is not set"),
 
-            token_program: self
+            eligible_token_account: self
                 .instruction
-                .token_program
-                .expect("token_program is not set"),
+                .eligible_token_account
+                .expect("eligible_token_account is not set"),
 
-            associated_token_account_program: self
-                .instruction
-                .associated_token_account_program
-                .expect("associated_token_account_program is not set"),
-
-            system_program: self
-                .instruction
-                .system_program
-                .expect("system_program is not set"),
+            proof_account: self.instruction.proof_account,
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -679,19 +610,17 @@ impl<'a, 'b> CreateDistributionEscrowCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct CreateDistributionEscrowCpiBuilderInstruction<'a, 'b> {
+struct CloseClaimReceiptAccountCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_account_info::AccountInfo<'a>,
     mint: Option<&'b solana_account_info::AccountInfo<'a>>,
     verification_config_or_mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     instructions_sysvar_or_creator: Option<&'b solana_account_info::AccountInfo<'a>>,
-    distribution_escrow_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
-    payer: Option<&'b solana_account_info::AccountInfo<'a>>,
-    distribution_token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-    distribution_mint: Option<&'b solana_account_info::AccountInfo<'a>>,
-    token_program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    associated_token_account_program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    create_distribution_escrow_args: Option<CreateDistributionEscrowArgs>,
+    receipt_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    destination: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    eligible_token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    proof_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    close_claim_receipt_args: Option<CloseClaimReceiptArgs>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }
