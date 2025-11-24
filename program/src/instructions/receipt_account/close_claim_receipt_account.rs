@@ -111,6 +111,7 @@ mod tests {
         let deserialized = CloseClaimReceiptArgs::try_from_bytes(&bytes)
             .expect("Should deserialize CloseClaimReceiptArgs");
         assert_eq!(original.action_id, deserialized.action_id);
+        assert_eq!(original.merkle_proof, deserialized.merkle_proof);
     }
 
     #[rstest]
