@@ -53,12 +53,13 @@ impl ClaimDistributionArgs {
         let action_id = parse_action_id_argument(&data[..ACTION_ID_LEN])?;
         offset += ACTION_ID_LEN;
 
-        offset += 8;
         let amount = u64::from_le_bytes(
-            data[ACTION_ID_LEN..offset]
+            data[ACTION_ID_LEN..offset + 8]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidArgument)?,
         );
+        offset += 8;
+
         if amount == 0 {
             return Err(ProgramError::InvalidArgument);
         }
