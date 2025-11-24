@@ -733,16 +733,16 @@ impl OperationsModule {
 
         // Verify mint is valid
         verify_operation_mint_info(verified_mint_info, &distribution_mint)?;
+        // Verify programs
+        verify_token22_program(token_program)?;
+        verify_associated_token_program(associated_token_account_program)?;
+        verify_system_program(system_program)?;
         // Verify token account is not initialized
         verify_writable(distribution_token_account)?;
         verify_account_not_initialized(distribution_token_account)?;
         // Verify payer
         verify_signer(payer)?;
         verify_writable(payer)?;
-        // Verify programs
-        verify_token22_program(token_program)?;
-        verify_associated_token_program(associated_token_account_program)?;
-        verify_system_program(system_program)?;
 
         let mint_pubkey = distribution_mint.key();
         let (distribution_escrow_authority_pda, _) =
@@ -825,16 +825,15 @@ impl OperationsModule {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        // Verify permanent delegate authority
-        let (permanent_delegate_pda, permanent_delegate_bump) =
-            find_permanent_delegate_pda(mint_pubkey, program_id);
-        verify_pda(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
-
         // With external settlement the escrow_token_account is not provided
         let is_external_settlement = escrow_token_account.key().eq(program_id);
         // With external settlement only the Receipt is issued
         // With internal settlement tokens are transferred and Receipt is issued
         if !is_external_settlement {
+            let (permanent_delegate_pda, permanent_delegate_bump) =
+                find_permanent_delegate_pda(mint_pubkey, program_id);
+            verify_pda(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
+
             let mint = Mint::from_account_info(mint_account)?;
             let escrow_token = TokenAccount::from_account_info(escrow_token_account)?;
             let eligible_token = TokenAccount::from_account_info(eligible_token_account)?;
