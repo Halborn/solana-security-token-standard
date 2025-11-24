@@ -1,7 +1,10 @@
 use security_token_client::{
-    instructions::{CloseReceiptAccount, CloseReceiptAccountInstructionArgs},
+    instructions::{
+        CloseClaimReceiptAccount, CloseClaimReceiptAccountInstructionArgs,
+        CloseActionReceiptAccount, CloseActionReceiptAccountInstructionArgs,
+    },
     programs::SECURITY_TOKEN_PROGRAM_ID,
-    types::CloseReceiptArgs,
+    types::{CloseClaimReceiptArgs, CloseActionReceiptArgs},
 };
 use solana_keccak_hasher::hashv;
 use solana_program_test::*;
@@ -10,7 +13,7 @@ use solana_sdk::signature::{Keypair, Signer};
 
 use crate::helpers::send_tx;
 
-pub async fn close_receipt_account(
+pub async fn close_action_receipt_account(
     context: &mut solana_program_test::ProgramTestContext,
     security_token_mint: Pubkey,
     verification_config_or_mint_authority: Pubkey,
@@ -18,9 +21,9 @@ pub async fn close_receipt_account(
     receipt_account: Pubkey,
     mint_account: Pubkey,
     destination: &Keypair,
-    close_receipt_args: CloseReceiptArgs,
+    close_action_receipt_args: CloseActionReceiptArgs,
 ) -> Result<(), BanksClientError> {
-    let close_rate_ix = CloseReceiptAccount {
+    let close_rate_ix = CloseActionReceiptAccount {
         mint: security_token_mint,
         verification_config_or_mint_authority,
         instructions_sysvar_or_creator,
@@ -28,7 +31,44 @@ pub async fn close_receipt_account(
         mint_account,
         destination: destination.pubkey(),
     }
-    .instruction(CloseReceiptAccountInstructionArgs { close_receipt_args });
+    .instruction(CloseActionReceiptAccountInstructionArgs {
+        close_action_receipt_args,
+    });
+
+    send_tx(
+        &context.banks_client,
+        vec![close_rate_ix],
+        &destination.pubkey(),
+        vec![destination],
+    )
+    .await
+}
+
+pub async fn close_claim_receipt_account(
+    context: &mut solana_program_test::ProgramTestContext,
+    security_token_mint: Pubkey,
+    verification_config_or_mint_authority: Pubkey,
+    instructions_sysvar_or_creator: Pubkey,
+    receipt_account: Pubkey,
+    mint_account: Pubkey,
+    eligible_token_account: Pubkey,
+    proof_account: Option<Pubkey>,
+    destination: &Keypair,
+    close_claim_receipt_args: CloseClaimReceiptArgs,
+) -> Result<(), BanksClientError> {
+    let close_rate_ix = CloseClaimReceiptAccount {
+        mint: security_token_mint,
+        verification_config_or_mint_authority,
+        instructions_sysvar_or_creator,
+        receipt_account,
+        mint_account,
+        eligible_token_account,
+        proof_account,
+        destination: destination.pubkey(),
+    }
+    .instruction(CloseClaimReceiptAccountInstructionArgs {
+        close_claim_receipt_args,
+    });
 
     send_tx(
         &context.banks_client,
