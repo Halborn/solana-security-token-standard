@@ -4,7 +4,8 @@ use shank::ShankType;
 use crate::{
     constants::ACTION_ID_LEN,
     instructions::rate_account::shared::parse_action_id_argument,
-    state::{Proof, ProofData, ProofDataDeserializer, ProofDataValidator},
+    merkle_tree_utils::ProofData,
+    state::{Proof, ProofDataDeserializer, ProofDataValidator},
 };
 
 /// Arguments to create Proof account
@@ -61,7 +62,7 @@ impl CreateProofArgs {
 #[cfg(test)]
 mod tests {
     use crate::{
-        constants::MERKLE_TREE_NODE_LEN,
+        merkle_tree_utils::MERKLE_TREE_NODE_LEN,
         test_utils::{random_32_bytes, random_32_bytes_vec},
     };
 

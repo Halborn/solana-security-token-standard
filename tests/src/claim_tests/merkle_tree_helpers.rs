@@ -52,6 +52,5 @@ fn leaf_to_node(leaf: &Leaf) -> Node {
     bytes.extend_from_slice(&leaf.action_id.to_le_bytes());
     bytes.extend_from_slice(&leaf.amount.to_le_bytes());
 
-    let leaf_hash = hashv(&[&bytes]);
-    leaf_hash.to_bytes()
+    hashv(&[&bytes]).to_bytes()
 }

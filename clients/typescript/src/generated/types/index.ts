@@ -6,6 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './claimDistributionArgs';
 export * from './closeRateArgs';
 export * from './closeReceiptArgs';
 export * from './convertArgs';

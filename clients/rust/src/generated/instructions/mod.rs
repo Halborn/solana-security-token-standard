@@ -6,6 +6,7 @@
 //!
 
 pub(crate) mod r#burn;
+pub(crate) mod r#claim_distribution;
 pub(crate) mod r#close_rate_account;
 pub(crate) mod r#close_receipt_account;
 pub(crate) mod r#convert;
@@ -29,6 +30,7 @@ pub(crate) mod r#update_verification_config;
 pub(crate) mod r#verify;
 
 pub use self::r#burn::*;
+pub use self::r#claim_distribution::*;
 pub use self::r#close_rate_account::*;
 pub use self::r#close_receipt_account::*;
 pub use self::r#convert::*;

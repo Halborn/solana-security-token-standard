@@ -5,6 +5,7 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
+pub(crate) mod r#claim_distribution_args;
 pub(crate) mod r#close_rate_args;
 pub(crate) mod r#close_receipt_args;
 pub(crate) mod r#convert_args;
@@ -27,6 +28,7 @@ pub(crate) mod r#update_rate_args;
 pub(crate) mod r#update_verification_config_args;
 pub(crate) mod r#verify_args;
 
+pub use self::r#claim_distribution_args::*;
 pub use self::r#close_rate_args::*;
 pub use self::r#close_receipt_args::*;
 pub use self::r#convert_args::*;

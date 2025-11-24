@@ -6,11 +6,12 @@ use pinocchio::{
 
 use crate::{
     constants::seeds::RECEIPT_ACCOUNT,
+    merkle_tree_utils::ProofData,
     state::{
         AccountDeserialize, AccountSerialize, Discriminator, ProgramAccount,
         SecurityTokenDiscriminators,
     },
-    utils::{find_claim_receipt_pda, find_common_action_receipt_pda},
+    utils::{find_claim_receipt_pda, find_common_action_receipt_pda, hash_from_proof_data},
 };
 
 /// Receipt account structure
@@ -85,28 +86,33 @@ impl Receipt {
     /// Seeds for Claim operation
     pub fn claim_action_seeds<'a>(
         mint: &'a Pubkey,
-        action_id_seed: &'a [u8],
         token_account: &'a Pubkey,
-        proof_seed: &'a [u8],
+        action_id_seed: &'a [u8],
+        proof_hash_seed: &'a [u8; 32],
         bump_seed: &'a [u8; 1],
     ) -> [Seed<'a>; 6] {
         [
             Seed::from(RECEIPT_ACCOUNT),
             Seed::from(mint.as_ref()),
-            Seed::from(action_id_seed),
             Seed::from(token_account.as_ref()),
-            Seed::from(proof_seed),
+            Seed::from(action_id_seed),
+            Seed::from(proof_hash_seed.as_ref()),
             Seed::from(bump_seed.as_ref()),
         ]
+    }
+
+    /// Helper to compute proof hash for claim_action_seeds
+    pub fn proof_seed(proof: &ProofData) -> [u8; 32] {
+        hash_from_proof_data(proof)
     }
 
     /// Find receipt PDA for Claim operation
     pub fn find_claim_action_pda(
         mint: &Pubkey,
-        action_id: u64,
         token_account: &Pubkey,
-        proof: &[u8; 32],
+        action_id: u64,
+        proof: &ProofData,
     ) -> (Pubkey, u8) {
-        find_claim_receipt_pda(mint, action_id, token_account, proof, &crate::id())
+        find_claim_receipt_pda(mint, token_account, action_id, proof, &crate::id())
     }
 }

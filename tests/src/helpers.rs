@@ -448,29 +448,6 @@ pub fn find_permanent_delegate_pda(mint: &Pubkey) -> (Pubkey, u8) {
     )
 }
 
-pub fn find_common_action_receipt_pda(mint: &Pubkey, action_id: u64) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[b"receipt", &mint.as_ref(), &action_id.to_le_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    )
-}
-
-pub fn find_claim_action_receipt_pda(
-    token_account: &Pubkey,
-    action_id: u64,
-    proof: &[u8; 32],
-) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[
-            b"receipt",
-            &token_account.as_ref(),
-            &action_id.to_le_bytes(),
-            proof.as_ref(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    )
-}
-
 pub fn find_transfer_hook_pda(mint: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[b"mint.transfer_hook", &mint.as_ref()],

@@ -2,9 +2,10 @@ use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
 use crate::{
-    constants::{ACTION_ID_LEN, MERKLE_TREE_NODE_LEN},
+    constants::ACTION_ID_LEN,
     instructions::rate_account::shared::parse_action_id_argument,
-    state::{ProofDataDeserializer, ProofDataValidator, ProofNode},
+    merkle_tree_utils::{ProofNode, MERKLE_TREE_NODE_LEN},
+    state::{ProofDataDeserializer, ProofDataValidator},
 };
 
 /// Arguments to update Proof account data
@@ -74,7 +75,7 @@ impl UpdateProofArgs {
 
 #[cfg(test)]
 mod tests {
-    use crate::{constants::MERKLE_TREE_NODE_LEN, test_utils::random_32_bytes};
+    use crate::{merkle_tree_utils::EMPTY_MERKLE_TREE_NODE, test_utils::random_32_bytes};
 
     use super::*;
     use rstest::rstest;
@@ -109,7 +110,12 @@ mod tests {
         10u32,
         "UpdateProofArgs with zero action_id should be invalid"
     )]
-    #[case(42u64, [0u8; MERKLE_TREE_NODE_LEN], 10u32, "UpdateProofArgs with zero proof node should be invalid")]
+    #[case(
+        42u64,
+        EMPTY_MERKLE_TREE_NODE,
+        10u32,
+        "UpdateProofArgs with zero proof node should be invalid"
+    )]
     fn test_update_proof_args_validation(
         #[case] action_id: u64,
         #[case] proof_node: ProofNode,

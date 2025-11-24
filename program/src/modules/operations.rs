@@ -3,18 +3,20 @@
 //! Executes token operations after successful verification.
 //! All operations are wrappers around SPL Token 2022 instructions.
 
-use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
+use crate::constants::seeds;
 use crate::debug_log;
-use crate::instructions::{CustomPause, CustomResume, CustomTransferChecked};
-use crate::merkle_tree_utils::MerkleTreeRoot;
+use crate::instructions::{CustomPause, CustomResume};
+use crate::merkle_tree_utils::{
+    create_merkle_tree_leaf_node, verify_merkle_proof, MerkleTreeRoot, ProofData, ProofNode,
+};
 use crate::modules::{
-    burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
-    verify_associated_token_program, verify_operation_mint_info, verify_owner, verify_pda,
-    verify_signer, verify_system_program, verify_token22_program, verify_writable,
+    burn_checked, mint_to_checked, transfer_checked, verify_account_initialized,
+    verify_account_not_initialized, verify_associated_token_program, verify_operation_mint_info,
+    verify_owner, verify_pda, verify_signer, verify_system_program, verify_token22_program,
+    verify_transfer_hook_program, verify_writable,
 };
 use crate::state::{
-    DistributionEscrowAuthority, MintAuthority, ProgramAccount, Proof, ProofData, ProofNode, Rate,
-    Receipt, Rounding,
+    DistributionEscrowAuthority, MintAuthority, ProgramAccount, Proof, Rate, Receipt, Rounding,
 };
 use crate::utils::{
     find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda,
@@ -257,12 +259,9 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+        verify_transfer_hook_program(transfer_hook_program)?;
 
-        if transfer_hook_program.key() != &TRANSFER_HOOK_PROGRAM_ID {
-            return Err(ProgramError::IncorrectProgramId);
-        }
-
-        let (permanent_delegate_pda, bump) =
+        let (permanent_delegate_pda, permanent_delegate_bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
         if permanent_delegate_authority.key() != &permanent_delegate_pda {
             return Err(ProgramError::InvalidSeeds);
@@ -272,38 +271,129 @@ impl OperationsModule {
         let decimals = mint_account.decimals();
         drop(mint_account);
 
-        let transfer_instruction = CustomTransferChecked::new(
+        transfer_checked(
+            amount,
+            decimals,
             mint_info,
             from_token_account,
             to_token_account,
-            permanent_delegate_authority,
-            amount,
-            decimals,
             transfer_hook_program,
-        );
-
-        let bump_seed = [bump];
-        let seeds = [
-            Seed::from(seeds::PERMANENT_DELEGATE),
-            Seed::from(mint_info.key().as_ref()),
-            Seed::from(bump_seed.as_ref()),
-        ];
-        let permanent_delegate_signer = Signer::from(&seeds);
-        transfer_instruction.invoke_signed(&[permanent_delegate_signer])?;
+            permanent_delegate_authority,
+            permanent_delegate_bump,
+        )?;
         Ok(())
     }
 
     /// Claim distribution (dividends/coupons)
+    #[allow(clippy::too_many_arguments)]
     pub fn execute_claim_distribution(
-        _accounts: &[AccountInfo],
-        _amount: u64,
-        _action_id: u64,
-        _merkle_root: &[u8],
-        _merkle_proof: &[Vec<u8>],
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        amount: u64,
+        action_id: u64,
+        merkle_root: &MerkleTreeRoot,
+        leaf_index: u32,
+        merkle_proof: Option<ProofData>,
     ) -> ProgramResult {
-        // TODO: Verify merkle proof
-        // TODO: Create Receipt account
-        // TODO: If escrow provided, transfer distribution
+        let [permanent_delegate_authority, payer, mint_account, eligible_token_account, escrow_token_account, receipt_account, proof_account, transfer_hook_program, token_program, system_program] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        // Verify mint
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+
+        // Verify programs
+        verify_transfer_hook_program(transfer_hook_program)?;
+        verify_token22_program(token_program)?;
+        verify_system_program(system_program)?;
+
+        // Verify payer
+        verify_signer(payer)?;
+        verify_writable(payer)?;
+
+        // Verify receipt account
+        verify_writable(receipt_account)?;
+        verify_account_not_initialized(receipt_account)?;
+        // Retrieve proof data either from argument or from account and verify proof account
+        let proof = Proof::get_proof_data_from_instruction(
+            eligible_token_account.key(),
+            action_id,
+            proof_account,
+            merkle_proof,
+        )?;
+        let mint_pubkey = mint_account.key();
+        let (expected_receipt_pda, receipt_bump) = Receipt::find_claim_action_pda(
+            mint_pubkey,
+            eligible_token_account.key(),
+            action_id,
+            &proof,
+        );
+        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+
+        // Verify claimer node belongs to merkle tree
+        let node = create_merkle_tree_leaf_node(
+            eligible_token_account.key(),
+            mint_pubkey,
+            action_id,
+            amount,
+        );
+        if !verify_merkle_proof(&node, merkle_root, &proof, leaf_index) {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // Verify permanent delegate authority
+        let (permanent_delegate_pda, permanent_delegate_bump) =
+            find_permanent_delegate_pda(mint_pubkey, program_id);
+        verify_pda(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
+
+        // With external settlement the escrow_token_account is not provided
+        let is_external_settlement = escrow_token_account.key().eq(program_id);
+        // With external settlement only the Receipt is issued
+        // With internal settlement tokens are transferred and Receipt is issued
+        if !is_external_settlement {
+            let mint = Mint::from_account_info(mint_account)?;
+            let escrow_token = TokenAccount::from_account_info(escrow_token_account)?;
+            let eligible_token = TokenAccount::from_account_info(eligible_token_account)?;
+            let decimals = mint.decimals();
+
+            if escrow_token.mint() != mint_pubkey || eligible_token.mint() != mint_pubkey {
+                return Err(ProgramError::InvalidAccountData);
+            }
+            if escrow_token.amount() < amount {
+                return Err(ProgramError::InsufficientFunds);
+            }
+            drop(mint);
+            drop(escrow_token);
+            drop(eligible_token);
+
+            // Transfer tokens from distribution escrow to eligible token account
+            transfer_checked(
+                amount,
+                decimals,
+                mint_account,
+                escrow_token_account,
+                eligible_token_account,
+                transfer_hook_program,
+                permanent_delegate_authority,
+                permanent_delegate_bump,
+            )?;
+        }
+
+        // Issue Receipt
+        let action_id_seed = action_id.to_le_bytes();
+        let bump_seed = [receipt_bump];
+        let proof_seed = Receipt::proof_seed(&proof);
+        let receipt_seeds = Receipt::claim_action_seeds(
+            mint_pubkey,
+            eligible_token_account.key(),
+            &action_id_seed,
+            &proof_seed,
+            &bump_seed,
+        );
+        Receipt::issue(receipt_account, payer, &receipt_seeds)?;
         Ok(())
     }
 

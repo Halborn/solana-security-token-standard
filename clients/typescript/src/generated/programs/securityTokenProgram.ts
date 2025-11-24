@@ -14,6 +14,7 @@ import {
 } from '@solana/kit';
 import {
   type ParsedBurnInstruction,
+  type ParsedClaimDistributionInstruction,
   type ParsedCloseRateAccountInstruction,
   type ParsedCloseReceiptAccountInstruction,
   type ParsedConvertInstruction,
@@ -70,6 +71,7 @@ export enum SecurityTokenProgramInstruction {
   UpdateProofAccount,
   CloseReceiptAccount,
   CreateDistributionEscrow,
+  ClaimDistribution,
 }
 
 export function identifySecurityTokenProgramInstruction(
@@ -141,6 +143,9 @@ export function identifySecurityTokenProgramInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(21), 0)) {
     return SecurityTokenProgramInstruction.CreateDistributionEscrow;
+  }
+  if (containsBytes(data, getU8Encoder().encode(22), 0)) {
+    return SecurityTokenProgramInstruction.ClaimDistribution;
   }
   throw new Error(
     'The provided instruction could not be identified as a securityTokenProgram instruction.'
@@ -215,4 +220,7 @@ export type ParsedSecurityTokenProgramInstruction<
     } & ParsedCloseReceiptAccountInstruction<TProgram>)
   | ({
       instructionType: SecurityTokenProgramInstruction.CreateDistributionEscrow;
-    } & ParsedCreateDistributionEscrowInstruction<TProgram>);
+    } & ParsedCreateDistributionEscrowInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.ClaimDistribution;
+    } & ParsedClaimDistributionInstruction<TProgram>);
