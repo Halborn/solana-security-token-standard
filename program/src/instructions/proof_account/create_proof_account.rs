@@ -62,7 +62,7 @@ impl CreateProofArgs {
 #[cfg(test)]
 mod tests {
     use crate::{
-        merkle_tree_utils::MERKLE_TREE_NODE_LEN,
+        merkle_tree_utils::EMPTY_MERKLE_TREE_NODE,
         test_utils::{random_32_bytes, random_32_bytes_vec},
     };
 
@@ -95,7 +95,7 @@ mod tests {
         random_32_bytes_vec(3),
         "ProofArgs with zero action_id should be invalid"
     )]
-    #[case(5u64, vec![[0u8; MERKLE_TREE_NODE_LEN], random_32_bytes(), random_32_bytes()], "ProofArgs proof_data with zero node should be invalid")]
+    #[case(5u64, vec![EMPTY_MERKLE_TREE_NODE, random_32_bytes(), random_32_bytes()], "ProofArgs proof_data with zero node should be invalid")]
     #[case(u64::MAX, vec![], "ProofArgs with empty data should be invalid")]
     fn test_create_proof_args_validation(
         #[case] action_id: u64,

@@ -24,9 +24,10 @@ pub enum SecurityTokenInstruction {
     Convert = 17,
     CreateProofAccount = 18,
     UpdateProofAccount = 19,
-    CloseReceiptAccount = 20,
-    CreateDistributionEscrow = 21,
-    ClaimDistribution = 22,
+    CreateDistributionEscrow = 20,
+    ClaimDistribution = 21,
+    CloseActionReceiptAccount = 22,
+    CloseClaimReceiptAccount = 23,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -54,9 +55,10 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             17 => Ok(SecurityTokenInstruction::Convert),
             18 => Ok(SecurityTokenInstruction::CreateProofAccount),
             19 => Ok(SecurityTokenInstruction::UpdateProofAccount),
-            20 => Ok(SecurityTokenInstruction::CloseReceiptAccount),
-            21 => Ok(SecurityTokenInstruction::CreateDistributionEscrow),
-            22 => Ok(SecurityTokenInstruction::ClaimDistribution),
+            20 => Ok(SecurityTokenInstruction::CreateDistributionEscrow),
+            21 => Ok(SecurityTokenInstruction::ClaimDistribution),
+            22 => Ok(SecurityTokenInstruction::CloseActionReceiptAccount),
+            23 => Ok(SecurityTokenInstruction::CloseClaimReceiptAccount),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -94,9 +96,10 @@ mod idl_gen {
         close_rate_account::CloseRateArgs, convert::ConvertArgs,
         create_proof_account::CreateProofArgs, split::SplitArgs,
         update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs,
-        ClaimDistributionArgs, CloseReceiptArgs, CreateDistributionEscrowArgs, CreateRateArgs,
-        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
-        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        ClaimDistributionArgs, CloseActionReceiptArgs, CloseClaimReceiptArgs,
+        CreateDistributionEscrowArgs, CreateRateArgs, InitializeMintArgs,
+        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
+        UpdateVerificationConfigArgs, VerifyArgs,
     };
 
     #[derive(shank::ShankInstruction)]
@@ -343,14 +346,6 @@ mod idl_gen {
         #[account(7, name = "system_program")]
         UpdateProofAccount(UpdateProofArgs) = 19,
 
-        #[account(0, name = "mint")]
-        #[account(1, name = "verification_config_or_mint_authority")]
-        #[account(2, name = "instructions_sysvar_or_creator")]
-        #[account(3, writable, name = "receipt_account")]
-        #[account(4, writable, name = "destination")]
-        #[account(5, name = "mint_account")]
-        CloseReceiptAccount(CloseReceiptArgs) = 20,
-
         // Verification overhead
         #[account(0, name = "mint")]
         #[account(1, name = "verification_config_or_mint_authority")]
@@ -363,7 +358,7 @@ mod idl_gen {
         #[account(7, name = "token_program")]
         #[account(8, name = "associated_token_account_program")]
         #[account(9, name = "system_program")]
-        CreateDistributionEscrow(CreateDistributionEscrowArgs) = 21,
+        CreateDistributionEscrow(CreateDistributionEscrowArgs) = 20,
 
         // Verification overhead
         #[account(0, name = "mint")]
@@ -380,6 +375,28 @@ mod idl_gen {
         #[account(10, name = "transfer_hook_program")]
         #[account(11, name = "token_program")]
         #[account(12, name = "system_program")]
-        ClaimDistribution(ClaimDistributionArgs) = 22,
+        ClaimDistribution(ClaimDistributionArgs) = 21,
+
+        // Verification overhead
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        // Instruction accounts
+        #[account(3, writable, name = "receipt_account")]
+        #[account(4, writable, name = "destination")]
+        #[account(5, name = "mint_account")]
+        CloseActionReceiptAccount(CloseActionReceiptArgs) = 22,
+
+        // Verification overhead
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        // Instruction accounts
+        #[account(3, writable, name = "receipt_account")]
+        #[account(4, writable, name = "destination")]
+        #[account(5, name = "mint_account")]
+        #[account(6, name = "eligible_token_account")]
+        #[account(7, optional, name = "proof_account")]
+        CloseClaimReceiptAccount(CloseClaimReceiptArgs) = 23,
     }
 }

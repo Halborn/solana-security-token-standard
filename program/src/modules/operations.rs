@@ -566,8 +566,8 @@ impl OperationsModule {
         Ok(())
     }
 
-    /// Close Receipt account of common action (Split, Convert)
-    pub fn execute_close_receipt_account(
+    /// Close Receipt account of operation tied to the action_id (e.g. split, convert)
+    pub fn execute_close_action_receipt_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
@@ -586,6 +586,45 @@ impl OperationsModule {
         verify_owner(receipt_account, program_id)?;
         let (expected_receipt_pda, _bump) =
             Receipt::find_common_action_pda(mint_account.key(), action_id);
+        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+
+        Receipt::close(receipt_account, destination_account)?;
+        Ok(())
+    }
+
+    /// Close Receipt account of claim_distribution action
+    pub fn execute_close_claim_receipt_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+        merkle_proof: Option<ProofData>,
+    ) -> ProgramResult {
+        let [receipt_account, destination_account, mint_account, eligible_token_account, proof_account] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_writable(destination_account)?;
+        verify_writable(receipt_account)?;
+        verify_account_initialized(receipt_account)?;
+        verify_owner(receipt_account, program_id)?;
+
+        // Retrieve proof data either from argument or from account. Verify proof account
+        let proof = Proof::get_proof_data_from_instruction(
+            eligible_token_account.key(),
+            action_id,
+            proof_account,
+            merkle_proof,
+        )?;
+        let (expected_receipt_pda, _bump) = Receipt::find_claim_action_pda(
+            mint_account.key(),
+            eligible_token_account.key(),
+            action_id,
+            &proof,
+        );
         verify_pda(receipt_account.key(), &expected_receipt_pda)?;
 
         Receipt::close(receipt_account, destination_account)?;
