@@ -1,4 +1,4 @@
-use pinocchio::pubkey::Pubkey;
+use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 use solana_keccak_hasher::hashv;
 
 pub type MerkleTreeRoot = [u8; MERKLE_ROOT_LEN];
@@ -62,7 +62,8 @@ pub fn create_merkle_tree_leaf_node(
     action_id: u64,
     amount: u64,
 ) -> MerkleTreeNode {
-    let mut bytes = Vec::new();
+    // Capacity: eligible_token_account (32 bytes) + mint (32 bytes) + action_id (8 bytes) + amount (8 bytes)
+    let mut bytes = Vec::with_capacity(PUBKEY_BYTES * 2 + 8 + 8);
     bytes.extend_from_slice(eligible_token_account.as_ref());
     bytes.extend_from_slice(mint.as_ref());
     bytes.extend_from_slice(action_id.to_le_bytes().as_ref());
@@ -92,17 +93,12 @@ mod tests {
     #[case(random_32_bytes_vec(122))]
     fn test_merkle_tree_utils_should_verify_merkle_proof(#[case] leaves: Vec<MerkleTreeNode>) {
         println!("Leaves len: {:?}", leaves.len());
-        let hashed_leaves = leaves
-            .iter()
-            .map(|leaf| hashv(&[leaf]).to_bytes())
-            .collect::<Vec<MerkleTreeNode>>();
-
-        let merkle_tree = MerkleTree::new(&hashed_leaves);
+        let merkle_tree = MerkleTree::new(&leaves);
         let root = merkle_tree.root;
 
-        for idx in 0..hashed_leaves.len() {
+        for idx in 0..leaves.len() {
             let node = merkle_tree.get_node(idx);
-            assert_eq!(node, hashed_leaves[idx]);
+            assert_eq!(node, leaves[idx]);
             let proof = merkle_tree.get_proof_of_leaf(idx);
             let is_valid = verify_merkle_proof(&node, &root, &proof, idx as u32);
             assert!(is_valid, "Merkle proof should be valid at index {}", idx);
@@ -123,22 +119,16 @@ mod tests {
         #[case] leaves: Vec<MerkleTreeNode>,
     ) {
         println!("Leaves len: {:?}", leaves.len());
-        let hashed_leaves = leaves
-            .iter()
-            .map(|leaf| hashv(&[leaf]).to_bytes())
-            .collect::<Vec<MerkleTreeNode>>();
-
-        let merkle_tree = MerkleTree::new(&hashed_leaves);
+        let merkle_tree = MerkleTree::new(&leaves);
         let root = merkle_tree.root;
 
-        for idx in 0..hashed_leaves.len() {
+        for idx in 0..leaves.len() {
             let node = merkle_tree.get_node(idx);
-            assert_eq!(node, hashed_leaves[idx]);
+            assert_eq!(node, leaves[idx]);
             let proof = merkle_tree.get_proof_of_leaf(idx);
             // Ensure random leaf is invalid for this proof
             let random_hash = hashv(&[&random_32_bytes()]).to_bytes();
-            let invalid_node = hashed_leaves.get(idx + 1).unwrap_or(&random_hash);
-
+            let invalid_node = leaves.get(idx + 1).unwrap_or(&random_hash);
             let is_valid = verify_merkle_proof(&invalid_node, &root, &proof, idx as u32);
             assert!(
                 !is_valid,
