@@ -45,7 +45,7 @@ mod tests {
 
         let bytes = original.to_bytes_inner();
         let deserialized = CloseActionReceiptArgs::try_from_bytes(&bytes)
-            .expect("Should deserialize receipt arguments");
+            .expect("Should deserialize CloseActionReceiptArgs");
         assert_eq!(original.action_id, deserialized.action_id);
     }
 

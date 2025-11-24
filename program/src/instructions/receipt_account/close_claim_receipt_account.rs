@@ -36,7 +36,7 @@ impl CloseClaimReceiptArgs {
     // action_id (8 bytes) + option prefix (1 byte)
     pub const MIN_LEN: usize = ACTION_ID_LEN + 1;
 
-    /// Parse CloseCommonReceiptArgs from bytes
+    /// Parse CloseClaimReceiptArgs from bytes
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         if data.len() < Self::MIN_LEN {
             return Err(ProgramError::InvalidInstructionData);
@@ -109,7 +109,7 @@ mod tests {
 
         let bytes = original.to_bytes_inner();
         let deserialized = CloseClaimReceiptArgs::try_from_bytes(&bytes)
-            .expect("Should deserialize receipt arguments");
+            .expect("Should deserialize CloseClaimReceiptArgs");
         assert_eq!(original.action_id, deserialized.action_id);
     }
 
