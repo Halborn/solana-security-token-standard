@@ -37,7 +37,7 @@ import {
   type ClaimDistributionArgsArgs,
 } from '../types';
 
-export const CLAIM_DISTRIBUTION_DISCRIMINATOR = 22;
+export const CLAIM_DISTRIBUTION_DISCRIMINATOR = 21;
 
 export function getClaimDistributionDiscriminatorBytes() {
   return getU8Encoder().encode(CLAIM_DISTRIBUTION_DISCRIMINATOR);

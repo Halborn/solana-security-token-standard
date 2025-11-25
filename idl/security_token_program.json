@@ -1113,53 +1113,6 @@
       }
     },
     {
-      "name": "CloseReceiptAccount",
-      "accounts": [
-        {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "verificationConfigOrMintAuthority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "instructionsSysvarOrCreator",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "receiptAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "destination",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "mintAccount",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "closeReceiptArgs",
-          "type": {
-            "defined": "CloseReceiptArgs"
-          }
-        }
-      ],
-      "discriminant": {
-        "type": "u8",
-        "value": 20
-      }
-    },
-    {
       "name": "CreateDistributionEscrow",
       "accounts": [
         {
@@ -1223,7 +1176,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 21
+        "value": 20
       }
     },
     {
@@ -1307,7 +1260,112 @@
       ],
       "discriminant": {
         "type": "u8",
+        "value": 21
+      }
+    },
+    {
+      "name": "CloseActionReceiptAccount",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfigOrMintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvarOrCreator",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "receiptAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "destination",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "closeActionReceiptArgs",
+          "type": {
+            "defined": "CloseActionReceiptArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
         "value": 22
+      }
+    },
+    {
+      "name": "CloseClaimReceiptAccount",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfigOrMintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvarOrCreator",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "receiptAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "destination",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "eligibleTokenAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "proofAccount",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        }
+      ],
+      "args": [
+        {
+          "name": "closeClaimReceiptArgs",
+          "type": {
+            "defined": "CloseClaimReceiptArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 23
       }
     }
   ],
@@ -1456,18 +1514,6 @@
             "attrs": [
               "idl-type"
             ]
-          }
-        ]
-      }
-    },
-    {
-      "name": "CloseReceiptArgs",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "actionId",
-            "type": "u64"
           }
         ]
       }
@@ -1770,6 +1816,46 @@
             "type": {
               "defined": "RateArgs"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CloseActionReceiptArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "actionId",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CloseClaimReceiptArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "actionId",
+            "type": "u64"
+          },
+          {
+            "name": "merkleProof",
+            "type": {
+              "option": {
+                "vec": {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                }
+              }
+            },
+            "attrs": [
+              "idl-type"
+            ]
           }
         ]
       }

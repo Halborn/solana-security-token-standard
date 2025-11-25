@@ -5,15 +5,15 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use crate::generated::types::CloseReceiptArgs;
+use crate::generated::types::CloseActionReceiptArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
-pub const CLOSE_RECEIPT_ACCOUNT_DISCRIMINATOR: u8 = 20;
+pub const CLOSE_ACTION_RECEIPT_ACCOUNT_DISCRIMINATOR: u8 = 22;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct CloseReceiptAccount {
+pub struct CloseActionReceiptAccount {
     pub mint: solana_pubkey::Pubkey,
 
     pub verification_config_or_mint_authority: solana_pubkey::Pubkey,
@@ -27,10 +27,10 @@ pub struct CloseReceiptAccount {
     pub mint_account: solana_pubkey::Pubkey,
 }
 
-impl CloseReceiptAccount {
+impl CloseActionReceiptAccount {
     pub fn instruction(
         &self,
-        args: CloseReceiptAccountInstructionArgs,
+        args: CloseActionReceiptAccountInstructionArgs,
     ) -> solana_instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
@@ -38,7 +38,7 @@ impl CloseReceiptAccount {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: CloseReceiptAccountInstructionArgs,
+        args: CloseActionReceiptAccountInstructionArgs,
         remaining_accounts: &[solana_instruction::AccountMeta],
     ) -> solana_instruction::Instruction {
         let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
@@ -66,7 +66,7 @@ impl CloseReceiptAccount {
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&CloseReceiptAccountInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&CloseActionReceiptAccountInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
@@ -80,17 +80,17 @@ impl CloseReceiptAccount {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CloseReceiptAccountInstructionData {
+pub struct CloseActionReceiptAccountInstructionData {
     discriminator: u8,
 }
 
-impl CloseReceiptAccountInstructionData {
+impl CloseActionReceiptAccountInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 20 }
+        Self { discriminator: 22 }
     }
 }
 
-impl Default for CloseReceiptAccountInstructionData {
+impl Default for CloseActionReceiptAccountInstructionData {
     fn default() -> Self {
         Self::new()
     }
@@ -98,11 +98,11 @@ impl Default for CloseReceiptAccountInstructionData {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CloseReceiptAccountInstructionArgs {
-    pub close_receipt_args: CloseReceiptArgs,
+pub struct CloseActionReceiptAccountInstructionArgs {
+    pub close_action_receipt_args: CloseActionReceiptArgs,
 }
 
-/// Instruction builder for `CloseReceiptAccount`.
+/// Instruction builder for `CloseActionReceiptAccount`.
 ///
 /// ### Accounts:
 ///
@@ -113,18 +113,18 @@ pub struct CloseReceiptAccountInstructionArgs {
 ///   4. `[writable]` destination
 ///   5. `[]` mint_account
 #[derive(Clone, Debug, Default)]
-pub struct CloseReceiptAccountBuilder {
+pub struct CloseActionReceiptAccountBuilder {
     mint: Option<solana_pubkey::Pubkey>,
     verification_config_or_mint_authority: Option<solana_pubkey::Pubkey>,
     instructions_sysvar_or_creator: Option<solana_pubkey::Pubkey>,
     receipt_account: Option<solana_pubkey::Pubkey>,
     destination: Option<solana_pubkey::Pubkey>,
     mint_account: Option<solana_pubkey::Pubkey>,
-    close_receipt_args: Option<CloseReceiptArgs>,
+    close_action_receipt_args: Option<CloseActionReceiptArgs>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
-impl CloseReceiptAccountBuilder {
+impl CloseActionReceiptAccountBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -165,8 +165,11 @@ impl CloseReceiptAccountBuilder {
         self
     }
     #[inline(always)]
-    pub fn close_receipt_args(&mut self, close_receipt_args: CloseReceiptArgs) -> &mut Self {
-        self.close_receipt_args = Some(close_receipt_args);
+    pub fn close_action_receipt_args(
+        &mut self,
+        close_action_receipt_args: CloseActionReceiptArgs,
+    ) -> &mut Self {
+        self.close_action_receipt_args = Some(close_action_receipt_args);
         self
     }
     /// Add an additional account to the instruction.
@@ -186,7 +189,7 @@ impl CloseReceiptAccountBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_instruction::Instruction {
-        let accounts = CloseReceiptAccount {
+        let accounts = CloseActionReceiptAccount {
             mint: self.mint.expect("mint is not set"),
             verification_config_or_mint_authority: self
                 .verification_config_or_mint_authority
@@ -198,19 +201,19 @@ impl CloseReceiptAccountBuilder {
             destination: self.destination.expect("destination is not set"),
             mint_account: self.mint_account.expect("mint_account is not set"),
         };
-        let args = CloseReceiptAccountInstructionArgs {
-            close_receipt_args: self
-                .close_receipt_args
+        let args = CloseActionReceiptAccountInstructionArgs {
+            close_action_receipt_args: self
+                .close_action_receipt_args
                 .clone()
-                .expect("close_receipt_args is not set"),
+                .expect("close_action_receipt_args is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
     }
 }
 
-/// `close_receipt_account` CPI accounts.
-pub struct CloseReceiptAccountCpiAccounts<'a, 'b> {
+/// `close_action_receipt_account` CPI accounts.
+pub struct CloseActionReceiptAccountCpiAccounts<'a, 'b> {
     pub mint: &'b solana_account_info::AccountInfo<'a>,
 
     pub verification_config_or_mint_authority: &'b solana_account_info::AccountInfo<'a>,
@@ -224,8 +227,8 @@ pub struct CloseReceiptAccountCpiAccounts<'a, 'b> {
     pub mint_account: &'b solana_account_info::AccountInfo<'a>,
 }
 
-/// `close_receipt_account` CPI instruction.
-pub struct CloseReceiptAccountCpi<'a, 'b> {
+/// `close_action_receipt_account` CPI instruction.
+pub struct CloseActionReceiptAccountCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_account_info::AccountInfo<'a>,
 
@@ -241,14 +244,14 @@ pub struct CloseReceiptAccountCpi<'a, 'b> {
 
     pub mint_account: &'b solana_account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
-    pub __args: CloseReceiptAccountInstructionArgs,
+    pub __args: CloseActionReceiptAccountInstructionArgs,
 }
 
-impl<'a, 'b> CloseReceiptAccountCpi<'a, 'b> {
+impl<'a, 'b> CloseActionReceiptAccountCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_account_info::AccountInfo<'a>,
-        accounts: CloseReceiptAccountCpiAccounts<'a, 'b>,
-        args: CloseReceiptAccountInstructionArgs,
+        accounts: CloseActionReceiptAccountCpiAccounts<'a, 'b>,
+        args: CloseActionReceiptAccountInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
@@ -316,7 +319,7 @@ impl<'a, 'b> CloseReceiptAccountCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&CloseReceiptAccountInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&CloseActionReceiptAccountInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
@@ -345,7 +348,7 @@ impl<'a, 'b> CloseReceiptAccountCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `CloseReceiptAccount` via CPI.
+/// Instruction builder for `CloseActionReceiptAccount` via CPI.
 ///
 /// ### Accounts:
 ///
@@ -356,13 +359,13 @@ impl<'a, 'b> CloseReceiptAccountCpi<'a, 'b> {
 ///   4. `[writable]` destination
 ///   5. `[]` mint_account
 #[derive(Clone, Debug)]
-pub struct CloseReceiptAccountCpiBuilder<'a, 'b> {
-    instruction: Box<CloseReceiptAccountCpiBuilderInstruction<'a, 'b>>,
+pub struct CloseActionReceiptAccountCpiBuilder<'a, 'b> {
+    instruction: Box<CloseActionReceiptAccountCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> CloseReceiptAccountCpiBuilder<'a, 'b> {
+impl<'a, 'b> CloseActionReceiptAccountCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(CloseReceiptAccountCpiBuilderInstruction {
+        let instruction = Box::new(CloseActionReceiptAccountCpiBuilderInstruction {
             __program: program,
             mint: None,
             verification_config_or_mint_authority: None,
@@ -370,7 +373,7 @@ impl<'a, 'b> CloseReceiptAccountCpiBuilder<'a, 'b> {
             receipt_account: None,
             destination: None,
             mint_account: None,
-            close_receipt_args: None,
+            close_action_receipt_args: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -422,8 +425,11 @@ impl<'a, 'b> CloseReceiptAccountCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn close_receipt_args(&mut self, close_receipt_args: CloseReceiptArgs) -> &mut Self {
-        self.instruction.close_receipt_args = Some(close_receipt_args);
+    pub fn close_action_receipt_args(
+        &mut self,
+        close_action_receipt_args: CloseActionReceiptArgs,
+    ) -> &mut Self {
+        self.instruction.close_action_receipt_args = Some(close_action_receipt_args);
         self
     }
     /// Add an additional account to the instruction.
@@ -460,14 +466,14 @@ impl<'a, 'b> CloseReceiptAccountCpiBuilder<'a, 'b> {
     #[allow(clippy::clone_on_copy)]
     #[allow(clippy::vec_init_then_push)]
     pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
-        let args = CloseReceiptAccountInstructionArgs {
-            close_receipt_args: self
+        let args = CloseActionReceiptAccountInstructionArgs {
+            close_action_receipt_args: self
                 .instruction
-                .close_receipt_args
+                .close_action_receipt_args
                 .clone()
-                .expect("close_receipt_args is not set"),
+                .expect("close_action_receipt_args is not set"),
         };
-        let instruction = CloseReceiptAccountCpi {
+        let instruction = CloseActionReceiptAccountCpi {
             __program: self.instruction.__program,
 
             mint: self.instruction.mint.expect("mint is not set"),
@@ -506,7 +512,7 @@ impl<'a, 'b> CloseReceiptAccountCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct CloseReceiptAccountCpiBuilderInstruction<'a, 'b> {
+struct CloseActionReceiptAccountCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_account_info::AccountInfo<'a>,
     mint: Option<&'b solana_account_info::AccountInfo<'a>>,
     verification_config_or_mint_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
@@ -514,7 +520,7 @@ struct CloseReceiptAccountCpiBuilderInstruction<'a, 'b> {
     receipt_account: Option<&'b solana_account_info::AccountInfo<'a>>,
     destination: Option<&'b solana_account_info::AccountInfo<'a>>,
     mint_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-    close_receipt_args: Option<CloseReceiptArgs>,
+    close_action_receipt_args: Option<CloseActionReceiptArgs>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }

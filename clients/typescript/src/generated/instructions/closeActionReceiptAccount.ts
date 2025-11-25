@@ -28,19 +28,19 @@ import {
 import { SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
-  getCloseReceiptArgsDecoder,
-  getCloseReceiptArgsEncoder,
-  type CloseReceiptArgs,
-  type CloseReceiptArgsArgs,
+  getCloseActionReceiptArgsDecoder,
+  getCloseActionReceiptArgsEncoder,
+  type CloseActionReceiptArgs,
+  type CloseActionReceiptArgsArgs,
 } from '../types';
 
-export const CLOSE_RECEIPT_ACCOUNT_DISCRIMINATOR = 20;
+export const CLOSE_ACTION_RECEIPT_ACCOUNT_DISCRIMINATOR = 22;
 
-export function getCloseReceiptAccountDiscriminatorBytes() {
-  return getU8Encoder().encode(CLOSE_RECEIPT_ACCOUNT_DISCRIMINATOR);
+export function getCloseActionReceiptAccountDiscriminatorBytes() {
+  return getU8Encoder().encode(CLOSE_ACTION_RECEIPT_ACCOUNT_DISCRIMINATOR);
 }
 
-export type CloseReceiptAccountInstruction<
+export type CloseActionReceiptAccountInstruction<
   TProgram extends string = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
   TAccountMint extends string | AccountMeta<string> = string,
   TAccountVerificationConfigOrMintAuthority extends
@@ -79,46 +79,46 @@ export type CloseReceiptAccountInstruction<
     ]
   >;
 
-export type CloseReceiptAccountInstructionData = {
+export type CloseActionReceiptAccountInstructionData = {
   discriminator: number;
-  closeReceiptArgs: CloseReceiptArgs;
+  closeActionReceiptArgs: CloseActionReceiptArgs;
 };
 
-export type CloseReceiptAccountInstructionDataArgs = {
-  closeReceiptArgs: CloseReceiptArgsArgs;
+export type CloseActionReceiptAccountInstructionDataArgs = {
+  closeActionReceiptArgs: CloseActionReceiptArgsArgs;
 };
 
-export function getCloseReceiptAccountInstructionDataEncoder(): FixedSizeEncoder<CloseReceiptAccountInstructionDataArgs> {
+export function getCloseActionReceiptAccountInstructionDataEncoder(): FixedSizeEncoder<CloseActionReceiptAccountInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      ['closeReceiptArgs', getCloseReceiptArgsEncoder()],
+      ['closeActionReceiptArgs', getCloseActionReceiptArgsEncoder()],
     ]),
     (value) => ({
       ...value,
-      discriminator: CLOSE_RECEIPT_ACCOUNT_DISCRIMINATOR,
+      discriminator: CLOSE_ACTION_RECEIPT_ACCOUNT_DISCRIMINATOR,
     })
   );
 }
 
-export function getCloseReceiptAccountInstructionDataDecoder(): FixedSizeDecoder<CloseReceiptAccountInstructionData> {
+export function getCloseActionReceiptAccountInstructionDataDecoder(): FixedSizeDecoder<CloseActionReceiptAccountInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    ['closeReceiptArgs', getCloseReceiptArgsDecoder()],
+    ['closeActionReceiptArgs', getCloseActionReceiptArgsDecoder()],
   ]);
 }
 
-export function getCloseReceiptAccountInstructionDataCodec(): FixedSizeCodec<
-  CloseReceiptAccountInstructionDataArgs,
-  CloseReceiptAccountInstructionData
+export function getCloseActionReceiptAccountInstructionDataCodec(): FixedSizeCodec<
+  CloseActionReceiptAccountInstructionDataArgs,
+  CloseActionReceiptAccountInstructionData
 > {
   return combineCodec(
-    getCloseReceiptAccountInstructionDataEncoder(),
-    getCloseReceiptAccountInstructionDataDecoder()
+    getCloseActionReceiptAccountInstructionDataEncoder(),
+    getCloseActionReceiptAccountInstructionDataDecoder()
   );
 }
 
-export type CloseReceiptAccountInput<
+export type CloseActionReceiptAccountInput<
   TAccountMint extends string = string,
   TAccountVerificationConfigOrMintAuthority extends string = string,
   TAccountInstructionsSysvarOrCreator extends string = string,
@@ -132,10 +132,10 @@ export type CloseReceiptAccountInput<
   receiptAccount: Address<TAccountReceiptAccount>;
   destination: Address<TAccountDestination>;
   mintAccount: Address<TAccountMintAccount>;
-  closeReceiptArgs: CloseReceiptAccountInstructionDataArgs['closeReceiptArgs'];
+  closeActionReceiptArgs: CloseActionReceiptAccountInstructionDataArgs['closeActionReceiptArgs'];
 };
 
-export function getCloseReceiptAccountInstruction<
+export function getCloseActionReceiptAccountInstruction<
   TAccountMint extends string,
   TAccountVerificationConfigOrMintAuthority extends string,
   TAccountInstructionsSysvarOrCreator extends string,
@@ -145,7 +145,7 @@ export function getCloseReceiptAccountInstruction<
   TProgramAddress extends
     Address = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
 >(
-  input: CloseReceiptAccountInput<
+  input: CloseActionReceiptAccountInput<
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
     TAccountInstructionsSysvarOrCreator,
@@ -154,7 +154,7 @@ export function getCloseReceiptAccountInstruction<
     TAccountMintAccount
   >,
   config?: { programAddress?: TProgramAddress }
-): CloseReceiptAccountInstruction<
+): CloseActionReceiptAccountInstruction<
   TProgramAddress,
   TAccountMint,
   TAccountVerificationConfigOrMintAuthority,
@@ -200,11 +200,11 @@ export function getCloseReceiptAccountInstruction<
       getAccountMeta(accounts.destination),
       getAccountMeta(accounts.mintAccount),
     ],
-    data: getCloseReceiptAccountInstructionDataEncoder().encode(
-      args as CloseReceiptAccountInstructionDataArgs
+    data: getCloseActionReceiptAccountInstructionDataEncoder().encode(
+      args as CloseActionReceiptAccountInstructionDataArgs
     ),
     programAddress,
-  } as CloseReceiptAccountInstruction<
+  } as CloseActionReceiptAccountInstruction<
     TProgramAddress,
     TAccountMint,
     TAccountVerificationConfigOrMintAuthority,
@@ -215,7 +215,7 @@ export function getCloseReceiptAccountInstruction<
   >);
 }
 
-export type ParsedCloseReceiptAccountInstruction<
+export type ParsedCloseActionReceiptAccountInstruction<
   TProgram extends string = typeof SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
@@ -228,17 +228,17 @@ export type ParsedCloseReceiptAccountInstruction<
     destination: TAccountMetas[4];
     mintAccount: TAccountMetas[5];
   };
-  data: CloseReceiptAccountInstructionData;
+  data: CloseActionReceiptAccountInstructionData;
 };
 
-export function parseCloseReceiptAccountInstruction<
+export function parseCloseActionReceiptAccountInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
-): ParsedCloseReceiptAccountInstruction<TProgram, TAccountMetas> {
+): ParsedCloseActionReceiptAccountInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 6) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
@@ -259,7 +259,7 @@ export function parseCloseReceiptAccountInstruction<
       destination: getNextAccount(),
       mintAccount: getNextAccount(),
     },
-    data: getCloseReceiptAccountInstructionDataDecoder().decode(
+    data: getCloseActionReceiptAccountInstructionDataDecoder().decode(
       instruction.data
     ),
   };

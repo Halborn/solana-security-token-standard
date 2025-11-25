@@ -7,8 +7,9 @@
 
 pub(crate) mod r#burn;
 pub(crate) mod r#claim_distribution;
+pub(crate) mod r#close_action_receipt_account;
+pub(crate) mod r#close_claim_receipt_account;
 pub(crate) mod r#close_rate_account;
-pub(crate) mod r#close_receipt_account;
 pub(crate) mod r#convert;
 pub(crate) mod r#create_distribution_escrow;
 pub(crate) mod r#create_proof_account;
@@ -31,8 +32,9 @@ pub(crate) mod r#verify;
 
 pub use self::r#burn::*;
 pub use self::r#claim_distribution::*;
+pub use self::r#close_action_receipt_account::*;
+pub use self::r#close_claim_receipt_account::*;
 pub use self::r#close_rate_account::*;
-pub use self::r#close_receipt_account::*;
 pub use self::r#convert::*;
 pub use self::r#create_distribution_escrow::*;
 pub use self::r#create_proof_account::*;

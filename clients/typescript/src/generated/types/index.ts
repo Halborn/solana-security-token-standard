@@ -7,8 +7,9 @@
  */
 
 export * from './claimDistributionArgs';
+export * from './closeActionReceiptArgs';
+export * from './closeClaimReceiptArgs';
 export * from './closeRateArgs';
-export * from './closeReceiptArgs';
 export * from './convertArgs';
 export * from './createDistributionEscrowArgs';
 export * from './createProofArgs';

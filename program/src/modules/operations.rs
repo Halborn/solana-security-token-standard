@@ -284,167 +284,6 @@ impl OperationsModule {
         Ok(())
     }
 
-    /// Claim distribution (dividends/coupons)
-    #[allow(clippy::too_many_arguments)]
-    pub fn execute_claim_distribution(
-        program_id: &Pubkey,
-        verified_mint_info: &AccountInfo,
-        accounts: &[AccountInfo],
-        amount: u64,
-        action_id: u64,
-        merkle_root: &MerkleTreeRoot,
-        leaf_index: u32,
-        merkle_proof: Option<ProofData>,
-    ) -> ProgramResult {
-        let [permanent_delegate_authority, payer, mint_account, eligible_token_account, escrow_token_account, receipt_account, proof_account, transfer_hook_program, token_program, system_program] =
-            accounts
-        else {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        };
-
-        // Verify mint
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
-
-        // Verify programs
-        verify_transfer_hook_program(transfer_hook_program)?;
-        verify_token22_program(token_program)?;
-        verify_system_program(system_program)?;
-
-        // Verify payer
-        verify_signer(payer)?;
-        verify_writable(payer)?;
-
-        // Verify receipt account
-        verify_writable(receipt_account)?;
-        verify_account_not_initialized(receipt_account)?;
-        // Retrieve proof data either from argument or from account and verify proof account
-        let proof = Proof::get_proof_data_from_instruction(
-            eligible_token_account.key(),
-            action_id,
-            proof_account,
-            merkle_proof,
-        )?;
-        let mint_pubkey = mint_account.key();
-        let (expected_receipt_pda, receipt_bump) = Receipt::find_claim_action_pda(
-            mint_pubkey,
-            eligible_token_account.key(),
-            action_id,
-            &proof,
-        );
-        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
-
-        // Verify claimer node belongs to merkle tree
-        let node = create_merkle_tree_leaf_node(
-            eligible_token_account.key(),
-            mint_pubkey,
-            action_id,
-            amount,
-        );
-        if !verify_merkle_proof(&node, merkle_root, &proof, leaf_index) {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        // Verify permanent delegate authority
-        let (permanent_delegate_pda, permanent_delegate_bump) =
-            find_permanent_delegate_pda(mint_pubkey, program_id);
-        verify_pda(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
-
-        // With external settlement the escrow_token_account is not provided
-        let is_external_settlement = escrow_token_account.key().eq(program_id);
-        // With external settlement only the Receipt is issued
-        // With internal settlement tokens are transferred and Receipt is issued
-        if !is_external_settlement {
-            let mint = Mint::from_account_info(mint_account)?;
-            let escrow_token = TokenAccount::from_account_info(escrow_token_account)?;
-            let eligible_token = TokenAccount::from_account_info(eligible_token_account)?;
-            let decimals = mint.decimals();
-
-            if escrow_token.mint() != mint_pubkey || eligible_token.mint() != mint_pubkey {
-                return Err(ProgramError::InvalidAccountData);
-            }
-            if escrow_token.amount() < amount {
-                return Err(ProgramError::InsufficientFunds);
-            }
-            drop(mint);
-            drop(escrow_token);
-            drop(eligible_token);
-
-            // Transfer tokens from distribution escrow to eligible token account
-            transfer_checked(
-                amount,
-                decimals,
-                mint_account,
-                escrow_token_account,
-                eligible_token_account,
-                transfer_hook_program,
-                permanent_delegate_authority,
-                permanent_delegate_bump,
-            )?;
-        }
-
-        // Issue Receipt
-        let action_id_seed = action_id.to_le_bytes();
-        let bump_seed = [receipt_bump];
-        let proof_seed = Receipt::proof_seed(&proof);
-        let receipt_seeds = Receipt::claim_action_seeds(
-            mint_pubkey,
-            eligible_token_account.key(),
-            &action_id_seed,
-            &proof_seed,
-            &bump_seed,
-        );
-        Receipt::issue(receipt_account, payer, &receipt_seeds)?;
-        Ok(())
-    }
-
-    /// Create escrow for distributions
-    pub fn execute_create_distribution_escrow(
-        _program_id: &Pubkey,
-        verified_mint_info: &AccountInfo,
-        accounts: &[AccountInfo],
-        action_id: u64,
-        merkle_root: &MerkleTreeRoot,
-    ) -> ProgramResult {
-        let [distribution_escrow_authority, payer, distribution_token_account, distribution_mint, token_program, associated_token_account_program, system_program] =
-            accounts
-        else {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        };
-
-        // Verify mint is valid
-        verify_operation_mint_info(verified_mint_info, &distribution_mint)?;
-        // Verify token account is not initialized
-        verify_writable(distribution_token_account)?;
-        verify_account_not_initialized(distribution_token_account)?;
-        // Verify payer
-        verify_signer(payer)?;
-        verify_writable(payer)?;
-        // Verify programs
-        verify_token22_program(token_program)?;
-        verify_associated_token_program(associated_token_account_program)?;
-        verify_system_program(system_program)?;
-
-        let mint_pubkey = distribution_mint.key();
-        let (distribution_escrow_authority_pda, _) =
-            DistributionEscrowAuthority::find_pda(mint_pubkey, action_id, merkle_root);
-        verify_pda(
-            distribution_escrow_authority.key(),
-            &distribution_escrow_authority_pda,
-        )?;
-
-        CreateTokenAccount {
-            funding_account: payer,
-            account: distribution_token_account,
-            wallet: distribution_escrow_authority,
-            mint: distribution_mint,
-            system_program,
-            token_program,
-        }
-        .invoke()?;
-
-        Ok(())
-    }
-
     /// Create Rate account
     pub fn execute_create_rate_account(
         program_id: &Pubkey,
@@ -563,32 +402,6 @@ impl OperationsModule {
         verify_pda(rate_account_info.key(), &expected_rate_pda)?;
 
         Rate::close(rate_account_info, destination_account)?;
-        Ok(())
-    }
-
-    /// Close Receipt account of common action (Split, Convert)
-    pub fn execute_close_receipt_account(
-        program_id: &Pubkey,
-        verified_mint_info: &AccountInfo,
-        accounts: &[AccountInfo],
-        action_id: u64,
-    ) -> ProgramResult {
-        let [receipt_account, destination_account, mint_account] = accounts else {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        };
-
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
-        verify_writable(destination_account)?;
-        verify_writable(receipt_account)?;
-
-        // Validate Receipt
-        verify_account_initialized(receipt_account)?;
-        verify_owner(receipt_account, program_id)?;
-        let (expected_receipt_pda, _bump) =
-            Receipt::find_common_action_pda(mint_account.key(), action_id);
-        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
-
-        Receipt::close(receipt_account, destination_account)?;
         Ok(())
     }
 
@@ -901,6 +714,231 @@ impl OperationsModule {
         }
         proof.write_data(proof_account)?;
 
+        Ok(())
+    }
+
+    /// Create escrow for distributions
+    pub fn execute_create_distribution_escrow(
+        _program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+        merkle_root: &MerkleTreeRoot,
+    ) -> ProgramResult {
+        let [distribution_escrow_authority, payer, distribution_token_account, distribution_mint, token_program, associated_token_account_program, system_program] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        // Verify mint is valid
+        verify_operation_mint_info(verified_mint_info, &distribution_mint)?;
+        // Verify programs
+        verify_token22_program(token_program)?;
+        verify_associated_token_program(associated_token_account_program)?;
+        verify_system_program(system_program)?;
+        // Verify token account is not initialized
+        verify_writable(distribution_token_account)?;
+        verify_account_not_initialized(distribution_token_account)?;
+        // Verify payer
+        verify_signer(payer)?;
+        verify_writable(payer)?;
+
+        let mint_pubkey = distribution_mint.key();
+        let (distribution_escrow_authority_pda, _) =
+            DistributionEscrowAuthority::find_pda(mint_pubkey, action_id, merkle_root);
+        verify_pda(
+            distribution_escrow_authority.key(),
+            &distribution_escrow_authority_pda,
+        )?;
+
+        CreateTokenAccount {
+            funding_account: payer,
+            account: distribution_token_account,
+            wallet: distribution_escrow_authority,
+            mint: distribution_mint,
+            system_program,
+            token_program,
+        }
+        .invoke()?;
+
+        Ok(())
+    }
+
+    /// Claim distribution (dividends/coupons)
+    #[allow(clippy::too_many_arguments)]
+    pub fn execute_claim_distribution(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        amount: u64,
+        action_id: u64,
+        merkle_root: &MerkleTreeRoot,
+        leaf_index: u32,
+        merkle_proof: Option<ProofData>,
+    ) -> ProgramResult {
+        let [permanent_delegate_authority, payer, mint_account, eligible_token_account, escrow_token_account, receipt_account, proof_account, transfer_hook_program, token_program, system_program] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        // Verify mint
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+
+        // Verify programs
+        verify_transfer_hook_program(transfer_hook_program)?;
+        verify_token22_program(token_program)?;
+        verify_system_program(system_program)?;
+
+        // Verify payer
+        verify_signer(payer)?;
+        verify_writable(payer)?;
+
+        // Verify receipt account
+        verify_writable(receipt_account)?;
+        verify_account_not_initialized(receipt_account)?;
+        // Retrieve proof data either from argument or from account and verify proof account
+        let proof = Proof::get_proof_data_from_instruction(
+            eligible_token_account.key(),
+            action_id,
+            proof_account,
+            merkle_proof,
+        )?;
+        let mint_pubkey = mint_account.key();
+        let (expected_receipt_pda, receipt_bump) = Receipt::find_claim_action_pda(
+            mint_pubkey,
+            eligible_token_account.key(),
+            action_id,
+            &proof,
+        );
+        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+
+        // Verify claimer node belongs to merkle tree
+        let node = create_merkle_tree_leaf_node(
+            eligible_token_account.key(),
+            mint_pubkey,
+            action_id,
+            amount,
+        );
+        if !verify_merkle_proof(&node, merkle_root, &proof, leaf_index) {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // With external settlement the escrow_token_account is not provided
+        let is_external_settlement = escrow_token_account.key().eq(program_id);
+        // With external settlement only the Receipt is issued
+        // With internal settlement tokens are transferred and Receipt is issued
+        if !is_external_settlement {
+            let (permanent_delegate_pda, permanent_delegate_bump) =
+                find_permanent_delegate_pda(mint_pubkey, program_id);
+            verify_pda(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
+
+            let mint = Mint::from_account_info(mint_account)?;
+            let escrow_token = TokenAccount::from_account_info(escrow_token_account)?;
+            let eligible_token = TokenAccount::from_account_info(eligible_token_account)?;
+            let decimals = mint.decimals();
+
+            if escrow_token.mint() != mint_pubkey || eligible_token.mint() != mint_pubkey {
+                return Err(ProgramError::InvalidAccountData);
+            }
+            if escrow_token.amount() < amount {
+                return Err(ProgramError::InsufficientFunds);
+            }
+            drop(mint);
+            drop(escrow_token);
+            drop(eligible_token);
+
+            // Transfer tokens from distribution escrow to eligible token account
+            transfer_checked(
+                amount,
+                decimals,
+                mint_account,
+                escrow_token_account,
+                eligible_token_account,
+                transfer_hook_program,
+                permanent_delegate_authority,
+                permanent_delegate_bump,
+            )?;
+        }
+
+        // Issue Receipt
+        let action_id_seed = action_id.to_le_bytes();
+        let bump_seed = [receipt_bump];
+        let proof_seed = Receipt::proof_seed(&proof);
+        let receipt_seeds = Receipt::claim_action_seeds(
+            mint_pubkey,
+            eligible_token_account.key(),
+            &action_id_seed,
+            &proof_seed,
+            &bump_seed,
+        );
+        Receipt::issue(receipt_account, payer, &receipt_seeds)?;
+        Ok(())
+    }
+
+    /// Close Receipt account of operation tied to the action_id (e.g. split, convert)
+    pub fn execute_close_action_receipt_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+    ) -> ProgramResult {
+        let [receipt_account, destination_account, mint_account] = accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_writable(destination_account)?;
+        verify_writable(receipt_account)?;
+
+        // Validate Receipt
+        verify_account_initialized(receipt_account)?;
+        verify_owner(receipt_account, program_id)?;
+        let (expected_receipt_pda, _bump) =
+            Receipt::find_common_action_pda(mint_account.key(), action_id);
+        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+
+        Receipt::close(receipt_account, destination_account)?;
+        Ok(())
+    }
+
+    /// Close Receipt account of claim_distribution action
+    pub fn execute_close_claim_receipt_account(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        action_id: u64,
+        merkle_proof: Option<ProofData>,
+    ) -> ProgramResult {
+        let [receipt_account, destination_account, mint_account, eligible_token_account, proof_account] =
+            accounts
+        else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_writable(destination_account)?;
+        verify_writable(receipt_account)?;
+        verify_account_initialized(receipt_account)?;
+        verify_owner(receipt_account, program_id)?;
+
+        // Retrieve proof data either from argument or from account. Verify proof account
+        let proof = Proof::get_proof_data_from_instruction(
+            eligible_token_account.key(),
+            action_id,
+            proof_account,
+            merkle_proof,
+        )?;
+        let (expected_receipt_pda, _bump) = Receipt::find_claim_action_pda(
+            mint_account.key(),
+            eligible_token_account.key(),
+            action_id,
+            &proof,
+        );
+        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+
+        Receipt::close(receipt_account, destination_account)?;
         Ok(())
     }
 }

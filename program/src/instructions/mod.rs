@@ -4,17 +4,16 @@
 
 mod proof_account;
 mod rate_account;
+mod receipt_account;
 
 /// Create Proof account instruction arguments and implementations
 pub mod create_proof_account {
     pub use super::proof_account::create_proof_account::*;
 }
-
 /// Update Proof account instruction arguments and implementations
 pub mod update_proof_account {
     pub use super::proof_account::update_proof_account::*;
 }
-
 /// Update Rate account instruction arguments and implementations
 pub mod update_rate_account {
     pub use super::rate_account::update_rate_account::*;
@@ -30,7 +29,10 @@ pub mod close_rate_account {
 /// Claim instruction arguments and implementations
 pub mod claim_distribution;
 /// Close Receipt account instruction arguments and implementations
-pub mod close_receipt_account;
+pub mod close_receipt_account {
+    pub use super::receipt_account::close_action_receipt_account::*;
+    pub use super::receipt_account::close_claim_receipt_account::*;
+}
 /// Convert instruction arguments and implementations
 pub mod convert;
 /// CreateDistributionEscrow instruction arguments and implementations

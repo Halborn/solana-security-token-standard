@@ -4,9 +4,10 @@ use crate::{
         close_rate_account::CloseRateArgs, convert::ConvertArgs,
         create_proof_account::CreateProofArgs, split::SplitArgs,
         update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs,
-        ClaimDistributionArgs, CloseReceiptArgs, CreateDistributionEscrowArgs, CreateRateArgs,
-        InitializeMintArgs, InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
-        UpdateMetadataArgs, UpdateVerificationConfigArgs, VerifyArgs,
+        ClaimDistributionArgs, CloseActionReceiptArgs, CloseClaimReceiptArgs,
+        CreateDistributionEscrowArgs, CreateRateArgs, InitializeMintArgs,
+        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
+        UpdateVerificationConfigArgs, VerifyArgs,
     },
     modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
@@ -29,7 +30,8 @@ impl Processor {
         match instruction {
             InitializeMint | Verify => None,
             CreateDistributionEscrow
-            | CloseReceiptAccount
+            | CloseActionReceiptAccount
+            | CloseClaimReceiptAccount
             | CreateRateAccount
             | UpdateRateAccount
             | CloseRateAccount
@@ -199,12 +201,6 @@ impl Processor {
                 instruction_accounts,
                 args_data,
             ),
-            SecurityTokenInstruction::CloseReceiptAccount => Self::process_close_receipt_account(
-                program_id,
-                verified_mint_info,
-                instruction_accounts,
-                args_data,
-            ),
             SecurityTokenInstruction::CreateDistributionEscrow => {
                 Self::process_create_distribution_escrow(
                     program_id,
@@ -219,6 +215,22 @@ impl Processor {
                 instruction_accounts,
                 args_data,
             ),
+            SecurityTokenInstruction::CloseActionReceiptAccount => {
+                Self::process_close_action_receipt_account(
+                    program_id,
+                    verified_mint_info,
+                    instruction_accounts,
+                    args_data,
+                )
+            }
+            SecurityTokenInstruction::CloseClaimReceiptAccount => {
+                Self::process_close_claim_receipt_account(
+                    program_id,
+                    verified_mint_info,
+                    instruction_accounts,
+                    args_data,
+                )
+            }
         }
     }
 
@@ -430,19 +442,6 @@ impl Processor {
         Ok(())
     }
 
-    fn process_close_receipt_account(
-        program_id: &Pubkey,
-        mint_info: &AccountInfo,
-        accounts: &[AccountInfo],
-        args_data: &[u8],
-    ) -> ProgramResult {
-        let CloseReceiptArgs { action_id } = CloseReceiptArgs::try_from_bytes(args_data)?;
-        OperationsModule::execute_close_receipt_account(
-            program_id, mint_info, accounts, action_id,
-        )?;
-        Ok(())
-    }
-
     fn process_split(
         program_id: &Pubkey,
         mint_info: &AccountInfo,
@@ -545,6 +544,40 @@ impl Processor {
             action_id,
             &merkle_root,
             leaf_index,
+            merkle_proof,
+        )?;
+        Ok(())
+    }
+
+    fn process_close_action_receipt_account(
+        program_id: &Pubkey,
+        mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let CloseActionReceiptArgs { action_id } =
+            CloseActionReceiptArgs::try_from_bytes(args_data)?;
+        OperationsModule::execute_close_action_receipt_account(
+            program_id, mint_info, accounts, action_id,
+        )?;
+        Ok(())
+    }
+
+    fn process_close_claim_receipt_account(
+        program_id: &Pubkey,
+        mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let CloseClaimReceiptArgs {
+            action_id,
+            merkle_proof,
+        } = CloseClaimReceiptArgs::try_from_bytes(args_data)?;
+        OperationsModule::execute_close_claim_receipt_account(
+            program_id,
+            mint_info,
+            accounts,
+            action_id,
             merkle_proof,
         )?;
         Ok(())

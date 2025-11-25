@@ -9,7 +9,7 @@ use crate::generated::types::ClaimDistributionArgs;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
-pub const CLAIM_DISTRIBUTION_DISCRIMINATOR: u8 = 22;
+pub const CLAIM_DISTRIBUTION_DISCRIMINATOR: u8 = 21;
 
 /// Accounts.
 #[derive(Debug)]
@@ -139,7 +139,7 @@ pub struct ClaimDistributionInstructionData {
 
 impl ClaimDistributionInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 22 }
+        Self { discriminator: 21 }
     }
 }
 

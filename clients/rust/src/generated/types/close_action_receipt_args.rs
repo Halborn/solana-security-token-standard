@@ -10,6 +10,6 @@ use borsh::BorshSerialize;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CloseReceiptArgs {
+pub struct CloseActionReceiptArgs {
     pub action_id: u64,
 }
