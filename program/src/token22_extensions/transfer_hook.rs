@@ -12,6 +12,16 @@ use pinocchio::{
 use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 use spl_tlv_account_resolution::account::ExtraAccountMeta;
 
+/// Discriminator for "spl-transfer-hook-interface:initialize-extra-account-metas"
+/// Calculated via: sha256("spl-transfer-hook-interface:initialize-extra-account-metas")[..8]
+const INITIALIZE_EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR: [u8; 8] =
+    [0x2b, 0x22, 0x0d, 0x31, 0xa7, 0x58, 0xeb, 0xeb];
+
+/// Discriminator for "spl-transfer-hook-interface:update-extra-account-metas"
+/// Calculated via: sha256("spl-transfer-hook-interface:update-extra-account-metas")[..8]
+const UPDATE_EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR: [u8; 8] =
+    [0x9d, 0x69, 0x2a, 0x92, 0x66, 0x55, 0xf1, 0xae];
+
 /// TransferHook extension data
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -132,9 +142,8 @@ impl<'a> InitializeExtraAccountMetaList<'a> {
         let data_len = 8 + 4 + (self.metas.len() * 35);
         let mut instruction_data = Vec::with_capacity(data_len);
 
-        // 8-byte ArrayDiscriminator for "spl-transfer-hook-interface:initialize-extra-account-metas"
-        // Calculated via: sha256("spl-transfer-hook-interface:initialize-extra-account-metas")[..8]
-        instruction_data.extend(&[0x2b, 0x22, 0x0d, 0x31, 0xa7, 0x58, 0xeb, 0xeb]);
+        // 8-byte discriminator for initialize-extra-account-metas
+        instruction_data.extend(&INITIALIZE_EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR);
 
         instruction_data.extend(&(self.metas.len() as u32).to_le_bytes());
         for meta in self.metas {
@@ -220,9 +229,8 @@ impl<'a> UpdateExtraAccountMetaList<'a> {
         let data_len = 8 + 4 + (self.metas.len() * 35);
         let mut instruction_data = Vec::with_capacity(data_len);
 
-        // 8-byte ArrayDiscriminator for "spl-transfer-hook-interface:update-extra-account-metas"
-        // Calculated via: sha256("spl-transfer-hook-interface:update-extra-account-metas")[..8]
-        instruction_data.extend(&[0x9d, 0x69, 0x2a, 0x92, 0x66, 0x55, 0xf1, 0xae]);
+        // 8-byte discriminator for update-extra-account-metas
+        instruction_data.extend(&UPDATE_EXTRA_ACCOUNT_META_LIST_DISCRIMINATOR);
 
         // Vec length (u32 little-endian)
         instruction_data.extend(&(self.metas.len() as u32).to_le_bytes());

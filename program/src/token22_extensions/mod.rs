@@ -1,6 +1,5 @@
 use pinocchio_token::state::{Mint, TokenAccount};
 
-
 pub mod metadata;
 pub mod metadata_pointer;
 pub mod pausable;
@@ -277,9 +276,7 @@ pub fn get_extension_data_bytes_for_variable_pack<T: Extension + Clone>(
 #[cfg(test)]
 mod tests {
     use crate::token22_extensions::{
-        get_extension_from_bytes,
-        metadata::TokenMetadata,
-        metadata_pointer::MetadataPointer,
+        get_extension_from_bytes, metadata::TokenMetadata, metadata_pointer::MetadataPointer,
         permanent_delegate::PermanentDelegate,
     };
 
@@ -343,14 +340,12 @@ mod tests {
         2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0,
     ];
 
-
     #[test]
     fn test_metadata_pointer() {
         let metadata_pointer =
             get_extension_from_bytes::<MetadataPointer>(&TEST_MINT_WITH_EXTENSIONS_SLICE);
         assert!(metadata_pointer.is_some());
     }
-
 
     #[test]
     fn test_permanent_delegate() {

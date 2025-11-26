@@ -5,7 +5,6 @@ use pinocchio::{
     cpi::invoke_signed,
     instruction::{AccountMeta, Instruction, Signer},
     pubkey::Pubkey,
-    sysvars::clock::UnixTimestamp,
     ProgramResult,
 };
 
@@ -93,60 +92,6 @@ impl InitializeScaledUiAmount<'_> {
         };
 
         invoke_signed(&instruction, &[self.mint], signers)?;
-
-        Ok(())
-    }
-}
-
-pub struct UpdateMultiplier<'a> {
-    /// The mint to update multiplier
-    pub mint: &'a AccountInfo,
-    /// The multiplier authority
-    pub authority: &'a AccountInfo,
-    /// The new multiplier
-    pub multiplier: [u8; 8],
-    /// Timestamp at which the new multiplier will take effect
-    pub effective_timestamp: UnixTimestamp,
-}
-
-impl UpdateMultiplier<'_> {
-    #[inline(always)]
-    pub fn invoke(&self) -> ProgramResult {
-        self.invoke_signed(&[])
-    }
-
-    #[inline(always)]
-    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
-        let account_metas = [
-            AccountMeta::writable(self.mint.key()),
-            AccountMeta::readonly_signer(self.authority.key()),
-        ];
-
-        // Instruction Layout
-        // - [0] : instruction discriminator
-        // - [1] : extension instruction discriminator
-        // - [2..10] : multiplier
-        // - [10..18] : effective timestamp
-
-        let mut instruction_data = [UNINIT_BYTE; 18];
-
-        // Set discriminator as u8 at offset [0] & Set extension discriminator as u8 at offset [1]
-        write_bytes(&mut instruction_data[0..2], &[43, 1]);
-        // Set multiplier as f64 at offset [2..10]
-        write_bytes(&mut instruction_data[2..10], &self.multiplier);
-        // Set effective timestamp as u64 at offset [10..18]
-        write_bytes(
-            &mut instruction_data[10..18],
-            &self.effective_timestamp.to_le_bytes(),
-        );
-
-        let instruction = Instruction {
-            program_id: &TOKEN_2022_PROGRAM_ID,
-            accounts: &account_metas,
-            data: unsafe { core::slice::from_raw_parts(instruction_data.as_ptr() as _, 17) },
-        };
-
-        invoke_signed(&instruction, &[self.mint, self.authority], signers)?;
 
         Ok(())
     }
