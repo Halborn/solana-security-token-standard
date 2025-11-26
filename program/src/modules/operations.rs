@@ -5,7 +5,7 @@
 
 use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
 use crate::debug_log;
-use crate::instructions::CustomTransferChecked;
+use crate::instructions::TransferCheckedWithHook;
 use crate::modules::{
     burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
     verify_operation_mint_info, verify_owner, verify_pda, verify_signer, verify_system_program,
@@ -270,7 +270,7 @@ impl OperationsModule {
         let decimals = mint_account.decimals();
         drop(mint_account);
 
-        let transfer_instruction = CustomTransferChecked::new(
+        let transfer_instruction = TransferCheckedWithHook::new(
             mint_info,
             from_token_account,
             to_token_account,

@@ -6,7 +6,7 @@ use pinocchio::instruction::{AccountMeta, Instruction, Signer};
 use pinocchio::ProgramResult;
 
 /// Wrapper for the TransferChecked instruction that supports passing remaining accounts.
-pub struct CustomTransferChecked<'a> {
+pub struct TransferCheckedWithHook<'a> {
     /// The mint whose tokens are being transferred.
     pub mint: &'a AccountInfo,
     /// The source token account.
@@ -22,7 +22,7 @@ pub struct CustomTransferChecked<'a> {
     pub transfer_hook_program: &'a AccountInfo,
 }
 
-impl<'a> CustomTransferChecked<'a> {
+impl<'a> TransferCheckedWithHook<'a> {
     /// Construct a new wrapper instance.
     pub fn new(
         mint: &'a AccountInfo,
