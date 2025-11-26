@@ -1,14 +1,15 @@
 //! Utility functions for PDA derivation and common operations
 
 use crate::token22_extensions::{
-    ExtensionType, EXTENSIONS_PADDING, EXTENSION_LENGTH_LEN, EXTENSION_START_OFFSET,
-    EXTENSION_TYPE_LEN,
+    metadata_pointer::MetadataPointer, pausable::Pausable, permanent_delegate::PermanentDelegate,
+    scaled_ui_amount::ScaledUiAmountConfig, transfer_hook::TransferHook, Extension, ExtensionType,
+    EXTENSIONS_PADDING, EXTENSION_LENGTH_LEN, EXTENSION_START_OFFSET, EXTENSION_TYPE_LEN,
 };
 use pinocchio::{
     program_error::ProgramError,
     pubkey::{find_program_address, Pubkey},
 };
-use pinocchio_token::state::Mint;
+use pinocchio_token_2022::state::Mint;
 
 use crate::{
     constants::{seeds, ACTION_ID_LEN, TRANSFER_HOOK_PROGRAM_ID},
@@ -185,7 +186,7 @@ where
 /// Calculate mint account size with extensions using pinocchio constants
 pub fn calculate_mint_size_with_extensions(extensions: &[ExtensionType]) -> usize {
     // Base mint size
-    let base_size = Mint::LEN;
+    let base_size = Mint::BASE_LEN;
 
     // Extensions padding
     let padding_size = EXTENSIONS_PADDING;
@@ -199,12 +200,12 @@ pub fn calculate_mint_size_with_extensions(extensions: &[ExtensionType]) -> usiz
         .map(|ext_type| {
             // Each extension has: type (2 bytes) + length (2 bytes) + data
             let extension_data_size = match ext_type {
-                ExtensionType::PermanentDelegate => 32, // Pubkey
-                ExtensionType::TransferHook => 64,      // Authority + Program ID
-                ExtensionType::Pausable => 33,          // Authority + u8
-                ExtensionType::MetadataPointer => 64,   // Authority + Address
-                ExtensionType::ScaledUiAmount => 56, // Authority + multiplier + new_multiplier_effective_timestamp + new_multiplier
-                _ => unreachable!(),                 // Default size for unknown extensions
+                ExtensionType::PermanentDelegate => PermanentDelegate::LEN,
+                ExtensionType::TransferHook => TransferHook::LEN,
+                ExtensionType::Pausable => Pausable::LEN,
+                ExtensionType::MetadataPointer => MetadataPointer::LEN,
+                ExtensionType::ScaledUiAmount => ScaledUiAmountConfig::LEN,
+                _ => unreachable!(),
             };
             EXTENSION_TYPE_LEN + EXTENSION_LENGTH_LEN + extension_data_size
         })

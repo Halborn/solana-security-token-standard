@@ -5,6 +5,7 @@ use pinocchio::{
     cpi::invoke_signed,
     instruction::{AccountMeta, Instruction, Signer},
     pubkey::Pubkey,
+    sysvars::clock::UnixTimestamp,
     ProgramResult,
 };
 
@@ -16,15 +17,19 @@ use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ScaledUiAmountConfig {
-    /// Authority that can update the multiplier
-    pub authority: [u8; 32],
-    /// Multiplier for UI amount (f64 as bytes)
+    /// Authority that can set the scaling amount and authority
+    pub authority: Pubkey,
+    /// Amount to multiply raw amounts by, outside of the decimal
     pub multiplier: [u8; 8],
+    /// Unix timestamp at which `new_multiplier` comes into effective
+    pub new_multiplier_effective_timestamp: UnixTimestamp,
+    /// Next multiplier, once `new_multiplier_effective_timestamp` is reached
+    pub new_multiplier: [u8; 8],
 }
 
 impl Extension for ScaledUiAmountConfig {
     const TYPE: ExtensionType = ExtensionType::ScaledUiAmount;
-    const LEN: usize = 40;
+    const LEN: usize = Self::LEN;
     const BASE_STATE: BaseState = BaseState::Mint;
 }
 

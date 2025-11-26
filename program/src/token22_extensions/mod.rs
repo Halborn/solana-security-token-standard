@@ -1,4 +1,4 @@
-use pinocchio_token::state::{Mint, TokenAccount};
+use pinocchio_token_2022::state::{Mint, TokenAccount};
 
 pub mod metadata;
 pub mod metadata_pointer;
@@ -206,9 +206,11 @@ pub trait Extension {
 pub fn get_extension_from_bytes<T: Extension + Clone + Copy>(acc_data_bytes: &[u8]) -> Option<&T> {
     let ext_bytes = match T::BASE_STATE {
         BaseState::Mint => {
-            &acc_data_bytes[Mint::LEN + EXTENSIONS_PADDING + EXTENSION_START_OFFSET..]
+            &acc_data_bytes[Mint::BASE_LEN + EXTENSIONS_PADDING + EXTENSION_START_OFFSET..]
         }
-        BaseState::TokenAccount => &acc_data_bytes[TokenAccount::LEN + EXTENSION_START_OFFSET..],
+        BaseState::TokenAccount => {
+            &acc_data_bytes[TokenAccount::BASE_LEN + EXTENSION_START_OFFSET..]
+        }
     };
     let mut start = 0;
     let end = ext_bytes.len();
@@ -243,9 +245,11 @@ pub fn get_extension_data_bytes_for_variable_pack<T: Extension + Clone>(
 ) -> Option<&[u8]> {
     let ext_bytes = match T::BASE_STATE {
         BaseState::Mint => {
-            &acc_data_bytes[Mint::LEN + EXTENSIONS_PADDING + EXTENSION_START_OFFSET..]
+            &acc_data_bytes[Mint::BASE_LEN + EXTENSIONS_PADDING + EXTENSION_START_OFFSET..]
         }
-        BaseState::TokenAccount => &acc_data_bytes[TokenAccount::LEN + EXTENSION_START_OFFSET..],
+        BaseState::TokenAccount => {
+            &acc_data_bytes[TokenAccount::BASE_LEN + EXTENSION_START_OFFSET..]
+        }
     };
     let mut start = 0;
     let end = ext_bytes.len();

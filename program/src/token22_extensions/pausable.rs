@@ -16,11 +16,13 @@ use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 pub struct Pausable {
     /// Authority that can pause/resume the mint
     pub authority: [u8; 32],
+    /// Whether minting / transferring / burning tokens is paused
+    pub paused: u8,
 }
 
 impl Extension for Pausable {
     const TYPE: ExtensionType = ExtensionType::Pausable;
-    const LEN: usize = 32;
+    const LEN: usize = 33;
     const BASE_STATE: BaseState = BaseState::Mint;
 }
 
