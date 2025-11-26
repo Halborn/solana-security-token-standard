@@ -3,8 +3,7 @@
 #![allow(unexpected_cfgs)]
 
 use crate::processor::Processor;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
-use pinocchio::{entrypoint, ProgramResult};
+use pinocchio::{account_info::AccountInfo, entrypoint, pubkey::Pubkey, ProgramResult};
 
 entrypoint!(process_instruction);
 

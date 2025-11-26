@@ -438,8 +438,6 @@ impl VerificationModule {
 
         // Handle additional metadata fields atomically
         let existing_additional_fields = {
-            // Create a temporary AccountInfo wrapper for the metadata account to use from_account_info
-
             // Try to parse existing metadata using pinocchio's from_account_info
             if let Ok(existing_metadata) = TokenMetadata::from_account_info(*metadata_account_info)
             {
