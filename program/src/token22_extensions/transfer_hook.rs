@@ -110,25 +110,6 @@ pub struct InitializeExtraAccountMetaList<'a> {
 
 impl<'a> InitializeExtraAccountMetaList<'a> {
     /// Create a new InitializeExtraAccountMetaList instruction wrapper
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        program_id: &'a Pubkey,
-        extra_account_metas_pda: &'a AccountInfo,
-        mint: &'a AccountInfo,
-        authority: &'a AccountInfo,
-        system_program: &'a AccountInfo,
-        metas: &'a [ExtraAccountMeta],
-    ) -> Self {
-        Self {
-            program_id,
-            extra_account_metas_pda,
-            mint,
-            authority,
-            system_program,
-            metas,
-        }
-    }
-
     /// Invoke the instruction
     pub fn invoke(&self) -> ProgramResult {
         self.invoke_signed(&[])
@@ -196,26 +177,6 @@ pub struct UpdateExtraAccountMetaList<'a> {
 
 impl<'a> UpdateExtraAccountMetaList<'a> {
     /// Create a new UpdateExtraAccountMetaList instruction wrapper
-    pub fn new(
-        program_id: &'a Pubkey,
-        extra_account_metas_pda: &'a AccountInfo,
-        mint: &'a AccountInfo,
-        authority: &'a AccountInfo,
-        system_program: &'a AccountInfo,
-        recipient: Option<&'a AccountInfo>,
-        metas: &'a [ExtraAccountMeta],
-    ) -> Self {
-        Self {
-            program_id,
-            extra_account_metas_pda,
-            mint,
-            authority,
-            system_program,
-            recipient,
-            metas,
-        }
-    }
-
     /// Invoke the instruction
     pub fn invoke(&self) -> ProgramResult {
         self.invoke_signed(&[])

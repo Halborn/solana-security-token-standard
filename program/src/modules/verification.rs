@@ -999,25 +999,25 @@ impl VerificationModule {
         ];
         let signer = Signer::from(&seeds);
         if is_initialization {
-            let instruction = InitializeExtraAccountMetaList::new(
-                &TRANSFER_HOOK_PROGRAM_ID,
-                account_metas_pda_info,
-                mint_info,
-                transfer_hook_pda_info,
-                system_program_info,
-                &account_metas,
-            );
+            let instruction = InitializeExtraAccountMetaList {
+                program_id: &TRANSFER_HOOK_PROGRAM_ID,
+                extra_account_metas_pda: account_metas_pda_info,
+                mint: mint_info,
+                authority: transfer_hook_pda_info,
+                system_program: system_program_info,
+                metas: &account_metas,
+            };
             instruction.invoke_signed(&[signer])?;
         } else {
-            let instruction = UpdateExtraAccountMetaList::new(
-                &TRANSFER_HOOK_PROGRAM_ID,
-                account_metas_pda_info,
-                mint_info,
-                transfer_hook_pda_info,
-                system_program_info,
-                Some(payer),
-                &account_metas,
-            );
+            let instruction = UpdateExtraAccountMetaList {
+                program_id: &TRANSFER_HOOK_PROGRAM_ID,
+                extra_account_metas_pda: account_metas_pda_info,
+                mint: mint_info,
+                authority: transfer_hook_pda_info,
+                system_program: system_program_info,
+                recipient: Some(payer),
+                metas: &account_metas,
+            };
             instruction.invoke_signed(&[signer])?;
         }
         Ok(())
