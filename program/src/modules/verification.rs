@@ -439,8 +439,7 @@ impl VerificationModule {
         // Handle additional metadata fields atomically
         let existing_additional_fields = {
             // Try to parse existing metadata using pinocchio's from_account_info
-            if let Ok(existing_metadata) = TokenMetadata::from_account_info(metadata_account_info)
-            {
+            if let Ok(existing_metadata) = TokenMetadata::from_account_info(metadata_account_info) {
                 let mut fields_buffer: [[u8; 64]; 16] = [[0u8; 64]; 16]; // Static buffer for field names
                 let mut field_lengths: [usize; 16] = [0; 16];
                 let mut field_count = 0;
