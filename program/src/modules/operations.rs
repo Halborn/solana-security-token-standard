@@ -5,13 +5,14 @@
 
 use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
 use crate::debug_log;
-use crate::instructions::{CustomPause, CustomResume, CustomTransferChecked};
+use crate::instructions::CustomTransferChecked;
 use crate::modules::{
     burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
     verify_operation_mint_info, verify_owner, verify_pda, verify_signer, verify_system_program,
     verify_token22_program, verify_writable,
 };
 use crate::state::{MintAuthority, ProgramAccount, Rate, Receipt, Rounding};
+use crate::token22_extensions::pausable::{Pause, Resume};
 use crate::utils::{
     find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda,
     find_rate_pda, find_receipt_pda,
@@ -117,7 +118,7 @@ impl OperationsModule {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        let pause_instruction = CustomPause {
+        let pause_instruction = Pause {
             mint: mint_info,
             pause_authority,
         };
@@ -152,7 +153,7 @@ impl OperationsModule {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        let resume_instruction = CustomResume {
+        let resume_instruction = Resume {
             mint: mint_info,
             pause_authority,
         };
@@ -191,6 +192,7 @@ impl OperationsModule {
             account: token_account,
             mint: mint_info,
             freeze_authority,
+            token_program: token_program.key()
         };
         let bump_seed = [bump];
         let seeds = [
@@ -226,6 +228,7 @@ impl OperationsModule {
             account: token_account,
             mint: mint_info,
             freeze_authority,
+            token_program: token_program.key()
         };
         let bump_seed = [bump];
         let seeds = [

@@ -8,9 +8,7 @@ use crate::{
     },
     modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
-use pinocchio::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
-};
+use pinocchio::{account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey};
 
 /// Program state handler
 pub struct Processor;

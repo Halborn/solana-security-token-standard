@@ -5,7 +5,7 @@ use pinocchio::{
     pubkey::{find_program_address, Pubkey},
 };
 use pinocchio_token::state::Mint;
-use pinocchio_token_2022::extensions::ExtensionType;
+use crate::token22_extensions::{EXTENSION_LENGTH_LEN, EXTENSION_START_OFFSET, EXTENSION_TYPE_LEN, EXTENSIONS_PADDING, ExtensionType};
 
 use crate::{
     constants::{seeds, ACTION_ID_LEN, TRANSFER_HOOK_PROGRAM_ID},
@@ -181,9 +181,6 @@ where
 
 /// Calculate mint account size with extensions using pinocchio constants
 pub fn calculate_mint_size_with_extensions(extensions: &[ExtensionType]) -> usize {
-    use pinocchio_token_2022::extensions::{
-        EXTENSIONS_PADDING, EXTENSION_LENGTH_LEN, EXTENSION_START_OFFSET, EXTENSION_TYPE_LEN,
-    };
 
     // Base mint size
     let base_size = Mint::LEN;
@@ -216,7 +213,6 @@ pub fn calculate_mint_size_with_extensions(extensions: &[ExtensionType]) -> usiz
 
 /// Calculate TLV size for TokenMetadata (equivalent to TokenMetadata::tlv_size_of)
 pub fn calculate_metadata_tlv_size(metadata: &TokenMetadataArgs) -> Result<usize, ProgramError> {
-    use pinocchio_token_2022::extensions::{EXTENSION_LENGTH_LEN, EXTENSION_TYPE_LEN};
 
     // TLV header (type + length)
     let tlv_header_size = EXTENSION_TYPE_LEN + EXTENSION_LENGTH_LEN;

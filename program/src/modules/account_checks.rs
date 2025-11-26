@@ -1,5 +1,6 @@
 #[cfg(feature = "debug-logs")]
 use crate::acc_info_as_str;
+use crate::token22_extensions::TOKEN_2022_PROGRAM_ID;
 use crate::{constants::TRANSFER_HOOK_PROGRAM_ID, debug_log};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
@@ -81,7 +82,7 @@ pub fn verify_system_program(info: &AccountInfo) -> Result<(), ProgramError> {
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
 pub fn verify_token22_program(info: &AccountInfo) -> Result<(), ProgramError> {
-    if info.key().ne(&pinocchio_token_2022::ID) {
+    if info.key() != &TOKEN_2022_PROGRAM_ID {
         debug_log!(
             "Account {} is not the Token 2022 program",
             acc_info_as_str!(info),

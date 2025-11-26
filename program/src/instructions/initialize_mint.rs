@@ -1,7 +1,8 @@
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
-use pinocchio_token_2022::extensions::metadata::TokenMetadata;
 use shank::ShankType;
+
+use crate::token22_extensions::metadata::TokenMetadata;
 
 #[repr(C)]
 #[derive(Clone, Debug, ShankType)]
