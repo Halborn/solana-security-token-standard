@@ -71,7 +71,7 @@ impl InitializeTransferHook<'_> {
         } else {
             write_bytes(&mut instruction_data[2..34], &Pubkey::default());
         }
-        // Set program_id as u8 at offset [34..66]
+        // Set program_id at offset [34..66]
         if let Some(program_id) = self.program_id {
             write_bytes(&mut instruction_data[34..66], &program_id);
         } else {
