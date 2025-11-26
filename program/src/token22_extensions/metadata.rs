@@ -94,12 +94,10 @@ impl TokenMetadata<'_> {
 
         offset += 4;
 
-        let name = unsafe {
-            core::str::from_utf8_unchecked(core::slice::from_raw_parts(
-                data.as_ptr().add(offset),
-                *name_len as usize,
-            ))
-        };
+        let name_bytes =
+            unsafe { core::slice::from_raw_parts(data.as_ptr().add(offset), *name_len as usize) };
+        let name =
+            core::str::from_utf8(name_bytes).map_err(|_| ProgramError::InvalidAccountData)?;
 
         offset += *name_len as usize;
 
@@ -108,12 +106,10 @@ impl TokenMetadata<'_> {
 
         offset += 4;
 
-        let symbol = unsafe {
-            core::str::from_utf8_unchecked(core::slice::from_raw_parts(
-                data.as_ptr().add(offset),
-                *symbol_len as usize,
-            ))
-        };
+        let symbol_bytes =
+            unsafe { core::slice::from_raw_parts(data.as_ptr().add(offset), *symbol_len as usize) };
+        let symbol =
+            core::str::from_utf8(symbol_bytes).map_err(|_| ProgramError::InvalidAccountData)?;
 
         offset += *symbol_len as usize;
 
@@ -122,12 +118,9 @@ impl TokenMetadata<'_> {
 
         offset += 4;
 
-        let uri = unsafe {
-            core::str::from_utf8_unchecked(core::slice::from_raw_parts(
-                data.as_ptr().add(offset),
-                *uri_len as usize,
-            ))
-        };
+        let uri_bytes =
+            unsafe { core::slice::from_raw_parts(data.as_ptr().add(offset), *uri_len as usize) };
+        let uri = core::str::from_utf8(uri_bytes).map_err(|_| ProgramError::InvalidAccountData)?;
 
         offset += *uri_len as usize;
 
