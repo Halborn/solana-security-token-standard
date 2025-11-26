@@ -23,27 +23,6 @@ pub struct TransferCheckedWithHook<'a> {
 }
 
 impl<'a> TransferCheckedWithHook<'a> {
-    /// Construct a new wrapper instance.
-    pub fn new(
-        mint: &'a AccountInfo,
-        from: &'a AccountInfo,
-        to: &'a AccountInfo,
-        authority: &'a AccountInfo,
-        amount: u64,
-        decimals: u8,
-        transfer_hook_program: &'a AccountInfo,
-    ) -> Self {
-        Self {
-            mint,
-            from,
-            to,
-            authority,
-            amount,
-            decimals,
-            transfer_hook_program,
-        }
-    }
-
     /// Invoke the TransferChecked instruction.
     #[inline(always)]
     pub fn invoke(&self) -> ProgramResult {

@@ -270,15 +270,15 @@ impl OperationsModule {
         let decimals = mint_account.decimals();
         drop(mint_account);
 
-        let transfer_instruction = TransferCheckedWithHook::new(
-            mint_info,
-            from_token_account,
-            to_token_account,
-            permanent_delegate_authority,
+        let transfer_instruction = TransferCheckedWithHook {
+            mint: mint_info,
+            from: from_token_account,
+            to: to_token_account,
+            authority: permanent_delegate_authority,
             amount,
             decimals,
             transfer_hook_program,
-        );
+        };
 
         let bump_seed = [bump];
         let seeds = [
