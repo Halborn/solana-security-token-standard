@@ -8,7 +8,6 @@ use pinocchio::{
     pubkey::Pubkey,
     ProgramResult,
 };
-use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
 /// Pausable extension data
 #[repr(C)]
@@ -58,7 +57,7 @@ impl InitializePausable<'_> {
         write_bytes(&mut instruction_data[2..34], &self.authority);
 
         let instruction = Instruction {
-            program_id: &TOKEN_2022_PROGRAM_ID,
+            program_id: &pinocchio_token_2022::ID,
             accounts: &account_metas,
             data: unsafe { core::slice::from_raw_parts(instruction_data.as_ptr() as _, 34) },
         };
@@ -98,7 +97,7 @@ impl Pause<'_> {
         let instruction_data = [44u8, 1u8];
 
         let instruction = Instruction {
-            program_id: &TOKEN_2022_PROGRAM_ID,
+            program_id: &pinocchio_token_2022::ID,
             accounts: &account_metas,
             data: &instruction_data,
         };
@@ -138,7 +137,7 @@ impl Resume<'_> {
         let instruction_data = [44u8, 2u8];
 
         let instruction = Instruction {
-            program_id: &TOKEN_2022_PROGRAM_ID,
+            program_id: &pinocchio_token_2022::ID,
             accounts: &account_metas,
             data: &instruction_data,
         };

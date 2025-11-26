@@ -15,7 +15,6 @@ use pinocchio::{
 use crate::token22_extensions::{
     get_extension_data_bytes_for_variable_pack, BaseState, Extension, ExtensionType,
 };
-use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
 /// State for Metadata for a token
 #[repr(C)]
@@ -62,7 +61,7 @@ impl TokenMetadata<'_> {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        if !account_info.is_owned_by(&TOKEN_2022_PROGRAM_ID) {
+        if !account_info.is_owned_by(&pinocchio_token_2022::ID) {
             return Err(ProgramError::InvalidAccountOwner);
         }
 
@@ -249,7 +248,7 @@ impl<'a> InitializeTokenMetadata<'a> {
         ];
 
         let instruction = Instruction {
-            program_id: &TOKEN_2022_PROGRAM_ID,
+            program_id: &pinocchio_token_2022::ID,
             accounts: &account_metas,
             data: &ix_data[..ix_len],
         };
@@ -316,7 +315,7 @@ impl<'a> RemoveKey<'a> {
         ];
 
         let instruction = Instruction {
-            program_id: &TOKEN_2022_PROGRAM_ID,
+            program_id: &pinocchio_token_2022::ID,
             accounts: &account_metas,
             data: &ix_data,
         };
@@ -398,7 +397,7 @@ impl UpdateField<'_> {
         ];
 
         let instruction = Instruction {
-            program_id: &TOKEN_2022_PROGRAM_ID,
+            program_id: &pinocchio_token_2022::ID,
             accounts: &account_metas,
             data: &ix_data,
         };
