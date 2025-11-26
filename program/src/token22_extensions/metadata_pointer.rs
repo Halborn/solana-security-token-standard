@@ -44,8 +44,8 @@ impl InitializeMetadataPointer<'_> {
         // Instruction data layout:
         // -  [0] u8: instruction discriminator
         // -  [1] u8: extension instruction discriminator
-        // -  [2..34] u8: authority
-        // -  [34..66] u8: metadata_address
+        // -  [2..34] Pubkey: authority (32 bytes)
+        // -  [34..66] Pubkey: metadata_address (32 bytes)
         let mut instruction_data = [UNINIT_BYTE; 66];
         // Set discriminator as u8 at offset [0] & Set extension discriminator as u8 at offset [1]
         write_bytes(&mut instruction_data[0..2], &[39, 0]);

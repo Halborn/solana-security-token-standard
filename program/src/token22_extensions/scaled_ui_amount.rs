@@ -68,10 +68,10 @@ impl InitializeScaledUiAmount<'_> {
         let account_metas = [AccountMeta::writable(self.mint.key())];
 
         // Instruction Layout
-        // - [0] : instruction discriminator
-        // - [1] : extension instruction discriminator
-        // - [2..34] : authority
-        // - [34..42] : multiplier
+        // - [0] u8: instruction discriminator
+        // - [1] u8: extension instruction discriminator
+        // - [2..34] Pubkey: authority (32 bytes)
+        // - [34..42] f64: multiplier (8 bytes)
 
         let mut instruction_data = [UNINIT_BYTE; 42];
 
