@@ -55,7 +55,7 @@ impl TokenMetadata<'_> {
     /// the account data.
     #[inline(always)]
     pub fn from_account_info<'a>(
-        account_info: AccountInfo,
+        account_info: &AccountInfo,
     ) -> Result<TokenMetadata<'a>, ProgramError> {
         if account_info.data_len() < Self::SIZE_METADATA_LEN {
             return Err(ProgramError::InvalidAccountData);

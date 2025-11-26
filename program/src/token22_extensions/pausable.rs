@@ -45,7 +45,7 @@ impl InitializePausable<'_> {
         // Instruction data Layout:
         //[0] u8: instruction discriminator
         //[1] u8: extension instruction discriminator
-        //[2..34] u8: authority
+        //[2..34] Pubkey: authority
 
         let mut instruction_data = [UNINIT_BYTE; 34];
 

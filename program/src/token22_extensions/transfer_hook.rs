@@ -65,7 +65,7 @@ impl InitializeTransferHook<'_> {
 
         // Set discriminator as u8 at offset [0] & Set extension discriminator as u8 at offset [1]
         write_bytes(&mut instruction_data[0..2], &[36, 0]);
-        // Set authority as u8 at offset [2..34]
+        // Set authority at offset [2..34]
         if let Some(authority) = self.authority {
             write_bytes(&mut instruction_data[2..34], &authority);
         } else {

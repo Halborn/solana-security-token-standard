@@ -49,13 +49,13 @@ impl InitializeMetadataPointer<'_> {
         let mut instruction_data = [UNINIT_BYTE; 66];
         // Set discriminator as u8 at offset [0] & Set extension discriminator as u8 at offset [1]
         write_bytes(&mut instruction_data[0..2], &[39, 0]);
-        // Set authority as u8 at offset [2..34]
+        // Set authority at offset [2..34]
         if let Some(authority) = self.authority {
             write_bytes(&mut instruction_data[2..34], &authority);
         } else {
             write_bytes(&mut instruction_data[2..34], &Pubkey::default());
         }
-        // Set metadata_address as u8 at offset [34..66]
+        // Set metadata_address at offset [34..66]
         if let Some(metadata_address) = self.metadata_address {
             write_bytes(&mut instruction_data[34..66], &metadata_address);
         } else {

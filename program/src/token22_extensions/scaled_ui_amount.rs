@@ -28,7 +28,7 @@ pub struct ScaledUiAmountConfig {
 
 impl Extension for ScaledUiAmountConfig {
     const TYPE: ExtensionType = ExtensionType::ScaledUiAmount;
-    const LEN: usize = ScaledUiAmountConfig::LEN;
+    const LEN: usize = core::mem::size_of::<ScaledUiAmountConfig>();
     const BASE_STATE: BaseState = BaseState::Mint;
 }
 
