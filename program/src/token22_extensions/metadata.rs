@@ -4,13 +4,18 @@ use alloc::vec::Vec;
 use core::str;
 
 use pinocchio::{
-    ProgramResult, account_info::AccountInfo, instruction::{AccountMeta, Instruction, Signer}, program::invoke_signed, program_error::ProgramError, pubkey::Pubkey
+    account_info::AccountInfo,
+    instruction::{AccountMeta, Instruction, Signer},
+    program::invoke_signed,
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    ProgramResult,
 };
 
 use crate::token22_extensions::{
     get_extension_data_bytes_for_variable_pack, BaseState, Extension, ExtensionType,
-    TOKEN_2022_PROGRAM_ID,
 };
+use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
 /// State for Metadata for a token
 #[repr(C)]
@@ -156,7 +161,6 @@ impl Extension for TokenMetadata<'_> {
     const BASE_STATE: BaseState = BaseState::Mint;
 }
 
-
 /// Field type for metadata updates
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -217,7 +221,7 @@ impl<'a> InitializeTokenMetadata<'a> {
                 + 4 // uri length
                 + self.uri.len();
         let mut ix_data: Vec<u8> = Vec::with_capacity(ix_len);
-        
+
         // Set 8-byte discriminator for InitializeTokenMetadata
         let discriminator: [u8; 8] = [210, 225, 30, 162, 88, 184, 77, 141];
         ix_data.extend(discriminator);
@@ -311,11 +315,8 @@ impl<'a> RemoveKey<'a> {
             AccountMeta::readonly_signer(self.update_authority.key()),
         ];
 
-        // Get token program from metadata account owner
-        let token_program_id = unsafe { *self.metadata.owner() };
-
         let instruction = Instruction {
-            program_id: &token_program_id,
+            program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
             data: &ix_data,
         };

@@ -342,7 +342,7 @@ fn process_update_extra_account_meta_list(
         {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
-        extra_meta_info.realloc(new_account_size, false)?;
+        extra_meta_info.resize(new_account_size)?;
     }
     {
         let mut data = extra_meta_info.try_borrow_mut_data()?;
@@ -363,7 +363,7 @@ fn process_update_extra_account_meta_list(
             return Err(ProgramError::InvalidAccountData);
         }
 
-        extra_meta_info.realloc(new_account_size, false)?;
+        extra_meta_info.resize(new_account_size)?;
         let current_lamports = extra_meta_info.lamports();
         let required_lamports = Rent::get()?.minimum_balance(new_account_size);
         let lamports_to_return = current_lamports.saturating_sub(required_lamports);

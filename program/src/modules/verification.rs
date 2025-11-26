@@ -274,14 +274,13 @@ impl VerificationModule {
         let metadata_account_info = if let Some(metadata_addr) = metadata_account_address {
             if metadata_addr == *mint_info.key() {
                 // Metadata is stored in mint account (in-mint storage)
-                mint_info.clone()
+                mint_info
             } else {
                 // Metadata is stored in external account - find it in accounts list
                 accounts
                     .iter()
                     .find(|acc| acc.key() == &metadata_addr)
                     .ok_or(ProgramError::InvalidAccountData)?
-                    .clone()
             }
         } else {
             // No metadata pointer, shouldn't happen if we have metadata
@@ -289,7 +288,7 @@ impl VerificationModule {
         };
 
         let metadata_init_instruction = InitializeTokenMetadata {
-            metadata: &metadata_account_info,
+            metadata: metadata_account_info,
             update_authority: mint_authority_account,
             mint: mint_info,
             mint_authority: mint_authority_account,
@@ -307,7 +306,7 @@ impl VerificationModule {
                 metadata.additional_metadata.as_slice(),
                 |key, value| {
                     let update_field_instruction = UpdateField {
-                        metadata: &metadata_account_info,
+                        metadata: metadata_account_info,
                         update_authority: mint_authority_account,
                         field: Field::Key(key),
                         value,
@@ -362,7 +361,7 @@ impl VerificationModule {
         // Determine metadata account (could be mint itself or external account)
         let metadata_account_info = if metadata_address == *mint_info.key() {
             // Metadata is stored in mint account (in-mint storage)
-            mint_info.clone()
+            mint_info
         } else {
             // Metadata is stored in external account - would need to be passed in accounts
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -392,9 +391,9 @@ impl VerificationModule {
             let rent = Rent::get()?;
             let additional_rent = rent.minimum_balance(additional_metadata_space);
             let transfer = Transfer {
-                from: payer,                // from (authority pays)
-                to: &metadata_account_info, // to (metadata account)
-                lamports: additional_rent,  // amount
+                from: payer,               // from (authority pays)
+                to: metadata_account_info, // to (metadata account)
+                lamports: additional_rent, // amount
             };
             transfer.invoke()?;
         }
@@ -409,7 +408,7 @@ impl VerificationModule {
         let mint_authority_signer = Signer::from(&mint_authority_seeds);
 
         let update_field_instruction = UpdateField {
-            metadata: &metadata_account_info,
+            metadata: metadata_account_info,
             update_authority: mint_authority,
             field: Field::Name,
             value: &args.metadata.name,
@@ -419,7 +418,7 @@ impl VerificationModule {
 
         // Update symbol
         let update_symbol_instruction = UpdateField {
-            metadata: &metadata_account_info,
+            metadata: metadata_account_info,
             update_authority: mint_authority,
             field: Field::Symbol,
             value: &args.metadata.symbol,
@@ -429,7 +428,7 @@ impl VerificationModule {
 
         // Update URI
         let update_uri_instruction = UpdateField {
-            metadata: &metadata_account_info,
+            metadata: metadata_account_info,
             update_authority: mint_authority,
             field: Field::Uri,
             value: &args.metadata.uri,
@@ -440,10 +439,9 @@ impl VerificationModule {
         // Handle additional metadata fields atomically
         let existing_additional_fields = {
             // Create a temporary AccountInfo wrapper for the metadata account to use from_account_info
-            let metadata_account_clone = metadata_account_info.clone();
 
             // Try to parse existing metadata using pinocchio's from_account_info
-            if let Ok(existing_metadata) = TokenMetadata::from_account_info(metadata_account_clone)
+            if let Ok(existing_metadata) = TokenMetadata::from_account_info(*metadata_account_info)
             {
                 let mut fields_buffer: [[u8; 64]; 16] = [[0u8; 64]; 16]; // Static buffer for field names
                 let mut field_lengths: [usize; 16] = [0; 16];
@@ -502,7 +500,7 @@ impl VerificationModule {
 
                     if !found_in_new {
                         let remove_field_instruction = RemoveKey {
-                            metadata: &metadata_account_info,
+                            metadata: metadata_account_info,
                             update_authority: mint_authority,
                             key: existing_key,
                             idempotent: true, // don't error if key doesn't exist
@@ -523,7 +521,7 @@ impl VerificationModule {
             args.metadata.additional_metadata.as_slice(),
             |key, value| {
                 let update_field_instruction = UpdateField {
-                    metadata: &metadata_account_info,
+                    metadata: metadata_account_info,
                     update_authority: mint_authority,
                     field: Field::Key(key),
                     value,
@@ -1153,7 +1151,7 @@ impl VerificationModule {
                 lamports: additional_rent,
             };
             transfer.invoke()?;
-            config_account.realloc(new_size, false)?;
+            config_account.resize(new_size)?;
         }
 
         let config_bytes = existing_config.to_bytes();
@@ -1281,10 +1279,10 @@ impl VerificationModule {
                 .lamports()
                 .checked_add(recovered_rent)
                 .ok_or(ProgramError::InsufficientFunds)?;
-            config_account.realloc(0, false)?;
+            config_account.resize(0)?;
         } else {
             let new_account_size = existing_config.serialized_size();
-            config_account.realloc(new_account_size, false)?;
+            config_account.resize(new_account_size)?;
 
             let config_bytes = existing_config.to_bytes();
             {

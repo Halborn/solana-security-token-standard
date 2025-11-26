@@ -1,8 +1,15 @@
 //! PermanentDelegate extension
 
-use pinocchio::{ProgramResult, account_info::AccountInfo, cpi::invoke_signed, instruction::{AccountMeta, Instruction, Signer}, pubkey::Pubkey};
+use pinocchio::{
+    account_info::AccountInfo,
+    cpi::invoke_signed,
+    instruction::{AccountMeta, Instruction, Signer},
+    pubkey::Pubkey,
+    ProgramResult,
+};
 
-use crate::token22_extensions::{BaseState, Extension, ExtensionType, UNINIT_BYTE, write_bytes};
+use crate::token22_extensions::{write_bytes, BaseState, Extension, ExtensionType, UNINIT_BYTE};
+use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
 /// PermanentDelegate extension data
 #[repr(C)]
@@ -45,7 +52,7 @@ impl InitializePermanentDelegate<'_> {
         write_bytes(&mut instruction_data[1..33], &self.delegate);
 
         let instruction = Instruction {
-            program_id: &super::TOKEN_2022_PROGRAM_ID,
+            program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
             data: unsafe { core::slice::from_raw_parts(instruction_data.as_ptr() as _, 33) },
         };

@@ -10,6 +10,7 @@ use pinocchio::{
 };
 
 use crate::token22_extensions::{write_bytes, BaseState, Extension, ExtensionType, UNINIT_BYTE};
+use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
 /// ScaledUIAmount extension data
 /// Multiplier for displaying token amounts
@@ -86,7 +87,7 @@ impl InitializeScaledUiAmount<'_> {
             &self.multiplier.to_le_bytes(),
         );
         let instruction = Instruction {
-            program_id: &super::TOKEN_2022_PROGRAM_ID,
+            program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
             data: unsafe { core::slice::from_raw_parts(instruction_data.as_ptr() as _, 42) },
         };
@@ -140,7 +141,7 @@ impl UpdateMultiplier<'_> {
         );
 
         let instruction = Instruction {
-            program_id: &super::TOKEN_2022_PROGRAM_ID,
+            program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
             data: unsafe { core::slice::from_raw_parts(instruction_data.as_ptr() as _, 17) },
         };

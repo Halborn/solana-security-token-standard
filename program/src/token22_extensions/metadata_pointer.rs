@@ -1,5 +1,6 @@
 //! MetadataPointer extension
 
+use crate::token22_extensions::{write_bytes, BaseState, Extension, ExtensionType, UNINIT_BYTE};
 use pinocchio::{
     account_info::AccountInfo,
     cpi::invoke_signed,
@@ -7,8 +8,7 @@ use pinocchio::{
     pubkey::Pubkey,
     ProgramResult,
 };
-
-use crate::token22_extensions::{write_bytes, BaseState, Extension, ExtensionType, UNINIT_BYTE};
+use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
 /// MetadataPointer extension data
 #[repr(C)]
@@ -66,7 +66,7 @@ impl InitializeMetadataPointer<'_> {
         let account_metas: [AccountMeta; 1] = [AccountMeta::writable(self.mint.key())];
 
         let instruction = Instruction {
-            program_id: &super::TOKEN_2022_PROGRAM_ID,
+            program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
             data: unsafe { core::slice::from_raw_parts(instruction_data.as_ptr() as _, 66) },
         };
@@ -111,7 +111,7 @@ impl MetadataPointerUpdate<'_> {
         ];
 
         let instruction = Instruction {
-            program_id: &super::TOKEN_2022_PROGRAM_ID,
+            program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
             data: unsafe { core::slice::from_raw_parts(instruction_data.as_ptr() as _, 65) },
         };

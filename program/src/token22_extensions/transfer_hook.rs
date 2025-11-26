@@ -2,8 +2,14 @@
 
 use crate::token22_extensions::{write_bytes, BaseState, Extension, ExtensionType, UNINIT_BYTE};
 use pinocchio::{
-    account_info::AccountInfo, cpi::{invoke_signed, slice_invoke_signed}, entrypoint::ProgramResult, instruction::{AccountMeta, Instruction, Signer}, program_error::ProgramError, pubkey::Pubkey
+    account_info::AccountInfo,
+    cpi::{invoke_signed, slice_invoke_signed},
+    instruction::{AccountMeta, Instruction, Signer},
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    ProgramResult,
 };
+use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 use spl_tlv_account_resolution::account::ExtraAccountMeta;
 
 /// TransferHook extension data
@@ -63,7 +69,7 @@ impl InitializeTransferHook<'_> {
             write_bytes(&mut instruction_data[34..66], &Pubkey::default());
         }
         let instruction = Instruction {
-            program_id: &super::TOKEN_2022_PROGRAM_ID,
+            program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
             data: unsafe { core::slice::from_raw_parts(instruction_data.as_ptr() as _, 66) },
         };

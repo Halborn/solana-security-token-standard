@@ -192,7 +192,7 @@ impl OperationsModule {
             account: token_account,
             mint: mint_info,
             freeze_authority,
-            token_program: token_program.key()
+            token_program: token_program.key(),
         };
         let bump_seed = [bump];
         let seeds = [
@@ -228,7 +228,7 @@ impl OperationsModule {
             account: token_account,
             mint: mint_info,
             freeze_authority,
-            token_program: token_program.key()
+            token_program: token_program.key(),
         };
         let bump_seed = [bump];
         let seeds = [

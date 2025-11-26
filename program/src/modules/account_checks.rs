@@ -1,8 +1,8 @@
 #[cfg(feature = "debug-logs")]
 use crate::acc_info_as_str;
-use crate::token22_extensions::TOKEN_2022_PROGRAM_ID;
 use crate::{constants::TRANSFER_HOOK_PROGRAM_ID, debug_log};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
 /// Verify account as writable
 /// expected to be.
