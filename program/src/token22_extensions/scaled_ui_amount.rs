@@ -11,6 +11,8 @@ use pinocchio::{
 
 use crate::token22_extensions::{write_bytes, BaseState, Extension, ExtensionType, UNINIT_BYTE};
 
+pub const SCALED_UI_AMOUNT_CONFIG_LEN: usize = core::mem::size_of::<ScaledUiAmountConfig>();
+
 /// ScaledUIAmount extension data
 /// Multiplier for displaying token amounts
 #[repr(C)]
@@ -28,14 +30,11 @@ pub struct ScaledUiAmountConfig {
 
 impl Extension for ScaledUiAmountConfig {
     const TYPE: ExtensionType = ExtensionType::ScaledUiAmount;
-    const LEN: usize = core::mem::size_of::<ScaledUiAmountConfig>();
+    const LEN: usize = SCALED_UI_AMOUNT_CONFIG_LEN;
     const BASE_STATE: BaseState = BaseState::Mint;
 }
 
 impl ScaledUiAmountConfig {
-    /// The length of the `ScaledUiAmountConfig` account data.
-    pub const LEN: usize = core::mem::size_of::<ScaledUiAmountConfig>();
-
     /// Return a `ScaledUiAmountConfig` from the given account info.
     ///
     /// This method performs owner and length validation on `AccountInfo`, safe borrowing
