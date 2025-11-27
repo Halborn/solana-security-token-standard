@@ -8,8 +8,8 @@ use crate::debug_log;
 use crate::instructions::TransferCheckedWithHook;
 use crate::modules::{
     burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
-    verify_mint_keys_match, verify_owner, verify_pda, verify_signer, verify_system_program,
-    verify_token22_program, verify_writable,
+    verify_mint_keys_match, verify_owner, verify_pda_keys_match, verify_signer,
+    verify_system_program, verify_token22_program, verify_writable,
 };
 use crate::state::{MintAuthority, ProgramAccount, Rate, Receipt, Rounding};
 use crate::token22_extensions::pausable::{Pause, Resume};
@@ -353,7 +353,7 @@ impl OperationsModule {
         let (expected_rate_pda, bump) =
             find_rate_pda(action_id, mint_from_key, mint_to_key, program_id);
 
-        verify_pda(rate_account.key(), &expected_rate_pda)?;
+        verify_pda_keys_match(rate_account.key(), &expected_rate_pda)?;
 
         // Calculate rent and create Rate account
         let rounding_enum = Rounding::try_from(rounding)?;
@@ -394,7 +394,7 @@ impl OperationsModule {
 
         let mut rate_account = Rate::from_account_info(rate_account_info)?;
         let expected_rate_pda = rate_account.derive_pda(action_id, mint_from_key, mint_to_key)?;
-        verify_pda(rate_account_info.key(), &expected_rate_pda)?;
+        verify_pda_keys_match(rate_account_info.key(), &expected_rate_pda)?;
 
         let rounding_enum = Rounding::try_from(rounding)?;
         rate_account.update(rounding_enum, numerator, denominator)?;
@@ -431,7 +431,7 @@ impl OperationsModule {
         // Deserialize to ensure it's valid Rate account before closing
         let rate = Rate::from_account_info(rate_account_info)?;
         let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
-        verify_pda(rate_account_info.key(), &expected_rate_pda)?;
+        verify_pda_keys_match(rate_account_info.key(), &expected_rate_pda)?;
 
         Rate::close(rate_account_info, destination_account)?;
         Ok(())
@@ -467,7 +467,7 @@ impl OperationsModule {
         // Verify Permanent Delegate Authority
         let (permanent_delegate_pda, permanent_delegate_bump) =
             crate::utils::find_permanent_delegate_pda(mint_split_key, program_id);
-        verify_pda(permanent_delegate.key(), &permanent_delegate_pda)?;
+        verify_pda_keys_match(permanent_delegate.key(), &permanent_delegate_pda)?;
 
         // Verify Token account and Token2022 program
         let token = TokenAccount::from_account_info(token_account)?;
@@ -487,14 +487,14 @@ impl OperationsModule {
         verify_owner(rate_account, program_id)?;
         let new_amount = rate.calculate(current_amount)?;
         let expected_rate_pda = rate.derive_pda(action_id, mint_split_key, mint_split_key)?;
-        verify_pda(rate_account.key(), &expected_rate_pda)?;
+        verify_pda_keys_match(rate_account.key(), &expected_rate_pda)?;
 
         // Verify Receipt account
         verify_writable(receipt_account)?;
         verify_account_not_initialized(receipt_account)?;
         let (expected_receipt_pda, receipt_bump) =
             find_receipt_pda(mint_split_key, action_id, program_id);
-        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+        verify_pda_keys_match(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify System program
         verify_system_program(system_program)?;
@@ -609,20 +609,20 @@ impl OperationsModule {
         // Permanent delegate should be for mint_from as we are burning tokens
         let (permanent_delegate_pda, permanent_delegate_bump) =
             find_permanent_delegate_pda(mint_from_key, program_id);
-        verify_pda(permanent_delegate.key(), &permanent_delegate_pda)?;
+        verify_pda_keys_match(permanent_delegate.key(), &permanent_delegate_pda)?;
 
         // Verify Rate account
         let rate = Rate::from_account_info(rate_account)?;
         verify_owner(rate_account, program_id)?;
         let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
-        verify_pda(rate_account.key(), &expected_rate_pda)?;
+        verify_pda_keys_match(rate_account.key(), &expected_rate_pda)?;
 
         // Verify Receipt account
         verify_writable(receipt_account)?;
         verify_account_not_initialized(receipt_account)?;
         let (expected_receipt_pda, receipt_bump) =
             find_receipt_pda(verified_mint_key, action_id, program_id);
-        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+        verify_pda_keys_match(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify System program
         verify_system_program(system_program)?;

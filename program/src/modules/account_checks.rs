@@ -183,7 +183,10 @@ pub fn verify_account_initialized(info: &AccountInfo) -> Result<(), ProgramError
     Ok(())
 }
 
-/// Verify PDA accounts pubkeys match.
+/// Verify that provided and expected PDA keys match.
+///
+/// This check ensures that the PDA account provided in the instruction matches
+/// the PDA derived by the program, preventing account substitution attacks.
 ///
 /// # Arguments
 /// * `provided_pda` - The account provided in the instruction.
@@ -191,7 +194,10 @@ pub fn verify_account_initialized(info: &AccountInfo) -> Result<(), ProgramError
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
-pub fn verify_pda(provided_pda: &Pubkey, expected_pda: &Pubkey) -> Result<(), ProgramError> {
+pub fn verify_pda_keys_match(
+    provided_pda: &Pubkey,
+    expected_pda: &Pubkey,
+) -> Result<(), ProgramError> {
     if provided_pda.ne(expected_pda) {
         debug_log!(
             "Invalid PDA account. Expected: {}, Provided: {}",

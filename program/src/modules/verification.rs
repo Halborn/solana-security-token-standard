@@ -27,7 +27,7 @@ use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
-    verify_instructions_sysvar, verify_mint_keys_match, verify_owner, verify_pda,
+    verify_instructions_sysvar, verify_mint_keys_match, verify_owner, verify_pda_keys_match,
     verify_rent_sysvar, verify_signer, verify_system_program, verify_token22_program,
     verify_transfer_hook_program, verify_writable,
 };
@@ -942,9 +942,9 @@ impl VerificationModule {
 
         verify_transfer_hook_program(transfer_hook_program)?;
         let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
-        verify_pda(&transfer_hook_pda, transfer_hook_pda_info.key())?;
+        verify_pda_keys_match(&transfer_hook_pda, transfer_hook_pda_info.key())?;
         let (account_metas_pda, _bump) = find_extra_account_metas_pda(mint_info.key());
-        verify_pda(&account_metas_pda, account_metas_pda_info.key())?;
+        verify_pda_keys_match(&account_metas_pda, account_metas_pda_info.key())?;
 
         let mut account_metas: Vec<ExtraAccountMeta> = Vec::new();
         account_metas.push(ExtraAccountMeta {
