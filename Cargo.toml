@@ -26,8 +26,6 @@ security-token-client = { path = "clients/rust" }
 
 # Error handling
 thiserror = "2.0.3"
-num-derive = "0.4.2"
-num-traits = "0.2.19"
 
 # Leave for CI
 getrandom = { version = "0.3", features = ["dummy"] }
