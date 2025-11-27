@@ -32,7 +32,7 @@ pub struct UpdateVerificationConfigArgs {
 }
 
 impl InitializeVerificationConfigArgs {
-    /// Minimum size: discriminator (1) + cpi_mode (1) + vector length (4) = 6 bytes
+    /// Minimum size: instruction_discriminator (1) + cpi_mode (1) + vector length (4) = 6 bytes
     pub const MIN_LEN: usize = 6;
 
     /// Create new InitializeVerificationConfigArgs
@@ -135,7 +135,7 @@ impl InitializeVerificationConfigArgs {
 }
 
 impl UpdateVerificationConfigArgs {
-    /// Minimum size: discriminator (1) + cpi_mode (1) + offset (1) + vector length (4) = 7 bytes
+    /// Minimum size: instruction_discriminator (1) + cpi_mode (1) + offset (1) + vector length (4) = 7 bytes
     pub const MIN_LEN: usize = 7;
 
     /// Create new UpdateVerificationConfigArgs
@@ -258,6 +258,9 @@ pub struct TrimVerificationConfigArgs {
 }
 
 impl TrimVerificationConfigArgs {
+    /// Fixed size: instruction_discriminator (1) + size (1) + close (1) = 3 bytes
+    pub const LEN: usize = 3;
+
     /// Creates a new `TrimVerificationConfigArgs` instance.
     ///
     /// # Arguments
@@ -280,8 +283,7 @@ impl TrimVerificationConfigArgs {
 
     /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 3 {
-            // Minimum: 1 byte discriminator + 1 byte size + 1 byte close
+        if data.len() < Self::LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
 
