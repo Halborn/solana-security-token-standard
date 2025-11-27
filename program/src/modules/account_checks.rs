@@ -128,7 +128,10 @@ pub fn verify_rent_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
     Ok(())
 }
 
-/// Verify mint info in the operation. It must match the verified mint info.
+/// Verify that two mint account keys match to prevent mint substitution attacks.
+///
+/// This security check ensures that operations authorized for one mint cannot be
+/// executed on a different mint account.
 ///
 /// # Arguments
 /// * `verified_mint_info` - The initial verified Mint account.
@@ -136,7 +139,7 @@ pub fn verify_rent_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
-pub fn verify_operation_mint_info(
+pub fn verify_mint_keys_match(
     verified_mint_info: &AccountInfo,
     operation_mint_info: &&AccountInfo,
 ) -> Result<(), ProgramError> {

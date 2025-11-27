@@ -27,7 +27,7 @@ use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
-    verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_pda,
+    verify_instructions_sysvar, verify_mint_keys_match, verify_owner, verify_pda,
     verify_rent_sysvar, verify_signer, verify_system_program, verify_token22_program,
     verify_transfer_hook_program, verify_writable,
 };
@@ -336,7 +336,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
@@ -848,7 +848,7 @@ impl VerificationModule {
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
@@ -1078,7 +1078,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
         verify_owner(config_account, program_id)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
@@ -1185,7 +1185,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_system_program(system_program_info)?;

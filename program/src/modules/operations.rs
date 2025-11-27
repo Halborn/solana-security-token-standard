@@ -8,7 +8,7 @@ use crate::debug_log;
 use crate::instructions::TransferCheckedWithHook;
 use crate::modules::{
     burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
-    verify_operation_mint_info, verify_owner, verify_pda, verify_signer, verify_system_program,
+    verify_mint_keys_match, verify_owner, verify_pda, verify_signer, verify_system_program,
     verify_token22_program, verify_writable,
 };
 use crate::state::{MintAuthority, ProgramAccount, Rate, Receipt, Rounding};
@@ -40,7 +40,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
         verify_owner(mint_authority, program_id)?;
 
@@ -75,7 +75,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (permanent_delegate_pda, bump) =
@@ -111,7 +111,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
@@ -146,7 +146,7 @@ impl OperationsModule {
         let [pause_authority, mint_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
@@ -182,7 +182,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
@@ -218,7 +218,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
@@ -348,7 +348,7 @@ impl OperationsModule {
         // Ensure Rate account is being created for target mint_to account
         // For Split operation mint_from == mint_to
         // For Convert operation mint_to is verified so we ensure correct minting of new tokens
-        verify_operation_mint_info(verified_mint_info, &mint_to_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_to_account)?;
 
         let (expected_rate_pda, bump) =
             find_rate_pda(action_id, mint_from_key, mint_to_key, program_id);
@@ -382,7 +382,7 @@ impl OperationsModule {
 
         // For Split operation mint_from == mint_to
         // If Rate was created for Convert operation, then mint_to should be verified
-        verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_to_info_account)?;
         verify_writable(rate_account_info)?;
         verify_owner(rate_account_info, program_id)?;
         verify_account_initialized(rate_account_info)?;
@@ -417,7 +417,7 @@ impl OperationsModule {
 
         // For Split operation mint_from == mint_to
         // If Rate was created for Convert operation, then mint_to should be verified
-        verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_to_info_account)?;
         verify_writable(destination_account)?;
         verify_writable(rate_account_info)?;
         verify_account_initialized(rate_account_info)?;
@@ -451,7 +451,7 @@ impl OperationsModule {
         };
 
         // Verify split Mint
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
         let mint_split = Mint::from_account_info(mint_account)?;
         let mint_decimals = mint_split.decimals();
         let mint_split_key = mint_account.key();
@@ -564,7 +564,7 @@ impl OperationsModule {
 
         // Verify Mints
         // Expect target mint was verified before minting new tokens at conversion rate
-        verify_operation_mint_info(verified_mint_info, &mint_to_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_to_account)?;
         let verified_mint_key = verified_mint_info.key();
         let mint_from = Mint::from_account_info(mint_from_account)?;
         let mint_from_decimals = mint_from.decimals();
