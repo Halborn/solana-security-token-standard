@@ -31,7 +31,7 @@ pub const INSTRUCTION_ACCOUNTS_OFFSET: usize = 3;
 pub const TRANSFER_HOOK_PROGRAM_ID: Pubkey =
     pubkey!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
 
-/// Size of action_id field in bytes (u64)
+/// Size of action_id field (u64 type = 8 bytes)
 pub const ACTION_ID_LEN: usize = 8;
 
 /// Maximum number of verification programs that can be registered per instruction
