@@ -53,8 +53,8 @@ impl AccountSerialize for VerificationConfig {
 
 impl AccountDeserialize for VerificationConfig {
     fn try_from_bytes_inner(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 6 {
-            // Minimum: 1 byte discriminator + 1 byte cpi_mode + 4 bytes count
+        if data.len() < 7 {
+            // Minimum: 1 byte instruction_discriminator + 1 byte cpi_mode + 1 byte bump + 4 bytes count
             return Err(ProgramError::InvalidAccountData);
         }
 
