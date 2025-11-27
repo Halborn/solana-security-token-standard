@@ -32,6 +32,8 @@ pub struct UpdateVerificationConfigArgs {
 }
 
 impl InitializeVerificationConfigArgs {
+    pub const MIN_LEN: usize = 6; // 1 byte discriminator + 1 byte cpi_mode + 4 bytes length
+
     /// Create new InitializeVerificationConfigArgs
     pub fn new(
         instruction_discriminator: u8,
@@ -71,8 +73,7 @@ impl InitializeVerificationConfigArgs {
 
     /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 5 {
-            // Minimum: 1 byte discriminator + 4 bytes count
+        if data.len() < Self::MIN_LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -133,6 +134,9 @@ impl InitializeVerificationConfigArgs {
 }
 
 impl UpdateVerificationConfigArgs {
+    // 1 byte discriminator + 1 byte cpi_mode + 1 byte offset + 4 bytes count
+    pub const MIN_LEN: usize = 7;
+
     /// Create new UpdateVerificationConfigArgs
     pub fn new(
         instruction_discriminator: u8,
@@ -180,8 +184,7 @@ impl UpdateVerificationConfigArgs {
 
     /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 7 {
-            // Minimum: 1 byte discriminator + 1 byte cpi_mode + 1 byte offset + 4 bytes count
+        if data.len() < Self::MIN_LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
 
