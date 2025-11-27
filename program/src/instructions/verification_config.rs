@@ -32,7 +32,8 @@ pub struct UpdateVerificationConfigArgs {
 }
 
 impl InitializeVerificationConfigArgs {
-    pub const MIN_LEN: usize = 6; // 1 byte discriminator + 1 byte cpi_mode + 4 bytes length
+    /// Minimum size: discriminator (1) + cpi_mode (1) + vector length (4) = 6 bytes
+    pub const MIN_LEN: usize = 6;
 
     /// Create new InitializeVerificationConfigArgs
     pub fn new(
@@ -134,7 +135,7 @@ impl InitializeVerificationConfigArgs {
 }
 
 impl UpdateVerificationConfigArgs {
-    // 1 byte discriminator + 1 byte cpi_mode + 1 byte offset + 4 bytes count
+    /// Minimum size: discriminator (1) + cpi_mode (1) + offset (1) + vector length (4) = 7 bytes
     pub const MIN_LEN: usize = 7;
 
     /// Create new UpdateVerificationConfigArgs

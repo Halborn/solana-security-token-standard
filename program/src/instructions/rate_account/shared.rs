@@ -18,8 +18,8 @@ pub struct RateArgs {
 }
 
 impl RateArgs {
-    /// Fixed size: rounding (1 byte) + numerator (1 byte) + denominator (1 byte)
-    pub const LEN: usize = 1 + 1 + 1; // 3 bytes
+    /// Fixed size: rounding (1 byte) + numerator (1 byte) + denominator (1 byte) = 3 bytes
+    pub const LEN: usize = 1 + 1 + 1;
 
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         if data.len() < Self::LEN {

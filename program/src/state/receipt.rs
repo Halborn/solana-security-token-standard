@@ -73,8 +73,8 @@ impl ProgramAccount for Receipt {
 }
 
 impl Receipt {
-    /// Serialized size: discriminator (1) + mint pubkey (32) + action_id (8) + bump (1)
-    pub const LEN: usize = 1 + PUBKEY_BYTES + ACTION_ID_LEN + 1; // 42 bytes
+    /// Serialized size: discriminator (1) + mint pubkey (32) + action_id (8) + bump (1) = 42 bytes
+    pub const LEN: usize = 1 + PUBKEY_BYTES + ACTION_ID_LEN + 1;
 
     pub fn new(mint: Pubkey, action_id: u64, bump: u8) -> Result<Self, ProgramError> {
         let receipt = Self {

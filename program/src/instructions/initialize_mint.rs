@@ -21,8 +21,8 @@ impl TokenMetadataArgs {
     // We also will remove the TokenMetadata implementation when pinocchio_token_2022 extensions are officially implemented
     // These formats may look similar but serve different purposes and cannot be directly reused
 
-    /// Minimum size (Borsh format): update_authority (32) + mint (32) + name_len (4) + symbol_len (4) + uri_len (4) + additional_metadata_len (4)
-    pub const MIN_LEN: usize = 32 + 32 + 4 + 4 + 4 + 4; // 80 bytes
+    /// Minimum size (Borsh format): update_authority (32) + mint (32) + name_len (4) + symbol_len (4) + uri_len (4) + additional_metadata_len (4) = 80 bytes
+    pub const MIN_LEN: usize = 32 + 32 + 4 + 4 + 4 + 4;
 
     /// Deserialize TokenMetadataArgs from bytes (Borsh format) and return consumed byte count
     pub fn try_from_bytes(data: &[u8]) -> Result<(Self, usize), ProgramError> {
@@ -157,8 +157,8 @@ pub struct ScaledUiAmountConfigArgs {
 }
 
 impl ScaledUiAmountConfigArgs {
-    /// Fixed size: authority (32) + multiplier (8) + timestamp (8) + new_multiplier (8)
-    pub const LEN: usize = 32 + 8 + 8 + 8; // 56 bytes
+    /// Fixed size: authority (32) + multiplier (8) + timestamp (8) + new_multiplier (8) = 56 bytes
+    pub const LEN: usize = 32 + 8 + 8 + 8;
 
     /// Deserialize ScaledUiAmountConfigArgs from bytes
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
@@ -207,8 +207,8 @@ pub struct MetadataPointerArgs {
 }
 
 impl MetadataPointerArgs {
-    /// Fixed size: authority (32) + metadata_address (32)
-    pub const LEN: usize = 32 + 32; // 64 bytes
+    /// Fixed size: authority (32) + metadata_address (32) = 64 bytes
+    pub const LEN: usize = 32 + 32;
 
     /// Deserialize MetadataPointerArgs from bytes
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
@@ -265,8 +265,8 @@ pub struct InitializeMintArgs {
 }
 
 impl MintArgs {
-    /// Fixed size: decimals (1 byte) + mint_authority (32 bytes) + freeze_authority (32 bytes)
-    pub const LEN: usize = 1 + 32 + 32; // 65 bytes
+    /// Fixed size: decimals (1 byte) + mint_authority (32 bytes) + freeze_authority (32 bytes) = 65 bytes
+    pub const LEN: usize = 1 + 32 + 32;
 
     /// Pack the mint arguments into bytes using the same format as SPL Token 2022
     pub fn to_bytes_inner(&self) -> Vec<u8> {

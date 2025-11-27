@@ -107,7 +107,7 @@ impl AccountDeserialize for VerificationConfig {
 }
 
 impl VerificationConfig {
-    // discriminator + instruction_discriminator + cpi_mode + bump + vector length
+    /// Minimum size: discriminator (1) + instruction_discriminator (1) + cpi_mode (1) + bump (1) + vector length (4) = 8 bytes
     pub const MIN_LEN: usize = 1 + 1 + 1 + 1 + 4;
 
     /// Create new VerificationConfig

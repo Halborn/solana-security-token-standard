@@ -16,7 +16,7 @@ pub struct ConvertArgs {
 }
 
 impl ConvertArgs {
-    /// action_id + amount
+    /// Fixed size: action_id (8 bytes) + amount (8 bytes) = 16 bytes
     pub const LEN: usize = ACTION_ID_LEN + 8;
 
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
