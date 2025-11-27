@@ -108,7 +108,7 @@ impl AccountDeserialize for VerificationConfig {
 
 impl VerificationConfig {
     // discriminator + instruction_discriminator + cpi_mode + bump + vector length
-    pub const MIN_LEN: usize = 1 + 1 + 1 + 4;
+    pub const MIN_LEN: usize = 1 + 1 + 1 + 1 + 4;
 
     /// Create new VerificationConfig
     pub fn new(
