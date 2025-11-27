@@ -2866,8 +2866,9 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "pinocchio"
-version = "0.8.4"
-source = "git+https://github.com/Nagaprasadvr/pinocchio.git?rev=4fb37bb#4fb37bbcd3d5262564845e5db02bc12a8cbe4a6f"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b971851087bc3699b001954ad02389d50c41405ece3548cbcafc88b3e20017a"
 
 [[package]]
 name = "pinocchio-log"
@@ -2891,17 +2892,20 @@ dependencies = [
 
 [[package]]
 name = "pinocchio-pubkey"
-version = "0.2.4"
-source = "git+https://github.com/Nagaprasadvr/pinocchio.git?rev=4fb37bb#4fb37bbcd3d5262564845e5db02bc12a8cbe4a6f"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb0225638cadcbebae8932cb7f49cb5da7c15c21beb19f048f05a5ca7d93f065"
 dependencies = [
  "five8_const",
  "pinocchio",
+ "sha2-const-stable",
 ]
 
 [[package]]
 name = "pinocchio-system"
-version = "0.2.3"
-source = "git+https://github.com/Nagaprasadvr/pinocchio.git?rev=4fb37bb#4fb37bbcd3d5262564845e5db02bc12a8cbe4a6f"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4be2a6dad40b5e75d1486f021619c4bd504c34c1362c9b94ed7fa525b1cc63cc"
 dependencies = [
  "pinocchio",
  "pinocchio-pubkey",
@@ -2909,8 +2913,9 @@ dependencies = [
 
 [[package]]
 name = "pinocchio-token"
-version = "0.3.0"
-source = "git+https://github.com/Nagaprasadvr/pinocchio.git?rev=4fb37bb#4fb37bbcd3d5262564845e5db02bc12a8cbe4a6f"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4eb3a10d04ea7a633c01c4fe68eb650b4606cee4a3977bd1a1259cba324abafb"
 dependencies = [
  "pinocchio",
  "pinocchio-pubkey",
@@ -2918,8 +2923,9 @@ dependencies = [
 
 [[package]]
 name = "pinocchio-token-2022"
-version = "0.3.0"
-source = "git+https://github.com/Nagaprasadvr/pinocchio.git?rev=4fb37bb#4fb37bbcd3d5262564845e5db02bc12a8cbe4a6f"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0aec08d3b6eddafdacc17bd5b7842050394b0199062a3cc20428f1c40c9dbe7d"
 dependencies = [
  "pinocchio",
  "pinocchio-pubkey",
@@ -3930,6 +3936,12 @@ dependencies = [
  "cpufeatures",
  "digest 0.10.7",
 ]
+
+[[package]]
+name = "sha2-const-stable"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f179d4e11094a893b82fff208f74d448a7512f99f5a0acbd5c679b705f83ed9"
 
 [[package]]
 name = "sha3"
