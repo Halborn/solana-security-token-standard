@@ -346,7 +346,7 @@ impl Processor {
             .and_then(|slice| slice.try_into().ok())
             .map(u64::from_le_bytes)
             .ok_or(ProgramError::InvalidInstructionData)?;
-        OperationsModule::execute_transfer(program_id, verified_mint_info,accounts, amount)?;
+        OperationsModule::execute_transfer(program_id, verified_mint_info, accounts, amount)?;
         Ok(())
     }
 
