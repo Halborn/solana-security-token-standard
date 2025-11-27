@@ -16,6 +16,7 @@ use crate::utils::{
     find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda,
     find_rate_pda, find_receipt_pda,
 };
+use core::cmp::Ordering;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
@@ -499,35 +500,39 @@ impl OperationsModule {
         verify_signer(payer)?;
         verify_writable(payer)?;
 
-        if current_amount.eq(&new_amount) {
-            // Just log the message but create Receipt to prevent duplicate split attempts
-            debug_log!("No change in amount after split");
-        } else if new_amount.gt(&current_amount) {
-            // Mint additional tokens
-            let amount_diff = new_amount
-                .checked_sub(current_amount)
-                .ok_or(ProgramError::ArithmeticOverflow)?;
-            mint_to_checked(
-                amount_diff,
-                mint_decimals,
-                mint_account,
-                token_account,
-                mint_authority,
-                &mint_authority_state,
-            )?;
-        } else {
-            // Burn excess tokens
-            let amount_diff = current_amount
-                .checked_sub(new_amount)
-                .ok_or(ProgramError::ArithmeticOverflow)?;
-            burn_checked(
-                amount_diff,
-                mint_decimals,
-                mint_account,
-                token_account,
-                permanent_delegate,
-                permanent_delegate_bump,
-            )?;
+        match new_amount.cmp(&current_amount) {
+            Ordering::Equal => {
+                // Just log the message but create Receipt to prevent duplicate split attempts
+                debug_log!("No change in amount after split");
+            }
+            Ordering::Greater => {
+                // Mint additional tokens
+                let amount_diff = new_amount
+                    .checked_sub(current_amount)
+                    .ok_or(ProgramError::ArithmeticOverflow)?;
+                mint_to_checked(
+                    amount_diff,
+                    mint_decimals,
+                    mint_account,
+                    token_account,
+                    mint_authority,
+                    &mint_authority_state,
+                )?;
+            }
+            Ordering::Less => {
+                // Burn excess tokens
+                let amount_diff = current_amount
+                    .checked_sub(new_amount)
+                    .ok_or(ProgramError::ArithmeticOverflow)?;
+                burn_checked(
+                    amount_diff,
+                    mint_decimals,
+                    mint_account,
+                    token_account,
+                    permanent_delegate,
+                    permanent_delegate_bump,
+                )?;
+            }
         }
         // Create Receipt PDA account for Split operation
         Receipt::issue(
