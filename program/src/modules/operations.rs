@@ -243,6 +243,7 @@ impl OperationsModule {
     /// Wrapper for SPL Token TransferChecked instruction
     pub fn execute_transfer(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
@@ -252,6 +253,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
 
         if transfer_hook_program.key() != &TRANSFER_HOOK_PROGRAM_ID {
             return Err(ProgramError::IncorrectProgramId);
