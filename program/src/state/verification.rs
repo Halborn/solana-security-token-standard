@@ -125,12 +125,10 @@ impl VerificationConfig {
 
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), ProgramError> {
-        // Create zero pubkey for comparison (actual zeros, not Pubkey::default)
-        let zero_pubkey = [0u8; PUBKEY_BYTES];
-
         // Validate that all programs are non-zero (valid pubkeys)
         for program in self.verification_programs.iter() {
-            if *program == zero_pubkey {
+            // The Pubkey::default() is actually represents a zeroed pubkey
+            if *program == Pubkey::default() {
                 return Err(ProgramError::InvalidAccountData);
             }
         }
