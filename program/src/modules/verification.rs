@@ -552,6 +552,10 @@ impl VerificationModule {
 
     /// Verify specific operation either through configured verification programs or mint authority
     /// Decides which method to use based on the PDA account provided in accounts[1]
+    ///
+    /// # Returns
+    /// * `verified_mint_info` - The authorized Mint account (prevents mint substitution attacks in operations)
+    /// * `cleaned_accounts` - Remaining instruction accounts after verification overhead
     pub fn verify_by_strategy<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
@@ -594,6 +598,9 @@ impl VerificationModule {
     }
 
     /// Verify that the provided signer corresponds to the original mint authority PDA.
+    ///
+    /// # Returns
+    /// * `verified_mint_info` - The authorized Mint account (prevents mint substitution attacks in operations)
     pub fn verify_by_mint_authority<'a>(
         program_id: &Pubkey,
         mint_info: &'a AccountInfo,
@@ -632,6 +639,10 @@ impl VerificationModule {
     }
 
     /// Verify specific operation against configured verification programs
+    ///
+    /// # Returns
+    /// * `verified_mint_info` - The authorized Mint account (prevents mint substitution attacks in operations)
+    /// * `cleaned_accounts` - Remaining instruction accounts after verification overhead
     pub fn verify_by_programs<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],

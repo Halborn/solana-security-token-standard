@@ -30,6 +30,9 @@ pub struct OperationsModule;
 impl OperationsModule {
     /// Mint tokens to an account
     /// Wrapper for SPL Token MintToChecked instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_mint(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -64,6 +67,9 @@ impl OperationsModule {
 
     /// Burn tokens from an account  
     /// Wrapper for SPL Token BurnChecked instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_burn(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -102,6 +108,9 @@ impl OperationsModule {
 
     /// Pause all activity within a mint
     /// Wrapper for SPL Token Pause instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_pause(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -138,6 +147,9 @@ impl OperationsModule {
 
     /// Resume all activity within a mint
     /// Wrapper for SPL Token Resume instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_resume(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -173,6 +185,9 @@ impl OperationsModule {
 
     /// Freeze a token account
     /// Wrapper for SPL Token FreezeAccount instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_freeze_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -209,6 +224,9 @@ impl OperationsModule {
 
     /// Thaw a token account
     /// Wrapper for SPL Token ThawAccount instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_thaw_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -317,6 +335,8 @@ impl OperationsModule {
     }
 
     /// Create Rate account
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_create_rate_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -367,6 +387,8 @@ impl OperationsModule {
     }
 
     /// Update Rate account
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_update_rate_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -403,6 +425,8 @@ impl OperationsModule {
     }
 
     /// Close Rate account
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_close_rate_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -438,6 +462,8 @@ impl OperationsModule {
     }
 
     /// Execute token split at predefined rate
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_split(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -549,6 +575,8 @@ impl OperationsModule {
     }
 
     /// Execute token conversion at predefined rate
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_convert(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
