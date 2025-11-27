@@ -3,6 +3,7 @@ use shank::ShankType;
 
 use crate::{constants::ACTION_ID_LEN, state::Rounding, utils::parse_action_id_bytes};
 
+/// Combined size of action ID and rate arguments for rate account operations
 pub const ACTION_AND_RATE_ARGS_LEN: usize = ACTION_ID_LEN + RateArgs::LEN;
 
 #[repr(C)]
@@ -17,8 +18,8 @@ pub struct RateArgs {
 }
 
 impl RateArgs {
-    /// rounding + numerator + denominator
-    pub const LEN: usize = 1 + 1 + 1;
+    /// Fixed size: rounding (1 byte) + numerator (1 byte) + denominator (1 byte)
+    pub const LEN: usize = 1 + 1 + 1; // 3 bytes
 
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         if data.len() < Self::LEN {

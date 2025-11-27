@@ -16,9 +16,12 @@ pub struct VerifyArgs {
 }
 
 impl VerifyArgs {
+    /// Minimum length: discriminant (1 byte) + vector length (4 bytes)
+    pub const MIN_LEN: usize = 1 + 4;
+
     /// Parse VerifyArgs from instruction data
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 5 {
+        if data.len() < Self::MIN_LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
 

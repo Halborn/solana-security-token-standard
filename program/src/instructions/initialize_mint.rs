@@ -264,8 +264,8 @@ pub struct InitializeMintArgs {
 }
 
 impl MintArgs {
-    // decimals (1) + mint_authority (32) + freeze_authority (32)
-    pub const LEN: usize = 1 + 32 + 32;
+    /// Fixed size: decimals (1 byte) + mint_authority (32 bytes) + freeze_authority (32 bytes)
+    pub const LEN: usize = 1 + 32 + 32; // 65 bytes
 
     /// Pack the mint arguments into bytes using the same format as SPL Token 2022
     pub fn to_bytes_inner(&self) -> Vec<u8> {
