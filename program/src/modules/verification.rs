@@ -3,6 +3,10 @@
 //! Handles authorization checks, compliance verification, and instruction validation
 //! according to the Security Token specification.
 
+use crate::token22_extensions::metadata::{Field, UpdateField};
+use crate::token22_extensions::pausable::InitializePausable;
+use crate::token22_extensions::permanent_delegate::InitializePermanentDelegate;
+use crate::token22_extensions::scaled_ui_amount::InitializeScaledUiAmount;
 use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
@@ -11,22 +15,8 @@ use pinocchio::sysvars::Sysvar;
 use pinocchio::sysvars::{instructions::Instructions, rent::Rent};
 use pinocchio::ProgramResult;
 use pinocchio_system::instructions::{CreateAccount, Transfer};
-use pinocchio_token_2022::extensions::metadata_pointer::{
-    Initialize as MetadataPointerInitialize, MetadataPointer,
-};
-use pinocchio_token_2022::extensions::pausable::InitializePausable;
-use pinocchio_token_2022::extensions::permanent_delegate::InitializePermanentDelegate;
-use pinocchio_token_2022::extensions::scaled_ui_amount::Initialize as ScaledUiAmountInitialize;
-use pinocchio_token_2022::extensions::transfer_hook::Initialize as TransferHookInitialize;
-use pinocchio_token_2022::extensions::{
-    get_extension_data_bytes_for_variable_pack, get_extension_from_bytes, ExtensionType,
-};
-use pinocchio_token_2022::instructions::{InitializeMint2, SetAuthority};
+use pinocchio_token_2022::instructions::{AuthorityType, InitializeMint2, SetAuthority};
 use pinocchio_token_2022::state::Mint;
-use pinocchio_token_2022::{
-    extensions::metadata::{Field, TokenMetadata, UpdateField},
-    instructions::AuthorityType,
-};
 use spl_pod::primitives::PodBool;
 use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 
@@ -34,12 +24,8 @@ use super::utils as verification_utils;
 use crate::constants::{seeds, INSTRUCTION_ACCOUNTS_OFFSET, TRANSFER_HOOK_PROGRAM_ID};
 use crate::error::SecurityTokenError;
 use crate::instruction::SecurityTokenInstruction;
-use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
-use crate::instructions::{
-    CustomInitializeExtraAccountMetaList, CustomUpdateExtraAccountMetaList, InitializeMintArgs,
-    UpdateMetadataArgs, VerifyArgs,
-};
+use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
     verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_pda,
     verify_rent_sysvar, verify_signer, verify_system_program, verify_token22_program,
@@ -48,6 +34,14 @@ use crate::modules::{
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
     VerificationConfig,
+};
+use crate::token22_extensions::metadata::{InitializeTokenMetadata, RemoveKey, TokenMetadata};
+use crate::token22_extensions::metadata_pointer::{InitializeMetadataPointer, MetadataPointer};
+use crate::token22_extensions::transfer_hook::{
+    InitializeExtraAccountMetaList, InitializeTransferHook, UpdateExtraAccountMetaList,
+};
+use crate::token22_extensions::{
+    get_extension_data_bytes_for_variable_pack, get_extension_from_bytes, ExtensionType,
 };
 use crate::utils::find_extra_account_metas_pda;
 use crate::{debug_log, utils};
@@ -119,7 +113,7 @@ impl VerificationModule {
 
         // Calculate mint size with extensions (but without metadata TLV data)
         let mint_size = if ext_count == 0 {
-            Mint::LEN
+            Mint::BASE_LEN
         } else {
             utils::calculate_mint_size_with_extensions(&extensions_buf[..ext_count])
         };
@@ -157,7 +151,7 @@ impl VerificationModule {
 
         permanent_delegate_initialize.invoke()?;
 
-        let transfer_hook_initialize = TransferHookInitialize {
+        let transfer_hook_initialize = InitializeTransferHook {
             mint: mint_info,
             authority: transfer_hook_pda.into(),
             // TODO: A direct import of security_token_transfer_hook::id() causes build issues with the allocator, investigate later
@@ -186,7 +180,7 @@ impl VerificationModule {
                     (Some(*creator_info.key()), Some(*mint_info.key()))
                 };
 
-            let metadata_pointer_initialize = MetadataPointerInitialize {
+            let metadata_pointer_initialize = InitializeMetadataPointer {
                 mint: mint_info,
                 authority: metadata_authority,
                 metadata_address,
@@ -201,7 +195,7 @@ impl VerificationModule {
 
         // Initialize ScaledUiAmount extension if provided by client
         if let Some(scaled_ui_amount_config) = &scaled_ui_amount_opt {
-            let scaled_ui_amount_initialize = ScaledUiAmountInitialize {
+            let scaled_ui_amount_initialize = InitializeScaledUiAmount {
                 mint: mint_info,
                 authority: scaled_ui_amount_config.authority.into(),
                 multiplier: f64::from_le_bytes(scaled_ui_amount_config.multiplier),
@@ -216,6 +210,7 @@ impl VerificationModule {
             decimals,
             mint_authority: &client_mint_authority,
             freeze_authority: Some(&freeze_authority),
+            token_program: token_program_info.key(),
         };
 
         initialize_mint_instruction.invoke()?;
@@ -266,6 +261,7 @@ impl VerificationModule {
             authority: creator_info,
             authority_type: AuthorityType::MintTokens,
             new_authority: Some(&mint_authority_pda),
+            token_program: token_program_info.key(),
         };
 
         set_authority_instruction.invoke()?;
@@ -278,29 +274,28 @@ impl VerificationModule {
         let metadata_account_info = if let Some(metadata_addr) = metadata_account_address {
             if metadata_addr == *mint_info.key() {
                 // Metadata is stored in mint account (in-mint storage)
-                mint_info.clone()
+                mint_info
             } else {
                 // Metadata is stored in external account - find it in accounts list
                 accounts
                     .iter()
                     .find(|acc| acc.key() == &metadata_addr)
                     .ok_or(ProgramError::InvalidAccountData)?
-                    .clone()
             }
         } else {
             // No metadata pointer, shouldn't happen if we have metadata
             return Err(ProgramError::InvalidInstructionData);
         };
 
-        let metadata_init_instruction = CustomInitializeTokenMetadata::new(
-            &metadata_account_info,
-            mint_authority_account,
-            mint_info,
-            mint_authority_account,
-            &metadata.name,
-            &metadata.symbol,
-            &metadata.uri,
-        );
+        let metadata_init_instruction = InitializeTokenMetadata {
+            metadata: metadata_account_info,
+            update_authority: mint_authority_account,
+            mint: mint_info,
+            mint_authority: mint_authority_account,
+            name: &metadata.name,
+            symbol: &metadata.symbol,
+            uri: &metadata.uri,
+        };
 
         metadata_init_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
 
@@ -311,7 +306,7 @@ impl VerificationModule {
                 metadata.additional_metadata.as_slice(),
                 |key, value| {
                     let update_field_instruction = UpdateField {
-                        metadata: &metadata_account_info,
+                        metadata: metadata_account_info,
                         update_authority: mint_authority_account,
                         field: Field::Key(key),
                         value,
@@ -366,7 +361,7 @@ impl VerificationModule {
         // Determine metadata account (could be mint itself or external account)
         let metadata_account_info = if metadata_address == *mint_info.key() {
             // Metadata is stored in mint account (in-mint storage)
-            mint_info.clone()
+            mint_info
         } else {
             // Metadata is stored in external account - would need to be passed in accounts
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -396,9 +391,9 @@ impl VerificationModule {
             let rent = Rent::get()?;
             let additional_rent = rent.minimum_balance(additional_metadata_space);
             let transfer = Transfer {
-                from: payer,                // from (authority pays)
-                to: &metadata_account_info, // to (metadata account)
-                lamports: additional_rent,  // amount
+                from: payer,               // from (authority pays)
+                to: metadata_account_info, // to (metadata account)
+                lamports: additional_rent, // amount
             };
             transfer.invoke()?;
         }
@@ -413,7 +408,7 @@ impl VerificationModule {
         let mint_authority_signer = Signer::from(&mint_authority_seeds);
 
         let update_field_instruction = UpdateField {
-            metadata: &metadata_account_info,
+            metadata: metadata_account_info,
             update_authority: mint_authority,
             field: Field::Name,
             value: &args.metadata.name,
@@ -423,7 +418,7 @@ impl VerificationModule {
 
         // Update symbol
         let update_symbol_instruction = UpdateField {
-            metadata: &metadata_account_info,
+            metadata: metadata_account_info,
             update_authority: mint_authority,
             field: Field::Symbol,
             value: &args.metadata.symbol,
@@ -433,7 +428,7 @@ impl VerificationModule {
 
         // Update URI
         let update_uri_instruction = UpdateField {
-            metadata: &metadata_account_info,
+            metadata: metadata_account_info,
             update_authority: mint_authority,
             field: Field::Uri,
             value: &args.metadata.uri,
@@ -443,12 +438,8 @@ impl VerificationModule {
 
         // Handle additional metadata fields atomically
         let existing_additional_fields = {
-            // Create a temporary AccountInfo wrapper for the metadata account to use from_account_info
-            let metadata_account_clone = metadata_account_info.clone();
-
             // Try to parse existing metadata using pinocchio's from_account_info
-            if let Ok(existing_metadata) = TokenMetadata::from_account_info(metadata_account_clone)
-            {
+            if let Ok(existing_metadata) = TokenMetadata::from_account_info(metadata_account_info) {
                 let mut fields_buffer: [[u8; 64]; 16] = [[0u8; 64]; 16]; // Static buffer for field names
                 let mut field_lengths: [usize; 16] = [0; 16];
                 let mut field_count = 0;
@@ -505,12 +496,12 @@ impl VerificationModule {
                     }
 
                     if !found_in_new {
-                        let remove_field_instruction = CustomRemoveKey::new(
-                            &metadata_account_info,
-                            mint_authority,
-                            existing_key,
-                            true, // idempotent - don't error if key doesn't exist
-                        );
+                        let remove_field_instruction = RemoveKey {
+                            metadata: metadata_account_info,
+                            update_authority: mint_authority,
+                            key: existing_key,
+                            idempotent: true, // don't error if key doesn't exist
+                        };
 
                         remove_field_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
                         // Ignore errors since we're using idempotent flag
@@ -527,7 +518,7 @@ impl VerificationModule {
             args.metadata.additional_metadata.as_slice(),
             |key, value| {
                 let update_field_instruction = UpdateField {
-                    metadata: &metadata_account_info,
+                    metadata: metadata_account_info,
                     update_authority: mint_authority,
                     field: Field::Key(key),
                     value,
@@ -1008,25 +999,25 @@ impl VerificationModule {
         ];
         let signer = Signer::from(&seeds);
         if is_initialization {
-            let instruction = CustomInitializeExtraAccountMetaList::new(
-                &TRANSFER_HOOK_PROGRAM_ID,
-                account_metas_pda_info,
-                mint_info,
-                transfer_hook_pda_info,
-                system_program_info,
-                &account_metas,
-            );
+            let instruction = InitializeExtraAccountMetaList {
+                program_id: &TRANSFER_HOOK_PROGRAM_ID,
+                extra_account_metas_pda: account_metas_pda_info,
+                mint: mint_info,
+                authority: transfer_hook_pda_info,
+                system_program: system_program_info,
+                metas: &account_metas,
+            };
             instruction.invoke_signed(&[signer])?;
         } else {
-            let instruction = CustomUpdateExtraAccountMetaList::new(
-                &TRANSFER_HOOK_PROGRAM_ID,
-                account_metas_pda_info,
-                mint_info,
-                transfer_hook_pda_info,
-                system_program_info,
-                Some(payer),
-                &account_metas,
-            );
+            let instruction = UpdateExtraAccountMetaList {
+                program_id: &TRANSFER_HOOK_PROGRAM_ID,
+                extra_account_metas_pda: account_metas_pda_info,
+                mint: mint_info,
+                authority: transfer_hook_pda_info,
+                system_program: system_program_info,
+                recipient: Some(payer),
+                metas: &account_metas,
+            };
             instruction.invoke_signed(&[signer])?;
         }
         Ok(())
@@ -1157,7 +1148,7 @@ impl VerificationModule {
                 lamports: additional_rent,
             };
             transfer.invoke()?;
-            config_account.realloc(new_size, false)?;
+            config_account.resize(new_size)?;
         }
 
         let config_bytes = existing_config.to_bytes();
@@ -1285,10 +1276,10 @@ impl VerificationModule {
                 .lamports()
                 .checked_add(recovered_rent)
                 .ok_or(ProgramError::InsufficientFunds)?;
-            config_account.realloc(0, false)?;
+            config_account.resize(0)?;
         } else {
             let new_account_size = existing_config.serialized_size();
-            config_account.realloc(new_account_size, false)?;
+            config_account.resize(new_account_size)?;
 
             let config_bytes = existing_config.to_bytes();
             {
