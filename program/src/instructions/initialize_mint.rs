@@ -14,12 +14,13 @@ pub struct TokenMetadataArgs {
     pub additional_metadata: Vec<u8>,
 }
 
-// Note: We maintain separate serialization formats for different contexts:
-// - TokenMetadataArgs uses Borsh format for instruction data (client → program)
-// - TokenMetadata in token22_extensions uses Token-2022 extension format for account data (on-chain storage). Uses lifetime arguments
-// We also will remove the TokenMetadata implementation when pinocchio_token_2022 extensions will be implemented officially
-// These formats may look similar but serve different purposes and cannot be directly reused
 impl TokenMetadataArgs {
+    // Note: We maintain separate serialization formats for different contexts:
+    // - TokenMetadataArgs uses Borsh format for instruction data (client → program)
+    // - TokenMetadata in token22_extensions uses Token-2022 extension format for account data (on-chain storage). Uses lifetime arguments
+    // We also will remove the TokenMetadata implementation when pinocchio_token_2022 extensions are officially implemented
+    // These formats may look similar but serve different purposes and cannot be directly reused
+
     /// Minimum size (Borsh format): update_authority (32) + mint (32) + name_len (4) + symbol_len (4) + uri_len (4) + additional_metadata_len (4)
     pub const MIN_LEN: usize = 32 + 32 + 4 + 4 + 4 + 4; // 80 bytes
 

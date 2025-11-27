@@ -129,7 +129,7 @@ impl VerificationConfig {
     pub fn validate(&self) -> Result<(), ProgramError> {
         // Validate that all programs are non-zero (valid pubkeys)
         for program in self.verification_programs.iter() {
-            // The Pubkey::default() is actually represents a zeroed pubkey
+            // The Pubkey::default() actually represents a zeroed pubkey
             if *program == Pubkey::default() {
                 return Err(ProgramError::InvalidAccountData);
             }
