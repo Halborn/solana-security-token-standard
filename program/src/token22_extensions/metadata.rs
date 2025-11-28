@@ -8,7 +8,7 @@ use pinocchio::{
     instruction::{AccountMeta, Instruction, Signer},
     program::invoke_signed,
     program_error::ProgramError,
-    pubkey::Pubkey,
+    pubkey::{Pubkey, PUBKEY_BYTES},
     ProgramResult,
 };
 
@@ -81,13 +81,13 @@ impl TokenMetadata<'_> {
 
         let mut offset: usize = 0;
 
-        let update_authority = unsafe { &*(data.as_ptr() as *const [u8; 32]) };
+        let update_authority = unsafe { &*(data.as_ptr() as *const [u8; PUBKEY_BYTES]) };
 
-        offset += 32;
+        offset += PUBKEY_BYTES;
 
-        let mint = unsafe { &*(data.as_ptr().add(offset) as *const [u8; 32]) };
+        let mint = unsafe { &*(data.as_ptr().add(offset) as *const [u8; PUBKEY_BYTES]) };
 
-        offset += 32;
+        offset += PUBKEY_BYTES;
 
         let name_len =
             &u32::from_le_bytes(unsafe { *(data.as_ptr().add(offset) as *const [u8; 4]) });

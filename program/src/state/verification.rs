@@ -85,11 +85,11 @@ impl AccountDeserialize for VerificationConfig {
         // Read program addresses (32 bytes each)
         let mut verification_programs = Vec::with_capacity(program_count);
         for _ in 0..program_count {
-            let program_bytes: [u8; 32] = data[offset..offset + 32]
+            let program_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidAccountData)?;
             verification_programs.push(Pubkey::from(program_bytes));
-            offset += 32;
+            offset += PUBKEY_BYTES;
         }
 
         let config = Self {

@@ -1,6 +1,6 @@
 //! Verification configuration instruction arguments and utilities
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 use shank::ShankType;
 
 use crate::constants::MAX_VERIFICATION_PROGRAMS;
@@ -97,18 +97,18 @@ impl InitializeVerificationConfigArgs {
         offset += 4;
 
         // Validate we have enough data for all programs
-        if data.len() < offset + (program_count * 32) {
+        if data.len() < offset + (program_count * PUBKEY_BYTES) {
             return Err(ProgramError::InvalidInstructionData);
         }
 
         // Read program addresses (32 bytes each)
         let mut program_addresses = Vec::with_capacity(program_count);
         for _ in 0..program_count {
-            let program_bytes: [u8; 32] = data[offset..offset + 32]
+            let program_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             program_addresses.push(Pubkey::from(program_bytes));
-            offset += 32;
+            offset += PUBKEY_BYTES;
         }
 
         Ok(Self {
@@ -212,18 +212,18 @@ impl UpdateVerificationConfigArgs {
         offset_pos += 4;
 
         // Validate we have enough data for all programs
-        if data.len() < offset_pos + (program_count * 32) {
+        if data.len() < offset_pos + (program_count * PUBKEY_BYTES) {
             return Err(ProgramError::InvalidInstructionData);
         }
 
         // Read program addresses (32 bytes each)
         let mut program_addresses = Vec::with_capacity(program_count);
         for _ in 0..program_count {
-            let program_bytes: [u8; 32] = data[offset_pos..offset_pos + 32]
+            let program_bytes: [u8; PUBKEY_BYTES] = data[offset_pos..offset_pos + PUBKEY_BYTES]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             program_addresses.push(Pubkey::from(program_bytes));
-            offset_pos += 32;
+            offset_pos += PUBKEY_BYTES;
         }
 
         Ok(Self {

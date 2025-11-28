@@ -1,5 +1,5 @@
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 use shank::ShankType;
 
 #[repr(C)]
@@ -22,7 +22,7 @@ impl TokenMetadataArgs {
     // These formats may look similar but serve different purposes and cannot be directly reused
 
     /// Minimum size (Borsh format): update_authority (32) + mint (32) + name_len (4) + symbol_len (4) + uri_len (4) + additional_metadata_len (4) = 80 bytes
-    pub const MIN_LEN: usize = 32 + 32 + 4 + 4 + 4 + 4;
+    pub const MIN_LEN: usize = PUBKEY_BYTES + PUBKEY_BYTES + 4 + 4 + 4 + 4;
 
     /// Deserialize TokenMetadataArgs from bytes (Borsh format) and return consumed byte count
     pub fn try_from_bytes(data: &[u8]) -> Result<(Self, usize), ProgramError> {
@@ -34,17 +34,17 @@ impl TokenMetadataArgs {
 
         // Read update_authority (32 bytes)
         let update_authority = Pubkey::from(
-            <[u8; 32]>::try_from(&data[offset..offset + 32])
+            <[u8; PUBKEY_BYTES]>::try_from(&data[offset..offset + PUBKEY_BYTES])
                 .map_err(|_| ProgramError::InvalidInstructionData)?,
         );
-        offset += 32;
+        offset += PUBKEY_BYTES;
 
         // Read mint (32 bytes)
         let mint = Pubkey::from(
-            <[u8; 32]>::try_from(&data[offset..offset + 32])
+            <[u8; PUBKEY_BYTES]>::try_from(&data[offset..offset + PUBKEY_BYTES])
                 .map_err(|_| ProgramError::InvalidInstructionData)?,
         );
-        offset += 32;
+        offset += PUBKEY_BYTES;
 
         // Read name (Borsh format: length prefix + bytes)
         let name_len = u32::from_le_bytes(
@@ -158,7 +158,7 @@ pub struct ScaledUiAmountConfigArgs {
 
 impl ScaledUiAmountConfigArgs {
     /// Fixed size: authority (32) + multiplier (8) + timestamp (8) + new_multiplier (8) = 56 bytes
-    pub const LEN: usize = 32 + 8 + 8 + 8;
+    pub const LEN: usize = PUBKEY_BYTES + 8 + 8 + 8;
 
     /// Deserialize ScaledUiAmountConfigArgs from bytes
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
@@ -167,11 +167,12 @@ impl ScaledUiAmountConfigArgs {
         }
 
         let authority = Pubkey::from(
-            <[u8; 32]>::try_from(&data[..32]).map_err(|_| ProgramError::InvalidInstructionData)?,
+            <[u8; PUBKEY_BYTES]>::try_from(&data[..PUBKEY_BYTES])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
         );
 
-        let multiplier =
-            <[u8; 8]>::try_from(&data[32..40]).map_err(|_| ProgramError::InvalidInstructionData)?;
+        let multiplier = <[u8; 8]>::try_from(&data[PUBKEY_BYTES..PUBKEY_BYTES + 8])
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
 
         let new_multiplier_effective_timestamp = i64::from_le_bytes(
             <[u8; 8]>::try_from(&data[40..48]).map_err(|_| ProgramError::InvalidInstructionData)?,
@@ -208,7 +209,7 @@ pub struct MetadataPointerArgs {
 
 impl MetadataPointerArgs {
     /// Fixed size: authority (32) + metadata_address (32) = 64 bytes
-    pub const LEN: usize = 32 + 32;
+    pub const LEN: usize = PUBKEY_BYTES + PUBKEY_BYTES;
 
     /// Deserialize MetadataPointerArgs from bytes
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
@@ -217,11 +218,12 @@ impl MetadataPointerArgs {
         }
 
         let authority = Pubkey::from(
-            <[u8; 32]>::try_from(&data[..32]).map_err(|_| ProgramError::InvalidInstructionData)?,
+            <[u8; PUBKEY_BYTES]>::try_from(&data[..PUBKEY_BYTES])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
         );
 
         let metadata_address = Pubkey::from(
-            <[u8; 32]>::try_from(&data[32..64])
+            <[u8; PUBKEY_BYTES]>::try_from(&data[PUBKEY_BYTES..PUBKEY_BYTES * 2])
                 .map_err(|_| ProgramError::InvalidInstructionData)?,
         );
 
@@ -266,7 +268,7 @@ pub struct InitializeMintArgs {
 
 impl MintArgs {
     /// Fixed size: decimals (1 byte) + mint_authority (32 bytes) + freeze_authority (32 bytes) = 65 bytes
-    pub const LEN: usize = 1 + 32 + 32;
+    pub const LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES;
 
     /// Pack the mint arguments into bytes using the same format as SPL Token 2022
     pub fn to_bytes_inner(&self) -> Vec<u8> {
