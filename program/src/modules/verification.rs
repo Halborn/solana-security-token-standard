@@ -72,13 +72,13 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_token22_program(token_program_info)?;
+        verify_system_program(system_program_info)?;
+        verify_rent_sysvar(rent_info)?;
         verify_signer(creator_info)?;
         verify_signer(mint_info)?;
         verify_writable(creator_info)?;
         verify_writable(mint_info)?;
-        verify_token22_program(token_program_info)?;
-        verify_system_program(system_program_info)?;
-        verify_rent_sysvar(rent_info)?;
 
         let (freeze_authority_pda, _bump) =
             utils::find_freeze_authority_pda(mint_info.key(), program_id);
@@ -848,11 +848,12 @@ impl VerificationModule {
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+
+        verify_system_program(system_program_info)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
-        verify_system_program(system_program_info)?;
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
@@ -1077,37 +1078,28 @@ impl VerificationModule {
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_system_program(system_program_info)?;
+        verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_owner(config_account, program_id)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
-        verify_owner(mint_account, &pinocchio_token_2022::ID)?;
-        verify_system_program(system_program_info)?;
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
-
-        let config = VerificationConfig::from_account_info(config_account)?;
-
-        let expected_config_pda = config.derive_pda(mint_account.key())?;
-
-        // Verify that the provided config account matches the expected PDA
-        if *config_account.key() != expected_config_pda {
-            return Err(ProgramError::InvalidAccountData);
-        }
 
         // Check if account exists
         if config_account.data_len() == 0 {
             return Err(ProgramError::UninitializedAccount);
         }
 
-        // Load existing config
-        let mut existing_config = {
-            let data = config_account.try_borrow_data()?;
-            VerificationConfig::try_from_bytes(&data)
-                .map_err(|_| ProgramError::InvalidAccountData)?
-        };
+        let mut existing_config = VerificationConfig::from_account_info(config_account)?;
+        let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
+
+        // Verify that the provided config account matches the expected PDA
+        if *config_account.key() != expected_config_pda {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
@@ -1185,35 +1177,27 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_system_program(system_program_info)?;
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
-        verify_system_program(system_program_info)?;
         verify_writable(recipient)?;
+        verify_operation_mint_info(verified_mint_info, &mint_account)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
-
-        let config = VerificationConfig::from_account_info(config_account)?;
-
-        let expected_config_pda = config.derive_pda(mint_account.key())?;
-
-        // Verify that the provided config account matches the expected PDA
-        if *config_account.key() != expected_config_pda {
-            return Err(ProgramError::InvalidAccountData);
-        }
 
         // Check if account exists
         if config_account.data_len() == 0 {
             return Err(ProgramError::UninitializedAccount);
         }
 
-        // Load existing config
-        let mut existing_config = {
-            let data = config_account.try_borrow_data()?;
-            VerificationConfig::try_from_bytes(&data)
-                .map_err(|_| ProgramError::InvalidAccountData)?
-        };
+        let mut existing_config = VerificationConfig::from_account_info(config_account)?;
+        let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
+
+        // Verify that the provided config account matches the expected PDA
+        if *config_account.key() != expected_config_pda {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
