@@ -557,25 +557,52 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Verify Mints
-        // Expect target mint was verified before minting new tokens at conversion rate
+        verify_token22_program(token_program)?;
+        verify_system_program(system_program)?;
+        verify_signer(payer)?;
+        verify_writable(token_account_from)?;
+        verify_writable(token_account_to)?;
+        verify_writable(receipt_account)?;
+        verify_writable(payer)?;
+
         verify_operation_mint_info(verified_mint_info, &mint_to_account)?;
+
+        verify_owner(rate_account, program_id)?;
+        verify_owner(mint_authority, program_id)?;
+
+        verify_account_not_initialized(receipt_account)?;
+
+        // Get keys without deserialization for PDA checks
         let verified_mint_key = verified_mint_info.key();
+        let mint_from_key = mint_from_account.key();
+        let mint_to_key = mint_to_account.key();
+
+        // PDA verifications before expensive deserializations
+        let (permanent_delegate_pda, permanent_delegate_bump) =
+            find_permanent_delegate_pda(mint_from_key, program_id);
+        verify_pda(permanent_delegate.key(), &permanent_delegate_pda)?;
+
+        let (expected_receipt_pda, receipt_bump) =
+            find_receipt_pda(verified_mint_key, action_id, program_id);
+        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+
+        // Verify Rate account with optimized derive_pda
+        let rate = Rate::from_account_info(rate_account)?;
+        let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
+        verify_pda(rate_account.key(), &expected_rate_pda)?;
+
         let mint_from = Mint::from_account_info(mint_from_account)?;
         let mint_from_decimals = mint_from.decimals();
-        let mint_from_key = mint_from_account.key();
         drop(mint_from);
 
         let mint_to = Mint::from_account_info(mint_to_account)?;
         let mint_to_decimals = mint_to.decimals();
-        let mint_to_key = mint_to_account.key();
         drop(mint_to);
 
-        // Verify Token accounts and Token2022 program
-        verify_token22_program(token_program)?;
+        // Deserialize TokenAccount accounts
         let token_from = TokenAccount::from_account_info(token_account_from)?;
         let current_amount = token_from.amount();
-        verify_writable(token_account_from)?;
+
         // Split should be used for the same mints instead
         if token_from.mint().ne(mint_from_key) {
             return Err(ProgramError::InvalidInstructionData);
@@ -586,45 +613,16 @@ impl OperationsModule {
         drop(token_from);
 
         let token_to = TokenAccount::from_account_info(token_account_to)?;
-        verify_writable(token_account_to)?;
         if token_to.mint().ne(mint_to_key) {
             return Err(ProgramError::InvalidInstructionData);
         }
         drop(token_to);
 
-        // Verify Mint Authority
-        verify_owner(mint_authority, program_id)?;
         // Mint authority should be for mint_to as we are minting new tokens at conversion rate
         let mint_authority_state = MintAuthority::from_account_info(mint_authority)?;
         if mint_to_key.ne(&mint_authority_state.mint) {
             return Err(ProgramError::InvalidInstructionData);
         }
-
-        // Verify Permanent Delegate Authority
-        // Permanent delegate should be for mint_from as we are burning tokens
-        let (permanent_delegate_pda, permanent_delegate_bump) =
-            find_permanent_delegate_pda(mint_from_key, program_id);
-        verify_pda(permanent_delegate.key(), &permanent_delegate_pda)?;
-
-        // Verify Rate account
-        let rate = Rate::from_account_info(rate_account)?;
-        verify_owner(rate_account, program_id)?;
-        let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
-        verify_pda(rate_account.key(), &expected_rate_pda)?;
-
-        // Verify Receipt account
-        verify_writable(receipt_account)?;
-        verify_account_not_initialized(receipt_account)?;
-        let (expected_receipt_pda, receipt_bump) =
-            find_receipt_pda(verified_mint_key, action_id, program_id);
-        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
-
-        // Verify System program
-        verify_system_program(system_program)?;
-
-        // Verify payer
-        verify_signer(payer)?;
-        verify_writable(payer)?;
 
         let amount_to_mint =
             rate.convert_from_to_amount(amount_to_convert, mint_from_decimals, mint_to_decimals)?;
