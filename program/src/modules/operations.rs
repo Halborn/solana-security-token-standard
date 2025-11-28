@@ -39,9 +39,9 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
         verify_owner(mint_authority, program_id)?;
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
 
         let mint_account = Mint::from_account_info(mint_info)?;
         let decimals = mint_account.decimals();
@@ -74,8 +74,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
 
         let (permanent_delegate_pda, bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
@@ -109,9 +109,8 @@ impl OperationsModule {
         let [pause_authority, mint_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
@@ -145,8 +144,9 @@ impl OperationsModule {
         let [pause_authority, mint_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+
         verify_token22_program(token_program)?;
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
@@ -181,8 +181,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
@@ -217,8 +217,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
+        verify_operation_mint_info(verified_mint_info, &mint_info)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
