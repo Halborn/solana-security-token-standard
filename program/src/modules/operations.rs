@@ -414,20 +414,17 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // For Split operation mint_from == mint_to
-        // If Rate was created for Convert operation, then mint_to should be verified
-        verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
         verify_writable(destination_account)?;
         verify_writable(rate_account_info)?;
         verify_account_initialized(rate_account_info)?;
         verify_owner(rate_account_info, program_id)?;
 
-        Mint::from_account_info(mint_from_account)?;
-        Mint::from_account_info(mint_to_info_account)?;
+        verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
+
         let mint_from_key = mint_from_account.key();
         let mint_to_key = mint_to_info_account.key();
 
-        // Deserialize to ensure it's valid Rate account before closing
+        // Deserialize to ensure it's valid Rate account and verify PDA before closing
         let rate = Rate::from_account_info(rate_account_info)?;
         let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
         verify_pda(rate_account_info.key(), &expected_rate_pda)?;
