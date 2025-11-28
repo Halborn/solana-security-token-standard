@@ -166,20 +166,30 @@ impl ScaledUiAmountConfigArgs {
             return Err(ProgramError::InvalidInstructionData);
         }
 
+        let mut offset = 0;
+
+        // Read authority (32 bytes)
         let authority = Pubkey::from(
-            <[u8; PUBKEY_BYTES]>::try_from(&data[..PUBKEY_BYTES])
+            <[u8; PUBKEY_BYTES]>::try_from(&data[offset..offset + PUBKEY_BYTES])
                 .map_err(|_| ProgramError::InvalidInstructionData)?,
         );
+        offset += PUBKEY_BYTES;
 
-        let multiplier = <[u8; 8]>::try_from(&data[PUBKEY_BYTES..PUBKEY_BYTES + 8])
+        // Read multiplier (8 bytes)
+        let multiplier = <[u8; 8]>::try_from(&data[offset..offset + 8])
             .map_err(|_| ProgramError::InvalidInstructionData)?;
+        offset += 8;
 
+        // Read new_multiplier_effective_timestamp (8 bytes)
         let new_multiplier_effective_timestamp = i64::from_le_bytes(
-            <[u8; 8]>::try_from(&data[40..48]).map_err(|_| ProgramError::InvalidInstructionData)?,
+            <[u8; 8]>::try_from(&data[offset..offset + 8])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
         );
+        offset += 8;
 
-        let new_multiplier =
-            <[u8; 8]>::try_from(&data[48..56]).map_err(|_| ProgramError::InvalidInstructionData)?;
+        // Read new_multiplier (8 bytes)
+        let new_multiplier = <[u8; 8]>::try_from(&data[offset..offset + 8])
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
 
         Ok(Self {
             authority,
@@ -292,12 +302,20 @@ impl MintArgs {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let decimals = data[0];
-        let mint_authority: Pubkey = data[1..33]
+        let mut offset = 0;
+
+        // Read decimals (1 byte)
+        let decimals = data[offset];
+        offset += 1;
+
+        // Read mint_authority (32 bytes)
+        let mint_authority: Pubkey = data[offset..offset + PUBKEY_BYTES]
             .try_into()
             .map_err(|_| ProgramError::InvalidInstructionData)?;
+        offset += PUBKEY_BYTES;
 
-        let freeze_authority = data[33..65]
+        // Read freeze_authority (32 bytes)
+        let freeze_authority: Pubkey = data[offset..offset + PUBKEY_BYTES]
             .try_into()
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
