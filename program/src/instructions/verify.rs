@@ -25,25 +25,32 @@ impl VerifyArgs {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let discriminant = data[0];
+        let mut offset = 0;
+
+        // Read discriminant (1 byte)
+        let discriminant = data[offset];
         SecurityTokenInstruction::from_discriminant(discriminant)
             .ok_or(ProgramError::InvalidInstructionData)?;
+        offset += 1;
 
+        // Read vec_len (4 bytes)
         let vec_len = u32::from_le_bytes(
-            data[1..5]
+            data[offset..offset + 4]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?,
         ) as usize;
+        offset += 4;
 
         if vec_len > MAX_INSTRUCTION_DATA_LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        if data.len() < 5 + vec_len {
+        if data.len() < offset + vec_len {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let instruction_data = data[5..5 + vec_len].to_vec();
+        // Read instruction_data (vec_len bytes)
+        let instruction_data = data[offset..offset + vec_len].to_vec();
 
         Ok(VerifyArgs {
             ix: discriminant,

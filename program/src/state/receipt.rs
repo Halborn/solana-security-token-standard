@@ -48,14 +48,21 @@ impl AccountDeserialize for Receipt {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let mint_bytes: [u8; PUBKEY_BYTES] = data[..PUBKEY_BYTES]
+        let mut offset = 0;
+
+        // Read mint (32 bytes)
+        let mint_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
             .try_into()
             .map_err(|_| ProgramError::InvalidAccountData)?;
         let mint = Pubkey::from(mint_bytes);
+        offset += PUBKEY_BYTES;
 
-        let offset = PUBKEY_BYTES + ACTION_ID_LEN;
-        let action_id = parse_action_id_bytes(&data[PUBKEY_BYTES..offset])
+        // Read action_id (8 bytes)
+        let action_id = parse_action_id_bytes(&data[offset..offset + ACTION_ID_LEN])
             .ok_or(ProgramError::InvalidAccountData)?;
+        offset += ACTION_ID_LEN;
+
+        // Read bump (1 byte)
         let bump = data[offset];
 
         Ok(Self {
