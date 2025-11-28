@@ -416,7 +416,7 @@ impl OperationsModule {
         let mint_from_key = mint_from_account.key();
         let mint_to_key = mint_to_info_account.key();
 
-        // Deserialize to ensure it's valid Rate account and verify PDA before closing
+        // Deserialize to ensure it's valid Rate account, verify PDA, then close
         let rate = Rate::from_account_info(rate_account_info)?;
         let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
         verify_pda(rate_account_info.key(), &expected_rate_pda)?;
