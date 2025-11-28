@@ -331,23 +331,19 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_system_program(system_program_info)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
-        verify_system_program(system_program_info)?;
         verify_writable(rate_account)?;
         verify_account_not_initialized(rate_account)?;
-
-        let mint_from = Mint::from_account_info(mint_from_account)?;
-        let mint_to = Mint::from_account_info(mint_to_account)?;
-        let mint_from_key = mint_from_account.key();
-        let mint_to_key = mint_to_account.key();
-        drop(mint_from);
-        drop(mint_to);
 
         // Ensure Rate account is being created for target mint_to account
         // For Split operation mint_from == mint_to
         // For Convert operation mint_to is verified so we ensure correct minting of new tokens
         verify_operation_mint_info(verified_mint_info, &mint_to_account)?;
+
+        let mint_from_key = mint_from_account.key();
+        let mint_to_key = mint_to_account.key();
 
         let (expected_rate_pda, bump) =
             find_rate_pda(action_id, mint_from_key, mint_to_key, program_id);
