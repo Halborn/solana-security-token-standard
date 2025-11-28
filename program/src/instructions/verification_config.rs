@@ -287,9 +287,18 @@ impl TrimVerificationConfigArgs {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let instruction_discriminator = data[0];
-        let size = data[1];
-        let close = data[2] != 0; // Non-zero is true
+        let mut offset = 0;
+
+        // Read instruction_discriminator (1 byte)
+        let instruction_discriminator = data[offset];
+        offset += 1;
+
+        // Read size (1 byte)
+        let size = data[offset];
+        offset += 1;
+
+        // Read close (1 byte)
+        let close = data[offset] != 0; // Non-zero is true
 
         Ok(Self {
             instruction_discriminator,
