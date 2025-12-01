@@ -1,6 +1,6 @@
 //! Verification configuration instruction arguments and utilities
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 use shank::ShankType;
 
 use crate::constants::MAX_VERIFICATION_PROGRAMS;
@@ -32,6 +32,9 @@ pub struct UpdateVerificationConfigArgs {
 }
 
 impl InitializeVerificationConfigArgs {
+    /// Minimum size: instruction_discriminator (1) + cpi_mode (1) + vector length (4) = 6 bytes
+    pub const MIN_LEN: usize = 6;
+
     /// Create new InitializeVerificationConfigArgs
     pub fn new(
         instruction_discriminator: u8,
@@ -71,8 +74,7 @@ impl InitializeVerificationConfigArgs {
 
     /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 5 {
-            // Minimum: 1 byte discriminator + 4 bytes count
+        if data.len() < Self::MIN_LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -95,18 +97,18 @@ impl InitializeVerificationConfigArgs {
         offset += 4;
 
         // Validate we have enough data for all programs
-        if data.len() < offset + (program_count * 32) {
+        if data.len() < offset + (program_count * PUBKEY_BYTES) {
             return Err(ProgramError::InvalidInstructionData);
         }
 
         // Read program addresses (32 bytes each)
         let mut program_addresses = Vec::with_capacity(program_count);
         for _ in 0..program_count {
-            let program_bytes: [u8; 32] = data[offset..offset + 32]
+            let program_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             program_addresses.push(Pubkey::from(program_bytes));
-            offset += 32;
+            offset += PUBKEY_BYTES;
         }
 
         Ok(Self {
@@ -133,6 +135,9 @@ impl InitializeVerificationConfigArgs {
 }
 
 impl UpdateVerificationConfigArgs {
+    /// Minimum size: instruction_discriminator (1) + cpi_mode (1) + offset (1) + vector length (4) = 7 bytes
+    pub const MIN_LEN: usize = 7;
+
     /// Create new UpdateVerificationConfigArgs
     pub fn new(
         instruction_discriminator: u8,
@@ -180,8 +185,7 @@ impl UpdateVerificationConfigArgs {
 
     /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 7 {
-            // Minimum: 1 byte discriminator + 1 byte cpi_mode + 1 byte offset + 4 bytes count
+        if data.len() < Self::MIN_LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -208,18 +212,18 @@ impl UpdateVerificationConfigArgs {
         offset_pos += 4;
 
         // Validate we have enough data for all programs
-        if data.len() < offset_pos + (program_count * 32) {
+        if data.len() < offset_pos + (program_count * PUBKEY_BYTES) {
             return Err(ProgramError::InvalidInstructionData);
         }
 
         // Read program addresses (32 bytes each)
         let mut program_addresses = Vec::with_capacity(program_count);
         for _ in 0..program_count {
-            let program_bytes: [u8; 32] = data[offset_pos..offset_pos + 32]
+            let program_bytes: [u8; PUBKEY_BYTES] = data[offset_pos..offset_pos + PUBKEY_BYTES]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             program_addresses.push(Pubkey::from(program_bytes));
-            offset_pos += 32;
+            offset_pos += PUBKEY_BYTES;
         }
 
         Ok(Self {
@@ -254,6 +258,9 @@ pub struct TrimVerificationConfigArgs {
 }
 
 impl TrimVerificationConfigArgs {
+    /// Fixed size: instruction_discriminator (1) + size (1) + close (1) = 3 bytes
+    pub const LEN: usize = 3;
+
     /// Creates a new `TrimVerificationConfigArgs` instance.
     ///
     /// # Arguments
@@ -276,14 +283,22 @@ impl TrimVerificationConfigArgs {
 
     /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 3 {
-            // Minimum: 1 byte discriminator + 1 byte size + 1 byte close
+        if data.len() < Self::LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let instruction_discriminator = data[0];
-        let size = data[1];
-        let close = data[2] != 0; // Non-zero is true
+        let mut offset = 0;
+
+        // Read instruction_discriminator (1 byte)
+        let instruction_discriminator = data[offset];
+        offset += 1;
+
+        // Read size (1 byte)
+        let size = data[offset];
+        offset += 1;
+
+        // Read close (1 byte)
+        let close = data[offset] != 0; // Non-zero is true
 
         Ok(Self {
             instruction_discriminator,

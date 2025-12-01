@@ -43,17 +43,22 @@ impl AccountDeserialize for MintAuthority {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let mint_bytes: [u8; PUBKEY_BYTES] = data[..PUBKEY_BYTES]
+        let mut offset = 0;
+
+        // Read mint (32 bytes)
+        let mint_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
             .try_into()
             .map_err(|_| ProgramError::InvalidAccountData)?;
+        offset += PUBKEY_BYTES;
 
-        let creator_offset = PUBKEY_BYTES;
-        let mint_creator_bytes: [u8; PUBKEY_BYTES] = data
-            [creator_offset..creator_offset + PUBKEY_BYTES]
+        // Read mint_creator (32 bytes)
+        let mint_creator_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
             .try_into()
             .map_err(|_| ProgramError::InvalidAccountData)?;
+        offset += PUBKEY_BYTES;
 
-        let bump = data[creator_offset + PUBKEY_BYTES];
+        // Read bump (1 byte)
+        let bump = data[offset];
 
         let config = Self {
             mint: Pubkey::from(mint_bytes),

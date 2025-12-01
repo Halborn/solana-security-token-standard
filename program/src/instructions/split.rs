@@ -14,7 +14,7 @@ pub struct SplitArgs {
 }
 
 impl SplitArgs {
-    /// action_id
+    /// Fixed size: action_id (8 bytes)
     pub const LEN: usize = ACTION_ID_LEN;
 
     /// Deserialize arguments from bytes

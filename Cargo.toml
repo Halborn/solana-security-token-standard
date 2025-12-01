@@ -11,11 +11,11 @@ license = "Apache-2.0"
 edition = "2021"
 
 [workspace.dependencies]
-pinocchio = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
-pinocchio-token = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
-pinocchio-pubkey = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
-pinocchio-system = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
-pinocchio-token-2022 = { git = "https://github.com/Nagaprasadvr/pinocchio.git", rev = "4fb37bb" }
+pinocchio = "0.9.2"
+pinocchio-token = "0.4.0"
+pinocchio-pubkey = "0.3.0"
+pinocchio-system = "0.4.0"
+pinocchio-token-2022 = "0.1.0"
 pinocchio-log = "0.5.0"
 borsh = "0.10.4"
 bs58 = "0.4"
@@ -26,8 +26,6 @@ security-token-client = { path = "clients/rust" }
 
 # Error handling
 thiserror = "2.0.3"
-num-derive = "0.4.2"
-num-traits = "0.2.19"
 
 # Leave for CI
 getrandom = { version = "0.3", features = ["dummy"] }

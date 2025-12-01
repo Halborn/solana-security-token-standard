@@ -24,6 +24,9 @@ pub mod modules;
 pub mod processor;
 /// State structures
 pub mod state;
+/// Implementations for SPL Token 2022 extensions
+pub mod token22_extensions;
+
 /// Utility functions for testing
 #[cfg(test)]
 pub mod test_utils;
