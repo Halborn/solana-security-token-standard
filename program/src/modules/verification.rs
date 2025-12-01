@@ -1103,10 +1103,7 @@ impl VerificationModule {
         let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
 
         // Verify that the provided config account matches the expected PDA
-        if *config_account.key() != expected_config_pda {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+        verify_pda_keys_match(config_account.key(), &expected_config_pda)?;
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
             return Err(ProgramError::InvalidAccountData);
@@ -1199,9 +1196,7 @@ impl VerificationModule {
         let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
 
         // Verify that the provided config account matches the expected PDA
-        if *config_account.key() != expected_config_pda {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        verify_pda_keys_match(config_account.key(), &expected_config_pda)?;
 
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
