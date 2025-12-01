@@ -27,9 +27,9 @@ use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
-    verify_account_initialized, verify_instructions_sysvar, verify_mint_keys_match, verify_owner,
-    verify_pda_keys_match, verify_rent_sysvar, verify_signer, verify_system_program,
-    verify_token22_program, verify_transfer_hook_program, verify_writable,
+    verify_account_initialized, verify_account_not_initialized, verify_instructions_sysvar,
+    verify_mint_keys_match, verify_owner, verify_pda_keys_match, verify_rent_sysvar, verify_signer,
+    verify_system_program, verify_token22_program, verify_transfer_hook_program, verify_writable,
 };
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
@@ -79,6 +79,7 @@ impl VerificationModule {
         verify_signer(mint_info)?;
         verify_writable(creator_info)?;
         verify_writable(mint_info)?;
+        verify_account_not_initialized(mint_authority_account)?;
 
         let (freeze_authority_pda, _bump) =
             utils::find_freeze_authority_pda(mint_info.key(), program_id);
@@ -222,10 +223,6 @@ impl VerificationModule {
 
         if mint_authority_account.key() != &mint_authority_pda {
             return Err(ProgramError::InvalidSeeds);
-        }
-
-        if !mint_authority_account.data_is_empty() || mint_authority_account.lamports() > 0 {
-            return Err(ProgramError::AccountAlreadyInitialized);
         }
 
         let mint_authority_config =
@@ -657,14 +654,10 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // The data_is_empty verification config doesn't exist
-        if verification_config.data_is_empty() {
-            return Err(ProgramError::UninitializedAccount);
-        }
-
         verify_instructions_sysvar(instructions_sysvar)?;
         verify_owner(verification_config, program_id)?;
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
+        verify_account_initialized(verification_config)?;
 
         let config_data = VerificationConfig::from_account_info(verification_config)?;
 
