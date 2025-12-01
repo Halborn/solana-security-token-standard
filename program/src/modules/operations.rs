@@ -367,6 +367,7 @@ impl OperationsModule {
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_writable(rate_account)?;
+        verify_owner(rate_account, &pinocchio_system::id())?;
         verify_account_not_initialized(rate_account)?;
 
         let mint_from_key = mint_from_account.key();
@@ -442,8 +443,8 @@ impl OperationsModule {
 
         verify_writable(destination_account)?;
         verify_writable(rate_account_info)?;
-        verify_account_initialized(rate_account_info)?;
         verify_owner(rate_account_info, program_id)?;
+        verify_account_initialized(rate_account_info)?;
 
         let mint_from_key = mint_from_account.key();
         let mint_to_key = mint_to_info_account.key();
@@ -482,6 +483,7 @@ impl OperationsModule {
         verify_writable(payer)?;
         verify_owner(mint_authority, program_id)?;
         verify_owner(rate_account, program_id)?;
+        verify_owner(receipt_account, &pinocchio_system::id())?;
         verify_account_not_initialized(receipt_account)?;
 
         let mint_split_key = mint_account.key();
@@ -592,6 +594,7 @@ impl OperationsModule {
         verify_writable(payer)?;
         verify_owner(rate_account, program_id)?;
         verify_owner(mint_authority, program_id)?;
+        verify_owner(receipt_account, &pinocchio_system::id())?;
         verify_account_not_initialized(receipt_account)?;
 
         let verified_mint_key = verified_mint_info.key();

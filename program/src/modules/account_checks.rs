@@ -170,7 +170,7 @@ pub fn verify_mint_keys_match(
 /// * `Result<(), ProgramError>` - The result of the operation
 #[inline(always)]
 pub fn verify_account_not_initialized(info: &AccountInfo) -> Result<(), ProgramError> {
-    if !info.data_is_empty() || info.lamports() > 0 || !info.is_owned_by(&pinocchio_system::id()) {
+    if !info.data_is_empty() || info.lamports() > 0 {
         debug_log!("Account {} already exists", acc_info_as_str!(info));
         return Err(ProgramError::AccountAlreadyInitialized);
     }
@@ -186,7 +186,7 @@ pub fn verify_account_not_initialized(info: &AccountInfo) -> Result<(), ProgramE
 /// * `Result<(), ProgramError>` - The result of the operation
 #[inline(always)]
 pub fn verify_account_initialized(info: &AccountInfo) -> Result<(), ProgramError> {
-    if info.data_is_empty() || info.lamports() == 0 || info.is_owned_by(&pinocchio_system::id()) {
+    if info.data_is_empty() || info.lamports() == 0 {
         debug_log!("Account {} is not initialized", acc_info_as_str!(info));
         return Err(ProgramError::UninitializedAccount);
     }
