@@ -84,9 +84,7 @@ impl VerificationModule {
         let (freeze_authority_pda, _bump) =
             utils::find_freeze_authority_pda(mint_info.key(), program_id);
 
-        if freeze_authority != freeze_authority_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda_keys_match(&freeze_authority, &freeze_authority_pda)?;
 
         let mut extensions_buf: [ExtensionType; 5] = [ExtensionType::Pausable; 5];
         let mut ext_count: usize = 0;
@@ -221,9 +219,7 @@ impl VerificationModule {
         let (mint_authority_pda, mint_authority_bump) =
             utils::find_mint_authority_pda(mint_info.key(), creator_info.key(), program_id);
 
-        if mint_authority_account.key() != &mint_authority_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda_keys_match(mint_authority_account.key(), &mint_authority_pda)?;
 
         let mint_authority_config =
             MintAuthority::new(*mint_info.key(), *creator_info.key(), mint_authority_bump)?;
@@ -630,9 +626,7 @@ impl VerificationModule {
         // Use stored bump with derive_pda for optimized PDA verification
         let expected_pda = mint_authority_state.derive_pda()?;
 
-        if mint_authority.key() != &expected_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda_keys_match(mint_authority.key(), &expected_pda)?;
 
         Ok(mint_info)
     }
@@ -870,9 +864,7 @@ impl VerificationModule {
             utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
 
         // Verify that the provided config account matches the expected PDA
-        if *config_account.key() != expected_config_pda {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        verify_pda_keys_match(config_account.key(), &expected_config_pda)?;
 
         // Check if account already exists
         if config_account.data_len() > 0 {

@@ -3,13 +3,13 @@
 //! Executes token operations after successful verification.
 //! All operations are wrappers around SPL Token 2022 instructions.
 
-use crate::constants::{seeds, TRANSFER_HOOK_PROGRAM_ID};
+use crate::constants::seeds;
 use crate::debug_log;
 use crate::instructions::TransferCheckedWithHook;
 use crate::modules::{
     burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
     verify_mint_keys_match, verify_owner, verify_pda_keys_match, verify_signer,
-    verify_system_program, verify_token22_program, verify_writable,
+    verify_system_program, verify_token22_program, verify_transfer_hook_program, verify_writable,
 };
 use crate::state::{MintAuthority, ProgramAccount, Rate, Receipt, Rounding};
 use crate::token22_extensions::pausable::{Pause, Resume};
@@ -91,9 +91,7 @@ impl OperationsModule {
 
         let (permanent_delegate_pda, bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
-        if permanent_delegate_authority.key() != &permanent_delegate_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda_keys_match(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
 
         let mint_account = Mint::from_account_info(mint_info)?;
         let decimals = mint_account.decimals();
@@ -129,9 +127,7 @@ impl OperationsModule {
         verify_token22_program(token_program)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
-        if pause_authority.key() != &pause_authority_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda_keys_match(pause_authority.key(), &pause_authority_pda)?;
 
         let pause_instruction = Pause {
             mint: mint_info,
@@ -168,9 +164,7 @@ impl OperationsModule {
         verify_token22_program(token_program)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
-        if pause_authority.key() != &pause_authority_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda_keys_match(pause_authority.key(), &pause_authority_pda)?;
 
         let resume_instruction = Resume {
             mint: mint_info,
@@ -207,9 +201,7 @@ impl OperationsModule {
         verify_token22_program(token_program)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
-        if freeze_authority.key() != &freeze_authority_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda_keys_match(freeze_authority.key(), &freeze_authority_pda)?;
         let freeze_instruction = FreezeAccount {
             account: token_account,
             mint: mint_info,
@@ -246,9 +238,7 @@ impl OperationsModule {
         verify_token22_program(token_program)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
-        if freeze_authority.key() != &freeze_authority_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda_keys_match(freeze_authority.key(), &freeze_authority_pda)?;
         let thaw_instruction = ThawAccount {
             account: token_account,
             mint: mint_info,
@@ -283,16 +273,11 @@ impl OperationsModule {
 
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
-
-        if transfer_hook_program.key() != &TRANSFER_HOOK_PROGRAM_ID {
-            return Err(ProgramError::IncorrectProgramId);
-        }
+        verify_transfer_hook_program(transfer_hook_program)?;
 
         let (permanent_delegate_pda, bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
-        if permanent_delegate_authority.key() != &permanent_delegate_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda_keys_match(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
 
         let mint_account = Mint::from_account_info(mint_info)?;
         let decimals = mint_account.decimals();
