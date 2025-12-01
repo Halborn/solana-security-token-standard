@@ -361,6 +361,9 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        // Ensure Rate account is being created for target mint_to account
+        // For Split operation mint_from == mint_to
+        // For Convert operation mint_to is verified so we ensure correct minting of new tokens
         verify_mint_keys_match(verified_mint_info, &mint_to_account)?;
 
         verify_system_program(system_program_info)?;
@@ -404,6 +407,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        // For Split operation mint_from == mint_to
+        // If Rate was created for Convert operation, then mint_to should be verified
         verify_mint_keys_match(verified_mint_info, &mint_to_info_account)?;
 
         verify_writable(rate_account_info)?;
@@ -438,6 +443,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        // For Split operation mint_from == mint_to
+        // If Rate was created for Convert operation, then mint_to should be verified
         verify_mint_keys_match(verified_mint_info, &mint_to_info_account)?;
 
         verify_writable(destination_account)?;
