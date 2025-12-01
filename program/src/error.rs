@@ -1,11 +1,10 @@
 //! Security Token program errors
 
-use num_derive::FromPrimitive;
 use pinocchio::program_error::ProgramError;
 use thiserror::Error;
 
 /// Errors that may be returned by the Security Token program
-#[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum SecurityTokenError {
     /// Verification Errors
     /// Verification program not found

@@ -27,7 +27,7 @@ use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
-    verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_pda,
+    verify_instructions_sysvar, verify_mint_keys_match, verify_owner, verify_pda_keys_match,
     verify_rent_sysvar, verify_signer, verify_system_program, verify_token22_program,
     verify_transfer_hook_program, verify_writable,
 };
@@ -336,7 +336,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
@@ -552,6 +552,10 @@ impl VerificationModule {
 
     /// Verify specific operation either through configured verification programs or mint authority
     /// Decides which method to use based on the PDA account provided in accounts[1]
+    ///
+    /// # Returns
+    /// * `verified_mint_info` - The authorized Mint account (prevents mint substitution attacks in operations)
+    /// * `cleaned_accounts` - Remaining instruction accounts after verification overhead
     pub fn verify_by_strategy<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
@@ -594,6 +598,9 @@ impl VerificationModule {
     }
 
     /// Verify that the provided signer corresponds to the original mint authority PDA.
+    ///
+    /// # Returns
+    /// * `verified_mint_info` - The authorized Mint account (prevents mint substitution attacks in operations)
     pub fn verify_by_mint_authority<'a>(
         program_id: &Pubkey,
         mint_info: &'a AccountInfo,
@@ -632,6 +639,10 @@ impl VerificationModule {
     }
 
     /// Verify specific operation against configured verification programs
+    ///
+    /// # Returns
+    /// * `verified_mint_info` - The authorized Mint account (prevents mint substitution attacks in operations)
+    /// * `cleaned_accounts` - Remaining instruction accounts after verification overhead
     pub fn verify_by_programs<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
@@ -848,7 +859,7 @@ impl VerificationModule {
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
@@ -942,9 +953,9 @@ impl VerificationModule {
 
         verify_transfer_hook_program(transfer_hook_program)?;
         let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
-        verify_pda(&transfer_hook_pda, transfer_hook_pda_info.key())?;
+        verify_pda_keys_match(&transfer_hook_pda, transfer_hook_pda_info.key())?;
         let (account_metas_pda, _bump) = find_extra_account_metas_pda(mint_info.key());
-        verify_pda(&account_metas_pda, account_metas_pda_info.key())?;
+        verify_pda_keys_match(&account_metas_pda, account_metas_pda_info.key())?;
 
         let mut account_metas: Vec<ExtraAccountMeta> = Vec::new();
         account_metas.push(ExtraAccountMeta {
@@ -1078,7 +1089,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
         verify_owner(config_account, program_id)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
@@ -1185,7 +1196,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_system_program(system_program_info)?;

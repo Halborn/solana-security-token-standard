@@ -3724,8 +3724,6 @@ version = "0.1.0"
 dependencies = [
  "bs58 0.4.0",
  "bytemuck",
- "num-derive",
- "num-traits",
  "pinocchio",
  "pinocchio-log",
  "pinocchio-pubkey",

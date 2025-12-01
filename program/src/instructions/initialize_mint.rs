@@ -1,8 +1,6 @@
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 use shank::ShankType;
-
-use crate::token22_extensions::metadata::TokenMetadata;
 
 #[repr(C)]
 #[derive(Clone, Debug, ShankType)]
@@ -16,6 +14,139 @@ pub struct TokenMetadataArgs {
     pub additional_metadata: Vec<u8>,
 }
 
+impl TokenMetadataArgs {
+    // Note: We maintain separate serialization formats for different contexts:
+    // - TokenMetadataArgs uses Borsh format for instruction data (client → program)
+    // - TokenMetadata in token22_extensions uses Token-2022 extension format for account data (on-chain storage). Uses lifetime arguments
+    // We also will remove the TokenMetadata implementation when pinocchio_token_2022 extensions are officially implemented
+    // These formats may look similar but serve different purposes and cannot be directly reused
+
+    /// Minimum size (Borsh format): update_authority (32) + mint (32) + name_len (4) + symbol_len (4) + uri_len (4) + additional_metadata_len (4) = 80 bytes
+    pub const MIN_LEN: usize = PUBKEY_BYTES + PUBKEY_BYTES + 4 + 4 + 4 + 4;
+
+    /// Deserialize TokenMetadataArgs from bytes (Borsh format) and return consumed byte count
+    pub fn try_from_bytes(data: &[u8]) -> Result<(Self, usize), ProgramError> {
+        if data.len() < Self::MIN_LEN {
+            return Err(ProgramError::AccountDataTooSmall);
+        }
+
+        let mut offset: usize = 0;
+
+        // Read update_authority (32 bytes)
+        let update_authority = Pubkey::from(
+            <[u8; PUBKEY_BYTES]>::try_from(&data[offset..offset + PUBKEY_BYTES])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        );
+        offset += PUBKEY_BYTES;
+
+        // Read mint (32 bytes)
+        let mint = Pubkey::from(
+            <[u8; PUBKEY_BYTES]>::try_from(&data[offset..offset + PUBKEY_BYTES])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        );
+        offset += PUBKEY_BYTES;
+
+        // Read name (Borsh format: length prefix + bytes)
+        let name_len = u32::from_le_bytes(
+            <[u8; 4]>::try_from(&data[offset..offset + 4])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        ) as usize;
+        offset += 4;
+        if data.len() < offset + name_len {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        let name = core::str::from_utf8(&data[offset..offset + name_len])
+            .map_err(|_| ProgramError::InvalidInstructionData)?
+            .to_string();
+        offset += name_len;
+
+        // Read symbol (Borsh format: length prefix + bytes)
+        let symbol_len = u32::from_le_bytes(
+            <[u8; 4]>::try_from(&data[offset..offset + 4])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        ) as usize;
+        offset += 4;
+        if data.len() < offset + symbol_len {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        let symbol = core::str::from_utf8(&data[offset..offset + symbol_len])
+            .map_err(|_| ProgramError::InvalidInstructionData)?
+            .to_string();
+        offset += symbol_len;
+
+        // Read uri (Borsh format: length prefix + bytes)
+        let uri_len = u32::from_le_bytes(
+            <[u8; 4]>::try_from(&data[offset..offset + 4])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        ) as usize;
+        offset += 4;
+        if data.len() < offset + uri_len {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        let uri = core::str::from_utf8(&data[offset..offset + uri_len])
+            .map_err(|_| ProgramError::InvalidInstructionData)?
+            .to_string();
+        offset += uri_len;
+
+        // Read additional_metadata (Borsh format: length prefix + bytes)
+        let additional_metadata_len = u32::from_le_bytes(
+            <[u8; 4]>::try_from(&data[offset..offset + 4])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        ) as usize;
+        offset += 4;
+        let additional_metadata = if additional_metadata_len > 0 {
+            if data.len() < offset + additional_metadata_len {
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            data[offset..offset + additional_metadata_len].to_vec()
+        } else {
+            Vec::new()
+        };
+        offset += additional_metadata_len;
+
+        Ok((
+            Self {
+                update_authority,
+                mint,
+                name,
+                symbol,
+                uri,
+                additional_metadata,
+            },
+            offset,
+        ))
+    }
+
+    /// Serialize TokenMetadata to bytes (Borsh format)
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::new();
+
+        // Write update_authority (32 bytes)
+        buf.extend_from_slice(self.update_authority.as_ref());
+
+        // Write mint (32 bytes)
+        buf.extend_from_slice(self.mint.as_ref());
+
+        // Write name (Borsh: u32 length + bytes)
+        buf.extend_from_slice(&(self.name.len() as u32).to_le_bytes());
+        buf.extend_from_slice(self.name.as_bytes());
+
+        // Write symbol (Borsh: u32 length + bytes)
+        buf.extend_from_slice(&(self.symbol.len() as u32).to_le_bytes());
+        buf.extend_from_slice(self.symbol.as_bytes());
+
+        // Write uri (Borsh: u32 length + bytes)
+        buf.extend_from_slice(&(self.uri.len() as u32).to_le_bytes());
+        buf.extend_from_slice(self.uri.as_bytes());
+
+        // Write additional_metadata (Borsh: u32 length + bytes)
+        buf.extend_from_slice(&(self.additional_metadata.len() as u32).to_le_bytes());
+        buf.extend_from_slice(&self.additional_metadata);
+
+        buf
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Debug, ShankType)]
 pub struct ScaledUiAmountConfigArgs {
@@ -25,11 +156,100 @@ pub struct ScaledUiAmountConfigArgs {
     pub new_multiplier: [u8; 8],
 }
 
+impl ScaledUiAmountConfigArgs {
+    /// Fixed size: authority (32) + multiplier (8) + timestamp (8) + new_multiplier (8) = 56 bytes
+    pub const LEN: usize = PUBKEY_BYTES + 8 + 8 + 8;
+
+    /// Deserialize ScaledUiAmountConfigArgs from bytes
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
+        if data.len() < Self::LEN {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let mut offset = 0;
+
+        // Read authority (32 bytes)
+        let authority = Pubkey::from(
+            <[u8; PUBKEY_BYTES]>::try_from(&data[offset..offset + PUBKEY_BYTES])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        );
+        offset += PUBKEY_BYTES;
+
+        // Read multiplier (8 bytes)
+        let multiplier = <[u8; 8]>::try_from(&data[offset..offset + 8])
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+        offset += 8;
+
+        // Read new_multiplier_effective_timestamp (8 bytes)
+        let new_multiplier_effective_timestamp = i64::from_le_bytes(
+            <[u8; 8]>::try_from(&data[offset..offset + 8])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        );
+        offset += 8;
+
+        // Read new_multiplier (8 bytes)
+        let new_multiplier = <[u8; 8]>::try_from(&data[offset..offset + 8])
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+
+        Ok(Self {
+            authority,
+            multiplier,
+            new_multiplier_effective_timestamp,
+            new_multiplier,
+        })
+    }
+
+    /// Serialize ScaledUiAmountConfigArgs to bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(Self::LEN);
+        buf.extend_from_slice(self.authority.as_ref());
+        buf.extend_from_slice(&self.multiplier);
+        buf.extend_from_slice(&self.new_multiplier_effective_timestamp.to_le_bytes());
+        buf.extend_from_slice(&self.new_multiplier);
+        buf
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Debug, ShankType)]
 pub struct MetadataPointerArgs {
     pub authority: Pubkey,
     pub metadata_address: Pubkey,
+}
+
+impl MetadataPointerArgs {
+    /// Fixed size: authority (32) + metadata_address (32) = 64 bytes
+    pub const LEN: usize = PUBKEY_BYTES + PUBKEY_BYTES;
+
+    /// Deserialize MetadataPointerArgs from bytes
+    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
+        if data.len() < Self::LEN {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let authority = Pubkey::from(
+            <[u8; PUBKEY_BYTES]>::try_from(&data[..PUBKEY_BYTES])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        );
+
+        let metadata_address = Pubkey::from(
+            <[u8; PUBKEY_BYTES]>::try_from(&data[PUBKEY_BYTES..PUBKEY_BYTES * 2])
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        );
+
+        Ok(Self {
+            authority,
+            metadata_address,
+        })
+    }
+
+    /// Serialize MetadataPointerArgs to bytes
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(Self::LEN);
+        buf.extend_from_slice(self.authority.as_ref());
+        buf.extend_from_slice(self.metadata_address.as_ref());
+        buf
+    }
 }
 
 #[repr(C)]
@@ -57,6 +277,9 @@ pub struct InitializeMintArgs {
 }
 
 impl MintArgs {
+    /// Fixed size: decimals (1 byte) + mint_authority (32 bytes) + freeze_authority (32 bytes) = 65 bytes
+    pub const LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES;
+
     /// Pack the mint arguments into bytes using the same format as SPL Token 2022
     pub fn to_bytes_inner(&self) -> Vec<u8> {
         let mut buf = Vec::new();
@@ -75,17 +298,24 @@ impl MintArgs {
 
     /// Deserialize mint arguments from bytes
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 34 {
-            // minimum: 1 (decimals) + 32 (mint_authority) + 1 (freeze_authority flag)
+        if data.len() < Self::LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let decimals = data[0];
-        let mint_authority: Pubkey = data[1..33]
+        let mut offset = 0;
+
+        // Read decimals (1 byte)
+        let decimals = data[offset];
+        offset += 1;
+
+        // Read mint_authority (32 bytes)
+        let mint_authority: Pubkey = data[offset..offset + PUBKEY_BYTES]
             .try_into()
             .map_err(|_| ProgramError::InvalidInstructionData)?;
+        offset += PUBKEY_BYTES;
 
-        let freeze_authority = data[33..65]
+        // Read freeze_authority (32 bytes)
+        let freeze_authority: Pubkey = data[offset..offset + PUBKEY_BYTES]
             .try_into()
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
@@ -109,149 +339,6 @@ impl std::fmt::Debug for InitializeMintArgs {
 }
 
 impl InitializeMintArgs {
-    /// Internal parser that returns both TokenMetadata and number of bytes consumed
-    fn parse_token_metadata(data: &[u8]) -> Result<(TokenMetadataArgs, usize), ProgramError> {
-        if data.len() < TokenMetadata::SIZE_METADATA_LEN {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
-
-        let mut offset: usize = 0;
-
-        // Read update_authority (32 bytes)
-        let update_authority = Pubkey::from(
-            <[u8; 32]>::try_from(&data[offset..offset + 32])
-                .map_err(|_| ProgramError::InvalidRealloc)?,
-        );
-        offset += 32;
-
-        // Read mint (32 bytes)
-        let mint = Pubkey::from(
-            <[u8; 32]>::try_from(&data[offset..offset + 32])
-                .map_err(|_| ProgramError::InvalidRealloc)?,
-        );
-        offset += 32;
-
-        // Read name_len (4 bytes)
-        let name_len = u32::from_le_bytes(
-            <[u8; 4]>::try_from(&data[offset..offset + 4])
-                .map_err(|_| ProgramError::InvalidRealloc)?,
-        );
-        offset += 4;
-
-        // Read name string
-        if data.len() < offset + name_len as usize {
-            return Err(ProgramError::InvalidRealloc);
-        }
-        let name_bytes = &data[offset..offset + name_len as usize];
-        let name = core::str::from_utf8(name_bytes)
-            .map_err(|_| ProgramError::InvalidRealloc)?
-            .to_string();
-        offset += name_len as usize;
-
-        // Read symbol_len (4 bytes)
-        let symbol_len = u32::from_le_bytes(
-            <[u8; 4]>::try_from(&data[offset..offset + 4])
-                .map_err(|_| ProgramError::InvalidRealloc)?,
-        );
-        offset += 4;
-
-        // Read symbol string
-        if data.len() < offset + symbol_len as usize {
-            return Err(ProgramError::InvalidRealloc);
-        }
-        let symbol_bytes = &data[offset..offset + symbol_len as usize];
-        let symbol = core::str::from_utf8(symbol_bytes)
-            .map_err(|_| ProgramError::InvalidRealloc)?
-            .to_string();
-        offset += symbol_len as usize;
-
-        // Read uri_len (4 bytes)
-        let uri_len = u32::from_le_bytes(
-            <[u8; 4]>::try_from(&data[offset..offset + 4])
-                .map_err(|_| ProgramError::InvalidRealloc)?,
-        );
-        offset += 4;
-
-        // Read uri string
-        if data.len() < offset + uri_len as usize {
-            return Err(ProgramError::InvalidRealloc);
-        }
-        let uri_bytes = &data[offset..offset + uri_len as usize];
-        let uri = core::str::from_utf8(uri_bytes)
-            .map_err(|_| ProgramError::InvalidRealloc)?
-            .to_string();
-        offset += uri_len as usize;
-
-        // Read additional_metadata_len (4 bytes)
-        let additional_metadata_len = u32::from_le_bytes(
-            <[u8; 4]>::try_from(&data[offset..offset + 4])
-                .map_err(|_| ProgramError::InvalidRealloc)?,
-        );
-        offset += 4;
-
-        // Read additional_metadata
-        let additional_metadata = if additional_metadata_len > 0 {
-            if data.len() < offset + additional_metadata_len as usize {
-                return Err(ProgramError::InvalidRealloc);
-            }
-            let slice = &data[offset..offset + additional_metadata_len as usize];
-            offset += additional_metadata_len as usize;
-            slice.to_vec()
-        } else {
-            Vec::new()
-        };
-
-        let meta = TokenMetadataArgs {
-            update_authority,
-            mint,
-            name,
-            symbol,
-            uri,
-            additional_metadata,
-        };
-
-        Ok((meta, offset))
-    }
-
-    /// Deserialize TokenMetadata from bytes using the same format as pinocchio's from_bytes
-    /// TODO: For some reason it is pub(crate) fn from_bytes<'a>(data: &[u8]) -> Result<TokenMetadata<'a>, ProgramError>
-    pub fn deserialize_token_metadata(data: &[u8]) -> Result<TokenMetadataArgs, ProgramError> {
-        Self::parse_token_metadata(data).map(|(m, _)| m)
-    }
-
-    /// Serialize TokenMetadata to bytes using the same format as pinocchio's from_bytes expects
-    pub fn serialize_token_metadata(metadata: &TokenMetadataArgs) -> Vec<u8> {
-        let mut buf = Vec::new();
-
-        // Write update_authority (32 bytes)
-        buf.extend_from_slice(metadata.update_authority.as_ref());
-
-        // Write mint (32 bytes)
-        buf.extend_from_slice(metadata.mint.as_ref());
-
-        // Write name length and bytes
-        let name_len = metadata.name.len() as u32;
-        buf.extend_from_slice(&name_len.to_le_bytes());
-        buf.extend_from_slice(metadata.name.as_bytes());
-
-        // Write symbol length and bytes
-        let symbol_len = metadata.symbol.len() as u32;
-        buf.extend_from_slice(&symbol_len.to_le_bytes());
-        buf.extend_from_slice(metadata.symbol.as_bytes());
-
-        // Write URI length and bytes
-        let uri_len = metadata.uri.len() as u32;
-        buf.extend_from_slice(&uri_len.to_le_bytes());
-        buf.extend_from_slice(metadata.uri.as_bytes());
-
-        // Write additional metadata length and bytes
-        let additional_metadata_len = metadata.additional_metadata.len() as u32;
-        buf.extend_from_slice(&additional_metadata_len.to_le_bytes());
-        buf.extend_from_slice(&metadata.additional_metadata);
-
-        buf
-    }
-
     /// Create new InitializeArgs with optional metadata pointer and metadata
     pub fn new(
         decimals: u8,
@@ -283,9 +370,7 @@ impl InitializeMintArgs {
         // Pack metadata pointer presence flag and data if present
         if let Some(metadata_pointer) = &self.ix_metadata_pointer {
             buf.push(1); // has metadata pointer
-                         // Manually serialize MetadataPointer
-            buf.extend_from_slice(metadata_pointer.authority.as_ref());
-            buf.extend_from_slice(metadata_pointer.metadata_address.as_ref());
+            buf.extend_from_slice(&metadata_pointer.to_bytes());
         } else {
             buf.push(0); // no metadata pointer
         }
@@ -293,9 +378,7 @@ impl InitializeMintArgs {
         // Pack metadata presence flag and data if present
         if let Some(metadata) = &self.ix_metadata {
             buf.push(1); // has metadata
-            let metadata_bytes = Self::serialize_token_metadata(metadata);
-            // Directly append metadata fields without an extra length prefix (borsh-like layout)
-            buf.extend_from_slice(&metadata_bytes);
+            buf.extend_from_slice(&metadata.to_bytes());
         } else {
             buf.push(0); // no metadata
         }
@@ -303,15 +386,7 @@ impl InitializeMintArgs {
         // Pack scaled UI amount presence flag and data if present
         if let Some(scaled_ui_amount) = &self.ix_scaled_ui_amount {
             buf.push(1); // has scaled UI amount
-                         // Manually serialize ScaledUiAmountConfig
-            buf.extend_from_slice(scaled_ui_amount.authority.as_ref());
-            buf.extend_from_slice(&scaled_ui_amount.multiplier);
-            buf.extend_from_slice(
-                &scaled_ui_amount
-                    .new_multiplier_effective_timestamp
-                    .to_le_bytes(),
-            );
-            buf.extend_from_slice(&scaled_ui_amount.new_multiplier);
+            buf.extend_from_slice(&scaled_ui_amount.to_bytes());
         } else {
             buf.push(0); // no scaled UI amount
         }
@@ -325,7 +400,7 @@ impl InitializeMintArgs {
         let ix_mint = MintArgs::try_from_bytes(data)?;
 
         // Determine the offset after mint args
-        let mut offset = 65;
+        let mut offset = MintArgs::LEN;
         if data.len() <= offset {
             // No extensions
             return Ok(Self {
@@ -340,27 +415,9 @@ impl InitializeMintArgs {
         offset += 1;
 
         let ix_metadata_pointer = if has_metadata_pointer == 1 {
-            if data.len() < offset + 64 {
-                // 32 (authority) + 32 (metadata_address)
-                return Err(ProgramError::InvalidInstructionData);
-            }
-
-            let authority = Pubkey::from(
-                <[u8; 32]>::try_from(&data[offset..offset + 32])
-                    .map_err(|_| ProgramError::InvalidInstructionData)?,
-            );
-            offset += 32;
-
-            let metadata_address = Pubkey::from(
-                <[u8; 32]>::try_from(&data[offset..offset + 32])
-                    .map_err(|_| ProgramError::InvalidInstructionData)?,
-            );
-            offset += 32;
-
-            Some(MetadataPointerArgs {
-                authority,
-                metadata_address,
-            })
+            let metadata_pointer = MetadataPointerArgs::try_from_bytes(&data[offset..])?;
+            offset += MetadataPointerArgs::LEN;
+            Some(metadata_pointer)
         } else {
             None
         };
@@ -380,8 +437,7 @@ impl InitializeMintArgs {
         offset += 1;
 
         let ix_metadata = if has_metadata == 1 {
-            // Parse metadata directly from the remaining bytes and advance by consumed length
-            let (meta, consumed) = Self::parse_token_metadata(&data[offset..])?;
+            let (meta, consumed) = TokenMetadataArgs::try_from_bytes(&data[offset..])?;
             offset += consumed;
             Some(meta)
         } else {
@@ -404,38 +460,8 @@ impl InitializeMintArgs {
         offset += 1;
 
         let ix_scaled_ui_amount = if has_scaled_ui_amount == 1 {
-            // ScaledUiAmountConfig structure:
-            // 32 bytes authority + 8 bytes multiplier + 8 bytes timestamp + 8 bytes new_multiplier
-            let expected_size = 32 + 8 + 8 + 8; // 56 bytes total
-            if data.len() < offset + expected_size {
-                return Err(ProgramError::InvalidInstructionData);
-            }
-
-            let authority = Pubkey::from(
-                <[u8; 32]>::try_from(&data[offset..offset + 32])
-                    .map_err(|_| ProgramError::InvalidInstructionData)?,
-            );
-            offset += 32;
-
-            let multiplier = <[u8; 8]>::try_from(&data[offset..offset + 8])
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-            offset += 8;
-
-            let new_multiplier_effective_timestamp = i64::from_le_bytes(
-                <[u8; 8]>::try_from(&data[offset..offset + 8])
-                    .map_err(|_| ProgramError::InvalidInstructionData)?,
-            );
-            offset += 8;
-
-            let new_multiplier = <[u8; 8]>::try_from(&data[offset..offset + 8])
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-
-            Some(ScaledUiAmountConfigArgs {
-                authority,
-                multiplier,
-                new_multiplier_effective_timestamp,
-                new_multiplier,
-            })
+            let scaled_ui_amount = ScaledUiAmountConfigArgs::try_from_bytes(&data[offset..])?;
+            Some(scaled_ui_amount)
         } else {
             None
         };
