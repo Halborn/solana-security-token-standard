@@ -323,7 +323,7 @@ impl VerificationModule {
     /// Update metadata for existing mint
     /// Wrapper for Metadata token program extension
     pub fn update_metadata(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &UpdateMetadataArgs,
@@ -340,6 +340,7 @@ impl VerificationModule {
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
+        verify_owner(mint_authority, program_id)?;
 
         let mint_authority_data = MintAuthority::from_account_info(mint_authority)?;
         if &mint_authority_data.mint != mint_info.key() {
