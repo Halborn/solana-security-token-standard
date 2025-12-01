@@ -1097,13 +1097,13 @@ impl VerificationModule {
         verify_writable(payer)?;
         verify_account_initialized(config_account)?;
 
-        // Get instruction discriminator
-        let discriminator = args.instruction_discriminator;
         let mut existing_config = VerificationConfig::from_account_info(config_account)?;
         let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
 
         // Verify that the provided config account matches the expected PDA
         verify_pda_keys_match(config_account.key(), &expected_config_pda)?;
+        // Get instruction discriminator
+        let discriminator = args.instruction_discriminator;
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
             return Err(ProgramError::InvalidAccountData);
@@ -1190,14 +1190,14 @@ impl VerificationModule {
         verify_writable(recipient)?;
         verify_account_initialized(config_account)?;
 
-        // Get instruction discriminator
-        let discriminator = args.instruction_discriminator;
         let mut existing_config = VerificationConfig::from_account_info(config_account)?;
         let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
 
         // Verify that the provided config account matches the expected PDA
         verify_pda_keys_match(config_account.key(), &expected_config_pda)?;
 
+        // Get instruction discriminator
+        let discriminator = args.instruction_discriminator;
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
             return Err(ProgramError::InvalidAccountData);
