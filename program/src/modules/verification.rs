@@ -27,9 +27,9 @@ use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
-    verify_instructions_sysvar, verify_mint_keys_match, verify_owner, verify_pda_keys_match,
-    verify_rent_sysvar, verify_signer, verify_system_program, verify_token22_program,
-    verify_transfer_hook_program, verify_writable,
+    verify_account_initialized, verify_account_not_initialized, verify_instructions_sysvar,
+    verify_mint_keys_match, verify_owner, verify_pda_keys_match, verify_rent_sysvar, verify_signer,
+    verify_system_program, verify_token22_program, verify_transfer_hook_program, verify_writable,
 };
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
@@ -72,20 +72,19 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_token22_program(token_program_info)?;
+        verify_system_program(system_program_info)?;
+        verify_rent_sysvar(rent_info)?;
         verify_signer(creator_info)?;
         verify_signer(mint_info)?;
         verify_writable(creator_info)?;
         verify_writable(mint_info)?;
-        verify_token22_program(token_program_info)?;
-        verify_system_program(system_program_info)?;
-        verify_rent_sysvar(rent_info)?;
+        verify_account_not_initialized(mint_authority_account)?;
 
         let (freeze_authority_pda, _bump) =
             utils::find_freeze_authority_pda(mint_info.key(), program_id);
 
-        if freeze_authority != freeze_authority_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda_keys_match(&freeze_authority, &freeze_authority_pda)?;
 
         let mut extensions_buf: [ExtensionType; 5] = [ExtensionType::Pausable; 5];
         let mut ext_count: usize = 0;
@@ -220,13 +219,7 @@ impl VerificationModule {
         let (mint_authority_pda, mint_authority_bump) =
             utils::find_mint_authority_pda(mint_info.key(), creator_info.key(), program_id);
 
-        if mint_authority_account.key() != &mint_authority_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
-
-        if !mint_authority_account.data_is_empty() || mint_authority_account.lamports() > 0 {
-            return Err(ProgramError::AccountAlreadyInitialized);
-        }
+        verify_pda_keys_match(mint_authority_account.key(), &mint_authority_pda)?;
 
         let mint_authority_config =
             MintAuthority::new(*mint_info.key(), *creator_info.key(), mint_authority_bump)?;
@@ -321,14 +314,14 @@ impl VerificationModule {
     }
 
     /// Update metadata for existing mint
-    /// Wrapper for Metadata token program extension
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn update_metadata(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &UpdateMetadataArgs,
     ) -> ProgramResult {
-        // Validate arguments
         args.validate()?;
 
         let [mint_authority, payer, mint_info, token_program_info, system_program_info] = accounts
@@ -337,6 +330,7 @@ impl VerificationModule {
         };
 
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
+
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
@@ -632,9 +626,7 @@ impl VerificationModule {
         // Use stored bump with derive_pda for optimized PDA verification
         let expected_pda = mint_authority_state.derive_pda()?;
 
-        if mint_authority.key() != &expected_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
+        verify_pda_keys_match(mint_authority.key(), &expected_pda)?;
 
         Ok(mint_info)
     }
@@ -656,14 +648,10 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // The data_is_empty verification config doesn't exist
-        if verification_config.data_is_empty() {
-            return Err(ProgramError::UninitializedAccount);
-        }
-
         verify_instructions_sysvar(instructions_sysvar)?;
         verify_owner(verification_config, program_id)?;
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
+        verify_account_initialized(verification_config)?;
 
         let config_data = VerificationConfig::from_account_info(verification_config)?;
 
@@ -860,11 +848,13 @@ impl VerificationModule {
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
         verify_mint_keys_match(verified_mint_info, &mint_account)?;
+
+        verify_system_program(system_program_info)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
-        verify_system_program(system_program_info)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
@@ -874,9 +864,7 @@ impl VerificationModule {
             utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
 
         // Verify that the provided config account matches the expected PDA
-        if *config_account.key() != expected_config_pda {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        verify_pda_keys_match(config_account.key(), &expected_config_pda)?;
 
         // Check if account already exists
         if config_account.data_len() > 0 {
@@ -1078,6 +1066,8 @@ impl VerificationModule {
     }
 
     /// Update verification configuration for an instruction
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn update_verification_config(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -1091,36 +1081,21 @@ impl VerificationModule {
         };
 
         verify_mint_keys_match(verified_mint_info, &mint_account)?;
+
+        verify_system_program(system_program_info)?;
+        verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_owner(config_account, program_id)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
-        verify_owner(mint_account, &pinocchio_token_2022::ID)?;
-        verify_system_program(system_program_info)?;
+        verify_account_initialized(config_account)?;
 
-        // Get instruction discriminator
-        let discriminator = args.instruction_discriminator;
-
-        let config = VerificationConfig::from_account_info(config_account)?;
-
-        let expected_config_pda = config.derive_pda(mint_account.key())?;
+        let mut existing_config = VerificationConfig::from_account_info(config_account)?;
+        let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
 
         // Verify that the provided config account matches the expected PDA
-        if *config_account.key() != expected_config_pda {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Check if account exists
-        if config_account.data_len() == 0 {
-            return Err(ProgramError::UninitializedAccount);
-        }
-
-        // Load existing config
-        let mut existing_config = {
-            let data = config_account.try_borrow_data()?;
-            VerificationConfig::try_from_bytes(&data)
-                .map_err(|_| ProgramError::InvalidAccountData)?
-        };
-
+        verify_pda_keys_match(config_account.key(), &expected_config_pda)?;
+        // Get instruction discriminator
+        let discriminator = args.instruction_discriminator;
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
             return Err(ProgramError::InvalidAccountData);
@@ -1185,6 +1160,8 @@ impl VerificationModule {
     }
 
     /// Trim verification configuration to recover rent
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn trim_verification_config(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -1198,35 +1175,21 @@ impl VerificationModule {
         };
 
         verify_mint_keys_match(verified_mint_info, &mint_account)?;
+
+        verify_system_program(system_program_info)?;
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
-        verify_system_program(system_program_info)?;
         verify_writable(recipient)?;
+        verify_account_initialized(config_account)?;
+
+        let mut existing_config = VerificationConfig::from_account_info(config_account)?;
+        let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
+
+        // Verify that the provided config account matches the expected PDA
+        verify_pda_keys_match(config_account.key(), &expected_config_pda)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
-
-        let config = VerificationConfig::from_account_info(config_account)?;
-
-        let expected_config_pda = config.derive_pda(mint_account.key())?;
-
-        // Verify that the provided config account matches the expected PDA
-        if *config_account.key() != expected_config_pda {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Check if account exists
-        if config_account.data_len() == 0 {
-            return Err(ProgramError::UninitializedAccount);
-        }
-
-        // Load existing config
-        let mut existing_config = {
-            let data = config_account.try_borrow_data()?;
-            VerificationConfig::try_from_bytes(&data)
-                .map_err(|_| ProgramError::InvalidAccountData)?
-        };
-
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
             return Err(ProgramError::InvalidAccountData);
