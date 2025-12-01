@@ -49,6 +49,10 @@ impl OperationsModule {
 
         let mint_authority_state = MintAuthority::from_account_info(mint_authority)?;
 
+        if mint_authority_state.mint != *mint_info.key() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         mint_to_checked(
             amount,
             decimals,
