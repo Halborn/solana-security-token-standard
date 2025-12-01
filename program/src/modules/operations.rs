@@ -43,9 +43,10 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
+
         verify_token22_program(token_program)?;
         verify_owner(mint_authority, program_id)?;
-        verify_mint_keys_match(verified_mint_info, &mint_info)?;
 
         let mint_account = Mint::from_account_info(mint_info)?;
         let decimals = mint_account.decimals();
@@ -85,8 +86,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_token22_program(token_program)?;
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
+        verify_token22_program(token_program)?;
 
         let (permanent_delegate_pda, bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
@@ -124,8 +125,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_token22_program(token_program)?;
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
+        verify_token22_program(token_program)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
@@ -162,9 +163,9 @@ impl OperationsModule {
         let [pause_authority, mint_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-  
-        verify_token22_program(token_program)?;
+
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
+        verify_token22_program(token_program)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
@@ -202,8 +203,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_token22_program(token_program)?;
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
+        verify_token22_program(token_program)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
@@ -241,8 +242,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_token22_program(token_program)?;
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
+        verify_token22_program(token_program)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
@@ -279,8 +280,9 @@ impl OperationsModule {
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_token22_program(token_program)?;
+
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
+        verify_token22_program(token_program)?;
 
         if transfer_hook_program.key() != &TRANSFER_HOOK_PROGRAM_ID {
             return Err(ProgramError::IncorrectProgramId);
@@ -359,16 +361,13 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_mint_keys_match(verified_mint_info, &mint_to_account)?;
+
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_writable(rate_account)?;
         verify_account_not_initialized(rate_account)?;
-
-        // Ensure Rate account is being created for target mint_to account
-        // For Split operation mint_from == mint_to
-        // For Convert operation mint_to is verified so we ensure correct minting of new tokens
-        verify_mint_keys_match(verified_mint_info, &mint_to_account)?;
 
         let mint_from_key = mint_from_account.key();
         let mint_to_key = mint_to_account.key();
@@ -405,10 +404,11 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_mint_keys_match(verified_mint_info, &mint_to_info_account)?;
+
         verify_writable(rate_account_info)?;
         verify_owner(rate_account_info, program_id)?;
         verify_account_initialized(rate_account_info)?;
-        verify_mint_keys_match(verified_mint_info, &mint_to_info_account)?;
 
         let mint_from_key = mint_from_account.key();
         let mint_to_key = mint_to_info_account.key();
@@ -438,12 +438,12 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_mint_keys_match(verified_mint_info, &mint_to_info_account)?;
+
         verify_writable(destination_account)?;
         verify_writable(rate_account_info)?;
         verify_account_initialized(rate_account_info)?;
         verify_owner(rate_account_info, program_id)?;
-
-        verify_mint_keys_match(verified_mint_info, &mint_to_info_account)?;
 
         let mint_from_key = mint_from_account.key();
         let mint_to_key = mint_to_info_account.key();
@@ -472,6 +472,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
+
         verify_token22_program(token_program)?;
         verify_system_program(system_program)?;
         verify_signer(payer)?;
@@ -481,7 +483,6 @@ impl OperationsModule {
         verify_owner(mint_authority, program_id)?;
         verify_owner(rate_account, program_id)?;
         verify_account_not_initialized(receipt_account)?;
-        verify_mint_keys_match(verified_mint_info, &mint_account)?;
 
         let mint_split_key = mint_account.key();
 
@@ -580,6 +581,8 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_mint_keys_match(verified_mint_info, &mint_to_account)?;
+
         verify_token22_program(token_program)?;
         verify_system_program(system_program)?;
         verify_signer(payer)?;
@@ -590,7 +593,6 @@ impl OperationsModule {
         verify_owner(rate_account, program_id)?;
         verify_owner(mint_authority, program_id)?;
         verify_account_not_initialized(receipt_account)?;
-        verify_mint_keys_match(verified_mint_info, &mint_to_account)?;
 
         let verified_mint_key = verified_mint_info.key();
         let mint_from_key = mint_from_account.key();

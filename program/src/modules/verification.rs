@@ -321,14 +321,14 @@ impl VerificationModule {
     }
 
     /// Update metadata for existing mint
-    /// Wrapper for Metadata token program extension
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn update_metadata(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &UpdateMetadataArgs,
     ) -> ProgramResult {
-        // Validate arguments
         args.validate()?;
 
         let [mint_authority, payer, mint_info, token_program_info, system_program_info] = accounts
@@ -337,6 +337,7 @@ impl VerificationModule {
         };
 
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
+
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
@@ -861,11 +862,12 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
+
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
-        verify_mint_keys_match(verified_mint_info, &mint_account)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
@@ -1079,6 +1081,8 @@ impl VerificationModule {
     }
 
     /// Update verification configuration for an instruction
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn update_verification_config(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -1090,12 +1094,14 @@ impl VerificationModule {
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
+
         verify_system_program(system_program_info)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_owner(config_account, program_id)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
-        verify_mint_keys_match(verified_mint_info, &mint_account)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
@@ -1177,6 +1183,8 @@ impl VerificationModule {
     }
 
     /// Trim verification configuration to recover rent
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn trim_verification_config(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -1189,11 +1197,12 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
+
         verify_system_program(system_program_info)?;
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_writable(recipient)?;
-        verify_mint_keys_match(verified_mint_info, &mint_account)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
