@@ -27,9 +27,9 @@ use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
 use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
-    verify_instructions_sysvar, verify_mint_keys_match, verify_owner, verify_pda_keys_match,
-    verify_rent_sysvar, verify_signer, verify_system_program, verify_token22_program,
-    verify_transfer_hook_program, verify_writable,
+    verify_account_initialized, verify_instructions_sysvar, verify_mint_keys_match, verify_owner,
+    verify_pda_keys_match, verify_rent_sysvar, verify_signer, verify_system_program,
+    verify_token22_program, verify_transfer_hook_program, verify_writable,
 };
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
@@ -1102,15 +1102,10 @@ impl VerificationModule {
         verify_owner(config_account, program_id)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
+        verify_account_initialized(config_account)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
-
-        // Check if account exists
-        if config_account.data_len() == 0 {
-            return Err(ProgramError::UninitializedAccount);
-        }
-
         let mut existing_config = VerificationConfig::from_account_info(config_account)?;
         let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
 
@@ -1203,15 +1198,10 @@ impl VerificationModule {
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_writable(recipient)?;
+        verify_account_initialized(config_account)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
-
-        // Check if account exists
-        if config_account.data_len() == 0 {
-            return Err(ProgramError::UninitializedAccount);
-        }
-
         let mut existing_config = VerificationConfig::from_account_info(config_account)?;
         let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
 
