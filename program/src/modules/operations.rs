@@ -8,8 +8,8 @@ use crate::debug_log;
 use crate::instructions::TransferCheckedWithHook;
 use crate::modules::{
     burn_checked, mint_to_checked, verify_account_initialized, verify_account_not_initialized,
-    verify_operation_mint_info, verify_owner, verify_pda, verify_signer, verify_system_program,
-    verify_token22_program, verify_writable,
+    verify_mint_keys_match, verify_owner, verify_pda_keys_match, verify_signer,
+    verify_system_program, verify_token22_program, verify_writable,
 };
 use crate::state::{MintAuthority, ProgramAccount, Rate, Receipt, Rounding};
 use crate::token22_extensions::pausable::{Pause, Resume};
@@ -17,6 +17,7 @@ use crate::utils::{
     find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda,
     find_rate_pda, find_receipt_pda,
 };
+use core::cmp::Ordering;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
@@ -29,6 +30,9 @@ pub struct OperationsModule;
 impl OperationsModule {
     /// Mint tokens to an account
     /// Wrapper for SPL Token MintToChecked instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_mint(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -41,7 +45,7 @@ impl OperationsModule {
 
         verify_token22_program(token_program)?;
         verify_owner(mint_authority, program_id)?;
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
 
         let mint_account = Mint::from_account_info(mint_info)?;
         let decimals = mint_account.decimals();
@@ -67,6 +71,9 @@ impl OperationsModule {
 
     /// Burn tokens from an account  
     /// Wrapper for SPL Token BurnChecked instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_burn(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -79,7 +86,7 @@ impl OperationsModule {
         };
 
         verify_token22_program(token_program)?;
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
 
         let (permanent_delegate_pda, bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
@@ -105,6 +112,9 @@ impl OperationsModule {
 
     /// Pause all activity within a mint
     /// Wrapper for SPL Token Pause instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_pause(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -113,8 +123,9 @@ impl OperationsModule {
         let [pause_authority, mint_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
         verify_token22_program(token_program)?;
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
@@ -140,6 +151,9 @@ impl OperationsModule {
 
     /// Resume all activity within a mint
     /// Wrapper for SPL Token Resume instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_resume(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -148,9 +162,9 @@ impl OperationsModule {
         let [pause_authority, mint_info, token_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-
+  
         verify_token22_program(token_program)?;
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         if pause_authority.key() != &pause_authority_pda {
@@ -176,6 +190,9 @@ impl OperationsModule {
 
     /// Freeze a token account
     /// Wrapper for SPL Token FreezeAccount instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_freeze_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -186,7 +203,7 @@ impl OperationsModule {
         };
 
         verify_token22_program(token_program)?;
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
@@ -212,6 +229,9 @@ impl OperationsModule {
 
     /// Thaw a token account
     /// Wrapper for SPL Token ThawAccount instruction
+    ///
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_thaw_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -222,7 +242,7 @@ impl OperationsModule {
         };
 
         verify_token22_program(token_program)?;
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         if freeze_authority.key() != &freeze_authority_pda {
@@ -250,6 +270,7 @@ impl OperationsModule {
     /// Wrapper for SPL Token TransferChecked instruction
     pub fn execute_transfer(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         amount: u64,
     ) -> ProgramResult {
@@ -259,6 +280,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
         verify_token22_program(token_program)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
 
         if transfer_hook_program.key() != &TRANSFER_HOOK_PROGRAM_ID {
             return Err(ProgramError::IncorrectProgramId);
@@ -320,6 +342,8 @@ impl OperationsModule {
     }
 
     /// Create Rate account
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_create_rate_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -344,7 +368,7 @@ impl OperationsModule {
         // Ensure Rate account is being created for target mint_to account
         // For Split operation mint_from == mint_to
         // For Convert operation mint_to is verified so we ensure correct minting of new tokens
-        verify_operation_mint_info(verified_mint_info, &mint_to_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_to_account)?;
 
         let mint_from_key = mint_from_account.key();
         let mint_to_key = mint_to_account.key();
@@ -352,7 +376,7 @@ impl OperationsModule {
         let (expected_rate_pda, bump) =
             find_rate_pda(action_id, mint_from_key, mint_to_key, program_id);
 
-        verify_pda(rate_account.key(), &expected_rate_pda)?;
+        verify_pda_keys_match(rate_account.key(), &expected_rate_pda)?;
 
         // Calculate rent and create Rate account
         let rounding_enum = Rounding::try_from(rounding)?;
@@ -366,6 +390,8 @@ impl OperationsModule {
     }
 
     /// Update Rate account
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_update_rate_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -382,14 +408,14 @@ impl OperationsModule {
         verify_writable(rate_account_info)?;
         verify_owner(rate_account_info, program_id)?;
         verify_account_initialized(rate_account_info)?;
-        verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_to_info_account)?;
 
         let mint_from_key = mint_from_account.key();
         let mint_to_key = mint_to_info_account.key();
 
         let mut rate_account = Rate::from_account_info(rate_account_info)?;
         let expected_rate_pda = rate_account.derive_pda(action_id, mint_from_key, mint_to_key)?;
-        verify_pda(rate_account_info.key(), &expected_rate_pda)?;
+        verify_pda_keys_match(rate_account_info.key(), &expected_rate_pda)?;
 
         let rounding_enum = Rounding::try_from(rounding)?;
         rate_account.update(rounding_enum, numerator, denominator)?;
@@ -398,6 +424,8 @@ impl OperationsModule {
     }
 
     /// Close Rate account
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_close_rate_account(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -415,7 +443,7 @@ impl OperationsModule {
         verify_account_initialized(rate_account_info)?;
         verify_owner(rate_account_info, program_id)?;
 
-        verify_operation_mint_info(verified_mint_info, &mint_to_info_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_to_info_account)?;
 
         let mint_from_key = mint_from_account.key();
         let mint_to_key = mint_to_info_account.key();
@@ -423,13 +451,15 @@ impl OperationsModule {
         // Deserialize to ensure it's valid Rate account, verify PDA, then close
         let rate = Rate::from_account_info(rate_account_info)?;
         let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
-        verify_pda(rate_account_info.key(), &expected_rate_pda)?;
+        verify_pda_keys_match(rate_account_info.key(), &expected_rate_pda)?;
 
         Rate::close(rate_account_info, destination_account)?;
         Ok(())
     }
 
     /// Execute token split at predefined rate
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_split(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -448,28 +478,25 @@ impl OperationsModule {
         verify_writable(token_account)?;
         verify_writable(receipt_account)?;
         verify_writable(payer)?;
-
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
-
         verify_owner(mint_authority, program_id)?;
         verify_owner(rate_account, program_id)?;
-
         verify_account_not_initialized(receipt_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
 
         let mint_split_key = mint_account.key();
 
         let (permanent_delegate_pda, permanent_delegate_bump) =
             find_permanent_delegate_pda(mint_split_key, program_id);
-        verify_pda(permanent_delegate.key(), &permanent_delegate_pda)?;
+        verify_pda_keys_match(permanent_delegate.key(), &permanent_delegate_pda)?;
 
         let (expected_receipt_pda, receipt_bump) =
             find_receipt_pda(mint_split_key, action_id, program_id);
-        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+        verify_pda_keys_match(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify Rate account with optimized derive_pda
         let rate = Rate::from_account_info(rate_account)?;
         let expected_rate_pda = rate.derive_pda(action_id, mint_split_key, mint_split_key)?;
-        verify_pda(rate_account.key(), &expected_rate_pda)?;
+        verify_pda_keys_match(rate_account.key(), &expected_rate_pda)?;
 
         let mint_split = Mint::from_account_info(mint_account)?;
         let mint_decimals = mint_split.decimals();
@@ -492,35 +519,39 @@ impl OperationsModule {
 
         let new_amount = rate.calculate(current_amount)?;
 
-        if current_amount.eq(&new_amount) {
-            // Just log the message but create Receipt to prevent duplicate split attempts
-            debug_log!("No change in amount after split");
-        } else if new_amount.gt(&current_amount) {
-            // Mint additional tokens
-            let amount_diff = new_amount
-                .checked_sub(current_amount)
-                .ok_or(ProgramError::ArithmeticOverflow)?;
-            mint_to_checked(
-                amount_diff,
-                mint_decimals,
-                mint_account,
-                token_account,
-                mint_authority,
-                &mint_authority_state,
-            )?;
-        } else {
-            // Burn excess tokens
-            let amount_diff = current_amount
-                .checked_sub(new_amount)
-                .ok_or(ProgramError::ArithmeticOverflow)?;
-            burn_checked(
-                amount_diff,
-                mint_decimals,
-                mint_account,
-                token_account,
-                permanent_delegate,
-                permanent_delegate_bump,
-            )?;
+        match new_amount.cmp(&current_amount) {
+            Ordering::Equal => {
+                // Just log the message but create Receipt to prevent duplicate split attempts
+                debug_log!("No change in amount after split");
+            }
+            Ordering::Greater => {
+                // Mint additional tokens
+                let amount_diff = new_amount
+                    .checked_sub(current_amount)
+                    .ok_or(ProgramError::ArithmeticOverflow)?;
+                mint_to_checked(
+                    amount_diff,
+                    mint_decimals,
+                    mint_account,
+                    token_account,
+                    mint_authority,
+                    &mint_authority_state,
+                )?;
+            }
+            Ordering::Less => {
+                // Burn excess tokens
+                let amount_diff = current_amount
+                    .checked_sub(new_amount)
+                    .ok_or(ProgramError::ArithmeticOverflow)?;
+                burn_checked(
+                    amount_diff,
+                    mint_decimals,
+                    mint_account,
+                    token_account,
+                    permanent_delegate,
+                    permanent_delegate_bump,
+                )?;
+            }
         }
         // Create Receipt PDA account for Split operation
         Receipt::issue(
@@ -534,6 +565,8 @@ impl OperationsModule {
     }
 
     /// Execute token conversion at predefined rate
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn execute_convert(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -554,13 +587,10 @@ impl OperationsModule {
         verify_writable(token_account_to)?;
         verify_writable(receipt_account)?;
         verify_writable(payer)?;
-
-        verify_operation_mint_info(verified_mint_info, &mint_to_account)?;
-
         verify_owner(rate_account, program_id)?;
         verify_owner(mint_authority, program_id)?;
-
         verify_account_not_initialized(receipt_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_to_account)?;
 
         let verified_mint_key = verified_mint_info.key();
         let mint_from_key = mint_from_account.key();
@@ -568,16 +598,16 @@ impl OperationsModule {
 
         let (permanent_delegate_pda, permanent_delegate_bump) =
             find_permanent_delegate_pda(mint_from_key, program_id);
-        verify_pda(permanent_delegate.key(), &permanent_delegate_pda)?;
+        verify_pda_keys_match(permanent_delegate.key(), &permanent_delegate_pda)?;
 
         let (expected_receipt_pda, receipt_bump) =
             find_receipt_pda(verified_mint_key, action_id, program_id);
-        verify_pda(receipt_account.key(), &expected_receipt_pda)?;
+        verify_pda_keys_match(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify Rate account with optimized derive_pda
         let rate = Rate::from_account_info(rate_account)?;
         let expected_rate_pda = rate.derive_pda(action_id, mint_from_key, mint_to_key)?;
-        verify_pda(rate_account.key(), &expected_rate_pda)?;
+        verify_pda_keys_match(rate_account.key(), &expected_rate_pda)?;
 
         let mint_from = Mint::from_account_info(mint_from_account)?;
         let mint_from_decimals = mint_from.decimals();

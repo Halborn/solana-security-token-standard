@@ -151,9 +151,12 @@ impl Processor {
             SecurityTokenInstruction::Thaw => {
                 Self::process_thaw(program_id, verified_mint_info, instruction_accounts)
             }
-            SecurityTokenInstruction::Transfer => {
-                Self::process_transfer(program_id, instruction_accounts, args_data)
-            }
+            SecurityTokenInstruction::Transfer => Self::process_transfer(
+                program_id,
+                verified_mint_info,
+                instruction_accounts,
+                args_data,
+            ),
             SecurityTokenInstruction::CreateRateAccount => Self::process_create_rate_account(
                 program_id,
                 verified_mint_info,
@@ -334,6 +337,7 @@ impl Processor {
 
     fn process_transfer(
         program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
@@ -342,7 +346,7 @@ impl Processor {
             .and_then(|slice| slice.try_into().ok())
             .map(u64::from_le_bytes)
             .ok_or(ProgramError::InvalidInstructionData)?;
-        OperationsModule::execute_transfer(program_id, accounts, amount)?;
+        OperationsModule::execute_transfer(program_id, verified_mint_info, accounts, amount)?;
         Ok(())
     }
 

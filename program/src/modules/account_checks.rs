@@ -11,6 +11,7 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
+#[inline(always)]
 pub fn verify_writable(info: &AccountInfo) -> Result<(), ProgramError> {
     if !info.is_writable() {
         debug_log!("Account {} is not writable", acc_info_as_str!(info));
@@ -27,6 +28,7 @@ pub fn verify_writable(info: &AccountInfo) -> Result<(), ProgramError> {
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
+#[inline(always)]
 pub fn verify_signer(info: &AccountInfo) -> Result<(), ProgramError> {
     if !info.is_signer() {
         debug_log!("Account {} is not a signer", acc_info_as_str!(info));
@@ -43,6 +45,7 @@ pub fn verify_signer(info: &AccountInfo) -> Result<(), ProgramError> {
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
+#[inline(always)]
 pub fn verify_owner(info: &AccountInfo, owner: &Pubkey) -> Result<(), ProgramError> {
     if !info.is_owned_by(owner) {
         debug_log!(
@@ -61,6 +64,7 @@ pub fn verify_owner(info: &AccountInfo, owner: &Pubkey) -> Result<(), ProgramErr
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
+#[inline(always)]
 pub fn verify_system_program(info: &AccountInfo) -> Result<(), ProgramError> {
     if info.key().ne(&pinocchio_system::ID) {
         debug_log!(
@@ -80,6 +84,7 @@ pub fn verify_system_program(info: &AccountInfo) -> Result<(), ProgramError> {
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
+#[inline(always)]
 pub fn verify_token22_program(info: &AccountInfo) -> Result<(), ProgramError> {
     if info.key().ne(&pinocchio_token_2022::ID) {
         debug_log!(
@@ -98,6 +103,7 @@ pub fn verify_token22_program(info: &AccountInfo) -> Result<(), ProgramError> {
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
+#[inline(always)]
 pub fn verify_instructions_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
     if info
         .key()
@@ -119,6 +125,7 @@ pub fn verify_instructions_sysvar(info: &AccountInfo) -> Result<(), ProgramError
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
+#[inline(always)]
 pub fn verify_rent_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
     if info.key().ne(&pinocchio::sysvars::rent::RENT_ID) {
         debug_log!("Account {} is not the rent sysvar", acc_info_as_str!(info));
@@ -128,7 +135,10 @@ pub fn verify_rent_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
     Ok(())
 }
 
-/// Verify mint info in the operation. It must match the verified mint info.
+/// Verify that two mint account keys match to prevent mint substitution attacks.
+///
+/// This security check ensures that operations authorized for one mint cannot be
+/// executed on a different mint account.
 ///
 /// # Arguments
 /// * `verified_mint_info` - The initial verified Mint account.
@@ -136,7 +146,8 @@ pub fn verify_rent_sysvar(info: &AccountInfo) -> Result<(), ProgramError> {
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
-pub fn verify_operation_mint_info(
+#[inline(always)]
+pub fn verify_mint_keys_match(
     verified_mint_info: &AccountInfo,
     operation_mint_info: &&AccountInfo,
 ) -> Result<(), ProgramError> {
@@ -157,6 +168,7 @@ pub fn verify_operation_mint_info(
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
+#[inline(always)]
 pub fn verify_account_not_initialized(info: &AccountInfo) -> Result<(), ProgramError> {
     if !info.data_is_empty() || info.lamports() > 0 || !info.is_owned_by(&pinocchio_system::id()) {
         debug_log!("Account {} already exists", acc_info_as_str!(info));
@@ -172,6 +184,7 @@ pub fn verify_account_not_initialized(info: &AccountInfo) -> Result<(), ProgramE
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
+#[inline(always)]
 pub fn verify_account_initialized(info: &AccountInfo) -> Result<(), ProgramError> {
     if info.data_is_empty() || info.lamports() == 0 || info.is_owned_by(&pinocchio_system::id()) {
         debug_log!("Account {} is not initialized", acc_info_as_str!(info));
@@ -180,7 +193,10 @@ pub fn verify_account_initialized(info: &AccountInfo) -> Result<(), ProgramError
     Ok(())
 }
 
-/// Verify PDA accounts pubkeys match.
+/// Verify that provided and expected PDA keys match.
+///
+/// This check ensures that the PDA account provided in the instruction matches
+/// the PDA derived by the program, preventing account substitution attacks.
 ///
 /// # Arguments
 /// * `provided_pda` - The account provided in the instruction.
@@ -188,7 +204,11 @@ pub fn verify_account_initialized(info: &AccountInfo) -> Result<(), ProgramError
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
-pub fn verify_pda(provided_pda: &Pubkey, expected_pda: &Pubkey) -> Result<(), ProgramError> {
+#[inline(always)]
+pub fn verify_pda_keys_match(
+    provided_pda: &Pubkey,
+    expected_pda: &Pubkey,
+) -> Result<(), ProgramError> {
     if provided_pda.ne(expected_pda) {
         debug_log!(
             "Invalid PDA account. Expected: {}, Provided: {}",
@@ -200,6 +220,7 @@ pub fn verify_pda(provided_pda: &Pubkey, expected_pda: &Pubkey) -> Result<(), Pr
     Ok(())
 }
 
+#[inline(always)]
 pub fn verify_transfer_hook_program(transfer_hook_pda: &AccountInfo) -> Result<(), ProgramError> {
     if transfer_hook_pda.key().ne(&TRANSFER_HOOK_PROGRAM_ID) {
         debug_log!(

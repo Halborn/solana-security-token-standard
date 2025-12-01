@@ -1,4 +1,4 @@
-use crate::instructions::{InitializeMintArgs, TokenMetadataArgs};
+use crate::instructions::TokenMetadataArgs;
 use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
@@ -16,12 +16,12 @@ impl UpdateMetadataArgs {
 
     /// Pack the arguments into bytes
     pub fn to_bytes_inner(&self) -> Vec<u8> {
-        InitializeMintArgs::serialize_token_metadata(&self.metadata)
+        self.metadata.to_bytes()
     }
 
     /// Deserialize arguments from bytes
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        let metadata = InitializeMintArgs::deserialize_token_metadata(data)?;
+        let (metadata, _consumed) = TokenMetadataArgs::try_from_bytes(data)?;
         Ok(Self { metadata })
     }
 
