@@ -107,7 +107,11 @@ impl InitializeVerificationConfigArgs {
             let program_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
-            program_addresses.push(Pubkey::from(program_bytes));
+            let program_pubkey = Pubkey::from(program_bytes);
+            if program_pubkey == Pubkey::default() {
+                return Err(ProgramError::InvalidArgument);
+            }
+            program_addresses.push(program_pubkey);
             offset += PUBKEY_BYTES;
         }
 
@@ -222,7 +226,11 @@ impl UpdateVerificationConfigArgs {
             let program_bytes: [u8; PUBKEY_BYTES] = data[offset_pos..offset_pos + PUBKEY_BYTES]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
-            program_addresses.push(Pubkey::from(program_bytes));
+            let program_pubkey = Pubkey::from(program_bytes);
+            if program_pubkey == Pubkey::default() {
+                return Err(ProgramError::InvalidArgument);
+            }
+            program_addresses.push(program_pubkey);
             offset_pos += PUBKEY_BYTES;
         }
 
@@ -418,5 +426,47 @@ mod tests {
                 num_programs
             );
         }
+    }
+
+    #[test]
+    fn test_initialize_verification_config_rejects_default_pubkey() {
+        let program1 = random_pubkey();
+        let default_pubkey = Pubkey::default();
+        let program2 = random_pubkey();
+
+        let program_addresses = vec![program1, default_pubkey, program2];
+
+        let args = InitializeVerificationConfigArgs::new(
+            SecurityTokenInstruction::Mint.discriminant(),
+            false,
+            &program_addresses,
+        )
+        .unwrap();
+
+        let bytes = args.to_bytes_inner();
+        let result = InitializeVerificationConfigArgs::try_from_bytes(&bytes);
+
+        assert!(matches!(result, Err(ProgramError::InvalidArgument)));
+    }
+
+    #[test]
+    fn test_update_verification_config_rejects_default_pubkey() {
+        let program1 = random_pubkey();
+        let default_pubkey = Pubkey::default();
+
+        let program_addresses = vec![program1, default_pubkey];
+
+        let args = UpdateVerificationConfigArgs::new(
+            SecurityTokenInstruction::Transfer.discriminant(),
+            false,
+            &program_addresses,
+            0,
+        )
+        .unwrap();
+
+        let bytes = args.to_bytes_inner();
+        let result = UpdateVerificationConfigArgs::try_from_bytes(&bytes);
+
+        assert!(matches!(result, Err(ProgramError::InvalidArgument)));
     }
 }
