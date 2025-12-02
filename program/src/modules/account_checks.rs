@@ -99,6 +99,7 @@ pub fn verify_token22_program(info: &AccountInfo) -> Result<(), ProgramError> {
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - The result of the operation
+#[inline(always)]
 pub fn verify_associated_token_program(info: &AccountInfo) -> Result<(), ProgramError> {
     if info.key().ne(&pinocchio_associated_token_account::ID) {
         debug_log!(
