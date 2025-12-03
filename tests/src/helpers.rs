@@ -75,6 +75,29 @@ pub fn assert_transaction_failure(result: Result<(), BanksClientError>) {
     }
 }
 
+/// Helper to assert transaction failed with a specific error string
+pub fn assert_instruction_error(result: Result<(), BanksClientError>, expected_error: &str) {
+    match result {
+        Err(e) => {
+            let error_string = format!("{:?}", e);
+            assert!(
+                error_string.contains(expected_error),
+                "Expected error containing '{}', but got: {}",
+                expected_error,
+                error_string
+            );
+            println!(
+                "Test passed: Got expected error containing '{}'",
+                expected_error
+            );
+        }
+        Ok(_) => panic!(
+            "Expected transaction to fail with '{}', but it succeeded",
+            expected_error
+        ),
+    }
+}
+
 /// Helper to assert transaction failed with a specific custom error code
 pub fn assert_custom_error(result: Result<(), BanksClientError>, expected_error_code: u32) {
     match result {
@@ -87,10 +110,19 @@ pub fn assert_custom_error(result: Result<(), BanksClientError>, expected_error_
                 "Expected error code 0x{:04X}, but got 0x{:04X}",
                 expected_error_code, actual_code
             );
-            println!("Test passed: Got expected error code 0x{:04X}", expected_error_code);
+            println!(
+                "Test passed: Got expected error code 0x{:04X}",
+                expected_error_code
+            );
         }
-        Err(e) => panic!("Expected custom error 0x{:04X}, but got: {:?}", expected_error_code, e),
-        Ok(_) => panic!("Expected transaction to fail with error code 0x{:04X}, but it succeeded", expected_error_code),
+        Err(e) => panic!(
+            "Expected custom error 0x{:04X}, but got: {:?}",
+            expected_error_code, e
+        ),
+        Ok(_) => panic!(
+            "Expected transaction to fail with error code 0x{:04X}, but it succeeded",
+            expected_error_code
+        ),
     }
 }
 

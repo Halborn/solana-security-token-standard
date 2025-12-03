@@ -1,5 +1,6 @@
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
+use pinocchio::ProgramResult;
 use shank::ShankType;
 
 #[repr(C)]
@@ -423,7 +424,7 @@ impl InitializeMintArgs {
         };
 
         if data.len() <= offset {
-            // No metadata and scaled UI amount
+            // No metadata or scaled UI amount
             return Ok(Self {
                 ix_mint,
                 ix_metadata_pointer,
@@ -472,6 +473,14 @@ impl InitializeMintArgs {
             ix_metadata,
             ix_scaled_ui_amount,
         })
+    }
+
+    pub fn validate(&self) -> ProgramResult {
+        // Metadata requires metadata pointer
+        if self.ix_metadata.is_some() && self.ix_metadata_pointer.is_none() {
+            return Err(ProgramError::InvalidArgument);
+        }
+        Ok(())
     }
 }
 
@@ -619,5 +628,52 @@ mod tests {
         assert!(deserialized.ix_metadata_pointer.is_none());
         assert!(deserialized.ix_metadata.is_none());
         assert!(deserialized.ix_scaled_ui_amount.is_none());
+    }
+
+    #[test]
+    fn test_validate_metadata_requires_pointer() {
+        let mint_authority = random_pubkey();
+        let freeze_authority = random_pubkey();
+        let update_authority = random_pubkey();
+        let mint = random_pubkey();
+
+        // Valid: metadata with pointer
+        let args_valid = InitializeMintArgs::new(
+            6,
+            mint_authority,
+            freeze_authority,
+            Some(MetadataPointerArgs {
+                authority: update_authority,
+                metadata_address: mint,
+            }),
+            Some(TokenMetadataArgs {
+                update_authority,
+                mint,
+                name: "Token".to_string(),
+                symbol: "TKN".to_string(),
+                uri: "https://example.com".to_string(),
+                additional_metadata: vec![],
+            }),
+            None,
+        );
+        assert!(args_valid.validate().is_ok());
+
+        // Invalid: metadata without pointer
+        let args_invalid = InitializeMintArgs::new(
+            6,
+            mint_authority,
+            freeze_authority,
+            None, // No pointer
+            Some(TokenMetadataArgs {
+                update_authority,
+                mint,
+                name: "Token".to_string(),
+                symbol: "TKN".to_string(),
+                uri: "https://example.com".to_string(),
+                additional_metadata: vec![],
+            }),
+            None,
+        );
+        assert_eq!(args_invalid.validate(), Err(ProgramError::InvalidArgument));
     }
 }
