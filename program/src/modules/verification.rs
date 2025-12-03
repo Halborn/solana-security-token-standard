@@ -98,7 +98,7 @@ impl VerificationModule {
             ext_count += 1;
         }
 
-        // Add MetadataPointer if metadata is provided
+        // Add MetadataPointer if provided by client
         if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
             extensions_buf[ext_count] = ExtensionType::MetadataPointer;
             ext_count += 1;
@@ -322,8 +322,6 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &UpdateMetadataArgs,
     ) -> ProgramResult {
-        args.validate()?;
-
         let [mint_authority, payer, mint_info, token_program_info, system_program_info] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
