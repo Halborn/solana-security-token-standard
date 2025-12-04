@@ -86,8 +86,6 @@ impl VerificationModule {
 
         verify_pda_keys_match(&freeze_authority, &freeze_authority_pda)?;
 
-        args.validate()?;
-
         // Validate metadata pointer and metadata configuration to prevent DoS
         // Two storage models are supported:
         // 1. Internally owned: metadata_address == mint (metadata stored in mint account)

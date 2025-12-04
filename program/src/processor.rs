@@ -208,6 +208,7 @@ impl Processor {
     ) -> ProgramResult {
         let args = InitializeMintArgs::try_from_bytes(args_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
+        args.validate()?;
         VerificationModule::initialize_mint(program_id, accounts, &args)
     }
 
