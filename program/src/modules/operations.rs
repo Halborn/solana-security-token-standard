@@ -475,6 +475,7 @@ impl OperationsModule {
         verify_owner(mint_authority, program_id)?;
         verify_owner(rate_account, program_id)?;
         verify_account_not_initialized(receipt_account)?;
+        verify_account_initialized(rate_account)?;
 
         let mint_split_key = mint_account.key();
 
@@ -585,6 +586,7 @@ impl OperationsModule {
         verify_owner(rate_account, program_id)?;
         verify_owner(mint_authority, program_id)?;
         verify_account_not_initialized(receipt_account)?;
+        verify_account_initialized(rate_account)?;
 
         let verified_mint_key = verified_mint_info.key();
         let mint_from_key = mint_from_account.key();
