@@ -41,10 +41,6 @@ impl InitializeVerificationConfigArgs {
         cpi_mode: bool,
         program_addresses: &[Pubkey],
     ) -> Result<Self, ProgramError> {
-        if program_addresses.len() > MAX_VERIFICATION_PROGRAMS {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         Ok(Self {
             instruction_discriminator,
             cpi_mode,
@@ -95,6 +91,11 @@ impl InitializeVerificationConfigArgs {
                 .map_err(|_| ProgramError::InvalidInstructionData)?,
         ) as usize;
         offset += 4;
+
+        // Validate program count doesn't exceed maximum
+        if program_count > MAX_VERIFICATION_PROGRAMS {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Validate we have enough data for all programs
         if data.len() < offset + (program_count * PUBKEY_BYTES) {
@@ -149,12 +150,6 @@ impl UpdateVerificationConfigArgs {
         program_addresses: &[Pubkey],
         offset: u8,
     ) -> Result<Self, ProgramError> {
-        // Validate that offset + new programs doesn't exceed max
-        let total_programs = offset as usize + program_addresses.len();
-        if total_programs > MAX_VERIFICATION_PROGRAMS {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         Ok(Self {
             instruction_discriminator,
             cpi_mode,
@@ -207,6 +202,10 @@ impl UpdateVerificationConfigArgs {
         let offset = data[offset_pos];
         offset_pos += 1;
 
+        if offset + 1 > MAX_VERIFICATION_PROGRAMS as u8 {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Read program count (4 bytes)
         let program_count = u32::from_le_bytes(
             data[offset_pos..offset_pos + 4]
@@ -214,6 +213,12 @@ impl UpdateVerificationConfigArgs {
                 .map_err(|_| ProgramError::InvalidInstructionData)?,
         ) as usize;
         offset_pos += 4;
+
+        // Validate that offset + program count doesn't exceed maximum
+        let total_programs = offset as usize + program_count;
+        if total_programs > MAX_VERIFICATION_PROGRAMS {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Validate we have enough data for all programs
         if data.len() < offset_pos + (program_count * PUBKEY_BYTES) {
@@ -325,12 +330,9 @@ mod tests {
 
     #[test]
     fn test_initialize_verification_config_args_to_bytes_inner_try_from_bytes() {
-        // Create test program addresses
         let program1 = random_pubkey();
         let program2 = random_pubkey();
         let program_addresses = vec![program1, program2];
-
-        // Test with UpdateMetadata discriminator
         let original = InitializeVerificationConfigArgs::new(
             SecurityTokenInstruction::UpdateMetadata.discriminant(),
             false,
@@ -354,62 +356,56 @@ mod tests {
         assert_eq!(program_addresses, deserialized_addresses);
     }
 
+    #[rstest]
+    #[case(10, true)]
+    #[case(9, true)]
+    #[case(11, false)]
     #[test]
-    fn test_initialize_verification_config_args_limits() {
-        // Test with maximum allowed programs (10)
-        let max_programs: Vec<Pubkey> = (0..MAX_VERIFICATION_PROGRAMS)
-            .map(|_| random_pubkey())
-            .collect();
-        let max_args = InitializeVerificationConfigArgs::new(
-            SecurityTokenInstruction::InitializeMint.discriminant(),
+    fn test_initialize_verification_config_programs_limit(
+        #[case] num_programs: usize,
+        #[case] should_succeed: bool,
+    ) {
+        let programs: Vec<Pubkey> = (0..num_programs).map(|_| random_pubkey()).collect();
+        let args = InitializeVerificationConfigArgs::new(
+            SecurityTokenInstruction::Mint.discriminant(),
             false,
-            &max_programs,
+            &programs,
         )
         .unwrap();
-        assert_eq!(
-            usize::from(max_args.program_count()),
-            MAX_VERIFICATION_PROGRAMS
-        );
 
-        // Test with too many programs (should fail)
-        let too_many_programs: Vec<Pubkey> = (0..17).map(|_| random_pubkey()).collect();
-        let result = InitializeVerificationConfigArgs::new(
-            SecurityTokenInstruction::UpdateMetadata.discriminant(),
-            false,
-            &too_many_programs,
-        );
-        assert!(result.is_err());
+        let bytes = args.to_bytes_inner();
+        let result = InitializeVerificationConfigArgs::try_from_bytes(&bytes);
 
-        // Test with empty programs list
-        let empty_args = InitializeVerificationConfigArgs::new(
-            SecurityTokenInstruction::InitializeVerificationConfig.discriminant(),
-            false,
-            &[],
-        )
-        .unwrap();
-        assert_eq!(empty_args.program_count(), 0);
+        if should_succeed {
+            assert!(result.is_ok());
+        } else {
+            assert!(result.is_err());
+        }
     }
 
     #[rstest]
-    #[case(5, 10, false)]
-    #[case(10, 7, false)]
-    #[case(0, MAX_VERIFICATION_PROGRAMS, true)]
-    #[case(1, MAX_VERIFICATION_PROGRAMS, false)]
-    #[case(0, 1, true)]
-    #[case(15, 2, false)]
-    fn test_update_verification_config_args_validation(
+    #[case(11, 10, false)]
+    #[case(10, 1, false)]
+    #[case(9, 1, true)]
+    #[case(8, 2, true)]
+    #[case(9, 2, false)]
+    fn test_update_verification_config_programs_limit(
         #[case] offset: u8,
         #[case] num_programs: usize,
         #[case] should_succeed: bool,
     ) {
         let programs: Vec<Pubkey> = (0..num_programs).map(|_| random_pubkey()).collect();
 
-        let result = UpdateVerificationConfigArgs::new(
+        let args = UpdateVerificationConfigArgs::new(
             SecurityTokenInstruction::Mint.discriminant(),
             false,
             &programs,
             offset,
-        );
+        )
+        .unwrap();
+
+        let bytes = args.to_bytes_inner();
+        let result = UpdateVerificationConfigArgs::try_from_bytes(&bytes);
 
         if should_succeed {
             assert!(
