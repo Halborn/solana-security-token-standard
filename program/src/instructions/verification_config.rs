@@ -92,11 +92,6 @@ impl InitializeVerificationConfigArgs {
         ) as usize;
         offset += 4;
 
-        // Validate program count doesn't exceed maximum
-        if program_count > MAX_VERIFICATION_PROGRAMS {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         // Validate we have enough data for all programs
         if data.len() < offset + (program_count * PUBKEY_BYTES) {
             return Err(ProgramError::InvalidInstructionData);
@@ -109,9 +104,6 @@ impl InitializeVerificationConfigArgs {
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             let program_pubkey = Pubkey::from(program_bytes);
-            if program_pubkey == Pubkey::default() {
-                return Err(ProgramError::InvalidArgument);
-            }
             program_addresses.push(program_pubkey);
             offset += PUBKEY_BYTES;
         }
@@ -121,6 +113,22 @@ impl InitializeVerificationConfigArgs {
             cpi_mode: cpi_mode != 0,
             program_addresses,
         })
+    }
+
+    pub fn validate(&self) -> Result<(), ProgramError> {
+        // Validate program count doesn't exceed maximum
+        if self.program_addresses.len() > MAX_VERIFICATION_PROGRAMS {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Validate no default pubkeys
+        for program in &self.program_addresses {
+            if *program == Pubkey::default() {
+                return Err(ProgramError::InvalidArgument);
+            }
+        }
+
+        Ok(())
     }
 
     /// Get program count
@@ -202,10 +210,6 @@ impl UpdateVerificationConfigArgs {
         let offset = data[offset_pos];
         offset_pos += 1;
 
-        if offset + 1 > MAX_VERIFICATION_PROGRAMS as u8 {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         // Read program count (4 bytes)
         let program_count = u32::from_le_bytes(
             data[offset_pos..offset_pos + 4]
@@ -213,12 +217,6 @@ impl UpdateVerificationConfigArgs {
                 .map_err(|_| ProgramError::InvalidInstructionData)?,
         ) as usize;
         offset_pos += 4;
-
-        // Validate that offset + program count doesn't exceed maximum
-        let total_programs = offset as usize + program_count;
-        if total_programs > MAX_VERIFICATION_PROGRAMS {
-            return Err(ProgramError::InvalidArgument);
-        }
 
         // Validate we have enough data for all programs
         if data.len() < offset_pos + (program_count * PUBKEY_BYTES) {
@@ -232,9 +230,6 @@ impl UpdateVerificationConfigArgs {
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             let program_pubkey = Pubkey::from(program_bytes);
-            if program_pubkey == Pubkey::default() {
-                return Err(ProgramError::InvalidArgument);
-            }
             program_addresses.push(program_pubkey);
             offset_pos += PUBKEY_BYTES;
         }
@@ -245,6 +240,28 @@ impl UpdateVerificationConfigArgs {
             program_addresses,
             offset,
         })
+    }
+
+    pub fn validate(&self) -> Result<(), ProgramError> {
+        // Validate offset is within bounds (0-based index, so offset < MAX)
+        if self.offset >= MAX_VERIFICATION_PROGRAMS as u8 {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Validate that offset + program count doesn't exceed maximum
+        let total_programs = self.offset as usize + self.program_addresses.len();
+        if total_programs > MAX_VERIFICATION_PROGRAMS {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Validate no default pubkeys
+        for program in &self.program_addresses {
+            if *program == Pubkey::default() {
+                return Err(ProgramError::InvalidArgument);
+            }
+        }
+
+        Ok(())
     }
 
     /// Get program addresses as slice
@@ -373,8 +390,7 @@ mod tests {
         )
         .unwrap();
 
-        let bytes = args.to_bytes_inner();
-        let result = InitializeVerificationConfigArgs::try_from_bytes(&bytes);
+        let result = args.validate();
 
         if should_succeed {
             assert!(result.is_ok());
@@ -404,8 +420,7 @@ mod tests {
         )
         .unwrap();
 
-        let bytes = args.to_bytes_inner();
-        let result = UpdateVerificationConfigArgs::try_from_bytes(&bytes);
+        let result = args.validate();
 
         if should_succeed {
             assert!(
@@ -439,8 +454,7 @@ mod tests {
         )
         .unwrap();
 
-        let bytes = args.to_bytes_inner();
-        let result = InitializeVerificationConfigArgs::try_from_bytes(&bytes);
+        let result = args.validate();
 
         assert!(matches!(result, Err(ProgramError::InvalidArgument)));
     }
@@ -460,8 +474,7 @@ mod tests {
         )
         .unwrap();
 
-        let bytes = args.to_bytes_inner();
-        let result = UpdateVerificationConfigArgs::try_from_bytes(&bytes);
+        let result = args.validate();
 
         assert!(matches!(result, Err(ProgramError::InvalidArgument)));
     }
