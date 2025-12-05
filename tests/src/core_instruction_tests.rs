@@ -1,9 +1,9 @@
 //! Security Token Standard Integration Tests
 
 use crate::helpers::{
-    assert_instruction_error, assert_transaction_success, find_mint_authority_pda,
-    find_mint_freeze_authority_pda, initialize_mint, initialize_verification_config, send_tx,
-    start_with_context,
+    assert_instruction_error, assert_transaction_success,
+    find_mint_authority_pda, find_mint_freeze_authority_pda, initialize_mint,
+    initialize_verification_config, send_tx, start_with_context,
 };
 use borsh::BorshDeserialize;
 use security_token_client::accounts::{MintAuthority, VerificationConfig};
@@ -937,6 +937,34 @@ async fn test_verification_config() {
         .unwrap()
         .unwrap()
         .lamports;
+
+    // Test offset gap
+    let update_verification_config_args = UpdateVerificationConfigArgs {
+        instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
+        cpi_mode: false,
+        program_addresses: [Pubkey::new_unique(), Pubkey::new_unique()].to_vec(),
+        offset: 4, // Current len is 3
+    };
+
+    let update_config_ix = UpdateVerificationConfigBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config_or_mint_authority(mint_authority_pda)
+        .instructions_sysvar_or_creator(context.payer.pubkey())
+        .config_account(verification_config_pda)
+        .mint_account(mint_keypair.pubkey())
+        .payer(context.payer.pubkey())
+        .update_verification_config_args(update_verification_config_args)
+        .instruction();
+
+    let result = send_tx(
+        &context.banks_client,
+        vec![update_config_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
+
+    assert_instruction_error(result, "InvalidArgument");
 
     // Test Case 1: Trim the array from 3 programs to 2 programs (recover some rent)
     let new_size = 2u8;

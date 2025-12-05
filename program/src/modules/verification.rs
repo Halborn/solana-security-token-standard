@@ -81,6 +81,11 @@ impl VerificationModule {
         verify_writable(mint_info)?;
         verify_account_not_initialized(mint_authority_account)?;
 
+        // Fail fast if caller-supplied mint authority doesn’t match the creator; SetAuthority would fail later otherwise
+        if client_mint_authority != *creator_info.key() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let (freeze_authority_pda, _bump) =
             utils::find_freeze_authority_pda(mint_info.key(), program_id);
 
@@ -1096,12 +1101,17 @@ impl VerificationModule {
         if existing_config.instruction_discriminator != discriminator {
             return Err(ProgramError::InvalidAccountData);
         }
+        let offset = args.offset() as usize;
+
+        // Offset can't be greater than existing program count
+        if offset > existing_config.verification_programs.len() {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Update cpi_mode
         existing_config.cpi_mode = args.cpi_mode;
 
         // Update verification programs starting at the specified offset
-        let offset = args.offset() as usize;
         let new_programs = args.program_addresses();
 
         if offset + new_programs.len() > existing_config.verification_programs.len() {
