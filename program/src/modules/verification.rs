@@ -81,6 +81,11 @@ impl VerificationModule {
         verify_writable(mint_info)?;
         verify_account_not_initialized(mint_authority_account)?;
 
+        // Fail fast if caller-supplied mint authority doesn’t match the creator; SetAuthority would fail later otherwise
+        if client_mint_authority != *creator_info.key() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let (freeze_authority_pda, _bump) =
             utils::find_freeze_authority_pda(mint_info.key(), program_id);
 
