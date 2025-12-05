@@ -377,7 +377,6 @@ mod tests {
     #[case(10, true)]
     #[case(9, true)]
     #[case(11, false)]
-    #[test]
     fn test_initialize_verification_config_programs_limit(
         #[case] num_programs: usize,
         #[case] should_succeed: bool,
