@@ -1113,7 +1113,7 @@ async fn test_metadata_pointer_validation() {
     let mut context = start_with_context().await;
 
     // Test Case 1: metadata_pointer points to mint (internally owned), but metadata is None
-    // This SHOULD FAIL with InvalidArgument
+    // This SHOULD FAIL with InternalMetadataRequiresData
     {
         let mint_keypair = solana_sdk::signature::Keypair::new();
         let (mint_authority_pda, _bump) =
@@ -1156,7 +1156,7 @@ async fn test_metadata_pointer_validation() {
     }
 
     // Test Case 2: metadata_pointer points to external, but metadata is provided
-    // This SHOULD FAIL with InvalidArgument
+    // This SHOULD FAIL with ExternalMetadataForbidsData
     {
         let external_metadata_address = Pubkey::new_unique();
         let mint_keypair = solana_sdk::signature::Keypair::new();
