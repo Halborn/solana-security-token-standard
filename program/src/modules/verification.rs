@@ -105,9 +105,11 @@ impl VerificationModule {
             let is_internal = client_metadata_pointer.metadata_address == *mint_info.key();
             match (is_internal, metadata_opt.is_some()) {
                 // internal + no metadata provided
-                (true, false) => return Err(ProgramError::InvalidArgument),
+                (true, false) => {
+                    return Err(SecurityTokenError::InternalMetadataRequiresData.into())
+                }
                 // external + metadata provided
-                (false, true) => return Err(ProgramError::InvalidArgument),
+                (false, true) => return Err(SecurityTokenError::ExternalMetadataForbidsData.into()),
                 _ => {} // valid combinations
             }
         }
@@ -273,7 +275,8 @@ impl VerificationModule {
             return Ok(());
         };
 
-        // Metadata is always stored in mint account (internally owned)
+        // At this point we are guaranteed to initialize internally-stored metadata only
+        // The validation at the beginning ensures that
         let metadata_init_instruction = InitializeTokenMetadata {
             metadata: mint_info,
             update_authority: mint_authority_account,
@@ -349,7 +352,7 @@ impl VerificationModule {
         // We only support internally owned metadata (metadata stored in the mint account itself)
         // External metadata should be managed directly
         if metadata_address != *mint_info.key() {
-            return Err(ProgramError::InvalidAccountData);
+            return Err(SecurityTokenError::CannotModifyExternalMetadataAccount.into());
         }
 
         // NOTE: No need to verify TokenMetadata extension existence here because:

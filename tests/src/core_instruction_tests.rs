@@ -1,12 +1,13 @@
 //! Security Token Standard Integration Tests
 
 use crate::helpers::{
-    assert_instruction_error, assert_transaction_success,
+    assert_instruction_error, assert_security_token_error, assert_transaction_success,
     find_mint_authority_pda, find_mint_freeze_authority_pda, initialize_mint,
     initialize_verification_config, send_tx, start_with_context,
 };
 use borsh::BorshDeserialize;
 use security_token_client::accounts::{MintAuthority, VerificationConfig};
+use security_token_client::errors::SecurityTokenProgramError;
 use security_token_client::instructions::{
     InitializeMintBuilder, TrimVerificationConfigBuilder, UpdateMetadataBuilder,
     UpdateVerificationConfigBuilder, UPDATE_METADATA_DISCRIMINATOR,
@@ -1148,10 +1149,64 @@ async fn test_metadata_pointer_validation() {
             vec![&context.payer, &mint_keypair],
         )
         .await;
-        assert_instruction_error(result, "InvalidArgument");
+        assert_security_token_error(
+            result,
+            SecurityTokenProgramError::InternalMetadataRequiresData,
+        );
     }
 
-    // Test Case 2: metadata_pointer points to different address (externally owned), metadata is None
+    // Test Case 2: metadata_pointer points to external, but metadata is provided
+    // This SHOULD FAIL with InvalidArgument
+    {
+        let external_metadata_address = Pubkey::new_unique();
+        let mint_keypair = solana_sdk::signature::Keypair::new();
+        let (mint_authority_pda, _bump) =
+            find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
+
+        let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
+
+        let mint_args = InitializeMintArgs {
+            ix_mint: MintArgs {
+                decimals: 6,
+                mint_authority: context.payer.pubkey(),
+                freeze_authority: freeze_authority_pda,
+            },
+            ix_metadata_pointer: Some(MetadataPointerArgs {
+                authority: context.payer.pubkey(),
+                metadata_address: external_metadata_address, // Points to external address
+            }),
+            ix_metadata: Some(TokenMetadataArgs {
+                update_authority: context.payer.pubkey(),
+                mint: mint_keypair.pubkey(),
+                name: "Updated Name".to_string().into(),
+                symbol: "UPD".to_string().into(),
+                uri: "https://updated.com".to_string().into(),
+                additional_metadata: vec![],
+            }),
+            ix_scaled_ui_amount: None,
+        };
+
+        let ix = InitializeMintBuilder::new()
+            .mint(mint_keypair.pubkey())
+            .payer(context.payer.pubkey())
+            .authority(mint_authority_pda)
+            .initialize_mint_args(mint_args)
+            .instruction();
+
+        let result = send_tx(
+            &context.banks_client,
+            vec![ix],
+            &context.payer.pubkey(),
+            vec![&context.payer, &mint_keypair],
+        )
+        .await;
+        assert_security_token_error(
+            result,
+            SecurityTokenProgramError::ExternalMetadataForbidsData,
+        );
+    }
+
+    // Test Case 3: metadata_pointer points to different address (externally owned), metadata is None
     // This SHOULD SUCCEED - external metadata storage is valid
     let mint_keypair = solana_sdk::signature::Keypair::new();
     let external_metadata_address = Pubkey::new_unique(); // Different from mint
@@ -1177,7 +1232,7 @@ async fn test_metadata_pointer_validation() {
 
     initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
 
-    // Test Case 3: Try to update metadata for external storage mint
+    // Test Case 4: Try to update metadata for external storage mint
     // This SHOULD FAIL - we only support internally owned metadata
     let update_metadata_args = UpdateMetadataArgs {
         metadata: TokenMetadataArgs {
@@ -1208,5 +1263,8 @@ async fn test_metadata_pointer_validation() {
     )
     .await;
 
-    assert_instruction_error(result, "InvalidAccountData");
+    assert_security_token_error(
+        result,
+        SecurityTokenProgramError::CannotModifyExternalMetadataAccount,
+    );
 }
