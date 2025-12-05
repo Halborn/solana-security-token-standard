@@ -219,6 +219,7 @@ impl Processor {
     ) -> ProgramResult {
         let args = InitializeVerificationConfigArgs::try_from_bytes(args_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
+        args.validate()?;
 
         VerificationModule::initialize_verification_config(program_id, mint_info, accounts, &args)
     }
@@ -231,6 +232,7 @@ impl Processor {
     ) -> ProgramResult {
         let args = UpdateVerificationConfigArgs::try_from_bytes(args_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
+        args.validate()?;
         VerificationModule::update_verification_config(
             program_id,
             verified_mint_info,
