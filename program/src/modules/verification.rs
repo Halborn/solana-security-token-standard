@@ -91,6 +91,29 @@ impl VerificationModule {
 
         verify_pda_keys_match(&freeze_authority, &freeze_authority_pda)?;
 
+        // Validate metadata pointer and metadata configuration to prevent DoS
+        // Two storage models are supported:
+        // 1. Internally owned: metadata_address == mint (metadata stored in mint account)
+        //    - Requires ix_metadata to initialize TokenMetadata extension
+        //    - Program manages metadata lifecycle
+        // 2. Externally owned: metadata_address != mint (metadata in separate account)
+        //    - Must NOT provide ix_metadata (client manages external account separately)
+        //    - Client is responsible for ensuring metadata_address is valid
+        //    - External metadata should be managed via Token-2022 directly
+
+        if let Some(client_metadata_pointer) = metadata_pointer_opt {
+            let is_internal = client_metadata_pointer.metadata_address == *mint_info.key();
+            match (is_internal, metadata_opt.is_some()) {
+                // internal + no metadata provided
+                (true, false) => {
+                    return Err(SecurityTokenError::InternalMetadataRequiresData.into())
+                }
+                // external + metadata provided
+                (false, true) => return Err(SecurityTokenError::ExternalMetadataForbidsData.into()),
+                _ => {} // valid combinations
+            }
+        }
+
         let mut extensions_buf: [ExtensionType; 5] = [ExtensionType::Pausable; 5];
         let mut ext_count: usize = 0;
         let required_extensions: &[ExtensionType] = &[
@@ -103,8 +126,8 @@ impl VerificationModule {
             ext_count += 1;
         }
 
-        // Add MetadataPointer if metadata is provided
-        if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
+        // Add MetadataPointer if provided by client
+        if metadata_pointer_opt.is_some() {
             extensions_buf[ext_count] = ExtensionType::MetadataPointer;
             ext_count += 1;
         }
@@ -171,31 +194,15 @@ impl VerificationModule {
 
         pausable_initialize.invoke()?;
 
-        // Initialize MetadataPointer extension if needed and store metadata address for later use
-        let metadata_account_address = if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
-            let (metadata_authority, metadata_address) =
-                if let Some(client_metadata_pointer) = &metadata_pointer_opt {
-                    // Use client-provided MetadataPointer configuration
-                    let authority = client_metadata_pointer.authority.into();
-                    let address = client_metadata_pointer.metadata_address.into();
-                    (authority, address)
-                } else {
-                    // Fallback to default: creator as authority, mint as metadata storage
-                    (Some(*creator_info.key()), Some(*mint_info.key()))
-                };
-
+        // Initialize MetadataPointer extension if provided by client
+        if let Some(client_metadata_pointer) = metadata_pointer_opt {
             let metadata_pointer_initialize = InitializeMetadataPointer {
                 mint: mint_info,
-                authority: metadata_authority,
-                metadata_address,
+                authority: client_metadata_pointer.authority.into(),
+                metadata_address: client_metadata_pointer.metadata_address.into(),
             };
-
             metadata_pointer_initialize.invoke()?;
-            // Return the metadata address for later use
-            metadata_address
-        } else {
-            None
-        };
+        }
 
         // Initialize ScaledUiAmount extension if provided by client
         if let Some(scaled_ui_amount_config) = &scaled_ui_amount_opt {
@@ -268,25 +275,10 @@ impl VerificationModule {
             return Ok(());
         };
 
-        // Determine which account to use for metadata
-        let metadata_account_info = if let Some(metadata_addr) = metadata_account_address {
-            if metadata_addr == *mint_info.key() {
-                // Metadata is stored in mint account (in-mint storage)
-                mint_info
-            } else {
-                // Metadata is stored in external account - find it in accounts list
-                accounts
-                    .iter()
-                    .find(|acc| acc.key() == &metadata_addr)
-                    .ok_or(ProgramError::InvalidAccountData)?
-            }
-        } else {
-            // No metadata pointer, shouldn't happen if we have metadata
-            return Err(ProgramError::InvalidInstructionData);
-        };
-
+        // At this point we are guaranteed to initialize internally-stored metadata only
+        // The validation at the beginning ensures that
         let metadata_init_instruction = InitializeTokenMetadata {
-            metadata: metadata_account_info,
+            metadata: mint_info,
             update_authority: mint_authority_account,
             mint: mint_info,
             mint_authority: mint_authority_account,
@@ -304,7 +296,7 @@ impl VerificationModule {
                 metadata.additional_metadata.as_slice(),
                 |key, value| {
                     let update_field_instruction = UpdateField {
-                        metadata: metadata_account_info,
+                        metadata: mint_info,
                         update_authority: mint_authority_account,
                         field: Field::Key(key),
                         value,
@@ -327,8 +319,6 @@ impl VerificationModule {
         accounts: &[AccountInfo],
         args: &UpdateMetadataArgs,
     ) -> ProgramResult {
-        args.validate()?;
-
         let [mint_authority, payer, mint_info, token_program_info, system_program_info] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -342,6 +332,7 @@ impl VerificationModule {
         verify_owner(mint_authority, program_id)?;
 
         let mint_authority_data = MintAuthority::from_account_info(mint_authority)?;
+
         if &mint_authority_data.mint != mint_info.key() {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -358,20 +349,28 @@ impl VerificationModule {
         }; // Borrow is released here
         let metadata_address = metadata_address.ok_or(ProgramError::InvalidAccountData)?;
 
-        // Determine metadata account (could be mint itself or external account)
-        let metadata_account_info = if metadata_address == *mint_info.key() {
-            // Metadata is stored in mint account (in-mint storage)
-            mint_info
-        } else {
-            // Metadata is stored in external account - would need to be passed in accounts
-            return Err(ProgramError::NotEnoughAccountKeys);
-        };
+        // We only support internally owned metadata (metadata stored in the mint account itself)
+        // External metadata should be managed directly
+        if metadata_address != *mint_info.key() {
+            return Err(SecurityTokenError::CannotModifyExternalMetadataAccount.into());
+        }
+
+        // NOTE: No need to verify TokenMetadata extension existence here because:
+        // - initialize_mint already validates that internally owned metadata pointer requires TokenMetadata
+        // - Since metadata_address == mint (checked above), the extension is guaranteed to exist
+        // - Token-2022 UpdateField will fail gracefully if extension is somehow missing
+        //
+        // {
+        //     let mint_data = mint_info.try_borrow_data()?;
+        //     get_extension_data_bytes_for_variable_pack::<TokenMetadata>(&mint_data)
+        //         .ok_or(ProgramError::InvalidAccountData)?;
+        // }
 
         // Calculate current and new metadata sizes
         let new_metadata_size = utils::calculate_metadata_tlv_size(&args.metadata)?;
         // Get current metadata size to calculate the difference
         let current_metadata_size = {
-            let mint_data = metadata_account_info.try_borrow_data()?;
+            let mint_data = mint_info.try_borrow_data()?;
 
             // Use pinocchio's get_extension_data_bytes_for_variable_pack to get current metadata
             if let Some(metadata_bytes) =
@@ -392,7 +391,7 @@ impl VerificationModule {
             let additional_rent = rent.minimum_balance(additional_metadata_space);
             let transfer = Transfer {
                 from: payer,               // from (authority pays)
-                to: metadata_account_info, // to (metadata account)
+                to: mint_info,             // to (mint account)
                 lamports: additional_rent, // amount
             };
             transfer.invoke()?;
@@ -408,7 +407,7 @@ impl VerificationModule {
         let mint_authority_signer = Signer::from(&mint_authority_seeds);
 
         let update_field_instruction = UpdateField {
-            metadata: metadata_account_info,
+            metadata: mint_info,
             update_authority: mint_authority,
             field: Field::Name,
             value: &args.metadata.name,
@@ -418,7 +417,7 @@ impl VerificationModule {
 
         // Update symbol
         let update_symbol_instruction = UpdateField {
-            metadata: metadata_account_info,
+            metadata: mint_info,
             update_authority: mint_authority,
             field: Field::Symbol,
             value: &args.metadata.symbol,
@@ -428,7 +427,7 @@ impl VerificationModule {
 
         // Update URI
         let update_uri_instruction = UpdateField {
-            metadata: metadata_account_info,
+            metadata: mint_info,
             update_authority: mint_authority,
             field: Field::Uri,
             value: &args.metadata.uri,
@@ -439,7 +438,7 @@ impl VerificationModule {
         // Handle additional metadata fields atomically
         let existing_additional_fields = {
             // Try to parse existing metadata using pinocchio's from_account_info
-            if let Ok(existing_metadata) = TokenMetadata::from_account_info(metadata_account_info) {
+            if let Ok(existing_metadata) = TokenMetadata::from_account_info(mint_info) {
                 let mut fields_buffer: [[u8; 64]; 16] = [[0u8; 64]; 16]; // Static buffer for field names
                 let mut field_lengths: [usize; 16] = [0; 16];
                 let mut field_count = 0;
@@ -497,7 +496,7 @@ impl VerificationModule {
 
                     if !found_in_new {
                         let remove_field_instruction = RemoveKey {
-                            metadata: metadata_account_info,
+                            metadata: mint_info,
                             update_authority: mint_authority,
                             key: existing_key,
                             idempotent: true, // don't error if key doesn't exist
@@ -518,7 +517,7 @@ impl VerificationModule {
             args.metadata.additional_metadata.as_slice(),
             |key, value| {
                 let update_field_instruction = UpdateField {
-                    metadata: metadata_account_info,
+                    metadata: mint_info,
                     update_authority: mint_authority,
                     field: Field::Key(key),
                     value,

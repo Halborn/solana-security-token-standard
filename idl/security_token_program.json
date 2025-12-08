@@ -1463,6 +1463,21 @@
       "code": 4,
       "name": "InvalidVerificationConfigPda",
       "msg": "Invalid Verification Config PDA"
+    },
+    {
+      "code": 5,
+      "name": "CannotModifyExternalMetadataAccount",
+      "msg": "Cannot modify external metadata account"
+    },
+    {
+      "code": 6,
+      "name": "InternalMetadataRequiresData",
+      "msg": "Internal metadata storage requires metadata to be provided"
+    },
+    {
+      "code": 7,
+      "name": "ExternalMetadataForbidsData",
+      "msg": "External metadata storage cannot accept metadata data in this instruction"
     }
   ],
   "metadata": {

@@ -1,5 +1,6 @@
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
+use pinocchio::ProgramResult;
 use shank::ShankType;
 
 #[repr(C)]
@@ -423,7 +424,7 @@ impl InitializeMintArgs {
         };
 
         if data.len() <= offset {
-            // No metadata
+            // No metadata or scaled UI amount
             return Ok(Self {
                 ix_mint,
                 ix_metadata_pointer,
@@ -474,28 +475,11 @@ impl InitializeMintArgs {
         })
     }
 
-    /// Validate the arguments
-    pub fn validate(&self) -> Result<(), ProgramError> {
-        // Validate decimals
-        if self.ix_mint.decimals > 20 {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        // Validate that if metadata exists, metadata pointer must also exist
+    pub fn validate(&self) -> ProgramResult {
+        // Metadata requires metadata pointer
         if self.ix_metadata.is_some() && self.ix_metadata_pointer.is_none() {
             return Err(ProgramError::InvalidArgument);
         }
-
-        // Validate metadata if present
-        if let Some(metadata) = &self.ix_metadata {
-            if metadata.name.is_empty() {
-                return Err(ProgramError::InvalidArgument);
-            }
-            if metadata.symbol.is_empty() {
-                return Err(ProgramError::InvalidArgument);
-            }
-        }
-
         Ok(())
     }
 }
@@ -647,96 +631,49 @@ mod tests {
     }
 
     #[test]
-    fn test_validate() {
+    fn test_validate_metadata_requires_pointer() {
         let mint_authority = random_pubkey();
         let freeze_authority = random_pubkey();
+        let update_authority = random_pubkey();
+        let mint = random_pubkey();
 
-        // Valid args without metadata
-        let valid_args =
-            InitializeMintArgs::new(6, mint_authority, freeze_authority, None, None, None);
-        assert!(valid_args.validate().is_ok());
-
-        // Invalid decimals
-        let invalid_decimals =
-            InitializeMintArgs::new(25, mint_authority, freeze_authority, None, None, None);
-        assert!(invalid_decimals.validate().is_err());
-
-        // Test with a valid metadata pointer but no metadata (this should be valid)
-        let metadata_pointer = MetadataPointerArgs {
-            authority: mint_authority,
-            metadata_address: mint_authority,
-        };
-        let valid_with_metadata_pointer_only = InitializeMintArgs::new(
+        // Valid: metadata with pointer
+        let args_valid = InitializeMintArgs::new(
             6,
             mint_authority,
             freeze_authority,
-            Some(metadata_pointer.clone()),
-            None, // no metadata
+            Some(MetadataPointerArgs {
+                authority: update_authority,
+                metadata_address: mint,
+            }),
+            Some(TokenMetadataArgs {
+                update_authority,
+                mint,
+                name: "Token".to_string(),
+                symbol: "TKN".to_string(),
+                uri: "https://example.com".to_string(),
+                additional_metadata: vec![],
+            }),
             None,
         );
-        assert!(valid_with_metadata_pointer_only.validate().is_ok());
+        assert!(args_valid.validate().is_ok());
 
-        // Test metadata validation with proper lifetime-bound data
-        let name = "Test Token";
-        let symbol = "TEST";
-        let uri = "https://example.com";
-        let additional_metadata = vec![];
-
-        let valid_metadata = TokenMetadataArgs {
-            update_authority: mint_authority,
-            mint: mint_authority,
-            name: name.to_string(),
-            symbol: symbol.to_string(),
-            uri: uri.to_string(),
-            additional_metadata: additional_metadata.clone(),
-        };
-
-        let valid_with_metadata = InitializeMintArgs::new(
+        // Invalid: metadata without pointer
+        let args_invalid = InitializeMintArgs::new(
             6,
             mint_authority,
             freeze_authority,
-            Some(metadata_pointer.clone()),
-            Some(valid_metadata),
+            None, // No pointer
+            Some(TokenMetadataArgs {
+                update_authority,
+                mint,
+                name: "Token".to_string(),
+                symbol: "TKN".to_string(),
+                uri: "https://example.com".to_string(),
+                additional_metadata: vec![],
+            }),
             None,
         );
-        assert!(valid_with_metadata.validate().is_ok());
-
-        // Invalid: metadata without metadata pointer (create a new metadata instance)
-        let metadata_for_invalid_test = TokenMetadataArgs {
-            update_authority: mint_authority,
-            mint: mint_authority,
-            name: name.to_string(),
-            symbol: symbol.to_string(),
-            uri: uri.to_string(),
-            additional_metadata: additional_metadata.clone(),
-        };
-        let metadata_without_pointer = InitializeMintArgs::new(
-            6,
-            mint_authority,
-            freeze_authority,
-            None,
-            Some(metadata_for_invalid_test),
-            None,
-        );
-        assert!(metadata_without_pointer.validate().is_err());
-
-        // Invalid metadata - empty name
-        let bad_metadata = TokenMetadataArgs {
-            update_authority: mint_authority,
-            mint: mint_authority,
-            name: "".to_string(),
-            symbol: symbol.to_string(),
-            uri: uri.to_string(),
-            additional_metadata: additional_metadata.clone(),
-        };
-        let invalid_metadata = InitializeMintArgs::new(
-            6,
-            mint_authority,
-            freeze_authority,
-            Some(metadata_pointer),
-            Some(bad_metadata),
-            None,
-        );
-        assert!(invalid_metadata.validate().is_err());
+        assert_eq!(args_invalid.validate(), Err(ProgramError::InvalidArgument));
     }
 }

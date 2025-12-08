@@ -1,17 +1,18 @@
 //! Security Token Standard Integration Tests
 
+use crate::helpers::{
+    assert_instruction_error, assert_security_token_error, assert_transaction_success,
+    find_mint_authority_pda, find_mint_freeze_authority_pda, initialize_mint,
+    initialize_verification_config, send_tx, start_with_context,
+};
 use borsh::BorshDeserialize;
 use security_token_client::accounts::{MintAuthority, VerificationConfig};
+use security_token_client::errors::SecurityTokenProgramError;
 use security_token_client::instructions::{
     InitializeMintBuilder, TrimVerificationConfigBuilder, UpdateMetadataBuilder,
     UpdateVerificationConfigBuilder, UPDATE_METADATA_DISCRIMINATOR,
 };
 use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
-
-use crate::helpers::{
-    assert_transaction_failure, assert_transaction_success, initialize_mint,
-    initialize_verification_config, send_tx,
-};
 use security_token_client::types::{
     InitializeMintArgs, InitializeVerificationConfigArgs, MetadataPointerArgs, MintArgs,
     ScaledUiAmountConfigArgs, TokenMetadataArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
@@ -964,7 +965,7 @@ async fn test_verification_config() {
     )
     .await;
 
-    assert_transaction_failure(result);
+    assert_instruction_error(result, "InvalidArgument");
 
     // Test Case 1: Trim the array from 3 programs to 2 programs (recover some rent)
     let new_size = 2u8;
@@ -1104,5 +1105,166 @@ async fn test_verification_config() {
         "Should have recovered at least {} lamports, got {}",
         config_balance_before_close,
         total_recovered_rent
+    );
+}
+
+#[tokio::test]
+async fn test_metadata_pointer_validation() {
+    let mut context = start_with_context().await;
+
+    // Test Case 1: metadata_pointer points to mint (internally owned), but metadata is None
+    // This SHOULD FAIL with InternalMetadataRequiresData
+    {
+        let mint_keypair = solana_sdk::signature::Keypair::new();
+        let (mint_authority_pda, _bump) =
+            find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
+
+        let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
+
+        let mint_args = InitializeMintArgs {
+            ix_mint: MintArgs {
+                decimals: 6,
+                mint_authority: context.payer.pubkey(),
+                freeze_authority: freeze_authority_pda,
+            },
+            ix_metadata_pointer: Some(MetadataPointerArgs {
+                authority: context.payer.pubkey(),
+                metadata_address: mint_keypair.pubkey(), // Points to mint (internally owned)
+            }),
+            ix_metadata: None, // But no metadata provided
+            ix_scaled_ui_amount: None,
+        };
+
+        let ix = InitializeMintBuilder::new()
+            .mint(mint_keypair.pubkey())
+            .payer(context.payer.pubkey())
+            .authority(mint_authority_pda)
+            .initialize_mint_args(mint_args)
+            .instruction();
+
+        let result = send_tx(
+            &context.banks_client,
+            vec![ix],
+            &context.payer.pubkey(),
+            vec![&context.payer, &mint_keypair],
+        )
+        .await;
+        assert_security_token_error(
+            result,
+            SecurityTokenProgramError::InternalMetadataRequiresData,
+        );
+    }
+
+    // Test Case 2: metadata_pointer points to external, but metadata is provided
+    // This SHOULD FAIL with ExternalMetadataForbidsData
+    {
+        let external_metadata_address = Pubkey::new_unique();
+        let mint_keypair = solana_sdk::signature::Keypair::new();
+        let (mint_authority_pda, _bump) =
+            find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
+
+        let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
+
+        let mint_args = InitializeMintArgs {
+            ix_mint: MintArgs {
+                decimals: 6,
+                mint_authority: context.payer.pubkey(),
+                freeze_authority: freeze_authority_pda,
+            },
+            ix_metadata_pointer: Some(MetadataPointerArgs {
+                authority: context.payer.pubkey(),
+                metadata_address: external_metadata_address, // Points to external address
+            }),
+            ix_metadata: Some(TokenMetadataArgs {
+                update_authority: context.payer.pubkey(),
+                mint: mint_keypair.pubkey(),
+                name: "Updated Name".to_string().into(),
+                symbol: "UPD".to_string().into(),
+                uri: "https://updated.com".to_string().into(),
+                additional_metadata: vec![],
+            }),
+            ix_scaled_ui_amount: None,
+        };
+
+        let ix = InitializeMintBuilder::new()
+            .mint(mint_keypair.pubkey())
+            .payer(context.payer.pubkey())
+            .authority(mint_authority_pda)
+            .initialize_mint_args(mint_args)
+            .instruction();
+
+        let result = send_tx(
+            &context.banks_client,
+            vec![ix],
+            &context.payer.pubkey(),
+            vec![&context.payer, &mint_keypair],
+        )
+        .await;
+        assert_security_token_error(
+            result,
+            SecurityTokenProgramError::ExternalMetadataForbidsData,
+        );
+    }
+
+    // Test Case 3: metadata_pointer points to different address (externally owned), metadata is None
+    // This SHOULD SUCCEED - external metadata storage is valid
+    let mint_keypair = solana_sdk::signature::Keypair::new();
+    let external_metadata_address = Pubkey::new_unique(); // Different from mint
+
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
+
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
+
+    let mint_args = InitializeMintArgs {
+        ix_mint: MintArgs {
+            decimals: 6,
+            mint_authority: context.payer.pubkey(),
+            freeze_authority: freeze_authority_pda,
+        },
+        ix_metadata_pointer: Some(MetadataPointerArgs {
+            authority: context.payer.pubkey(),
+            metadata_address: external_metadata_address, // Points to external address
+        }),
+        ix_metadata: None, // No metadata - VALID for external storage
+        ix_scaled_ui_amount: None,
+    };
+
+    initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
+
+    // Test Case 4: Try to update metadata for external storage mint
+    // This SHOULD FAIL - we only support internally owned metadata
+    let update_metadata_args = UpdateMetadataArgs {
+        metadata: TokenMetadataArgs {
+            update_authority: context.payer.pubkey(),
+            mint: mint_keypair.pubkey(),
+            name: "Updated Name".to_string().into(),
+            symbol: "UPD".to_string().into(),
+            uri: "https://updated.com".to_string().into(),
+            additional_metadata: vec![],
+        },
+    };
+
+    let update_metadata_ix = UpdateMetadataBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config_or_mint_authority(mint_authority_pda)
+        .instructions_sysvar_or_creator(context.payer.pubkey())
+        .mint_account(mint_keypair.pubkey())
+        .mint_authority(mint_authority_pda)
+        .payer(context.payer.pubkey())
+        .update_metadata_args(update_metadata_args)
+        .instruction();
+
+    let result = send_tx(
+        &context.banks_client,
+        vec![update_metadata_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
+
+    assert_security_token_error(
+        result,
+        SecurityTokenProgramError::CannotModifyExternalMetadataAccount,
     );
 }
