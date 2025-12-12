@@ -344,9 +344,9 @@ struct TokenMetadataArgs {
 
 struct ScaledUiAmountConfigArgs {
     authority: Pubkey,
-    multiplier: f64,
+    multiplier: [u8; 8],
     new_multiplier_effective_timestamp: i64,
-    new_multiplier: f64,
+    new_multiplier: [u8; 8],
 }
 ```
 
