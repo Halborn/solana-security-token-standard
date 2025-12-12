@@ -19,7 +19,7 @@ impl TokenMetadataArgs {
     // We also will remove the TokenMetadata implementation when pinocchio_token_2022 extensions are officially implemented
     // These formats may look similar but serve different purposes and cannot be directly reused
 
-    /// Minimum size (Borsh format): name_len (4) + symbol_len (4) + uri_len (4) + additional_metadata_len (4) = 80 bytes
+    /// Minimum size (Borsh format): name_len (4) + symbol_len (4) + uri_len (4) + additional_metadata_len (4) = 16 bytes
     pub const MIN_LEN: usize = 4 + 4 + 4 + 4;
 
     /// Deserialize TokenMetadataArgs from bytes (Borsh format) and return consumed byte count
