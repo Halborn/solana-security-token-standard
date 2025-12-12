@@ -53,7 +53,6 @@ In introspection mode, the Security Token Program examines the Instructions Sysv
 - Each verification program call must include the same instruction data and target instruction discriminator prefix
 - Each verification program call must include at least all accounts used in the Security Token instruction
 
-**Use case:** When verification programs don't need to make state changes during verification.
 
 ### CPI Mode (`cpi_mode = true`)
 
@@ -64,7 +63,6 @@ In CPI mode, the Security Token Program directly invokes (via CPI) each configur
 - Verification overhead accounts must be provided at the end of the instruction accounts (see [Verification Overhead](#verification-overhead))
 - Each verification program receives the same instruction data and accounts (overhead is stripped before CPI)
 
-**Use case:** When verification programs need to execute custom logic or make state changes during verification.
 
 ---
 
