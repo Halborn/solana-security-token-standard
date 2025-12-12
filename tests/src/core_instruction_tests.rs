@@ -131,8 +131,6 @@ async fn test_initialize_mint_with_all_extensions() {
             metadata_address: mint_keypair.pubkey(),
         }),
         ix_metadata: Some(TokenMetadataArgs {
-            update_authority: context.payer.pubkey(),
-            mint: mint_keypair.pubkey(),
             name: name.to_string().into(),
             symbol: symbol.to_string().into(),
             uri: uri.to_string().into(),
@@ -418,8 +416,6 @@ async fn test_update_metadata() {
             metadata_address: mint_keypair.pubkey(),
         }),
         ix_metadata: Some(TokenMetadataArgs {
-            update_authority: context.payer.pubkey(),
-            mint: mint_keypair.pubkey(),
             name: name.to_string().into(),
             symbol: symbol.to_string().into(),
             uri: uri.to_string().into(),
@@ -465,8 +461,6 @@ async fn test_update_metadata() {
 
     let update_metadata_args = UpdateMetadataArgs {
         metadata: TokenMetadataArgs {
-            update_authority: context.payer.pubkey(),
-            mint: mint_keypair.pubkey(),
             name: updated_name.to_string().into(),
             symbol: updated_symbol.to_string().into(),
             uri: updated_uri.to_string().into(),
@@ -788,8 +782,6 @@ async fn test_verification_config() {
             metadata_address: mint_keypair.pubkey(),
         }),
         ix_metadata: Some(TokenMetadataArgs {
-            update_authority: context.payer.pubkey(),
-            mint: mint_keypair.pubkey(),
             name: name.to_string().into(),
             symbol: symbol.to_string().into(),
             uri: uri.to_string().into(),
@@ -1176,8 +1168,6 @@ async fn test_metadata_pointer_validation() {
                 metadata_address: external_metadata_address, // Points to external address
             }),
             ix_metadata: Some(TokenMetadataArgs {
-                update_authority: context.payer.pubkey(),
-                mint: mint_keypair.pubkey(),
                 name: "Updated Name".to_string().into(),
                 symbol: "UPD".to_string().into(),
                 uri: "https://updated.com".to_string().into(),
@@ -1236,8 +1226,6 @@ async fn test_metadata_pointer_validation() {
     // This SHOULD FAIL - we only support internally owned metadata
     let update_metadata_args = UpdateMetadataArgs {
         metadata: TokenMetadataArgs {
-            update_authority: context.payer.pubkey(),
-            mint: mint_keypair.pubkey(),
             name: "Updated Name".to_string().into(),
             symbol: "UPD".to_string().into(),
             uri: "https://updated.com".to_string().into(),
