@@ -53,16 +53,14 @@ In introspection mode, the Security Token Program examines the Instructions Sysv
 - Each verification program call must include the same instruction data and target instruction discriminator prefix
 - Each verification program call must include at least all accounts used in the Security Token instruction
 
-
 ### CPI Mode (`cpi_mode = true`)
 
 In CPI mode, the Security Token Program directly invokes (via CPI) each configured verification program during instruction processing.
 
 **Requirements:**
 
-- Verification overhead accounts must be provided at the end of the instruction accounts (see [Verification Overhead](#verification-overhead))
-- Each verification program receives the same instruction data and accounts (overhead is stripped before CPI)
-
+- Verification program accounts must be appended at the end of the instruction accounts
+- Each verification program receives the same instruction data and accounts (overhead and verification program accounts are stripped before CPI)
 
 ---
 
@@ -373,7 +371,7 @@ Updates the token metadata stored in the mint account.
 
 **Discriminator:** `1`
 
-**Authorization:** Initial Mint Authority  OR Verification Programs
+**Authorization:** Initial Mint Authority OR Verification Programs
 
 **Accounts:**
 
@@ -410,7 +408,7 @@ Creates a new verification configuration for a specific instruction type.
 
 **Discriminator:** `2`
 
-**Authorization:** Initial Mint Authority  OR Verification Programs
+**Authorization:** Initial Mint Authority OR Verification Programs
 
 **Accounts:**
 
@@ -444,7 +442,7 @@ Updates an existing verification configuration.
 
 **Discriminator:** `3`
 
-**Authorization:** Initial Mint Authority  OR Verification Programs
+**Authorization:** Initial Mint Authority OR Verification Programs
 
 **Accounts:**
 
@@ -479,7 +477,7 @@ Reduces the size of or closes a verification configuration.
 
 **Discriminator:** `4`
 
-**Authorization:** Initial Mint Authority  OR Verification Programs
+**Authorization:** Initial Mint Authority OR Verification Programs
 
 **Accounts:**
 
@@ -699,7 +697,7 @@ Creates a rate configuration for split/convert operations.
 
 **Discriminator:** `13`
 
-**Authorization:** Initial Mint Authority  OR Verification Programs
+**Authorization:** Initial Mint Authority OR Verification Programs
 
 **Accounts:**
 
@@ -734,7 +732,7 @@ Updates an existing rate configuration.
 
 **Discriminator:** `14`
 
-**Authorization:** Initial Mint Authority  OR Verification Programs
+**Authorization:** Initial Mint Authority OR Verification Programs
 
 **Accounts:**
 
@@ -767,7 +765,7 @@ Closes a rate account and reclaims rent.
 
 **Discriminator:** `15`
 
-**Authorization:** Initial Mint Authority  OR Verification Programs
+**Authorization:** Initial Mint Authority OR Verification Programs
 
 **Accounts:**
 
@@ -920,7 +918,7 @@ Creates an escrow token account for distribution (dividends/coupons).
 
 **Discriminator:** `20`
 
-**Authorization:** Initial Mint Authority  OR Verification Programs
+**Authorization:** Initial Mint Authority OR Verification Programs
 
 **Accounts:**
 
@@ -988,7 +986,7 @@ Closes an action receipt account (for Split/Convert) and reclaims rent.
 
 **Discriminator:** `22`
 
-**Authorization:** Initial Mint Authority  OR Verification Programs
+**Authorization:** Initial Mint Authority OR Verification Programs
 
 **Accounts:**
 
@@ -1014,7 +1012,7 @@ Closes a claim receipt account (for ClaimDistribution) and reclaims rent.
 
 **Discriminator:** `23`
 
-**Authorization:** Initial Mint Authority  OR Verification Programs
+**Authorization:** Initial Mint Authority OR Verification Programs
 
 **Accounts:**
 
