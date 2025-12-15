@@ -320,3 +320,16 @@ pub fn parse_action_id_bytes(data: &[u8]) -> Option<u64> {
         .and_then(|slice| slice.try_into().ok())
         .map(u64::from_le_bytes)
 }
+
+/// Find Associated Token Account address
+/// Derives the ATA address using the standard Associated Token Account seeds
+pub fn find_associated_token_address(
+    wallet: &Pubkey,
+    token_mint: &Pubkey,
+    token_program: &Pubkey,
+) -> (Pubkey, u8) {
+    find_program_address(
+        &[wallet.as_ref(), token_program.as_ref(), token_mint.as_ref()],
+        &pinocchio_associated_token_account::ID,
+    )
+}
