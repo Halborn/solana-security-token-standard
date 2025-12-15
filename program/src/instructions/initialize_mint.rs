@@ -6,9 +6,6 @@ use shank::ShankType;
 #[repr(C)]
 #[derive(Clone, Debug, ShankType)]
 pub struct TokenMetadataArgs {
-    // Length fields are omitted because the owned values carry that information
-    pub update_authority: Pubkey,
-    pub mint: Pubkey,
     pub name: String,
     pub symbol: String,
     pub uri: String,
@@ -22,8 +19,8 @@ impl TokenMetadataArgs {
     // We also will remove the TokenMetadata implementation when pinocchio_token_2022 extensions are officially implemented
     // These formats may look similar but serve different purposes and cannot be directly reused
 
-    /// Minimum size (Borsh format): update_authority (32) + mint (32) + name_len (4) + symbol_len (4) + uri_len (4) + additional_metadata_len (4) = 80 bytes
-    pub const MIN_LEN: usize = PUBKEY_BYTES + PUBKEY_BYTES + 4 + 4 + 4 + 4;
+    /// Minimum size (Borsh format): name_len (4) + symbol_len (4) + uri_len (4) + additional_metadata_len (4) = 16 bytes
+    pub const MIN_LEN: usize = 4 + 4 + 4 + 4;
 
     /// Deserialize TokenMetadataArgs from bytes (Borsh format) and return consumed byte count
     pub fn try_from_bytes(data: &[u8]) -> Result<(Self, usize), ProgramError> {
@@ -32,20 +29,6 @@ impl TokenMetadataArgs {
         }
 
         let mut offset: usize = 0;
-
-        // Read update_authority (32 bytes)
-        let update_authority = Pubkey::from(
-            <[u8; PUBKEY_BYTES]>::try_from(&data[offset..offset + PUBKEY_BYTES])
-                .map_err(|_| ProgramError::InvalidInstructionData)?,
-        );
-        offset += PUBKEY_BYTES;
-
-        // Read mint (32 bytes)
-        let mint = Pubkey::from(
-            <[u8; PUBKEY_BYTES]>::try_from(&data[offset..offset + PUBKEY_BYTES])
-                .map_err(|_| ProgramError::InvalidInstructionData)?,
-        );
-        offset += PUBKEY_BYTES;
 
         // Read name (Borsh format: length prefix + bytes)
         let name_len = u32::from_le_bytes(
@@ -107,8 +90,6 @@ impl TokenMetadataArgs {
 
         Ok((
             Self {
-                update_authority,
-                mint,
                 name,
                 symbol,
                 uri,
@@ -121,12 +102,6 @@ impl TokenMetadataArgs {
     /// Serialize TokenMetadata to bytes (Borsh format)
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
-
-        // Write update_authority (32 bytes)
-        buf.extend_from_slice(self.update_authority.as_ref());
-
-        // Write mint (32 bytes)
-        buf.extend_from_slice(self.mint.as_ref());
 
         // Write name (Borsh: u32 length + bytes)
         buf.extend_from_slice(&(self.name.len() as u32).to_le_bytes());
@@ -522,8 +497,6 @@ mod tests {
         let additional_metadata = vec![];
 
         let metadata = TokenMetadataArgs {
-            update_authority,
-            mint,
             name: name.to_string(),
             symbol: symbol.to_string(),
             uri: uri.to_string(),
@@ -647,8 +620,6 @@ mod tests {
                 metadata_address: mint,
             }),
             Some(TokenMetadataArgs {
-                update_authority,
-                mint,
                 name: "Token".to_string(),
                 symbol: "TKN".to_string(),
                 uri: "https://example.com".to_string(),
@@ -665,8 +636,6 @@ mod tests {
             freeze_authority,
             None, // No pointer
             Some(TokenMetadataArgs {
-                update_authority,
-                mint,
                 name: "Token".to_string(),
                 symbol: "TKN".to_string(),
                 uri: "https://example.com".to_string(),

@@ -434,8 +434,6 @@ async fn test_update_metadata_under_verification() {
             metadata_address: mint_keypair.pubkey(),
         }),
         ix_metadata: Some(TokenMetadataArgs {
-            update_authority: context.payer.pubkey(),
-            mint: mint_keypair.pubkey(),
             name: name.to_string().into(),
             symbol: symbol.to_string().into(),
             uri: uri.to_string().into(),
@@ -476,8 +474,6 @@ async fn test_update_metadata_under_verification() {
 
     let update_metadata_args = UpdateMetadataArgs {
         metadata: TokenMetadataArgs {
-            update_authority: context.payer.pubkey(),
-            mint: mint_keypair.pubkey(),
             name: updated_name.to_string().into(),
             symbol: updated_symbol.to_string().into(),
             uri: updated_uri.to_string().into(),

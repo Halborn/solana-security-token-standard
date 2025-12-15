@@ -1116,14 +1116,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "updateAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "mint",
-            "type": "publicKey"
-          },
-          {
             "name": "name",
             "type": "string"
           },
