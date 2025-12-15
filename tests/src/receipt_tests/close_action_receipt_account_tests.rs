@@ -8,10 +8,7 @@ use solana_sdk::{
 use crate::{
     convert_tests::convert_helpers::{create_convert_verification_config, execute_convert},
     helpers::{
-        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        create_mint_verification_config, create_spl_account, create_token_account_and_mint_tokens,
-        find_permanent_delegate_pda, from_ui_amount, get_balance, mint_tokens_to,
-        start_with_context, start_with_context_and_accounts, TX_FEE,
+        TX_FEE, assert_account_exists, assert_transaction_failure, assert_transaction_success, create_minimal_security_token_mint, create_mint_verification_config, create_spl_account, create_token_account_and_mint_tokens, find_permanent_delegate_pda, from_ui_amount, get_balance, mint_tokens_to, start_with_context, start_with_context_and_accounts
     },
     rate_tests::rate_helpers::create_rate_account,
     receipt_tests::receipt_helpers::{
@@ -515,4 +512,62 @@ async fn test_should_not_close_not_owned_receipt_account() {
     )
     .await;
     assert_transaction_success(result2);
+}
+
+#[tokio::test]
+async fn test_should_not_close_wrong_account_type() {
+    let mut context = &mut start_with_context().await;
+
+    let mint_creator = context.payer.insecure_clone();
+    let mint_keypair = Keypair::new();
+    let decimals = 6u8;
+    let (mint_authority_pda, _) =
+        create_minimal_security_token_mint(&mut context, &mint_keypair, None, decimals).await;
+
+    let action_id = 42u64;
+    let rounding = Rounding::Up as u8;
+    let numerator = 3u8;
+    let denominator = 2u8;
+    let mint_from_pubkey = mint_keypair.pubkey();
+
+    let create_rate_args = CreateRateArgs {
+        action_id,
+        rate: RateArgs {
+            rounding,
+            numerator,
+            denominator,
+        },
+    };
+
+    // Create a Rate account (wrong type for Receipt)
+    let (rate_pda, result) = create_rate_account(
+        context,
+        mint_keypair.pubkey(),
+        mint_authority_pda,
+        context.payer.pubkey(),
+        mint_from_pubkey,
+        mint_from_pubkey,
+        create_rate_args.clone(),
+        None,
+    )
+    .await;
+    assert_transaction_success(result);
+
+    assert_account_exists(context, rate_pda, true)
+        .await
+        .unwrap();
+
+    // Try to close Rate account as if it were a Receipt account
+    let result = close_action_receipt_account(
+        context,
+        mint_keypair.pubkey(),
+        mint_authority_pda,
+        mint_creator.pubkey(),
+        rate_pda, // Passing Rate PDA instead of Receipt PDA
+        mint_from_pubkey,
+        &mint_creator,
+        CloseActionReceiptArgs { action_id },
+    )
+    .await;
+    assert_transaction_failure(result);
 }

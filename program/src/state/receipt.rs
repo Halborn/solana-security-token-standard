@@ -50,6 +50,15 @@ impl Receipt {
         Ok(Self {})
     }
 
+    pub fn from_account_info(account_info: &AccountInfo) -> Result<Receipt, ProgramError> {
+        if account_info.data_len() != Self::LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        let data_ref = account_info.try_borrow_data()?;
+        let receipt = Self::try_from_bytes(&data_ref)?;
+        Ok(receipt)
+    }
+
     /// Issue new Receipt
     /// Create PDA account and write data into it
     pub fn issue(

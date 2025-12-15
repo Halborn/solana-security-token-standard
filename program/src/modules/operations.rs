@@ -895,6 +895,8 @@ impl OperationsModule {
         // Validate Receipt
         verify_account_initialized(receipt_account)?;
         verify_owner(receipt_account, program_id)?;
+        // Deserialize to ensure it's valid Receipt account (checks discriminator)
+        Receipt::from_account_info(receipt_account)?;
         let (expected_receipt_pda, _bump) =
             Receipt::find_common_action_pda(mint_account.key(), action_id);
         verify_pda(receipt_account.key(), &expected_receipt_pda)?;
@@ -922,6 +924,8 @@ impl OperationsModule {
         verify_writable(receipt_account)?;
         verify_account_initialized(receipt_account)?;
         verify_owner(receipt_account, program_id)?;
+        // Deserialize to ensure it's valid Receipt account (checks discriminator)
+        Receipt::from_account_info(receipt_account)?;
 
         // Retrieve proof data either from argument or from account. Verify proof account
         let proof = Proof::get_proof_data_from_instruction(
