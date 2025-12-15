@@ -79,6 +79,7 @@ impl VerificationModule {
         verify_signer(mint_info)?;
         verify_writable(creator_info)?;
         verify_writable(mint_info)?;
+        verify_writable(mint_authority_account)?;
         verify_account_not_initialized(mint_authority_account)?;
 
         // Fail fast if caller-supplied mint authority doesn’t match the creator; SetAuthority would fail later otherwise
