@@ -368,7 +368,7 @@
         },
         {
           "name": "mintAuthority",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {

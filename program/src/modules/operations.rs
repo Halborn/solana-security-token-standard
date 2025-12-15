@@ -47,7 +47,6 @@ impl OperationsModule {
 
         verify_token22_program(token_program)?;
         verify_owner(mint_authority, program_id)?;
-        verify_writable(mint_authority)?;
         verify_writable(mint_info)?;
         verify_writable(destination_account_info)?;
 

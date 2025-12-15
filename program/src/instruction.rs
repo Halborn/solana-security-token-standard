@@ -168,7 +168,7 @@ mod idl_gen {
         #[account(1, name = "verification_config")]
         #[account(2, name = "instructions_sysvar")]
         // Instruction accounts
-        #[account(3, writable, name = "mint_authority")]
+        #[account(3, name = "mint_authority")]
         #[account(4, writable, name = "mint_account")]
         #[account(5, writable, name = "destination")]
         #[account(6, name = "token_program")]
