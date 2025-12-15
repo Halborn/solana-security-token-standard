@@ -1195,7 +1195,6 @@ impl VerificationModule {
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_writable(recipient)?;
-        verify_writable(mint_account)?;
         verify_writable(config_account)?;
         verify_account_initialized(config_account)?;
 

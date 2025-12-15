@@ -61,7 +61,7 @@ impl TrimVerificationConfig {
             self.instructions_sysvar_or_creator,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint_account,
             false,
         ));
@@ -151,7 +151,7 @@ pub struct TrimVerificationConfigInstructionArgs {
 ///   0. `[]` mint
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
-///   3. `[writable]` mint_account
+///   3. `[]` mint_account
 ///   4. `[writable]` config_account
 ///   5. `[writable]` recipient
 ///   6. `[optional]` system_program (default to `11111111111111111111111111111111`)
@@ -409,7 +409,7 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
             *self.instructions_sysvar_or_creator.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint_account.key,
             false,
         ));
@@ -511,7 +511,7 @@ impl<'a, 'b> TrimVerificationConfigCpi<'a, 'b> {
 ///   0. `[]` mint
 ///   1. `[]` verification_config_or_mint_authority
 ///   2. `[]` instructions_sysvar_or_creator
-///   3. `[writable]` mint_account
+///   3. `[]` mint_account
 ///   4. `[writable]` config_account
 ///   5. `[writable]` recipient
 ///   6. `[]` system_program
