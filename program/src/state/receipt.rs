@@ -54,6 +54,10 @@ impl Receipt {
         if account_info.data_len() != Self::LEN {
             return Err(ProgramError::InvalidAccountData);
         }
+        if !account_info.is_owned_by(&crate::ID) {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+
         let data_ref = account_info.try_borrow_data()?;
         let receipt = Self::try_from_bytes(&data_ref)?;
         Ok(receipt)
