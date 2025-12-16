@@ -19,8 +19,9 @@ use crate::state::{
     DistributionEscrowAuthority, MintAuthority, ProgramAccount, Proof, Rate, Receipt, Rounding,
 };
 use crate::utils::{
-    find_associated_token_address, find_freeze_authority_pda, find_pause_authority_pda,
-    find_permanent_delegate_pda, find_proof_pda, find_rate_pda,
+    find_associated_token_address, find_distribution_escrow_authority_pda,
+    find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda,
+    find_proof_pda, find_rate_pda,
 };
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
@@ -837,6 +838,19 @@ impl OperationsModule {
         // With external settlement only the Receipt is issued
         // With internal settlement tokens are transferred and Receipt is issued
         if !is_external_settlement {
+            let (distribution_escrow_authority, _bump) = find_distribution_escrow_authority_pda(
+                mint_pubkey,
+                action_id,
+                merkle_root,
+                program_id,
+            );
+            let (expected_escrow_ata, _ata_bump) = find_associated_token_address(
+                &distribution_escrow_authority,
+                mint_pubkey,
+                &pinocchio_token_2022::ID,
+            );
+            verify_pda(escrow_token_account.key(), &expected_escrow_ata)?;
+
             let (permanent_delegate_pda, permanent_delegate_bump) =
                 find_permanent_delegate_pda(mint_pubkey, program_id);
             verify_pda(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
