@@ -879,7 +879,7 @@ impl OperationsModule {
 
     /// Close Receipt account of operation tied to the action_id (e.g. split, convert)
     pub fn execute_close_action_receipt_account(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         action_id: u64,
@@ -894,7 +894,8 @@ impl OperationsModule {
 
         // Validate Receipt
         verify_account_initialized(receipt_account)?;
-        verify_owner(receipt_account, program_id)?;
+        // Deserialize to ensure it's valid Receipt account (checks discriminator and ownership)
+        Receipt::from_account_info(receipt_account)?;
         let (expected_receipt_pda, _bump) =
             Receipt::find_common_action_pda(mint_account.key(), action_id);
         verify_pda(receipt_account.key(), &expected_receipt_pda)?;
@@ -905,7 +906,7 @@ impl OperationsModule {
 
     /// Close Receipt account of claim_distribution action
     pub fn execute_close_claim_receipt_account(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         action_id: u64,
@@ -921,7 +922,8 @@ impl OperationsModule {
         verify_writable(destination_account)?;
         verify_writable(receipt_account)?;
         verify_account_initialized(receipt_account)?;
-        verify_owner(receipt_account, program_id)?;
+        // Deserialize to ensure it's valid Receipt account (checks discriminator and ownership)
+        Receipt::from_account_info(receipt_account)?;
 
         // Retrieve proof data either from argument or from account. Verify proof account
         let proof = Proof::get_proof_data_from_instruction(
