@@ -79,6 +79,7 @@ impl VerificationModule {
         verify_signer(mint_info)?;
         verify_writable(creator_info)?;
         verify_writable(mint_info)?;
+        verify_writable(mint_authority_account)?;
         verify_account_not_initialized(mint_authority_account)?;
 
         // Fail fast if caller-supplied mint authority doesn’t match the creator; SetAuthority would fail later otherwise
@@ -330,6 +331,8 @@ impl VerificationModule {
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
         verify_owner(mint_authority, program_id)?;
+        verify_writable(payer)?;
+        verify_writable(mint_info)?;
 
         let mint_authority_data = MintAuthority::from_account_info(mint_authority)?;
 
@@ -858,6 +861,7 @@ impl VerificationModule {
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
+        verify_writable(config_account)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
 
         // Get instruction discriminator
@@ -944,6 +948,7 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_writable(account_metas_pda_info)?;
         verify_transfer_hook_program(transfer_hook_program)?;
         let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
         verify_pda_keys_match(&transfer_hook_pda, transfer_hook_pda_info.key())?;
@@ -1091,6 +1096,7 @@ impl VerificationModule {
         verify_owner(config_account, program_id)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
+        verify_writable(config_account)?;
         verify_account_initialized(config_account)?;
 
         let mut existing_config = VerificationConfig::from_account_info(config_account)?;
@@ -1189,6 +1195,7 @@ impl VerificationModule {
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_writable(recipient)?;
+        verify_writable(config_account)?;
         verify_account_initialized(config_account)?;
 
         let mut existing_config = VerificationConfig::from_account_info(config_account)?;

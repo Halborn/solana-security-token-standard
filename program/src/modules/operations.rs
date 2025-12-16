@@ -47,6 +47,8 @@ impl OperationsModule {
 
         verify_token22_program(token_program)?;
         verify_owner(mint_authority, program_id)?;
+        verify_writable(mint_info)?;
+        verify_writable(destination_account_info)?;
 
         let mint_account = Mint::from_account_info(mint_info)?;
         let decimals = mint_account.decimals();
@@ -88,6 +90,8 @@ impl OperationsModule {
 
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
+        verify_writable(mint_info)?;
+        verify_writable(token_account)?;
 
         let (permanent_delegate_pda, bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
@@ -125,6 +129,7 @@ impl OperationsModule {
 
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
+        verify_writable(mint_info)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         verify_pda_keys_match(pause_authority.key(), &pause_authority_pda)?;
@@ -162,6 +167,7 @@ impl OperationsModule {
 
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
+        verify_writable(mint_info)?;
 
         let (pause_authority_pda, bump) = find_pause_authority_pda(mint_info.key(), program_id);
         verify_pda_keys_match(pause_authority.key(), &pause_authority_pda)?;
@@ -199,6 +205,7 @@ impl OperationsModule {
 
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
+        verify_writable(token_account)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         verify_pda_keys_match(freeze_authority.key(), &freeze_authority_pda)?;
@@ -236,6 +243,7 @@ impl OperationsModule {
 
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
+        verify_writable(token_account)?;
 
         let (freeze_authority_pda, bump) = find_freeze_authority_pda(mint_info.key(), program_id);
         verify_pda_keys_match(freeze_authority.key(), &freeze_authority_pda)?;
@@ -274,6 +282,8 @@ impl OperationsModule {
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
         verify_transfer_hook_program(transfer_hook_program)?;
+        verify_writable(from_token_account)?;
+        verify_writable(to_token_account)?;
 
         let (permanent_delegate_pda, bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
@@ -472,6 +482,7 @@ impl OperationsModule {
         verify_writable(token_account)?;
         verify_writable(receipt_account)?;
         verify_writable(payer)?;
+        verify_writable(mint_account)?;
         verify_owner(mint_authority, program_id)?;
         verify_owner(rate_account, program_id)?;
         verify_account_not_initialized(receipt_account)?;
@@ -583,6 +594,8 @@ impl OperationsModule {
         verify_writable(token_account_to)?;
         verify_writable(receipt_account)?;
         verify_writable(payer)?;
+        verify_writable(mint_from_account)?;
+        verify_writable(mint_to_account)?;
         verify_owner(rate_account, program_id)?;
         verify_owner(mint_authority, program_id)?;
         verify_account_not_initialized(receipt_account)?;

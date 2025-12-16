@@ -266,7 +266,7 @@
         },
         {
           "name": "mintAccount",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -368,7 +368,7 @@
         },
         {
           "name": "mintAuthority",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {

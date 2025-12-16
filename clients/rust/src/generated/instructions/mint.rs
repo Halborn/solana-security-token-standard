@@ -51,7 +51,7 @@ impl Mint {
             self.instructions_sysvar,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.mint_authority,
             false,
         ));
@@ -111,7 +111,7 @@ pub struct MintInstructionArgs {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[optional]` instructions_sysvar (default to `Sysvar1nstructions1111111111111111111111111`)
-///   3. `[writable]` mint_authority
+///   3. `[]` mint_authority
 ///   4. `[writable]` mint_account
 ///   5. `[writable]` destination
 ///   6. `[optional]` token_program (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
@@ -307,7 +307,7 @@ impl<'a, 'b> MintCpi<'a, 'b> {
             *self.instructions_sysvar.key,
             false,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.mint_authority.key,
             false,
         ));
@@ -367,7 +367,7 @@ impl<'a, 'b> MintCpi<'a, 'b> {
 ///   0. `[]` mint
 ///   1. `[]` verification_config
 ///   2. `[]` instructions_sysvar
-///   3. `[writable]` mint_authority
+///   3. `[]` mint_authority
 ///   4. `[writable]` mint_account
 ///   5. `[writable]` destination
 ///   6. `[]` token_program
