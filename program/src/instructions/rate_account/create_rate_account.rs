@@ -5,7 +5,7 @@ use crate::instructions::rate_account::shared::{
     parse_action_and_rate, serialize_action_and_rate, RateConfig, ACTION_AND_RATE_ARGS_LEN,
 };
 
-/// Arguments to creating Rate account
+/// Arguments for creating Rate account
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, ShankType)]
 pub struct CreateRateArgs {
