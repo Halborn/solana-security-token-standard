@@ -2,17 +2,17 @@ use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
 use crate::instructions::rate_account::shared::{
-    parse_action_and_rate, serialize_action_and_rate, RateArgs, ACTION_AND_RATE_ARGS_LEN,
+    parse_action_and_rate, serialize_action_and_rate, RateConfig, ACTION_AND_RATE_ARGS_LEN,
 };
 
-/// Arguments to create Rate account
+/// Arguments for creating Rate account
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, ShankType)]
 pub struct CreateRateArgs {
     /// Action ID for the rate creation
     pub action_id: u64,
     /// Rate configuration arguments
-    pub rate: RateArgs,
+    pub rate: RateConfig,
 }
 
 impl CreateRateArgs {
@@ -46,7 +46,7 @@ mod tests {
     ) {
         let original = CreateRateArgs {
             action_id,
-            rate: RateArgs {
+            rate: RateConfig {
                 rounding,
                 numerator,
                 denominator,
@@ -77,7 +77,7 @@ mod tests {
     ) {
         let original = CreateRateArgs {
             action_id,
-            rate: RateArgs {
+            rate: RateConfig {
                 rounding,
                 numerator,
                 denominator,

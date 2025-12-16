@@ -1,0 +1,23 @@
+{
+  "name": "security-token-client",
+  "version": "0.1.0",
+  "description": "TypeScript client for Security Token Program",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "author": "Hoodies",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@solana/kit": "^2.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "files": [
+    "dist"
+  ]
+}

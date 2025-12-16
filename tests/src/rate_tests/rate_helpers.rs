@@ -3,10 +3,7 @@ use security_token_client::{
         CloseRateAccount, CloseRateAccountInstructionArgs, CreateRateAccount,
         CreateRateAccountInstructionArgs, UpdateRateAccount, UpdateRateAccountInstructionArgs,
     },
-    programs::SECURITY_TOKEN_PROGRAM_ID,
-    types::{
-        CloseRateArgs, CreateRateArgs, InitializeMintArgs, MintArgs, Rounding, UpdateRateArgs,
-    },
+    types::{CloseRateArgs, CreateRateArgs, Rounding, UpdateRateArgs},
 };
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
@@ -15,53 +12,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
-use crate::helpers::{
-    find_mint_authority_pda, find_mint_freeze_authority_pda, initialize_mint_for_creator, send_tx,
-};
-
-pub async fn create_security_token_mint(
-    context: &mut solana_program_test::ProgramTestContext,
-    mint_keypair: &solana_sdk::signature::Keypair,
-    mint_creator: Option<&Keypair>,
-    decimals: u8,
-) -> (Pubkey, Pubkey, Pubkey) {
-    let spl_token_2022_program =
-        Pubkey::from_str_const("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
-
-    let payer = mint_creator.unwrap_or(&context.payer).insecure_clone();
-    let mint_authority = payer.pubkey();
-
-    let (mint_authority_pda, _bump) =
-        find_mint_authority_pda(&mint_keypair.pubkey(), &mint_authority);
-
-    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
-
-    let mint_args = InitializeMintArgs {
-        ix_mint: MintArgs {
-            decimals,
-            mint_authority: mint_authority.clone(),
-            freeze_authority: freeze_authority_pda,
-        },
-        ix_metadata_pointer: None,
-        ix_metadata: None,
-        ix_scaled_ui_amount: None,
-    };
-
-    initialize_mint_for_creator(
-        context,
-        &mint_keypair,
-        mint_authority_pda,
-        &payer,
-        &mint_args,
-    )
-    .await;
-
-    (
-        mint_authority_pda,
-        freeze_authority_pda,
-        spl_token_2022_program,
-    )
-}
+use crate::helpers::{find_rate_pda, send_tx};
 
 pub async fn create_rate_account(
     context: &mut solana_program_test::ProgramTestContext,
@@ -165,18 +116,6 @@ pub async fn update_rate_account(
         vec![&payer],
     )
     .await
-}
-
-pub fn find_rate_pda(action_id: u64, mint_pubkey1: &Pubkey, mint_pubkey2: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[
-            b"rate",
-            action_id.to_le_bytes().as_ref(),
-            mint_pubkey1.as_ref(),
-            mint_pubkey2.as_ref(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    )
 }
 
 pub fn calculate_rate_amount(

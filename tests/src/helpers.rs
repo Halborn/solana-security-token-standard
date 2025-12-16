@@ -293,14 +293,8 @@ pub async fn initialize_mint_verification_and_mint_to_account(
     account_to_mint: Pubkey,
     amount: u64,
 ) {
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[MINT_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), MINT_DISCRIMINATOR);
     let mint_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: MINT_DISCRIMINATOR,
         cpi_mode: false,
@@ -484,6 +478,25 @@ pub fn find_verification_config_pda(mint: Pubkey, instruction_discriminator: u8)
             b"verification_config",
             &mint.as_ref(),
             &[instruction_discriminator],
+        ],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    )
+}
+
+pub fn find_mint_pause_authority_pda(mint: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[b"mint.pause_authority", mint.as_ref()],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    )
+}
+
+pub fn find_rate_pda(action_id: u64, mint_pubkey1: &Pubkey, mint_pubkey2: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            b"rate",
+            action_id.to_le_bytes().as_ref(),
+            mint_pubkey1.as_ref(),
+            mint_pubkey2.as_ref(),
         ],
         &SECURITY_TOKEN_PROGRAM_ID,
     )

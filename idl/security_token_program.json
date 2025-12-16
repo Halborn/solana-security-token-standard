@@ -1266,14 +1266,14 @@
           {
             "name": "rate",
             "type": {
-              "defined": "RateArgs"
+              "defined": "RateConfig"
             }
           }
         ]
       }
     },
     {
-      "name": "RateArgs",
+      "name": "RateConfig",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1304,7 +1304,7 @@
           {
             "name": "rate",
             "type": {
-              "defined": "RateArgs"
+              "defined": "RateConfig"
             }
           }
         ]

@@ -17,15 +17,15 @@ import {
   type FixedSizeEncoder,
 } from '@solana/kit';
 
-export type RateArgs = {
+export type RateConfig = {
   rounding: number;
   numerator: number;
   denominator: number;
 };
 
-export type RateArgsArgs = RateArgs;
+export type RateConfigArgs = RateConfig;
 
-export function getRateArgsEncoder(): FixedSizeEncoder<RateArgsArgs> {
+export function getRateConfigEncoder(): FixedSizeEncoder<RateConfigArgs> {
   return getStructEncoder([
     ['rounding', getU8Encoder()],
     ['numerator', getU8Encoder()],
@@ -33,7 +33,7 @@ export function getRateArgsEncoder(): FixedSizeEncoder<RateArgsArgs> {
   ]);
 }
 
-export function getRateArgsDecoder(): FixedSizeDecoder<RateArgs> {
+export function getRateConfigDecoder(): FixedSizeDecoder<RateConfig> {
   return getStructDecoder([
     ['rounding', getU8Decoder()],
     ['numerator', getU8Decoder()],
@@ -41,6 +41,9 @@ export function getRateArgsDecoder(): FixedSizeDecoder<RateArgs> {
   ]);
 }
 
-export function getRateArgsCodec(): FixedSizeCodec<RateArgsArgs, RateArgs> {
-  return combineCodec(getRateArgsEncoder(), getRateArgsDecoder());
+export function getRateConfigCodec(): FixedSizeCodec<
+  RateConfigArgs,
+  RateConfig
+> {
+  return combineCodec(getRateConfigEncoder(), getRateConfigDecoder());
 }

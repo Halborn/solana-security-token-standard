@@ -3,12 +3,11 @@ use shank::ShankType;
 
 use crate::{constants::ACTION_ID_LEN, state::Rounding, utils::parse_action_id_bytes};
 
-/// Combined size of action ID and rate arguments for rate account operations
-pub const ACTION_AND_RATE_ARGS_LEN: usize = ACTION_ID_LEN + RateArgs::LEN;
+pub const ACTION_AND_RATE_ARGS_LEN: usize = ACTION_ID_LEN + RateConfig::LEN;
 
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, ShankType)]
-pub struct RateArgs {
+pub struct RateConfig {
     /// Rounding direction (0 = Up, 1 = Down)
     pub rounding: u8,
     /// Rate numerator
@@ -17,7 +16,7 @@ pub struct RateArgs {
     pub denominator: u8,
 }
 
-impl RateArgs {
+impl RateConfig {
     /// Fixed size: rounding (1 byte) + numerator (1 byte) + denominator (1 byte) = 3 bytes
     pub const LEN: usize = 1 + 1 + 1;
 
@@ -62,8 +61,8 @@ impl RateArgs {
     }
 }
 
-/// Parse (action_id, RateArgs) from bytes
-pub fn parse_action_and_rate(data: &[u8]) -> Result<(u64, RateArgs), ProgramError> {
+/// Parse (action_id, RateConfig) from bytes
+pub fn parse_action_and_rate(data: &[u8]) -> Result<(u64, RateConfig), ProgramError> {
     if data.len() != ACTION_AND_RATE_ARGS_LEN {
         return Err(ProgramError::InvalidInstructionData);
     }
@@ -71,7 +70,7 @@ pub fn parse_action_and_rate(data: &[u8]) -> Result<(u64, RateArgs), ProgramErro
     let action_id = parse_action_id_argument(&data[..ACTION_ID_LEN])?;
 
     let rate_args_data = &data[ACTION_ID_LEN..];
-    let rate_args = RateArgs::try_from_bytes(rate_args_data)?;
+    let rate_args = RateConfig::try_from_bytes(rate_args_data)?;
 
     Ok((action_id, rate_args))
 }
@@ -92,7 +91,7 @@ pub fn parse_action_id_argument(data: &[u8]) -> Result<u64, ProgramError> {
 }
 
 /// Serialize (action_id, Rate arguments) into bytes
-pub fn serialize_action_and_rate(action_id: u64, rate: &RateArgs) -> Vec<u8> {
+pub fn serialize_action_and_rate(action_id: u64, rate: &RateConfig) -> Vec<u8> {
     let mut data = Vec::with_capacity(ACTION_AND_RATE_ARGS_LEN);
     data.extend_from_slice(action_id.to_le_bytes().as_ref());
     data.extend_from_slice(rate.to_bytes_inner().as_ref());

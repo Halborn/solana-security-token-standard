@@ -5,7 +5,7 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use crate::generated::types::RateArgs;
+use crate::generated::types::RateConfig;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
@@ -13,5 +13,5 @@ use borsh::BorshSerialize;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CreateRateArgs {
     pub action_id: u64,
-    pub rate: RateArgs,
+    pub rate: RateConfig,
 }

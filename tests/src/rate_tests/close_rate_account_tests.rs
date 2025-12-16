@@ -1,4 +1,4 @@
-use security_token_client::types::{CloseRateArgs, CreateRateArgs, RateArgs, Rounding};
+use security_token_client::types::{CloseRateArgs, CreateRateArgs, RateConfig, Rounding};
 use solana_program_test::*;
 use solana_sdk::{
     native_token::sol_str_to_lamports,
@@ -7,12 +7,10 @@ use solana_sdk::{
 
 use crate::{
     helpers::{
-        assert_account_exists, assert_transaction_success, start_with_context,
-        start_with_context_and_accounts, TX_FEE,
+        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
+        start_with_context, start_with_context_and_accounts, TX_FEE,
     },
-    rate_tests::rate_helpers::{
-        close_rate_account, create_rate_account, create_security_token_mint,
-    },
+    rate_tests::rate_helpers::{close_rate_account, create_rate_account},
 };
 
 #[tokio::test]
@@ -23,9 +21,9 @@ async fn test_should_close_rate_account() {
     let mint_to_keypair = Keypair::new();
     let decimals = 6u8;
     let (mint_authority_pda_from, _, _) =
-        create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
+        create_minimal_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
     let (mint_authority_pda_to, _, _) =
-        create_security_token_mint(&mut context, &mint_to_keypair, None, decimals).await;
+        create_minimal_security_token_mint(&mut context, &mint_to_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
@@ -36,7 +34,7 @@ async fn test_should_close_rate_account() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -172,7 +170,7 @@ async fn test_should_not_close_not_owned_rate_account() {
     let mint_creator1 = context.payer.pubkey();
     let decimals = 6u8;
     let (mint_authority_pda1, _, _) =
-        create_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
+        create_minimal_security_token_mint(&mut context, &mint_from_keypair, None, decimals).await;
 
     let action_id = 42u64;
     let rounding = Rounding::Up as u8;
@@ -182,7 +180,7 @@ async fn test_should_not_close_not_owned_rate_account() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -218,11 +216,12 @@ async fn test_should_not_close_not_owned_rate_account() {
 
     let decimals = 6u8;
     let (mint_authority_pda2, _, _) =
-        create_security_token_mint(&mut context, &mint_to_keypair, Some(&payer2), decimals).await;
+        create_minimal_security_token_mint(&mut context, &mint_to_keypair, Some(&payer2), decimals)
+            .await;
 
     let create_rate_args2 = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,

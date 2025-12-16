@@ -17,30 +17,30 @@ import {
   type FixedSizeEncoder,
 } from '@solana/kit';
 import {
-  getRateArgsDecoder,
-  getRateArgsEncoder,
-  type RateArgs,
-  type RateArgsArgs,
+  getRateConfigDecoder,
+  getRateConfigEncoder,
+  type RateConfig,
+  type RateConfigArgs,
 } from '.';
 
-export type CreateRateArgs = { actionId: bigint; rate: RateArgs };
+export type CreateRateArgs = { actionId: bigint; rate: RateConfig };
 
 export type CreateRateArgsArgs = {
   actionId: number | bigint;
-  rate: RateArgsArgs;
+  rate: RateConfigArgs;
 };
 
 export function getCreateRateArgsEncoder(): FixedSizeEncoder<CreateRateArgsArgs> {
   return getStructEncoder([
     ['actionId', getU64Encoder()],
-    ['rate', getRateArgsEncoder()],
+    ['rate', getRateConfigEncoder()],
   ]);
 }
 
 export function getCreateRateArgsDecoder(): FixedSizeDecoder<CreateRateArgs> {
   return getStructDecoder([
     ['actionId', getU64Decoder()],
-    ['rate', getRateArgsDecoder()],
+    ['rate', getRateConfigDecoder()],
   ]);
 }
 
