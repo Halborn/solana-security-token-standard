@@ -64,7 +64,7 @@ export type MintInstruction<
         ? ReadonlyAccount<TAccountInstructionsSysvar>
         : TAccountInstructionsSysvar,
       TAccountMintAuthority extends string
-        ? WritableAccount<TAccountMintAuthority>
+        ? ReadonlyAccount<TAccountMintAuthority>
         : TAccountMintAuthority,
       TAccountMintAccount extends string
         ? WritableAccount<TAccountMintAccount>
@@ -175,7 +175,7 @@ export function getMintInstruction<
       value: input.instructionsSysvar ?? null,
       isWritable: false,
     },
-    mintAuthority: { value: input.mintAuthority ?? null, isWritable: true },
+    mintAuthority: { value: input.mintAuthority ?? null, isWritable: false },
     mintAccount: { value: input.mintAccount ?? null, isWritable: true },
     destination: { value: input.destination ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },

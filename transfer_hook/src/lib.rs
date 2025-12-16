@@ -5,7 +5,7 @@ use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
-    pubkey::{find_program_address, Pubkey},
+    pubkey::{checked_create_program_address, find_program_address, Pubkey},
     sysvars::{rent::Rent, Sysvar},
     ProgramResult,
 };
@@ -102,15 +102,6 @@ fn load_verification_programs(
     mint: &AccountInfo,
     extra_accounts: &[AccountInfo],
 ) -> Result<Vec<[u8; 32]>, ProgramError> {
-    let (verification_config_pda, _bump) = find_program_address(
-        &[
-            VERIFICATION_CONFIG_SEED,
-            mint.key().as_ref(),
-            &[TRANSFER_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
-
     // [0] - validate_state_pubkey (added by Token-2022)
     // [1] - verification_config_pda
     if extra_accounts.len() < 2 {
@@ -118,10 +109,6 @@ fn load_verification_programs(
     }
 
     let verification_config = &extra_accounts[1];
-
-    if verification_config.key() != &verification_config_pda {
-        return Err(ProgramError::InvalidAccountData);
-    }
 
     if verification_config.data_is_empty() {
         return Err(ProgramError::UninitializedAccount);
@@ -144,11 +131,28 @@ fn load_verification_programs(
     if *operation_discriminator != TRANSFER_DISCRIMINATOR {
         return Err(ProgramError::InvalidAccountData);
     }
-    if config_data.len() < 7 {
+
+    // Layout: [0] discriminator, [1] instruction_discriminator, [2] cpi_mode, [3] bump, [4-7] count, [8..] programs
+    if config_data.len() < 8 {
         return Err(ProgramError::InvalidAccountData);
     }
-    // Skip a CPI mode byte
-    let verification_programs_data = &config_data[7..];
+    let bump = config_data[3];
+
+    let seeds = &[
+        VERIFICATION_CONFIG_SEED,
+        mint.key().as_ref(),
+        &[TRANSFER_DISCRIMINATOR],
+        &[bump],
+    ];
+
+    let verification_config_pda =
+        checked_create_program_address(seeds, &SECURITY_TOKEN_PROGRAM_ID)?;
+
+    if verification_config.key() != &verification_config_pda {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    let verification_programs_data = &config_data[8..];
 
     if verification_programs_data.len() % 32 != 0 {
         return Err(ProgramError::InvalidAccountData);
@@ -338,7 +342,7 @@ fn process_update_extra_account_meta_list(
         {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
-        extra_meta_info.realloc(new_account_size, false)?;
+        extra_meta_info.resize(new_account_size)?;
     }
     {
         let mut data = extra_meta_info.try_borrow_mut_data()?;
@@ -359,7 +363,7 @@ fn process_update_extra_account_meta_list(
             return Err(ProgramError::InvalidAccountData);
         }
 
-        extra_meta_info.realloc(new_account_size, false)?;
+        extra_meta_info.resize(new_account_size)?;
         let current_lamports = extra_meta_info.lamports();
         let required_lamports = Rent::get()?.minimum_balance(new_account_size);
         let lamports_to_return = current_lamports.saturating_sub(required_lamports);

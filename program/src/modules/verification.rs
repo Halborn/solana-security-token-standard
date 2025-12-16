@@ -3,6 +3,10 @@
 //! Handles authorization checks, compliance verification, and instruction validation
 //! according to the Security Token specification.
 
+use crate::token22_extensions::metadata::{Field, UpdateField};
+use crate::token22_extensions::pausable::InitializePausable;
+use crate::token22_extensions::permanent_delegate::InitializePermanentDelegate;
+use crate::token22_extensions::scaled_ui_amount::InitializeScaledUiAmount;
 use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
@@ -11,22 +15,8 @@ use pinocchio::sysvars::Sysvar;
 use pinocchio::sysvars::{instructions::Instructions, rent::Rent};
 use pinocchio::ProgramResult;
 use pinocchio_system::instructions::{CreateAccount, Transfer};
-use pinocchio_token_2022::extensions::metadata_pointer::{
-    Initialize as MetadataPointerInitialize, MetadataPointer,
-};
-use pinocchio_token_2022::extensions::pausable::InitializePausable;
-use pinocchio_token_2022::extensions::permanent_delegate::InitializePermanentDelegate;
-use pinocchio_token_2022::extensions::scaled_ui_amount::Initialize as ScaledUiAmountInitialize;
-use pinocchio_token_2022::extensions::transfer_hook::Initialize as TransferHookInitialize;
-use pinocchio_token_2022::extensions::{
-    get_extension_data_bytes_for_variable_pack, get_extension_from_bytes, ExtensionType,
-};
-use pinocchio_token_2022::instructions::{InitializeMint2, SetAuthority};
+use pinocchio_token_2022::instructions::{AuthorityType, InitializeMint2, SetAuthority};
 use pinocchio_token_2022::state::Mint;
-use pinocchio_token_2022::{
-    extensions::metadata::{Field, TokenMetadata, UpdateField},
-    instructions::AuthorityType,
-};
 use spl_pod::primitives::PodBool;
 use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 
@@ -34,20 +24,24 @@ use super::utils as verification_utils;
 use crate::constants::{seeds, INSTRUCTION_ACCOUNTS_OFFSET, TRANSFER_HOOK_PROGRAM_ID};
 use crate::error::SecurityTokenError;
 use crate::instruction::SecurityTokenInstruction;
-use crate::instructions::token_wrappers::{CustomInitializeTokenMetadata, CustomRemoveKey};
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
-use crate::instructions::{
-    CustomInitializeExtraAccountMetaList, CustomUpdateExtraAccountMetaList, InitializeMintArgs,
-    UpdateMetadataArgs, VerifyArgs,
-};
+use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
 use crate::modules::{
-    verify_instructions_sysvar, verify_operation_mint_info, verify_owner, verify_pda,
-    verify_rent_sysvar, verify_signer, verify_system_program, verify_token22_program,
-    verify_transfer_hook_program, verify_writable,
+    verify_account_initialized, verify_account_not_initialized, verify_instructions_sysvar,
+    verify_mint_keys_match, verify_owner, verify_pda_keys_match, verify_rent_sysvar, verify_signer,
+    verify_system_program, verify_token22_program, verify_transfer_hook_program, verify_writable,
 };
 use crate::state::{
     AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
     VerificationConfig,
+};
+use crate::token22_extensions::metadata::{InitializeTokenMetadata, RemoveKey, TokenMetadata};
+use crate::token22_extensions::metadata_pointer::{InitializeMetadataPointer, MetadataPointer};
+use crate::token22_extensions::transfer_hook::{
+    InitializeExtraAccountMetaList, InitializeTransferHook, UpdateExtraAccountMetaList,
+};
+use crate::token22_extensions::{
+    get_extension_data_bytes_for_variable_pack, get_extension_from_bytes, ExtensionType,
 };
 use crate::utils::find_extra_account_metas_pda;
 use crate::{debug_log, utils};
@@ -78,19 +72,47 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_token22_program(token_program_info)?;
+        verify_system_program(system_program_info)?;
+        verify_rent_sysvar(rent_info)?;
         verify_signer(creator_info)?;
         verify_signer(mint_info)?;
         verify_writable(creator_info)?;
         verify_writable(mint_info)?;
-        verify_token22_program(token_program_info)?;
-        verify_system_program(system_program_info)?;
-        verify_rent_sysvar(rent_info)?;
+        verify_writable(mint_authority_account)?;
+        verify_account_not_initialized(mint_authority_account)?;
+
+        // Fail fast if caller-supplied mint authority doesn’t match the creator; SetAuthority would fail later otherwise
+        if client_mint_authority != *creator_info.key() {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let (freeze_authority_pda, _bump) =
             utils::find_freeze_authority_pda(mint_info.key(), program_id);
 
-        if freeze_authority != freeze_authority_pda {
-            return Err(ProgramError::InvalidSeeds);
+        verify_pda_keys_match(&freeze_authority, &freeze_authority_pda)?;
+
+        // Validate metadata pointer and metadata configuration to prevent DoS
+        // Two storage models are supported:
+        // 1. Internally owned: metadata_address == mint (metadata stored in mint account)
+        //    - Requires ix_metadata to initialize TokenMetadata extension
+        //    - Program manages metadata lifecycle
+        // 2. Externally owned: metadata_address != mint (metadata in separate account)
+        //    - Must NOT provide ix_metadata (client manages external account separately)
+        //    - Client is responsible for ensuring metadata_address is valid
+        //    - External metadata should be managed via Token-2022 directly
+
+        if let Some(client_metadata_pointer) = metadata_pointer_opt {
+            let is_internal = client_metadata_pointer.metadata_address == *mint_info.key();
+            match (is_internal, metadata_opt.is_some()) {
+                // internal + no metadata provided
+                (true, false) => {
+                    return Err(SecurityTokenError::InternalMetadataRequiresData.into())
+                }
+                // external + metadata provided
+                (false, true) => return Err(SecurityTokenError::ExternalMetadataForbidsData.into()),
+                _ => {} // valid combinations
+            }
         }
 
         let mut extensions_buf: [ExtensionType; 5] = [ExtensionType::Pausable; 5];
@@ -105,8 +127,8 @@ impl VerificationModule {
             ext_count += 1;
         }
 
-        // Add MetadataPointer if metadata is provided
-        if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
+        // Add MetadataPointer if provided by client
+        if metadata_pointer_opt.is_some() {
             extensions_buf[ext_count] = ExtensionType::MetadataPointer;
             ext_count += 1;
         }
@@ -119,7 +141,7 @@ impl VerificationModule {
 
         // Calculate mint size with extensions (but without metadata TLV data)
         let mint_size = if ext_count == 0 {
-            Mint::LEN
+            Mint::BASE_LEN
         } else {
             utils::calculate_mint_size_with_extensions(&extensions_buf[..ext_count])
         };
@@ -157,7 +179,7 @@ impl VerificationModule {
 
         permanent_delegate_initialize.invoke()?;
 
-        let transfer_hook_initialize = TransferHookInitialize {
+        let transfer_hook_initialize = InitializeTransferHook {
             mint: mint_info,
             authority: transfer_hook_pda.into(),
             // TODO: A direct import of security_token_transfer_hook::id() causes build issues with the allocator, investigate later
@@ -173,35 +195,19 @@ impl VerificationModule {
 
         pausable_initialize.invoke()?;
 
-        // Initialize MetadataPointer extension if needed and store metadata address for later use
-        let metadata_account_address = if metadata_opt.is_some() || metadata_pointer_opt.is_some() {
-            let (metadata_authority, metadata_address) =
-                if let Some(client_metadata_pointer) = &metadata_pointer_opt {
-                    // Use client-provided MetadataPointer configuration
-                    let authority = client_metadata_pointer.authority.into();
-                    let address = client_metadata_pointer.metadata_address.into();
-                    (authority, address)
-                } else {
-                    // Fallback to default: creator as authority, mint as metadata storage
-                    (Some(*creator_info.key()), Some(*mint_info.key()))
-                };
-
-            let metadata_pointer_initialize = MetadataPointerInitialize {
+        // Initialize MetadataPointer extension if provided by client
+        if let Some(client_metadata_pointer) = metadata_pointer_opt {
+            let metadata_pointer_initialize = InitializeMetadataPointer {
                 mint: mint_info,
-                authority: metadata_authority,
-                metadata_address,
+                authority: client_metadata_pointer.authority.into(),
+                metadata_address: client_metadata_pointer.metadata_address.into(),
             };
-
             metadata_pointer_initialize.invoke()?;
-            // Return the metadata address for later use
-            metadata_address
-        } else {
-            None
-        };
+        }
 
         // Initialize ScaledUiAmount extension if provided by client
         if let Some(scaled_ui_amount_config) = &scaled_ui_amount_opt {
-            let scaled_ui_amount_initialize = ScaledUiAmountInitialize {
+            let scaled_ui_amount_initialize = InitializeScaledUiAmount {
                 mint: mint_info,
                 authority: scaled_ui_amount_config.authority.into(),
                 multiplier: f64::from_le_bytes(scaled_ui_amount_config.multiplier),
@@ -216,6 +222,7 @@ impl VerificationModule {
             decimals,
             mint_authority: &client_mint_authority,
             freeze_authority: Some(&freeze_authority),
+            token_program: token_program_info.key(),
         };
 
         initialize_mint_instruction.invoke()?;
@@ -225,13 +232,7 @@ impl VerificationModule {
         let (mint_authority_pda, mint_authority_bump) =
             utils::find_mint_authority_pda(mint_info.key(), creator_info.key(), program_id);
 
-        if mint_authority_account.key() != &mint_authority_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
-
-        if !mint_authority_account.data_is_empty() || mint_authority_account.lamports() > 0 {
-            return Err(ProgramError::AccountAlreadyInitialized);
-        }
+        verify_pda_keys_match(mint_authority_account.key(), &mint_authority_pda)?;
 
         let mint_authority_config =
             MintAuthority::new(*mint_info.key(), *creator_info.key(), mint_authority_bump)?;
@@ -266,6 +267,7 @@ impl VerificationModule {
             authority: creator_info,
             authority_type: AuthorityType::MintTokens,
             new_authority: Some(&mint_authority_pda),
+            token_program: token_program_info.key(),
         };
 
         set_authority_instruction.invoke()?;
@@ -274,33 +276,17 @@ impl VerificationModule {
             return Ok(());
         };
 
-        // Determine which account to use for metadata
-        let metadata_account_info = if let Some(metadata_addr) = metadata_account_address {
-            if metadata_addr == *mint_info.key() {
-                // Metadata is stored in mint account (in-mint storage)
-                mint_info.clone()
-            } else {
-                // Metadata is stored in external account - find it in accounts list
-                accounts
-                    .iter()
-                    .find(|acc| acc.key() == &metadata_addr)
-                    .ok_or(ProgramError::InvalidAccountData)?
-                    .clone()
-            }
-        } else {
-            // No metadata pointer, shouldn't happen if we have metadata
-            return Err(ProgramError::InvalidInstructionData);
+        // At this point we are guaranteed to initialize internally-stored metadata only
+        // The validation at the beginning ensures that
+        let metadata_init_instruction = InitializeTokenMetadata {
+            metadata: mint_info,
+            update_authority: mint_authority_account,
+            mint: mint_info,
+            mint_authority: mint_authority_account,
+            name: &metadata.name,
+            symbol: &metadata.symbol,
+            uri: &metadata.uri,
         };
-
-        let metadata_init_instruction = CustomInitializeTokenMetadata::new(
-            &metadata_account_info,
-            mint_authority_account,
-            mint_info,
-            mint_authority_account,
-            &metadata.name,
-            &metadata.symbol,
-            &metadata.uri,
-        );
 
         metadata_init_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
 
@@ -311,7 +297,7 @@ impl VerificationModule {
                 metadata.additional_metadata.as_slice(),
                 |key, value| {
                     let update_field_instruction = UpdateField {
-                        metadata: &metadata_account_info,
+                        metadata: mint_info,
                         update_authority: mint_authority_account,
                         field: Field::Key(key),
                         value,
@@ -326,27 +312,30 @@ impl VerificationModule {
     }
 
     /// Update metadata for existing mint
-    /// Wrapper for Metadata token program extension
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn update_metadata(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         args: &UpdateMetadataArgs,
     ) -> ProgramResult {
-        // Validate arguments
-        args.validate()?;
-
         let [mint_authority, payer, mint_info, token_program_info, system_program_info] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_info)?;
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
+
         verify_token22_program(token_program_info)?;
         verify_system_program(system_program_info)?;
         verify_signer(payer)?;
+        verify_owner(mint_authority, program_id)?;
+        verify_writable(payer)?;
+        verify_writable(mint_info)?;
 
         let mint_authority_data = MintAuthority::from_account_info(mint_authority)?;
+
         if &mint_authority_data.mint != mint_info.key() {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -363,20 +352,28 @@ impl VerificationModule {
         }; // Borrow is released here
         let metadata_address = metadata_address.ok_or(ProgramError::InvalidAccountData)?;
 
-        // Determine metadata account (could be mint itself or external account)
-        let metadata_account_info = if metadata_address == *mint_info.key() {
-            // Metadata is stored in mint account (in-mint storage)
-            mint_info.clone()
-        } else {
-            // Metadata is stored in external account - would need to be passed in accounts
-            return Err(ProgramError::NotEnoughAccountKeys);
-        };
+        // We only support internally owned metadata (metadata stored in the mint account itself)
+        // External metadata should be managed directly
+        if metadata_address != *mint_info.key() {
+            return Err(SecurityTokenError::CannotModifyExternalMetadataAccount.into());
+        }
+
+        // NOTE: No need to verify TokenMetadata extension existence here because:
+        // - initialize_mint already validates that internally owned metadata pointer requires TokenMetadata
+        // - Since metadata_address == mint (checked above), the extension is guaranteed to exist
+        // - Token-2022 UpdateField will fail gracefully if extension is somehow missing
+        //
+        // {
+        //     let mint_data = mint_info.try_borrow_data()?;
+        //     get_extension_data_bytes_for_variable_pack::<TokenMetadata>(&mint_data)
+        //         .ok_or(ProgramError::InvalidAccountData)?;
+        // }
 
         // Calculate current and new metadata sizes
         let new_metadata_size = utils::calculate_metadata_tlv_size(&args.metadata)?;
         // Get current metadata size to calculate the difference
         let current_metadata_size = {
-            let mint_data = metadata_account_info.try_borrow_data()?;
+            let mint_data = mint_info.try_borrow_data()?;
 
             // Use pinocchio's get_extension_data_bytes_for_variable_pack to get current metadata
             if let Some(metadata_bytes) =
@@ -396,9 +393,9 @@ impl VerificationModule {
             let rent = Rent::get()?;
             let additional_rent = rent.minimum_balance(additional_metadata_space);
             let transfer = Transfer {
-                from: payer,                // from (authority pays)
-                to: &metadata_account_info, // to (metadata account)
-                lamports: additional_rent,  // amount
+                from: payer,               // from (authority pays)
+                to: mint_info,             // to (mint account)
+                lamports: additional_rent, // amount
             };
             transfer.invoke()?;
         }
@@ -413,7 +410,7 @@ impl VerificationModule {
         let mint_authority_signer = Signer::from(&mint_authority_seeds);
 
         let update_field_instruction = UpdateField {
-            metadata: &metadata_account_info,
+            metadata: mint_info,
             update_authority: mint_authority,
             field: Field::Name,
             value: &args.metadata.name,
@@ -423,7 +420,7 @@ impl VerificationModule {
 
         // Update symbol
         let update_symbol_instruction = UpdateField {
-            metadata: &metadata_account_info,
+            metadata: mint_info,
             update_authority: mint_authority,
             field: Field::Symbol,
             value: &args.metadata.symbol,
@@ -433,7 +430,7 @@ impl VerificationModule {
 
         // Update URI
         let update_uri_instruction = UpdateField {
-            metadata: &metadata_account_info,
+            metadata: mint_info,
             update_authority: mint_authority,
             field: Field::Uri,
             value: &args.metadata.uri,
@@ -443,12 +440,8 @@ impl VerificationModule {
 
         // Handle additional metadata fields atomically
         let existing_additional_fields = {
-            // Create a temporary AccountInfo wrapper for the metadata account to use from_account_info
-            let metadata_account_clone = metadata_account_info.clone();
-
             // Try to parse existing metadata using pinocchio's from_account_info
-            if let Ok(existing_metadata) = TokenMetadata::from_account_info(metadata_account_clone)
-            {
+            if let Ok(existing_metadata) = TokenMetadata::from_account_info(mint_info) {
                 let mut fields_buffer: [[u8; 64]; 16] = [[0u8; 64]; 16]; // Static buffer for field names
                 let mut field_lengths: [usize; 16] = [0; 16];
                 let mut field_count = 0;
@@ -505,12 +498,12 @@ impl VerificationModule {
                     }
 
                     if !found_in_new {
-                        let remove_field_instruction = CustomRemoveKey::new(
-                            &metadata_account_info,
-                            mint_authority,
-                            existing_key,
-                            true, // idempotent - don't error if key doesn't exist
-                        );
+                        let remove_field_instruction = RemoveKey {
+                            metadata: mint_info,
+                            update_authority: mint_authority,
+                            key: existing_key,
+                            idempotent: true, // don't error if key doesn't exist
+                        };
 
                         remove_field_instruction.invoke_signed(&[mint_authority_signer.clone()])?;
                         // Ignore errors since we're using idempotent flag
@@ -527,7 +520,7 @@ impl VerificationModule {
             args.metadata.additional_metadata.as_slice(),
             |key, value| {
                 let update_field_instruction = UpdateField {
-                    metadata: &metadata_account_info,
+                    metadata: mint_info,
                     update_authority: mint_authority,
                     field: Field::Key(key),
                     value,
@@ -561,6 +554,10 @@ impl VerificationModule {
 
     /// Verify specific operation either through configured verification programs or mint authority
     /// Decides which method to use based on the PDA account provided in accounts[1]
+    ///
+    /// # Returns
+    /// * `verified_mint_info` - The authorized Mint account (prevents mint substitution attacks in operations)
+    /// * `cleaned_accounts` - Remaining instruction accounts after verification overhead
     pub fn verify_by_strategy<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
@@ -603,6 +600,9 @@ impl VerificationModule {
     }
 
     /// Verify that the provided signer corresponds to the original mint authority PDA.
+    ///
+    /// # Returns
+    /// * `verified_mint_info` - The authorized Mint account (prevents mint substitution attacks in operations)
     pub fn verify_by_mint_authority<'a>(
         program_id: &Pubkey,
         mint_info: &'a AccountInfo,
@@ -613,13 +613,6 @@ impl VerificationModule {
         verify_owner(mint_authority, program_id)?;
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
-        let (expected_pda, expected_bump) =
-            utils::find_mint_authority_pda(mint_info.key(), candidate_authority.key(), program_id);
-
-        if mint_authority.key() != &expected_pda {
-            return Err(ProgramError::InvalidSeeds);
-        }
-
         let data = mint_authority.try_borrow_data()?;
         if data.len() < MintAuthority::LEN {
             return Err(ProgramError::InvalidAccountData);
@@ -627,6 +620,8 @@ impl VerificationModule {
 
         let mint_authority_state = MintAuthority::try_from_bytes(&data)?;
 
+        // CRITICAL: Verify that the authority is for the correct mint and signed by correct creator
+        // These checks prevent using a valid MintAuthority PDA for a different mint/creator combination
         if mint_authority_state.mint != *mint_info.key() {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -635,14 +630,19 @@ impl VerificationModule {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        if mint_authority_state.bump != expected_bump {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        // Use stored bump with derive_pda for optimized PDA verification
+        let expected_pda = mint_authority_state.derive_pda()?;
+
+        verify_pda_keys_match(mint_authority.key(), &expected_pda)?;
 
         Ok(mint_info)
     }
 
     /// Verify specific operation against configured verification programs
+    ///
+    /// # Returns
+    /// * `verified_mint_info` - The authorized Mint account (prevents mint substitution attacks in operations)
+    /// * `cleaned_accounts` - Remaining instruction accounts after verification overhead
     pub fn verify_by_programs<'a>(
         program_id: &Pubkey,
         accounts: &'a [AccountInfo],
@@ -655,25 +655,30 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // The data_is_empty verification config doesn't exist
-        if verification_config.data_is_empty() {
-            return Err(ProgramError::UninitializedAccount);
-        }
-
         verify_instructions_sysvar(instructions_sysvar)?;
         verify_owner(verification_config, program_id)?;
         verify_owner(mint_info, &pinocchio_token_2022::ID)?;
+        verify_account_initialized(verification_config)?;
 
-        let (expected_pda, _bump) =
-            utils::find_verification_config_pda(mint_info.key(), ix_discriminator, program_id);
+        let config_data = VerificationConfig::from_account_info(verification_config)?;
 
-        if verification_config.key().ne(&expected_pda) {
+        // CRITICAL: Verify that the config is for the expected instruction discriminator
+        // This prevents instruction substitution attacks where attacker provides
+        // a valid VerificationConfig PDA for instruction X when code expects instruction Y
+        if config_data.instruction_discriminator != ix_discriminator {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Use stored bump with derive_pda for optimized PDA verification
+        // PDA derivation includes mint and instruction_discriminator in seeds,
+        // so successful verification cryptographically guarantees this config
+        // is for the correct mint and instruction type
+        let expected_config_pda = config_data.derive_pda(mint_info.key())?;
+
+        if verification_config.key().ne(&expected_config_pda) {
             return Err(SecurityTokenError::InvalidVerificationConfigPda.into());
         }
-        let config_data = VerificationConfig::from_account_info(verification_config)?;
-        if config_data.instruction_discriminator != ix_discriminator {
-            return Err(ProgramError::InvalidInstructionData);
-        }
+
         if config_data.verification_programs.is_empty() {
             // If no verification programs configured, allow
             return Ok((mint_info, instruction_accounts));
@@ -850,11 +855,14 @@ impl VerificationModule {
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
+
+        verify_system_program(system_program_info)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
+        verify_writable(config_account)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
-        verify_system_program(system_program_info)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
@@ -864,9 +872,7 @@ impl VerificationModule {
             utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
 
         // Verify that the provided config account matches the expected PDA
-        if *config_account.key() != expected_config_pda {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        verify_pda_keys_match(config_account.key(), &expected_config_pda)?;
 
         // Check if account already exists
         if config_account.data_len() > 0 {
@@ -875,7 +881,7 @@ impl VerificationModule {
 
         // Create the VerificationConfig data first to calculate exact size
         let config =
-            VerificationConfig::new(discriminator, args.cpi_mode, args.program_addresses())?;
+            VerificationConfig::new(discriminator, args.cpi_mode, bump, args.program_addresses())?;
 
         let account_size = config.serialized_size();
 
@@ -942,11 +948,12 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
+        verify_writable(account_metas_pda_info)?;
         verify_transfer_hook_program(transfer_hook_program)?;
         let (transfer_hook_pda, bump) = utils::find_transfer_hook_pda(mint_info.key(), program_id);
-        verify_pda(&transfer_hook_pda, transfer_hook_pda_info.key())?;
+        verify_pda_keys_match(&transfer_hook_pda, transfer_hook_pda_info.key())?;
         let (account_metas_pda, _bump) = find_extra_account_metas_pda(mint_info.key());
-        verify_pda(&account_metas_pda, account_metas_pda_info.key())?;
+        verify_pda_keys_match(&account_metas_pda, account_metas_pda_info.key())?;
 
         let mut account_metas: Vec<ExtraAccountMeta> = Vec::new();
         account_metas.push(ExtraAccountMeta {
@@ -1001,25 +1008,25 @@ impl VerificationModule {
         ];
         let signer = Signer::from(&seeds);
         if is_initialization {
-            let instruction = CustomInitializeExtraAccountMetaList::new(
-                &TRANSFER_HOOK_PROGRAM_ID,
-                account_metas_pda_info,
-                mint_info,
-                transfer_hook_pda_info,
-                system_program_info,
-                &account_metas,
-            );
+            let instruction = InitializeExtraAccountMetaList {
+                program_id: &TRANSFER_HOOK_PROGRAM_ID,
+                extra_account_metas_pda: account_metas_pda_info,
+                mint: mint_info,
+                authority: transfer_hook_pda_info,
+                system_program: system_program_info,
+                metas: &account_metas,
+            };
             instruction.invoke_signed(&[signer])?;
         } else {
-            let instruction = CustomUpdateExtraAccountMetaList::new(
-                &TRANSFER_HOOK_PROGRAM_ID,
-                account_metas_pda_info,
-                mint_info,
-                transfer_hook_pda_info,
-                system_program_info,
-                Some(payer),
-                &account_metas,
-            );
+            let instruction = UpdateExtraAccountMetaList {
+                program_id: &TRANSFER_HOOK_PROGRAM_ID,
+                extra_account_metas_pda: account_metas_pda_info,
+                mint: mint_info,
+                authority: transfer_hook_pda_info,
+                system_program: system_program_info,
+                recipient: Some(payer),
+                metas: &account_metas,
+            };
             instruction.invoke_signed(&[signer])?;
         }
         Ok(())
@@ -1068,6 +1075,8 @@ impl VerificationModule {
     }
 
     /// Update verification configuration for an instruction
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn update_verification_config(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -1080,47 +1089,38 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
+
+        verify_system_program(system_program_info)?;
+        verify_owner(mint_account, &pinocchio_token_2022::ID)?;
         verify_owner(config_account, program_id)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
-        verify_owner(mint_account, &pinocchio_token_2022::ID)?;
-        verify_system_program(system_program_info)?;
+        verify_writable(config_account)?;
+        verify_account_initialized(config_account)?;
 
-        // Get instruction discriminator
-        let discriminator = args.instruction_discriminator;
-
-        // Derive expected PDA address
-        let (expected_config_pda, _bump) =
-            utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
+        let mut existing_config = VerificationConfig::from_account_info(config_account)?;
+        let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
 
         // Verify that the provided config account matches the expected PDA
-        if *config_account.key() != expected_config_pda {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Check if account exists
-        if config_account.data_len() == 0 {
-            return Err(ProgramError::UninitializedAccount);
-        }
-
-        // Load existing config
-        let mut existing_config = {
-            let data = config_account.try_borrow_data()?;
-            VerificationConfig::try_from_bytes(&data)
-                .map_err(|_| ProgramError::InvalidAccountData)?
-        };
-
+        verify_pda_keys_match(config_account.key(), &expected_config_pda)?;
+        // Get instruction discriminator
+        let discriminator = args.instruction_discriminator;
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
             return Err(ProgramError::InvalidAccountData);
+        }
+        let offset = args.offset() as usize;
+
+        // Offset can't be greater than existing program count
+        if offset > existing_config.verification_programs.len() {
+            return Err(ProgramError::InvalidArgument);
         }
 
         // Update cpi_mode
         existing_config.cpi_mode = args.cpi_mode;
 
         // Update verification programs starting at the specified offset
-        let offset = args.offset() as usize;
         let new_programs = args.program_addresses();
 
         if offset + new_programs.len() > existing_config.verification_programs.len() {
@@ -1150,7 +1150,7 @@ impl VerificationModule {
                 lamports: additional_rent,
             };
             transfer.invoke()?;
-            config_account.realloc(new_size, false)?;
+            config_account.resize(new_size)?;
         }
 
         let config_bytes = existing_config.to_bytes();
@@ -1175,6 +1175,8 @@ impl VerificationModule {
     }
 
     /// Trim verification configuration to recover rent
+    /// # Arguments
+    /// * `verified_mint_info` - Mint account authorized by verification in processor (prevents mint substitution attacks)
     pub fn trim_verification_config(
         program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
@@ -1187,36 +1189,23 @@ impl VerificationModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
+
+        verify_system_program(system_program_info)?;
         verify_owner(config_account, program_id)?;
         verify_owner(mint_account, &pinocchio_token_2022::ID)?;
-        verify_system_program(system_program_info)?;
         verify_writable(recipient)?;
+        verify_writable(config_account)?;
+        verify_account_initialized(config_account)?;
+
+        let mut existing_config = VerificationConfig::from_account_info(config_account)?;
+        let expected_config_pda = existing_config.derive_pda(mint_account.key())?;
+
+        // Verify that the provided config account matches the expected PDA
+        verify_pda_keys_match(config_account.key(), &expected_config_pda)?;
 
         // Get instruction discriminator
         let discriminator = args.instruction_discriminator;
-
-        // Derive expected PDA address
-        let (expected_config_pda, _bump) =
-            utils::find_verification_config_pda(mint_account.key(), discriminator, program_id);
-
-        // Verify that the provided config account matches the expected PDA
-        if *config_account.key() != expected_config_pda {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Check if account exists
-        if config_account.data_len() == 0 {
-            return Err(ProgramError::UninitializedAccount);
-        }
-
-        // Load existing config
-        let mut existing_config = {
-            let data = config_account.try_borrow_data()?;
-            VerificationConfig::try_from_bytes(&data)
-                .map_err(|_| ProgramError::InvalidAccountData)?
-        };
-
         // Verify discriminator matches
         if existing_config.instruction_discriminator != discriminator {
             return Err(ProgramError::InvalidAccountData);
@@ -1278,10 +1267,10 @@ impl VerificationModule {
                 .lamports()
                 .checked_add(recovered_rent)
                 .ok_or(ProgramError::InsufficientFunds)?;
-            config_account.realloc(0, false)?;
+            config_account.resize(0)?;
         } else {
             let new_account_size = existing_config.serialized_size();
-            config_account.realloc(new_account_size, false)?;
+            config_account.resize(new_account_size)?;
 
             let config_bytes = existing_config.to_bytes();
             {

@@ -49,7 +49,7 @@ pub trait ProgramAccount: AccountDeserialize + AccountSerialize {
             data[0] = 0xff;
         }
 
-        account.realloc(1, true)?;
+        account.resize(1)?;
         account.close()
     }
 

@@ -29,6 +29,7 @@ pub fn burn_checked(
         authority: permanent_delegate_authority,
         amount,
         decimals,
+        token_program: &pinocchio_token_2022::ID,
     }
     .invoke_signed(&[permanent_delegate_signer])
 }
@@ -51,6 +52,7 @@ pub fn mint_to_checked(
         mint_authority,
         amount,
         decimals,
+        token_program: &pinocchio_token_2022::ID,
     }
     .invoke_signed(&[mint_authority_signer])
 }

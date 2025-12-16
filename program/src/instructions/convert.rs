@@ -16,20 +16,21 @@ pub struct ConvertArgs {
 }
 
 impl ConvertArgs {
-    /// action_id + amount
+    /// Fixed size: action_id (8 bytes) + amount (8 bytes) = 16 bytes
     pub const LEN: usize = ACTION_ID_LEN + 8;
 
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         if data.len() != Self::LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
+
         let action_id = parse_action_id_argument(&data[..ACTION_ID_LEN])?;
 
-        let amount_to_convert = data
-            .get(ACTION_ID_LEN..)
-            .and_then(|slice| slice.try_into().ok())
-            .map(u64::from_le_bytes)
-            .ok_or(ProgramError::InvalidArgument)?;
+        let amount_to_convert = u64::from_le_bytes(
+            data[ACTION_ID_LEN..ACTION_ID_LEN + 8]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidArgument)?,
+        );
 
         if amount_to_convert == 0 {
             return Err(ProgramError::InvalidArgument);

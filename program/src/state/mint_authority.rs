@@ -6,7 +6,7 @@ use crate::state::{
 use pinocchio::account_info::{AccountInfo, Ref};
 use pinocchio::instruction::Seed;
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
+use pinocchio::pubkey::{checked_create_program_address, Pubkey, PUBKEY_BYTES};
 use shank::ShankAccount;
 
 /// Configuration data stored per mint
@@ -39,21 +39,26 @@ impl AccountSerialize for MintAuthority {
 
 impl AccountDeserialize for MintAuthority {
     fn try_from_bytes_inner(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::LEN - 1 {
+        if data.len() != Self::LEN - 1 {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let mint_bytes: [u8; PUBKEY_BYTES] = data[..PUBKEY_BYTES]
+        let mut offset = 0;
+
+        // Read mint (32 bytes)
+        let mint_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
             .try_into()
             .map_err(|_| ProgramError::InvalidAccountData)?;
+        offset += PUBKEY_BYTES;
 
-        let creator_offset = PUBKEY_BYTES;
-        let mint_creator_bytes: [u8; PUBKEY_BYTES] = data
-            [creator_offset..creator_offset + PUBKEY_BYTES]
+        // Read mint_creator (32 bytes)
+        let mint_creator_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
             .try_into()
             .map_err(|_| ProgramError::InvalidAccountData)?;
+        offset += PUBKEY_BYTES;
 
-        let bump = data[creator_offset + PUBKEY_BYTES];
+        // Read bump (1 byte)
+        let bump = data[offset];
 
         let config = Self {
             mint: Pubkey::from(mint_bytes),
@@ -125,5 +130,19 @@ impl MintAuthority {
             Seed::from(self.mint_creator.as_ref()),
             Seed::from(bump_seed.as_ref()),
         ]
+    }
+
+    /// Derive the PDA address for this MintAuthority using stored bump seed
+    ///
+    /// # Returns
+    /// The derived PDA address or an error if derivation fails
+    pub fn derive_pda(&self) -> Result<Pubkey, ProgramError> {
+        let seeds = [
+            seeds::MINT_AUTHORITY,
+            self.mint.as_ref(),
+            self.mint_creator.as_ref(),
+            &[self.bump],
+        ];
+        checked_create_program_address(&seeds, &crate::id())
     }
 }

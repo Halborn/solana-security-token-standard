@@ -10,8 +10,6 @@ import {
   addDecoderSizePrefix,
   addEncoderSizePrefix,
   combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getStructDecoder,
@@ -20,7 +18,6 @@ import {
   getU32Encoder,
   getUtf8Decoder,
   getUtf8Encoder,
-  type Address,
   type Codec,
   type Decoder,
   type Encoder,
@@ -28,8 +25,6 @@ import {
 } from '@solana/kit';
 
 export type TokenMetadataArgs = {
-  updateAuthority: Address;
-  mint: Address;
   name: string;
   symbol: string;
   uri: string;
@@ -40,8 +35,6 @@ export type TokenMetadataArgsArgs = TokenMetadataArgs;
 
 export function getTokenMetadataArgsEncoder(): Encoder<TokenMetadataArgsArgs> {
   return getStructEncoder([
-    ['updateAuthority', getAddressEncoder()],
-    ['mint', getAddressEncoder()],
     ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
     ['symbol', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
     ['uri', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
@@ -54,8 +47,6 @@ export function getTokenMetadataArgsEncoder(): Encoder<TokenMetadataArgsArgs> {
 
 export function getTokenMetadataArgsDecoder(): Decoder<TokenMetadataArgs> {
   return getStructDecoder([
-    ['updateAuthority', getAddressDecoder()],
-    ['mint', getAddressDecoder()],
     ['name', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ['symbol', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ['uri', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],

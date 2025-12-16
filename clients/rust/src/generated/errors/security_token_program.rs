@@ -22,6 +22,15 @@ pub enum SecurityTokenProgramError {
     /// 4 - Invalid Verification Config PDA
     #[error("Invalid Verification Config PDA")]
     InvalidVerificationConfigPda = 0x4,
+    /// 5 - Cannot modify external metadata account
+    #[error("Cannot modify external metadata account")]
+    CannotModifyExternalMetadataAccount = 0x5,
+    /// 6 - Internal metadata storage requires metadata to be provided
+    #[error("Internal metadata storage requires metadata to be provided")]
+    InternalMetadataRequiresData = 0x6,
+    /// 7 - External metadata storage cannot accept metadata data in this instruction
+    #[error("External metadata storage cannot accept metadata data in this instruction")]
+    ExternalMetadataForbidsData = 0x7,
 }
 
 impl From<SecurityTokenProgramError> for solana_program_error::ProgramError {

@@ -22,9 +22,18 @@ export const SECURITY_TOKEN_PROGRAM_ERROR__NOT_ENOUGH_ACCOUNTS_FOR_VERIFICATION 
 export const SECURITY_TOKEN_PROGRAM_ERROR__ACCOUNT_INTERSECTION_MISMATCH = 0x3; // 3
 /** InvalidVerificationConfigPda: Invalid Verification Config PDA */
 export const SECURITY_TOKEN_PROGRAM_ERROR__INVALID_VERIFICATION_CONFIG_PDA = 0x4; // 4
+/** CannotModifyExternalMetadataAccount: Cannot modify external metadata account */
+export const SECURITY_TOKEN_PROGRAM_ERROR__CANNOT_MODIFY_EXTERNAL_METADATA_ACCOUNT = 0x5; // 5
+/** InternalMetadataRequiresData: Internal metadata storage requires metadata to be provided */
+export const SECURITY_TOKEN_PROGRAM_ERROR__INTERNAL_METADATA_REQUIRES_DATA = 0x6; // 6
+/** ExternalMetadataForbidsData: External metadata storage cannot accept metadata data in this instruction */
+export const SECURITY_TOKEN_PROGRAM_ERROR__EXTERNAL_METADATA_FORBIDS_DATA = 0x7; // 7
 
 export type SecurityTokenProgramError =
   | typeof SECURITY_TOKEN_PROGRAM_ERROR__ACCOUNT_INTERSECTION_MISMATCH
+  | typeof SECURITY_TOKEN_PROGRAM_ERROR__CANNOT_MODIFY_EXTERNAL_METADATA_ACCOUNT
+  | typeof SECURITY_TOKEN_PROGRAM_ERROR__EXTERNAL_METADATA_FORBIDS_DATA
+  | typeof SECURITY_TOKEN_PROGRAM_ERROR__INTERNAL_METADATA_REQUIRES_DATA
   | typeof SECURITY_TOKEN_PROGRAM_ERROR__INVALID_VERIFICATION_CONFIG_PDA
   | typeof SECURITY_TOKEN_PROGRAM_ERROR__NOT_ENOUGH_ACCOUNTS_FOR_VERIFICATION
   | typeof SECURITY_TOKEN_PROGRAM_ERROR__VERIFICATION_PROGRAM_NOT_FOUND;
@@ -35,6 +44,9 @@ let securityTokenProgramErrorMessages:
 if (process.env.NODE_ENV !== 'production') {
   securityTokenProgramErrorMessages = {
     [SECURITY_TOKEN_PROGRAM_ERROR__ACCOUNT_INTERSECTION_MISMATCH]: `Account intersection mismatch`,
+    [SECURITY_TOKEN_PROGRAM_ERROR__CANNOT_MODIFY_EXTERNAL_METADATA_ACCOUNT]: `Cannot modify external metadata account`,
+    [SECURITY_TOKEN_PROGRAM_ERROR__EXTERNAL_METADATA_FORBIDS_DATA]: `External metadata storage cannot accept metadata data in this instruction`,
+    [SECURITY_TOKEN_PROGRAM_ERROR__INTERNAL_METADATA_REQUIRES_DATA]: `Internal metadata storage requires metadata to be provided`,
     [SECURITY_TOKEN_PROGRAM_ERROR__INVALID_VERIFICATION_CONFIG_PDA]: `Invalid Verification Config PDA`,
     [SECURITY_TOKEN_PROGRAM_ERROR__NOT_ENOUGH_ACCOUNTS_FOR_VERIFICATION]: `Not enough accounts for verification`,
     [SECURITY_TOKEN_PROGRAM_ERROR__VERIFICATION_PROGRAM_NOT_FOUND]: `Verification program not found`,

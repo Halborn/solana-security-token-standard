@@ -266,7 +266,7 @@
         },
         {
           "name": "mintAccount",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -368,7 +368,7 @@
         },
         {
           "name": "mintAuthority",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1080,6 +1080,10 @@
             "type": "bool"
           },
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "verificationPrograms",
             "type": {
               "vec": "publicKey"
@@ -1111,14 +1115,6 @@
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "updateAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "mint",
-            "type": "publicKey"
-          },
           {
             "name": "name",
             "type": "string"
@@ -1459,6 +1455,21 @@
       "code": 4,
       "name": "InvalidVerificationConfigPda",
       "msg": "Invalid Verification Config PDA"
+    },
+    {
+      "code": 5,
+      "name": "CannotModifyExternalMetadataAccount",
+      "msg": "Cannot modify external metadata account"
+    },
+    {
+      "code": 6,
+      "name": "InternalMetadataRequiresData",
+      "msg": "Internal metadata storage requires metadata to be provided"
+    },
+    {
+      "code": 7,
+      "name": "ExternalMetadataForbidsData",
+      "msg": "External metadata storage cannot accept metadata data in this instruction"
     }
   ],
   "metadata": {
