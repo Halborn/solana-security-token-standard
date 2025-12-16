@@ -53,8 +53,7 @@ impl AccountSerialize for VerificationConfig {
 
 impl AccountDeserialize for VerificationConfig {
     fn try_from_bytes_inner(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < 6 {
-            // Minimum: 1 byte discriminator + 1 byte cpi_mode + 4 bytes count
+        if data.len() < Self::MIN_LEN - 1 {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -86,11 +85,11 @@ impl AccountDeserialize for VerificationConfig {
         // Read program addresses (32 bytes each)
         let mut verification_programs = Vec::with_capacity(program_count);
         for _ in 0..program_count {
-            let program_bytes: [u8; 32] = data[offset..offset + 32]
+            let program_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidAccountData)?;
             verification_programs.push(Pubkey::from(program_bytes));
-            offset += 32;
+            offset += PUBKEY_BYTES;
         }
 
         let config = Self {
@@ -108,6 +107,9 @@ impl AccountDeserialize for VerificationConfig {
 }
 
 impl VerificationConfig {
+    /// Minimum size: discriminator (1) + instruction_discriminator (1) + cpi_mode (1) + bump (1) + vector length (4) = 8 bytes
+    pub const MIN_LEN: usize = 1 + 1 + 1 + 1 + 4;
+
     /// Create new VerificationConfig
     pub fn new(
         instruction_discriminator: u8,
@@ -125,12 +127,10 @@ impl VerificationConfig {
 
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), ProgramError> {
-        // Create zero pubkey for comparison (actual zeros, not Pubkey::default)
-        let zero_pubkey = [0u8; PUBKEY_BYTES];
-
         // Validate that all programs are non-zero (valid pubkeys)
         for program in self.verification_programs.iter() {
-            if *program == zero_pubkey {
+            // The Pubkey::default() actually represents a zeroed pubkey
+            if *program == Pubkey::default() {
                 return Err(ProgramError::InvalidAccountData);
             }
         }

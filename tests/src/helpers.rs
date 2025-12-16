@@ -75,6 +75,29 @@ pub fn assert_transaction_failure(result: Result<(), BanksClientError>) {
     }
 }
 
+/// Helper to assert transaction failed with a specific error string
+pub fn assert_instruction_error(result: Result<(), BanksClientError>, expected_error: &str) {
+    match result {
+        Err(e) => {
+            let error_string = format!("{:?}", e);
+            assert!(
+                error_string.contains(expected_error),
+                "Expected error containing '{}', but got: {}",
+                expected_error,
+                error_string
+            );
+            println!(
+                "Test passed: Got expected error containing '{}'",
+                expected_error
+            );
+        }
+        Ok(_) => panic!(
+            "Expected transaction to fail with '{}', but it succeeded",
+            expected_error
+        ),
+    }
+}
+
 /// Helper to assert transaction failed with a specific custom error code
 pub fn assert_custom_error(result: Result<(), BanksClientError>, expected_error_code: u32) {
     match result {
@@ -87,10 +110,19 @@ pub fn assert_custom_error(result: Result<(), BanksClientError>, expected_error_
                 "Expected error code 0x{:04X}, but got 0x{:04X}",
                 expected_error_code, actual_code
             );
-            println!("Test passed: Got expected error code 0x{:04X}", expected_error_code);
+            println!(
+                "Test passed: Got expected error code 0x{:04X}",
+                expected_error_code
+            );
         }
-        Err(e) => panic!("Expected custom error 0x{:04X}, but got: {:?}", expected_error_code, e),
-        Ok(_) => panic!("Expected transaction to fail with error code 0x{:04X}, but it succeeded", expected_error_code),
+        Err(e) => panic!(
+            "Expected custom error 0x{:04X}, but got: {:?}",
+            expected_error_code, e
+        ),
+        Ok(_) => panic!(
+            "Expected transaction to fail with error code 0x{:04X}, but it succeeded",
+            expected_error_code
+        ),
     }
 }
 
@@ -261,14 +293,8 @@ pub async fn initialize_mint_verification_and_mint_to_account(
     account_to_mint: Pubkey,
     amount: u64,
 ) {
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[MINT_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), MINT_DISCRIMINATOR);
     let mint_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: MINT_DISCRIMINATOR,
         cpi_mode: false,
@@ -452,6 +478,25 @@ pub fn find_verification_config_pda(mint: Pubkey, instruction_discriminator: u8)
             b"verification_config",
             &mint.as_ref(),
             &[instruction_discriminator],
+        ],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    )
+}
+
+pub fn find_mint_pause_authority_pda(mint: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[b"mint.pause_authority", mint.as_ref()],
+        &SECURITY_TOKEN_PROGRAM_ID,
+    )
+}
+
+pub fn find_rate_pda(action_id: u64, mint_pubkey1: &Pubkey, mint_pubkey2: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            b"rate",
+            action_id.to_le_bytes().as_ref(),
+            mint_pubkey1.as_ref(),
+            mint_pubkey2.as_ref(),
         ],
         &SECURITY_TOKEN_PROGRAM_ID,
     )

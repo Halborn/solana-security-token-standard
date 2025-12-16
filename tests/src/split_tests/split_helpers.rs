@@ -43,10 +43,6 @@ pub async fn execute_split(
     send_tx(banks_client, vec![split_ix], &payer.pubkey(), vec![payer]).await
 }
 
-pub fn uniq_pubkey() -> Pubkey {
-    Pubkey::new_unique()
-}
-
 pub async fn create_split_verification_config(
     context: &mut solana_program_test::ProgramTestContext,
     mint_keypair: &Keypair,

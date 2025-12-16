@@ -1,14 +1,19 @@
 //! Security Token Standard Integration Tests
 
+use crate::helpers::{
+    assert_instruction_error, assert_security_token_error, assert_transaction_success,
+    find_mint_authority_pda, find_mint_freeze_authority_pda, find_permanent_delegate_pda,
+    find_transfer_hook_pda, find_verification_config_pda, initialize_mint,
+    initialize_verification_config, send_tx, start_with_context,
+};
 use borsh::BorshDeserialize;
 use security_token_client::accounts::{MintAuthority, VerificationConfig};
+use security_token_client::errors::SecurityTokenProgramError;
 use security_token_client::instructions::{
     InitializeMintBuilder, TrimVerificationConfigBuilder, UpdateMetadataBuilder,
     UpdateVerificationConfigBuilder, UPDATE_METADATA_DISCRIMINATOR,
 };
 use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
-
-use crate::helpers::{assert_transaction_success, initialize_mint, initialize_verification_config};
 use security_token_client::types::{
     InitializeMintArgs, InitializeVerificationConfigArgs, MetadataPointerArgs, MintArgs,
     ScaledUiAmountConfigArgs, TokenMetadataArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
@@ -55,7 +60,7 @@ async fn test_program_loads() {
 async fn test_unknown_instruction_discriminator() {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(true);
-    let (banks_client, payer, recent_blockhash) = pt.start().await;
+    let (banks_client, payer, _recent_blockhash) = pt.start().await;
 
     let unknown_discriminator = 99u8;
     let instruction_data = vec![unknown_discriminator];
@@ -65,11 +70,14 @@ async fn test_unknown_instruction_discriminator() {
         accounts: vec![],
         data: instruction_data,
     };
-    let mut transaction =
-        solana_sdk::transaction::Transaction::new_with_payer(&[instruction], Some(&payer.pubkey()));
-    transaction.sign(&[&payer], recent_blockhash);
 
-    let result = banks_client.process_transaction(transaction).await;
+    let result = send_tx(
+        &banks_client,
+        vec![instruction],
+        &payer.pubkey(),
+        vec![&payer],
+    )
+    .await;
     let error = result.unwrap_err();
     let error_string = format!("{:?}", error);
     assert!(
@@ -87,19 +95,10 @@ async fn test_initialize_mint_with_all_extensions() {
     // Create mint keypair - mint account must be a signer when creating new account
     let mint_keypair = solana_sdk::signature::Keypair::new();
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
-    let (mint_authority_pda, mint_authority_bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, mint_authority_bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
     println!("Mint authority PDA: {}", mint_authority_pda);
 
@@ -127,8 +126,6 @@ async fn test_initialize_mint_with_all_extensions() {
             metadata_address: mint_keypair.pubkey(),
         }),
         ix_metadata: Some(TokenMetadataArgs {
-            update_authority: context.payer.pubkey(),
-            mint: mint_keypair.pubkey(),
             name: name.to_string().into(),
             symbol: symbol.to_string().into(),
             uri: uri.to_string().into(),
@@ -318,10 +315,7 @@ async fn test_initialize_mint_with_all_extensions() {
         .get_extension::<PermanentDelegate>()
         .expect("PermanentDelegate extension should be accessible");
     // Find permanent delegate PDA using the same seed as in the program
-    let (expected_permanent_delegate, _bump) = Pubkey::find_program_address(
-        &[b"mint.permanent_delegate", mint_keypair.pubkey().as_ref()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (expected_permanent_delegate, _bump) = find_permanent_delegate_pda(&mint_keypair.pubkey());
 
     assert_eq!(
         Option::<Pubkey>::from(permanent_delegate.delegate),
@@ -334,10 +328,7 @@ async fn test_initialize_mint_with_all_extensions() {
         .expect("TransferHook extension should be accessible");
 
     // Find transfer hook PDA using the same seed as in the program
-    let (expected_transfer_hook_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.transfer_hook", mint_keypair.pubkey().as_ref()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (expected_transfer_hook_pda, _bump) = find_transfer_hook_pda(&mint_keypair.pubkey());
 
     assert_eq!(
         Option::<Pubkey>::from(transfer_hook.authority),
@@ -346,14 +337,8 @@ async fn test_initialize_mint_with_all_extensions() {
     );
 
     // Verify mint authority
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
     let mint_authority_pubkey = mint_with_extensions.base.mint_authority.unwrap();
     assert_eq!(mint_authority_pubkey, mint_authority_pda);
@@ -381,27 +366,12 @@ async fn test_update_metadata() {
     let name = "Test Token";
     let symbol = "TEST";
     let uri = "https://example.com";
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[UPDATE_METADATA_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), UPDATE_METADATA_DISCRIMINATOR);
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
     let mint_args = InitializeMintArgs {
         ix_mint: MintArgs {
@@ -414,8 +384,6 @@ async fn test_update_metadata() {
             metadata_address: mint_keypair.pubkey(),
         }),
         ix_metadata: Some(TokenMetadataArgs {
-            update_authority: context.payer.pubkey(),
-            mint: mint_keypair.pubkey(),
             name: name.to_string().into(),
             symbol: symbol.to_string().into(),
             uri: uri.to_string().into(),
@@ -461,8 +429,6 @@ async fn test_update_metadata() {
 
     let update_metadata_args = UpdateMetadataArgs {
         metadata: TokenMetadataArgs {
-            update_authority: context.payer.pubkey(),
-            mint: mint_keypair.pubkey(),
             name: updated_name.to_string().into(),
             symbol: updated_symbol.to_string().into(),
             uri: updated_uri.to_string().into(),
@@ -480,20 +446,14 @@ async fn test_update_metadata() {
         .update_metadata_args(update_metadata_args)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
-    let tx_update_metadata = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[update_metadata_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
     // Process transaction
-    let result = context
-        .banks_client
-        .process_transaction(tx_update_metadata)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![update_metadata_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
 
     assert_transaction_success(result);
 
@@ -568,19 +528,10 @@ async fn test_initialize_mint_with_different_decimals() {
     // Test different decimal values
     for decimals in [0, 2, 6, 9, 18] {
         let mint_keypair = solana_sdk::signature::Keypair::new();
-        let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-            &[
-                b"mint.authority",
-                &mint_keypair.pubkey().to_bytes(),
-                &context.payer.pubkey().to_bytes(),
-            ],
-            &SECURITY_TOKEN_PROGRAM_ID,
-        );
+        let (mint_authority_pda, _bump) =
+            find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-        let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-            &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-            &SECURITY_TOKEN_PROGRAM_ID,
-        );
+        let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
         let mint_args = InitializeMintArgs {
             ix_mint: MintArgs {
@@ -624,18 +575,9 @@ async fn test_initialize_mint_error_cases() {
     // Test Case 1: Mint account not a signer
     {
         let mint_keypair = solana_sdk::signature::Keypair::new();
-        let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-            &[
-                b"mint.authority",
-                &mint_keypair.pubkey().to_bytes(),
-                &context.payer.pubkey().to_bytes(),
-            ],
-            &SECURITY_TOKEN_PROGRAM_ID,
-        );
-        let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-            &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-            &SECURITY_TOKEN_PROGRAM_ID,
-        );
+        let (mint_authority_pda, _bump) =
+            find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
+        let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
         let ix = InitializeMintBuilder::new()
             .mint(mint_keypair.pubkey())
@@ -686,19 +628,10 @@ async fn test_initialize_mint_error_cases() {
     {
         let mint_keypair = solana_sdk::signature::Keypair::new();
         let fake_creator = solana_sdk::signature::Keypair::new();
-        let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-            &[
-                b"mint.authority",
-                &mint_keypair.pubkey().to_bytes(),
-                &context.payer.pubkey().to_bytes(),
-            ],
-            &SECURITY_TOKEN_PROGRAM_ID,
-        );
+        let (mint_authority_pda, _bump) =
+            find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-        let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-            &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-            &SECURITY_TOKEN_PROGRAM_ID,
-        );
+        let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
         let ix = InitializeMintBuilder::new()
             .mint(mint_keypair.pubkey())
@@ -754,20 +687,10 @@ async fn test_verification_config() {
     // Create mint keypair - we need this to derive the verification config PDA
     let mint_keypair = solana_sdk::signature::Keypair::new();
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
     let name = "Test Token";
     let symbol = "TEST";
@@ -784,8 +707,6 @@ async fn test_verification_config() {
             metadata_address: mint_keypair.pubkey(),
         }),
         ix_metadata: Some(TokenMetadataArgs {
-            update_authority: context.payer.pubkey(),
-            mint: mint_keypair.pubkey(),
             name: name.to_string().into(),
             symbol: symbol.to_string().into(),
             uri: uri.to_string().into(),
@@ -802,14 +723,8 @@ async fn test_verification_config() {
     let verification_programs = vec![program_1, program_2];
 
     // Derive the expected VerificationConfig PDA
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            &mint_keypair.pubkey().to_bytes(),
-            &[UPDATE_METADATA_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), UPDATE_METADATA_DISCRIMINATOR);
 
     let verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
@@ -884,14 +799,13 @@ async fn test_verification_config() {
         .update_verification_config_args(update_verification_config_args)
         .instruction();
 
-    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[update_config_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context.banks_client.process_transaction(transaction).await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![update_config_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     // Verify the updated configuration
@@ -935,6 +849,34 @@ async fn test_verification_config() {
         .unwrap()
         .lamports;
 
+    // Test offset gap
+    let update_verification_config_args = UpdateVerificationConfigArgs {
+        instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
+        cpi_mode: false,
+        program_addresses: [Pubkey::new_unique(), Pubkey::new_unique()].to_vec(),
+        offset: 4, // Current len is 3
+    };
+
+    let update_config_ix = UpdateVerificationConfigBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config_or_mint_authority(mint_authority_pda)
+        .instructions_sysvar_or_creator(context.payer.pubkey())
+        .config_account(verification_config_pda)
+        .mint_account(mint_keypair.pubkey())
+        .payer(context.payer.pubkey())
+        .update_verification_config_args(update_verification_config_args)
+        .instruction();
+
+    let result = send_tx(
+        &context.banks_client,
+        vec![update_config_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
+
+    assert_instruction_error(result, "InvalidArgument");
+
     // Test Case 1: Trim the array from 3 programs to 2 programs (recover some rent)
     let new_size = 2u8;
     let close = false;
@@ -955,17 +897,13 @@ async fn test_verification_config() {
         .trim_verification_config_args(trim_verification_config_args)
         .instruction();
 
-    let trim_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[trim_verification_config_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(trim_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![trim_verification_config_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
 
     assert_transaction_success(result);
 
@@ -1036,14 +974,13 @@ async fn test_verification_config() {
     // Get config account balance before closing
     let config_balance_before_close = trimmed_config_account.lamports;
 
-    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[close_verification_config_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context.banks_client.process_transaction(transaction).await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![close_verification_config_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     // Verify the account was closed
@@ -1073,5 +1010,162 @@ async fn test_verification_config() {
         "Should have recovered at least {} lamports, got {}",
         config_balance_before_close,
         total_recovered_rent
+    );
+}
+
+#[tokio::test]
+async fn test_metadata_pointer_validation() {
+    let mut context = start_with_context().await;
+
+    // Test Case 1: metadata_pointer points to mint (internally owned), but metadata is None
+    // This SHOULD FAIL with InternalMetadataRequiresData
+    {
+        let mint_keypair = solana_sdk::signature::Keypair::new();
+        let (mint_authority_pda, _bump) =
+            find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
+
+        let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
+
+        let mint_args = InitializeMintArgs {
+            ix_mint: MintArgs {
+                decimals: 6,
+                mint_authority: context.payer.pubkey(),
+                freeze_authority: freeze_authority_pda,
+            },
+            ix_metadata_pointer: Some(MetadataPointerArgs {
+                authority: context.payer.pubkey(),
+                metadata_address: mint_keypair.pubkey(), // Points to mint (internally owned)
+            }),
+            ix_metadata: None, // But no metadata provided
+            ix_scaled_ui_amount: None,
+        };
+
+        let ix = InitializeMintBuilder::new()
+            .mint(mint_keypair.pubkey())
+            .payer(context.payer.pubkey())
+            .authority(mint_authority_pda)
+            .initialize_mint_args(mint_args)
+            .instruction();
+
+        let result = send_tx(
+            &context.banks_client,
+            vec![ix],
+            &context.payer.pubkey(),
+            vec![&context.payer, &mint_keypair],
+        )
+        .await;
+        assert_security_token_error(
+            result,
+            SecurityTokenProgramError::InternalMetadataRequiresData,
+        );
+    }
+
+    // Test Case 2: metadata_pointer points to external, but metadata is provided
+    // This SHOULD FAIL with ExternalMetadataForbidsData
+    {
+        let external_metadata_address = Pubkey::new_unique();
+        let mint_keypair = solana_sdk::signature::Keypair::new();
+        let (mint_authority_pda, _bump) =
+            find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
+
+        let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
+
+        let mint_args = InitializeMintArgs {
+            ix_mint: MintArgs {
+                decimals: 6,
+                mint_authority: context.payer.pubkey(),
+                freeze_authority: freeze_authority_pda,
+            },
+            ix_metadata_pointer: Some(MetadataPointerArgs {
+                authority: context.payer.pubkey(),
+                metadata_address: external_metadata_address, // Points to external address
+            }),
+            ix_metadata: Some(TokenMetadataArgs {
+                name: "Updated Name".to_string().into(),
+                symbol: "UPD".to_string().into(),
+                uri: "https://updated.com".to_string().into(),
+                additional_metadata: vec![],
+            }),
+            ix_scaled_ui_amount: None,
+        };
+
+        let ix = InitializeMintBuilder::new()
+            .mint(mint_keypair.pubkey())
+            .payer(context.payer.pubkey())
+            .authority(mint_authority_pda)
+            .initialize_mint_args(mint_args)
+            .instruction();
+
+        let result = send_tx(
+            &context.banks_client,
+            vec![ix],
+            &context.payer.pubkey(),
+            vec![&context.payer, &mint_keypair],
+        )
+        .await;
+        assert_security_token_error(
+            result,
+            SecurityTokenProgramError::ExternalMetadataForbidsData,
+        );
+    }
+
+    // Test Case 3: metadata_pointer points to different address (externally owned), metadata is None
+    // This SHOULD SUCCEED - external metadata storage is valid
+    let mint_keypair = solana_sdk::signature::Keypair::new();
+    let external_metadata_address = Pubkey::new_unique(); // Different from mint
+
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
+
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
+
+    let mint_args = InitializeMintArgs {
+        ix_mint: MintArgs {
+            decimals: 6,
+            mint_authority: context.payer.pubkey(),
+            freeze_authority: freeze_authority_pda,
+        },
+        ix_metadata_pointer: Some(MetadataPointerArgs {
+            authority: context.payer.pubkey(),
+            metadata_address: external_metadata_address, // Points to external address
+        }),
+        ix_metadata: None, // No metadata - VALID for external storage
+        ix_scaled_ui_amount: None,
+    };
+
+    initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
+
+    // Test Case 4: Try to update metadata for external storage mint
+    // This SHOULD FAIL - we only support internally owned metadata
+    let update_metadata_args = UpdateMetadataArgs {
+        metadata: TokenMetadataArgs {
+            name: "Updated Name".to_string().into(),
+            symbol: "UPD".to_string().into(),
+            uri: "https://updated.com".to_string().into(),
+            additional_metadata: vec![],
+        },
+    };
+
+    let update_metadata_ix = UpdateMetadataBuilder::new()
+        .mint(mint_keypair.pubkey())
+        .verification_config_or_mint_authority(mint_authority_pda)
+        .instructions_sysvar_or_creator(context.payer.pubkey())
+        .mint_account(mint_keypair.pubkey())
+        .mint_authority(mint_authority_pda)
+        .payer(context.payer.pubkey())
+        .update_metadata_args(update_metadata_args)
+        .instruction();
+
+    let result = send_tx(
+        &context.banks_client,
+        vec![update_metadata_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
+
+    assert_security_token_error(
+        result,
+        SecurityTokenProgramError::CannotModifyExternalMetadataAccount,
     );
 }

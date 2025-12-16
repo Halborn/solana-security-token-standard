@@ -10,12 +10,12 @@ use crate::{
         build_creator_resources, create_convert_verification_config, execute_convert,
     },
     helpers::{
-        assert_account_exists, assert_transaction_success, create_mint_verification_config,
-        create_spl_account, create_token_account_and_mint_tokens, find_permanent_delegate_pda,
-        find_receipt_pda, from_ui_amount, get_token_account_state, mint_tokens_to,
-        start_with_context, start_with_context_and_accounts,
+        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
+        create_mint_verification_config, create_spl_account, create_token_account_and_mint_tokens,
+        find_permanent_delegate_pda, find_receipt_pda, from_ui_amount, get_token_account_state,
+        mint_tokens_to, start_with_context, start_with_context_and_accounts,
     },
-    rate_tests::rate_helpers::{create_rate_account, create_security_token_mint},
+    rate_tests::rate_helpers::create_rate_account,
 };
 
 #[tokio::test]
@@ -30,7 +30,7 @@ async fn test_should_convert_successfully() {
     let mint_keypair_from = Keypair::new();
     let mint_pubkey_from = mint_keypair_from.pubkey();
     let decimals_from = 6u8;
-    let (mint_authority_pda_from, _, _) = create_security_token_mint(
+    let (mint_authority_pda_from, _, _) = create_minimal_security_token_mint(
         context,
         &mint_keypair_from,
         Some(mint_creator),
@@ -66,9 +66,13 @@ async fn test_should_convert_successfully() {
     let mint_keypair_to = Keypair::new();
     let mint_pubkey_to = mint_keypair_to.pubkey();
     let decimals_to = 9u8;
-    let (mint_authority_pda_to, _, _) =
-        create_security_token_mint(context, &mint_keypair_to, Some(mint_creator), decimals_to)
-            .await;
+    let (mint_authority_pda_to, _, _) = create_minimal_security_token_mint(
+        context,
+        &mint_keypair_to,
+        Some(mint_creator),
+        decimals_to,
+    )
+    .await;
 
     // Convert verification config for conversion mint_from => mint_to
     let convert_verification_config_pda = create_convert_verification_config(
@@ -181,7 +185,7 @@ async fn test_should_not_convert_twice() {
     let mint_keypair_from = Keypair::new();
     let mint_pubkey_from = mint_keypair_from.pubkey();
     let decimals_from = 6u8;
-    let (mint_authority_pda_from, _, _) = create_security_token_mint(
+    let (mint_authority_pda_from, _, _) = create_minimal_security_token_mint(
         context,
         &mint_keypair_from,
         Some(mint_creator),
@@ -217,9 +221,13 @@ async fn test_should_not_convert_twice() {
     let mint_keypair_to = Keypair::new();
     let mint_pubkey_to = mint_keypair_to.pubkey();
     let decimals_to = 9u8;
-    let (mint_authority_pda_to, _, _) =
-        create_security_token_mint(context, &mint_keypair_to, Some(mint_creator), decimals_to)
-            .await;
+    let (mint_authority_pda_to, _, _) = create_minimal_security_token_mint(
+        context,
+        &mint_keypair_to,
+        Some(mint_creator),
+        decimals_to,
+    )
+    .await;
 
     // Convert verification config for conversion mint_from => mint_to
     let convert_verification_config_pda = create_convert_verification_config(
@@ -331,7 +339,7 @@ async fn test_should_not_convert_insufficient_tokens_amount() {
     let mint_keypair_from = Keypair::new();
     let mint_pubkey_from = mint_keypair_from.pubkey();
     let decimals_from = 6u8;
-    let (mint_authority_pda_from, _, _) = create_security_token_mint(
+    let (mint_authority_pda_from, _, _) = create_minimal_security_token_mint(
         context,
         &mint_keypair_from,
         Some(mint_creator),
@@ -357,9 +365,13 @@ async fn test_should_not_convert_insufficient_tokens_amount() {
     let mint_keypair_to = Keypair::new();
     let mint_pubkey_to = mint_keypair_to.pubkey();
     let decimals_to = 9u8;
-    let (mint_authority_pda_to, _, _) =
-        create_security_token_mint(context, &mint_keypair_to, Some(mint_creator), decimals_to)
-            .await;
+    let (mint_authority_pda_to, _, _) = create_minimal_security_token_mint(
+        context,
+        &mint_keypair_to,
+        Some(mint_creator),
+        decimals_to,
+    )
+    .await;
 
     // Verification config for conversion
     let convert_verification_config_pda = create_convert_verification_config(
@@ -475,7 +487,7 @@ async fn test_should_fail_when_conversion_target_amount_zero() {
     let mint_keypair_from = Keypair::new();
     let mint_pubkey_from = mint_keypair_from.pubkey();
     let decimals_from = 6u8;
-    let (mint_authority_pda_from, _, _) = create_security_token_mint(
+    let (mint_authority_pda_from, _, _) = create_minimal_security_token_mint(
         context,
         &mint_keypair_from,
         Some(mint_creator),
@@ -511,9 +523,13 @@ async fn test_should_fail_when_conversion_target_amount_zero() {
     let mint_keypair_to = Keypair::new();
     let mint_pubkey_to = mint_keypair_to.pubkey();
     let decimals_to = 3u8;
-    let (mint_authority_pda_to, _, _) =
-        create_security_token_mint(context, &mint_keypair_to, Some(mint_creator), decimals_to)
-            .await;
+    let (mint_authority_pda_to, _, _) = create_minimal_security_token_mint(
+        context,
+        &mint_keypair_to,
+        Some(mint_creator),
+        decimals_to,
+    )
+    .await;
 
     // Verification config for conversion
     let convert_verification_config_pda = create_convert_verification_config(
@@ -593,7 +609,7 @@ async fn test_should_not_panic_when_overflow_occur() {
     let mint_keypair_from = Keypair::new();
     let mint_pubkey_from = mint_keypair_from.pubkey();
     let decimals_from = 6u8;
-    let (mint_authority_pda_from, _, _) = create_security_token_mint(
+    let (mint_authority_pda_from, _, _) = create_minimal_security_token_mint(
         context,
         &mint_keypair_from,
         Some(mint_creator),
@@ -629,9 +645,13 @@ async fn test_should_not_panic_when_overflow_occur() {
     let mint_keypair_to = Keypair::new();
     let mint_pubkey_to = mint_keypair_to.pubkey();
     let decimals_to = 9u8; // more decimals so u64::MAX will result in overflow
-    let (mint_authority_pda_to, _, _) =
-        create_security_token_mint(context, &mint_keypair_to, Some(mint_creator), decimals_to)
-            .await;
+    let (mint_authority_pda_to, _, _) = create_minimal_security_token_mint(
+        context,
+        &mint_keypair_to,
+        Some(mint_creator),
+        decimals_to,
+    )
+    .await;
 
     // Verification config for conversion
     let convert_verification_config_pda = create_convert_verification_config(

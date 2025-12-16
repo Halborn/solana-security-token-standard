@@ -8,12 +8,9 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
-use crate::{
-    helpers::{
-        create_mint_verification_config, create_token_account_and_mint_tokens,
-        create_verification_config, send_tx,
-    },
-    rate_tests::rate_helpers::create_security_token_mint,
+use crate::helpers::{
+    create_minimal_security_token_mint, create_mint_verification_config,
+    create_token_account_and_mint_tokens, create_verification_config, send_tx,
 };
 
 /// Build and send Convert instruction
@@ -94,7 +91,8 @@ pub async fn build_creator_resources(
     let mint_keypair = Keypair::new();
     let mint_pubkey = mint_keypair.pubkey();
     let (mint_authority_pda, _, _) =
-        create_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals).await;
+        create_minimal_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals)
+            .await;
 
     let convert_verification_config_pda = create_convert_verification_config(
         context,

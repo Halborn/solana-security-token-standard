@@ -24,8 +24,15 @@ pub mod seeds {
     pub const EXTRA_ACCOUNT_METAS: &[u8] = b"extra-account-metas";
 }
 
+/// Offset to skip verification overhead accounts (mint, verification_config/mint_authority, instructions_sysvar/signer)
 pub const INSTRUCTION_ACCOUNTS_OFFSET: usize = 3;
+
+/// Transfer hook program ID for security token transfers
 pub const TRANSFER_HOOK_PROGRAM_ID: Pubkey =
     pubkey!("DTUuEirVJFg53cKgyTPKtVgvi5SV5DCDQpvbmdwBtYdd");
+
+/// Size of action_id field (u64 type = 8 bytes)
 pub const ACTION_ID_LEN: usize = 8;
+
+/// Maximum number of verification programs that can be registered per instruction
 pub const MAX_VERIFICATION_PROGRAMS: usize = 10;

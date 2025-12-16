@@ -147,7 +147,7 @@ mod idl_gen {
         #[account(1, name = "verification_config_or_mint_authority")]
         #[account(2, name = "instructions_sysvar_or_creator")]
         // Instruction accounts
-        #[account(3, writable, name = "mint_account")]
+        #[account(3, name = "mint_account")]
         #[account(4, writable, name = "config_account")]
         #[account(5, writable, name = "recipient")]
         #[account(6, name = "system_program")]
@@ -168,7 +168,7 @@ mod idl_gen {
         #[account(1, name = "verification_config")]
         #[account(2, name = "instructions_sysvar")]
         // Instruction accounts
-        #[account(3, writable, name = "mint_authority")]
+        #[account(3, name = "mint_authority")]
         #[account(4, writable, name = "mint_account")]
         #[account(5, writable, name = "destination")]
         #[account(6, name = "token_program")]

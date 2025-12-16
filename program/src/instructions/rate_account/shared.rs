@@ -25,9 +25,19 @@ impl RateConfig {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let rounding = Rounding::try_from(data[0]).map_err(|_| ProgramError::InvalidArgument)?;
-        let numerator = data[1];
-        let denominator = data[2];
+        let mut offset = 0;
+
+        // Read rounding (1 byte)
+        let rounding =
+            Rounding::try_from(data[offset]).map_err(|_| ProgramError::InvalidArgument)?;
+        offset += 1;
+
+        // Read numerator (1 byte)
+        let numerator = data[offset];
+        offset += 1;
+
+        // Read denominator (1 byte)
+        let denominator = data[offset];
 
         if denominator == 0 || numerator == 0 {
             return Err(ProgramError::InvalidArgument);

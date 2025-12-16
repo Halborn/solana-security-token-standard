@@ -73,7 +73,7 @@ export type TrimVerificationConfigInstruction<
         ? ReadonlyAccount<TAccountInstructionsSysvarOrCreator>
         : TAccountInstructionsSysvarOrCreator,
       TAccountMintAccount extends string
-        ? WritableAccount<TAccountMintAccount>
+        ? ReadonlyAccount<TAccountMintAccount>
         : TAccountMintAccount,
       TAccountConfigAccount extends string
         ? WritableAccount<TAccountConfigAccount>
@@ -216,7 +216,7 @@ export function getTrimVerificationConfigInstruction<
       value: input.instructionsSysvarOrCreator ?? null,
       isWritable: false,
     },
-    mintAccount: { value: input.mintAccount ?? null, isWritable: true },
+    mintAccount: { value: input.mintAccount ?? null, isWritable: false },
     configAccount: { value: input.configAccount ?? null, isWritable: true },
     recipient: { value: input.recipient ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },

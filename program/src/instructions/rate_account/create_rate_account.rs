@@ -16,7 +16,7 @@ pub struct CreateRateArgs {
 }
 
 impl CreateRateArgs {
-    /// action_id + rate arguments (rounding + numerator + denominator)
+    /// Fixed size: action_id (8 bytes) + rate arguments (3 bytes) = 11 bytes
     pub const LEN: usize = ACTION_AND_RATE_ARGS_LEN;
 
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
