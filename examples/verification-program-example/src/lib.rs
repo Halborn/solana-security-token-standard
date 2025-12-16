@@ -114,8 +114,7 @@ pub fn process_instruction(
 /// - Parse bytes manually (see program/src/instructions/*.rs for examples)
 fn verify_update_metadata(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
-    let [mint_authority, payer, mint_info, token_program_info, system_program_info] = accounts
-    else {
+    let [mint_authority, payer, mint, token_program, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     // Parse args using types from security_token_client
@@ -137,7 +136,7 @@ fn verify_initialize_verification_config(
     instruction_data: &[u8],
 ) -> ProgramResult {
     // Destructure accounts (transfer_hook_accounts @ .. only for Transfer discriminator)
-    let [payer, mint_account, config_account, system_program_info, transfer_hook_accounts @ ..] =
+    let [payer, mint_account, config_account, system_program, transfer_hook_accounts @ ..] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -167,7 +166,7 @@ fn verify_update_verification_config(
     instruction_data: &[u8],
 ) -> ProgramResult {
     // Destructure accounts (transfer_hook_accounts @ .. only for Transfer discriminator)
-    let [payer, mint_account, config_account, system_program_info, transfer_hook_accounts @ ..] =
+    let [payer, mint_account, config_account, system_program, transfer_hook_accounts @ ..] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -197,7 +196,7 @@ fn verify_trim_verification_config(
     instruction_data: &[u8],
 ) -> ProgramResult {
     // Destructure accounts (transfer_hook_accounts @ .. only for Transfer discriminator)
-    let [mint_account, config_account, recipient, system_program_info, transfer_hook_accounts @ ..] =
+    let [mint_account, config_account, recipient, system_program, transfer_hook_accounts @ ..] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -215,7 +214,7 @@ fn verify_trim_verification_config(
 /// Instruction data: [amount: u64]
 fn verify_mint(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
-    let [mint_authority, mint_info, destination_account_info, token_program] = accounts else {
+    let [mint_authority, mint, destination_account, token_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -232,7 +231,7 @@ fn verify_mint(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResu
     log!(
         "Mint verification: amount={}, destination={}",
         amount,
-        destination_account_info.key()
+        destination_account.key()
     );
 
     // Your validation logic here
@@ -244,7 +243,7 @@ fn verify_mint(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResu
 /// Instruction data: [amount: u64]
 fn verify_burn(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
-    let [permanent_delegate_authority, mint_info, token_account, token_program] = accounts else {
+    let [permanent_delegate_authority, mint, token_account, token_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -273,7 +272,7 @@ fn verify_burn(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResu
 /// Instruction data: [amount: u64]
 fn verify_transfer(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
-    let [permanent_delegate_authority, mint_info, from_token_account, to_token_account, transfer_hook_program, token_program] =
+    let [permanent_delegate_authority, mint, from_token_account, to_token_account, transfer_hook_program, token_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -305,11 +304,11 @@ fn verify_transfer(accounts: &[AccountInfo], instruction_data: &[u8]) -> Program
 /// Instruction data: []
 fn verify_pause(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
-    let [pause_authority, mint_info, token_program] = accounts else {
+    let [pause_authority, mint, token_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    log!("Pause verification: mint={}", mint_info.key());
+    log!("Pause verification: mint={}", mint.key());
 
     // Your validation logic here
     Ok(())
@@ -320,11 +319,11 @@ fn verify_pause(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramRe
 /// Instruction data: []
 fn verify_resume(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
-    let [pause_authority, mint_info, token_program] = accounts else {
+    let [pause_authority, mint, token_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    log!("Resume verification: mint={}", mint_info.key());
+    log!("Resume verification: mint={}", mint.key());
 
     // Your validation logic here
     Ok(())
@@ -335,7 +334,7 @@ fn verify_resume(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramR
 /// Instruction data: []
 fn verify_freeze(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
-    let [freeze_authority, mint_info, token_account, token_program] = accounts else {
+    let [freeze_authority, mint, token_account, token_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -350,7 +349,7 @@ fn verify_freeze(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramR
 /// Instruction data: []
 fn verify_thaw(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
-    let [freeze_authority, mint_info, token_account, token_program] = accounts else {
+    let [freeze_authority, mint, token_account, token_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -366,8 +365,7 @@ fn verify_thaw(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramRes
 /// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
 fn verify_create_rate_account(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
-    let [payer, rate_account, mint_from_account, mint_to_account, system_program_info] = accounts
-    else {
+    let [payer, rate_account, mint_from_account, mint_to_account, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     // Parse args using types from security_token_client
@@ -392,7 +390,7 @@ fn verify_create_rate_account(accounts: &[AccountInfo], instruction_data: &[u8])
 /// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
 fn verify_update_rate_account(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
-    let [rate_account_info, mint_from_account, mint_to_info_account] = accounts else {
+    let [rate_account, mint_from_account, mint_to_account] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     // Parse args using types from security_token_client
@@ -417,9 +415,7 @@ fn verify_update_rate_account(accounts: &[AccountInfo], instruction_data: &[u8])
 /// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
 fn verify_close_rate_account(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Destructure accounts
-    let [rate_account_info, destination_account, mint_from_account, mint_to_info_account] =
-        accounts
-    else {
+    let [rate_account, destination_account, mint_from_account, mint_to_account] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     // Parse args using types from security_token_client
