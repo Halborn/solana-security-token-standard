@@ -19,8 +19,8 @@ use crate::state::{
     DistributionEscrowAuthority, MintAuthority, ProgramAccount, Proof, Rate, Receipt, Rounding,
 };
 use crate::utils::{
-    find_freeze_authority_pda, find_pause_authority_pda, find_permanent_delegate_pda,
-    find_proof_pda, find_rate_pda,
+    find_associated_token_address, find_freeze_authority_pda, find_pause_authority_pda,
+    find_permanent_delegate_pda, find_proof_pda, find_rate_pda,
 };
 use pinocchio::instruction::{Seed, Signer};
 use pinocchio::program_error::ProgramError;
@@ -751,6 +751,13 @@ impl OperationsModule {
             distribution_escrow_authority.key(),
             &distribution_escrow_authority_pda,
         )?;
+
+        let (expected_ata, _) = find_associated_token_address(
+            &distribution_escrow_authority_pda,
+            mint_pubkey,
+            token_program.key(),
+        );
+        verify_pda(distribution_token_account.key(), &expected_ata)?;
 
         CreateTokenAccount {
             funding_account: payer,
