@@ -16,7 +16,7 @@
 //! ### Introspection Mode (cpi_mode: false)
 //! - Verification programs must be called BEFORE the main operation
 //! - Security Token checks Instructions Sysvar to verify the calls were made
-//! - Must use identical accounts(except the verification overhead) and instruction_data as the main operation
+//! - Must use identical accounts (except the verification overhead) and instruction_data as the main operation
 //!
 //! ## Implementation Guide
 //!
