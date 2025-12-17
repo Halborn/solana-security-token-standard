@@ -18,9 +18,9 @@ use spl_type_length_value::state::TlvStateBorrowed;
 
 use crate::helpers::{
     assert_transaction_success, create_spl_account, find_mint_authority_pda,
-    find_mint_freeze_authority_pda, find_transfer_hook_pda, find_verification_config_pda,
-    get_mint_state, get_token_account_state, initialize_mint,
-    initialize_mint_verification_and_mint_to_account, initialize_program,
+    find_mint_freeze_authority_pda, find_mint_pause_authority_pda, find_permanent_delegate_pda,
+    find_transfer_hook_pda, find_verification_config_pda, get_mint_state, get_token_account_state,
+    initialize_mint, initialize_mint_verification_and_mint_to_account, initialize_program,
     initialize_verification_config, send_tx,
 };
 use security_token_transfer_hook;
@@ -46,19 +46,10 @@ async fn test_basic_t22_operations() {
 
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
 
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
     let destination_account =
         spl_associated_token_account::get_associated_token_address_with_program_id(
@@ -97,14 +88,8 @@ async fn test_basic_t22_operations() {
     let mut verification_configs = vec![];
     // NOTE: Move to fixture?
     for discriminator in instructions {
-        let (verification_config_pda, _bump) = Pubkey::find_program_address(
-            &[
-                b"verification_config",
-                mint_keypair.pubkey().as_ref(),
-                &[discriminator],
-            ],
-            &SECURITY_TOKEN_PROGRAM_ID,
-        );
+        let (verification_config_pda, _bump) =
+            find_verification_config_pda(mint_keypair.pubkey(), discriminator);
 
         let initialize_verification_config_args = InitializeVerificationConfigArgs {
             instruction_discriminator: discriminator,
@@ -123,8 +108,6 @@ async fn test_basic_t22_operations() {
         verification_configs.push(verification_config_pda);
     }
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
     let create_destination_account_ix =
         spl_associated_token_account::instruction::create_associated_token_account_idempotent(
             &context.payer.pubkey(),
@@ -133,17 +116,13 @@ async fn test_basic_t22_operations() {
             &TOKEN_22_PROGRAM_ID,
         );
 
-    let create_destination_account_tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[create_destination_account_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(create_destination_account_tx)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![create_destination_account_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
 
     assert_transaction_success(result);
 
@@ -160,19 +139,13 @@ async fn test_basic_t22_operations() {
         .amount(1_000_000)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
-    let mint_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[mint_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(mint_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![mint_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     let mint_state_after = get_mint_state(&mut context.banks_client, mint_keypair.pubkey()).await;
@@ -182,10 +155,7 @@ async fn test_basic_t22_operations() {
         get_token_account_state(&mut context.banks_client, destination_account).await;
     assert_eq!(token_account_after.base.amount, 1_000_000);
 
-    let (permanent_delegate_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.permanent_delegate", mint_keypair.pubkey().as_ref()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (permanent_delegate_pda, _bump) = find_permanent_delegate_pda(&mint_keypair.pubkey());
 
     let burn_ix = BurnBuilder::new()
         .mint(mint_keypair.pubkey())
@@ -197,18 +167,13 @@ async fn test_basic_t22_operations() {
         .amount(500_000)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
-    let burn_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[burn_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-    let result = context
-        .banks_client
-        .process_transaction(burn_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![burn_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     let mint_state_after_burn =
@@ -227,17 +192,13 @@ async fn test_basic_t22_operations() {
         .token_account(destination_account)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let freeze_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[freeze_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-    let result = context
-        .banks_client
-        .process_transaction(freeze_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![freeze_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     let frozen_account =
@@ -252,16 +213,13 @@ async fn test_basic_t22_operations() {
         .token_account(destination_account)
         .instruction();
 
-    let thaw_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[thaw_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-    let result = context
-        .banks_client
-        .process_transaction(thaw_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![thaw_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
     let thawed_account =
         get_token_account_state(&mut context.banks_client, destination_account).await;
@@ -276,19 +234,10 @@ async fn test_t22_extension_operations() {
     let mint_keypair = Keypair::new();
 
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
     let initialize_mint_args = InitializeMintArgs {
         ix_mint: MintArgs {
@@ -309,21 +258,10 @@ async fn test_t22_extension_operations() {
     )
     .await;
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let (pause_authority_pda, _bump) = find_mint_pause_authority_pda(&mint_keypair.pubkey());
 
-    let (pause_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.pause_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
-
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[PAUSE_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), PAUSE_DISCRIMINATOR);
 
     let pause_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: PAUSE_DISCRIMINATOR,
@@ -346,17 +284,14 @@ async fn test_t22_extension_operations() {
         .pause_authority(pause_authority_pda)
         .instruction();
 
-    let pause_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[pause_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(pause_transaction)
-        .await;
+    // Pause the mint
+    let result = send_tx(
+        &context.banks_client,
+        vec![pause_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     let mint_state: StateWithExtensionsOwned<TokenMint> =
@@ -366,14 +301,8 @@ async fn test_t22_extension_operations() {
         .expect("Pausable extension should exist");
     assert_eq!(pausable.paused, PodBool(1));
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[RESUME_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), RESUME_DISCRIMINATOR);
 
     let resume_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: RESUME_DISCRIMINATOR,
@@ -397,18 +326,13 @@ async fn test_t22_extension_operations() {
         .pause_authority(pause_authority_pda)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let resume_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[resume_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(resume_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![resume_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 
     let mint_state: StateWithExtensionsOwned<TokenMint> =
@@ -435,33 +359,15 @@ async fn test_t22_transfer_operations() {
     let source_keypair = Keypair::new();
     let destination_keypair = Keypair::new();
 
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (permanent_delegate_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.permanent_delegate", mint_keypair.pubkey().as_ref()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (permanent_delegate_pda, _bump) = find_permanent_delegate_pda(&mint_keypair.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[TRANSFER_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), TRANSFER_DISCRIMINATOR);
 
     let initialize_mint_args = InitializeMintArgs {
         ix_mint: MintArgs {
@@ -521,17 +427,13 @@ async fn test_t22_transfer_operations() {
         .amount(100_000)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let transfer_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[transfer_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-    let result = context
-        .banks_client
-        .process_transaction(transfer_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![transfer_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
     let destination_account_state =
         get_token_account_state(&mut context.banks_client, destination_account).await;
@@ -589,28 +491,13 @@ async fn test_p2p_transfer_direct_spl() {
     let source_owner = Keypair::new();
     let destination_owner = Keypair::new();
 
-    let (mint_authority_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"mint.authority",
-            &mint_keypair.pubkey().to_bytes(),
-            &context.payer.pubkey().to_bytes(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (mint_authority_pda, _bump) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
 
-    let (freeze_authority_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint.freeze_authority", &mint_keypair.pubkey().to_bytes()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (freeze_authority_pda, _bump) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
 
-    let (verification_config_pda, _bump) = Pubkey::find_program_address(
-        &[
-            b"verification_config",
-            mint_keypair.pubkey().as_ref(),
-            &[TRANSFER_DISCRIMINATOR],
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
+    let (verification_config_pda, _bump) =
+        find_verification_config_pda(mint_keypair.pubkey(), TRANSFER_DISCRIMINATOR);
 
     let initialize_mint_args = InitializeMintArgs {
         ix_mint: MintArgs {
@@ -738,15 +625,13 @@ async fn test_p2p_transfer_direct_spl() {
     .await
     .expect("add extra metas");
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[spl_transfer_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &source_owner],
-        recent_blockhash,
-    );
-
-    let result = context.banks_client.process_transaction(transaction).await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![spl_transfer_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer, &source_owner],
+    )
+    .await;
     assert_transaction_success(result);
 
     let source_state = get_token_account_state(&mut context.banks_client, source_account).await;

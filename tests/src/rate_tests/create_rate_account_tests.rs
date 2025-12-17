@@ -4,7 +4,7 @@ use security_token_client::{
     accounts::Rate,
     instructions::{CreateRateAccount, CreateRateAccountInstructionArgs},
     programs::SECURITY_TOKEN_PROGRAM_ID,
-    types::{CloseRateArgs, CreateRateArgs, RateArgs, Rounding},
+    types::{CloseRateArgs, CreateRateArgs, RateConfig, Rounding},
 };
 use security_token_program::state::SecurityTokenDiscriminators;
 use solana_program_test::*;
@@ -14,9 +14,9 @@ use solana_sdk::signature::{Keypair, Signer};
 use crate::{
     helpers::{
         assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        send_tx, start_with_context,
+        find_rate_pda, send_tx, start_with_context,
     },
-    rate_tests::rate_helpers::{close_rate_account, create_rate_account, find_rate_pda},
+    rate_tests::rate_helpers::{close_rate_account, create_rate_account},
 };
 
 #[tokio::test]
@@ -37,7 +37,7 @@ async fn test_should_create_rate_account_operation_for_split_mints() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -110,7 +110,7 @@ async fn test_should_create_rate_account_operation_with_conversion_mints() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -162,7 +162,7 @@ async fn test_should_fail_invalid_create_rate_account_instruction(
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -199,7 +199,7 @@ async fn test_should_not_create_rate_account_twice() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding: Rounding::Up as u8,
             numerator: 3u8,
             denominator: 2u8,
@@ -256,7 +256,7 @@ async fn test_should_create_both_split_and_conversion_rate_accounts() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding: Rounding::Up as u8,
             numerator: 3u8,
             denominator: 2u8,
@@ -314,7 +314,7 @@ async fn test_should_not_create_rate_account_for_not_initial_mint() {
 
     let create_rate_args = CreateRateArgs {
         action_id: 42u64,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding: Rounding::Up as u8,
             numerator: 3u8,
             denominator: 2u8,
@@ -350,7 +350,7 @@ async fn test_should_not_create_invalid_pda_rate_account() {
 
     let create_rate_args = CreateRateArgs {
         action_id: 42u64,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding: Rounding::Up as u8,
             numerator: 3u8,
             denominator: 2u8,
@@ -398,7 +398,7 @@ async fn test_should_not_create_rate_account_with_invalid_system_program_id() {
 
     let create_rate_args = CreateRateArgs {
         action_id: 42u64,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding: Rounding::Up as u8,
             numerator: 3u8,
             denominator: 2u8,
@@ -454,7 +454,7 @@ async fn test_should_re_create_closed_rate_account() {
 
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding: Rounding::Up as u8,
             numerator: 3u8,
             denominator: 2u8,

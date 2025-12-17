@@ -1,5 +1,5 @@
 use rstest::*;
-use security_token_client::types::{CreateRateArgs, RateArgs, Rounding};
+use security_token_client::types::{CreateRateArgs, RateConfig, Rounding};
 use solana_pubkey::Pubkey;
 use solana_sdk::{native_token::sol_str_to_lamports, signature::Keypair, signer::Signer};
 
@@ -12,7 +12,7 @@ use crate::{
     },
     rate_tests::rate_helpers::{calculate_rate_amount, create_rate_account},
     receipt_tests::receipt_helpers::find_common_action_receipt_pda,
-    split_tests::split_helpers::{create_split_verification_config, execute_split, uniq_pubkey},
+    split_tests::split_helpers::{create_split_verification_config, execute_split},
 };
 
 #[tokio::test]
@@ -71,7 +71,7 @@ async fn test_should_split_with_mint_successfully() {
     let denominator = 1u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -182,7 +182,7 @@ async fn test_should_split_with_burn_successfully() {
     let denominator = 2u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -292,7 +292,7 @@ async fn test_should_not_split_twice() {
     let denominator = 2u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -396,7 +396,7 @@ async fn test_should_not_split_token_zero_amount() {
     let denominator = 2u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -440,7 +440,7 @@ async fn test_should_not_split_token_zero_amount() {
 #[rstest]
 // mint, mint_authority, permanent_delegate, token_account, rate, receipt
 #[case(
-    Some(uniq_pubkey()),
+    Some(Pubkey::new_unique()),
     None,
     None,
     None,
@@ -449,7 +449,7 @@ async fn test_should_not_split_token_zero_amount() {
 )]
 #[case(
     None,
-    Some(uniq_pubkey()),
+    Some(Pubkey::new_unique()),
     None,
     None,
     None,
@@ -458,7 +458,7 @@ async fn test_should_not_split_token_zero_amount() {
 #[case(
     None,
     None,
-    Some(uniq_pubkey()),
+    Some(Pubkey::new_unique()),
     None,
     None,
     "Should fail with invalid permanent delegate"
@@ -467,7 +467,7 @@ async fn test_should_not_split_token_zero_amount() {
     None,
     None,
     None,
-    Some(uniq_pubkey()),
+    Some(Pubkey::new_unique()),
     None,
     "Should fail with invalid rate account"
 )]
@@ -476,7 +476,7 @@ async fn test_should_not_split_token_zero_amount() {
     None,
     None,
     None,
-    Some(uniq_pubkey()),
+    Some(Pubkey::new_unique()),
     "Should fail with invalid receipt"
 )]
 #[tokio::test]
@@ -548,7 +548,7 @@ async fn test_should_not_split_with_invalid_random_accounts(
     let denominator = 2u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,
@@ -645,7 +645,7 @@ async fn test_should_not_split_not_owned_mint_or_token_account() {
     let denominator = 2u8;
     let create_rate_args = CreateRateArgs {
         action_id,
-        rate: RateArgs {
+        rate: RateConfig {
             rounding,
             numerator,
             denominator,

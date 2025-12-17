@@ -266,7 +266,7 @@
         },
         {
           "name": "mintAccount",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -368,7 +368,7 @@
         },
         {
           "name": "mintAuthority",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1564,14 +1564,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "updateAuthority",
-            "type": "publicKey"
-          },
-          {
-            "name": "mint",
-            "type": "publicKey"
-          },
-          {
             "name": "name",
             "type": "string"
           },
@@ -1776,14 +1768,14 @@
           {
             "name": "rate",
             "type": {
-              "defined": "RateArgs"
+              "defined": "RateConfig"
             }
           }
         ]
       }
     },
     {
-      "name": "RateArgs",
+      "name": "RateConfig",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1814,7 +1806,7 @@
           {
             "name": "rate",
             "type": {
-              "defined": "RateArgs"
+              "defined": "RateConfig"
             }
           }
         ]
@@ -2005,6 +1997,21 @@
       "code": 4,
       "name": "InvalidVerificationConfigPda",
       "msg": "Invalid Verification Config PDA"
+    },
+    {
+      "code": 5,
+      "name": "CannotModifyExternalMetadataAccount",
+      "msg": "Cannot modify external metadata account"
+    },
+    {
+      "code": 6,
+      "name": "InternalMetadataRequiresData",
+      "msg": "Internal metadata storage requires metadata to be provided"
+    },
+    {
+      "code": 7,
+      "name": "ExternalMetadataForbidsData",
+      "msg": "External metadata storage cannot accept metadata data in this instruction"
     }
   ],
   "metadata": {

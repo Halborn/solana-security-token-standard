@@ -2,21 +2,21 @@ use pinocchio::program_error::ProgramError;
 use shank::ShankType;
 
 use crate::instructions::rate_account::shared::{
-    parse_action_and_rate, serialize_action_and_rate, RateArgs, ACTION_AND_RATE_ARGS_LEN,
+    parse_action_and_rate, serialize_action_and_rate, RateConfig, ACTION_AND_RATE_ARGS_LEN,
 };
 
-/// Arguments to update Rate account
+/// Arguments for updating Rate account
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, ShankType)]
 pub struct UpdateRateArgs {
-    /// Action ID of the Rate
+    /// Action ID for the rate update
     pub action_id: u64,
     /// Rate configuration arguments
-    pub rate: RateArgs,
+    pub rate: RateConfig,
 }
 
 impl UpdateRateArgs {
-    /// action_id + rate arguments (rounding + numerator + denominator)
+    /// Fixed size: action_id (8 bytes) + rate arguments (3 bytes) = 11 bytes
     pub const LEN: usize = ACTION_AND_RATE_ARGS_LEN;
 
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
@@ -46,7 +46,7 @@ mod tests {
     ) {
         let original = UpdateRateArgs {
             action_id,
-            rate: RateArgs {
+            rate: RateConfig {
                 rounding,
                 numerator,
                 denominator,
@@ -77,7 +77,7 @@ mod tests {
     ) {
         let original = UpdateRateArgs {
             action_id,
-            rate: RateArgs {
+            rate: RateConfig {
                 rounding,
                 numerator,
                 denominator,

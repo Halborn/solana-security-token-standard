@@ -1,0 +1,26 @@
+[package]
+name = "security-token-program-verification-program-example"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Example verification program for Security Token Program"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = []
+no-entrypoint = []
+
+[dependencies]
+pinocchio = { workspace = true }
+pinocchio-log = { workspace = true }
+borsh = { workspace = true }
+
+
+security-token-client = { path = "../../clients/rust" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(target_os, values("solana"))',
+] }

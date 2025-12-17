@@ -13,7 +13,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
-use crate::helpers::send_tx;
+use crate::helpers::{find_rate_pda, send_tx};
 
 pub async fn create_rate_account(
     context: &mut solana_program_test::ProgramTestContext,
@@ -120,18 +120,6 @@ pub async fn update_rate_account(
         vec![&payer],
     )
     .await
-}
-
-pub fn find_rate_pda(action_id: u64, mint_pubkey1: &Pubkey, mint_pubkey2: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[
-            b"rate",
-            action_id.to_le_bytes().as_ref(),
-            mint_pubkey1.as_ref(),
-            mint_pubkey2.as_ref(),
-        ],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    )
 }
 
 pub fn calculate_rate_amount(
