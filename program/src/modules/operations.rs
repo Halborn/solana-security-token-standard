@@ -828,12 +828,18 @@ impl OperationsModule {
         verify_token22_program(token_program)?;
         verify_system_program(system_program)?;
 
-        // Verify payer
         verify_signer(payer)?;
         verify_writable(payer)?;
-
-        // Verify receipt account
         verify_writable(receipt_account)?;
+
+        // With external settlement the escrow_token_account is not provided
+        let is_external_settlement = escrow_token_account.key().eq(program_id);
+        verify_writable(eligible_token_account)?;
+        // escrow_token_account only needs writable check if it's not external settlement
+        if !is_external_settlement {
+            verify_writable(escrow_token_account)?;
+        }
+
         verify_account_not_initialized(receipt_account)?;
         // Retrieve proof data either from argument or from account and verify proof account
         let proof = Proof::get_proof_data_from_instruction(
@@ -862,9 +868,6 @@ impl OperationsModule {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        // With external settlement the escrow_token_account is not provided
-        let is_external_settlement = escrow_token_account.key().eq(program_id);
-        // With external settlement only the Receipt is issued
         // With internal settlement tokens are transferred and Receipt is issued
         if !is_external_settlement {
             let (distribution_escrow_authority, _bump) = find_distribution_escrow_authority_pda(
