@@ -675,11 +675,12 @@ impl OperationsModule {
         };
 
         verify_mint_keys_match(verified_mint_info, &mint_account)?;
-        verify_signer(payer)?;
-        verify_writable(payer)?;
-        verify_account_not_initialized(proof_account)?;
-        verify_writable(proof_account)?;
+
         verify_system_program(system_program_info)?;
+        verify_writable(payer)?;
+        verify_writable(proof_account)?;
+        verify_signer(payer)?;
+        verify_account_not_initialized(proof_account)?;
 
         let token = TokenAccount::from_account_info(token_account)?;
         // Verify token account belongs to the mint
@@ -717,11 +718,12 @@ impl OperationsModule {
         };
 
         verify_mint_keys_match(verified_mint_info, &mint_account)?;
+
+        verify_system_program(system_program_info)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
-        verify_account_initialized(proof_account)?;
         verify_writable(proof_account)?;
-        verify_system_program(system_program_info)?;
+        verify_account_initialized(proof_account)?;
 
         let token = TokenAccount::from_account_info(token_account)?;
         // Verify token account belongs to the mint
@@ -767,12 +769,12 @@ impl OperationsModule {
         verify_token22_program(token_program)?;
         verify_associated_token_program(associated_token_account_program)?;
         verify_system_program(system_program)?;
-        // Verify token account is not initialized
+
         verify_writable(distribution_token_account)?;
-        verify_account_not_initialized(distribution_token_account)?;
-        // Verify payer
-        verify_signer(payer)?;
         verify_writable(payer)?;
+        verify_signer(payer)?;
+
+        verify_account_not_initialized(distribution_token_account)?;
 
         let mint_pubkey = distribution_mint.key();
         let (distribution_escrow_authority_pda, _) =
