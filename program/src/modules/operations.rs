@@ -5,20 +5,18 @@
 
 use crate::constants::seeds;
 use crate::debug_log;
-use crate::instructions::{CustomPause, CustomResume};
 use crate::merkle_tree_utils::{
     create_merkle_tree_leaf_node, verify_merkle_proof, MerkleTreeRoot, ProofData, ProofNode,
 };
 use crate::modules::{
     burn_checked, mint_to_checked, transfer_checked, verify_account_initialized,
-    verify_account_not_initialized, verify_mint_keys_match, verify_owner, verify_pda_keys_match,
-    verify_signer, verify_system_program, verify_token22_program, verify_transfer_hook_program,
-    verify_writable,
+    verify_account_not_initialized, verify_associated_token_program, verify_mint_keys_match,
+    verify_owner, verify_pda_keys_match, verify_signer, verify_system_program,
+    verify_token22_program, verify_transfer_hook_program, verify_writable,
 };
 use crate::state::{
     DistributionEscrowAuthority, MintAuthority, ProgramAccount, Proof, Rate, Receipt, Rounding,
 };
-use crate::state::{MintAuthority, ProgramAccount, Rate, Receipt, Rounding};
 use crate::token22_extensions::pausable::{Pause, Resume};
 use crate::utils::{
     find_associated_token_address, find_distribution_escrow_authority_pda,
@@ -294,7 +292,7 @@ impl OperationsModule {
         verify_writable(from_token_account)?;
         verify_writable(to_token_account)?;
 
-        let (permanent_delegate_pda, bump) =
+        let (permanent_delegate_pda, permanent_delegate_bump) =
             crate::utils::find_permanent_delegate_pda(mint_info.key(), program_id);
         verify_pda_keys_match(permanent_delegate_authority.key(), &permanent_delegate_pda)?;
 
@@ -472,7 +470,7 @@ impl OperationsModule {
         verify_pda_keys_match(permanent_delegate.key(), &permanent_delegate_pda)?;
 
         let (expected_receipt_pda, receipt_bump) =
-            find_receipt_pda(mint_split_key, action_id, program_id);
+            Receipt::find_common_action_pda(mint_split_key, action_id);
         verify_pda_keys_match(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify Rate account with optimized derive_pda
@@ -586,7 +584,7 @@ impl OperationsModule {
         verify_pda_keys_match(permanent_delegate.key(), &permanent_delegate_pda)?;
 
         let (expected_receipt_pda, receipt_bump) =
-            find_receipt_pda(verified_mint_key, action_id, program_id);
+            Receipt::find_common_action_pda(verified_mint_key, action_id);
         verify_pda_keys_match(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify Rate account with optimized derive_pda
@@ -676,7 +674,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_account_not_initialized(proof_account)?;
@@ -718,7 +716,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
         verify_signer(payer)?;
         verify_writable(payer)?;
         verify_account_initialized(proof_account)?;
@@ -764,7 +762,7 @@ impl OperationsModule {
         };
 
         // Verify mint is valid
-        verify_operation_mint_info(verified_mint_info, &distribution_mint)?;
+        verify_mint_keys_match(verified_mint_info, &distribution_mint)?;
         // Verify programs
         verify_token22_program(token_program)?;
         verify_associated_token_program(associated_token_account_program)?;
@@ -823,7 +821,7 @@ impl OperationsModule {
         };
 
         // Verify mint
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
 
         // Verify programs
         verify_transfer_hook_program(transfer_hook_program)?;
@@ -940,7 +938,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
         verify_writable(destination_account)?;
         verify_writable(receipt_account)?;
 
@@ -970,7 +968,7 @@ impl OperationsModule {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        verify_operation_mint_info(verified_mint_info, &mint_account)?;
+        verify_mint_keys_match(verified_mint_info, &mint_account)?;
         verify_writable(destination_account)?;
         verify_writable(receipt_account)?;
         verify_account_initialized(receipt_account)?;

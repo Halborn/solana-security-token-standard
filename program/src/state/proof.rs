@@ -13,7 +13,7 @@ use crate::{
     merkle_tree_utils::{
         MerkleTreeNode, ProofData, ProofNode, EMPTY_MERKLE_TREE_NODE, MERKLE_TREE_NODE_LEN,
     },
-    modules::{verify_account_initialized, verify_pda},
+    modules::{verify_account_initialized, verify_pda_keys_match},
     state::{
         AccountDeserialize, AccountSerialize, Discriminator, ProgramAccount,
         SecurityTokenDiscriminators,
@@ -246,7 +246,7 @@ impl Proof {
                 let proof_state = Proof::from_account_info(proof_account)?;
                 let expected_proof_pda =
                     proof_state.derive_pda(eligible_token_account, action_id)?;
-                verify_pda(key, &expected_proof_pda)?;
+                verify_pda_keys_match(key, &expected_proof_pda)?;
                 Ok(proof_state.data)
             }
             (key, Some(merkle_proof_arg)) => {

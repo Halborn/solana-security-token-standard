@@ -10,9 +10,7 @@ use pinocchio::{
     pubkey::{find_program_address, Pubkey},
 };
 use pinocchio_token_2022::state::Mint;
-use pinocchio_token_2022::extensions::ExtensionType;
 use solana_keccak_hasher::hashv;
-
 
 use crate::{
     constants::{seeds, ACTION_ID_LEN, TRANSFER_HOOK_PROGRAM_ID},

@@ -100,7 +100,7 @@ pub trait ProgramAccount: AccountDeserialize + AccountSerialize {
             }
         }
 
-        account.realloc(new_size, false)?;
+        account.resize(new_size)?;
 
         Ok(())
     }

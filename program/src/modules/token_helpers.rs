@@ -5,7 +5,7 @@ use pinocchio::{
 };
 use pinocchio_token_2022::instructions::{BurnChecked, MintToChecked};
 
-use crate::{constants::seeds, instructions::CustomTransferChecked, state::MintAuthority};
+use crate::{constants::seeds, instructions::TransferCheckedWithHook, state::MintAuthority};
 
 /// Burn tokens from token account using permanent delegate authority
 pub fn burn_checked(
@@ -77,14 +77,14 @@ pub fn transfer_checked(
     ];
     let permanent_delegate_signer = Signer::from(&seeds);
 
-    CustomTransferChecked::new(
-        mint_info,
-        from_token_account,
-        to_token_account,
-        permanent_delegate_authority,
+    TransferCheckedWithHook {
+        mint: mint_info,
+        from: from_token_account,
+        to: to_token_account,
+        authority: permanent_delegate_authority,
         amount,
         decimals,
         transfer_hook_program,
-    )
+    }
     .invoke_signed(&[permanent_delegate_signer])
 }
