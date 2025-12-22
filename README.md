@@ -1,6 +1,8 @@
 # Solana Security Token Standard
 
-The README is pending
+## IDL
+
+The security-token-program has the following [Codama IDL](./idl/security_token_program.json). 
 
 ### Generate IDL
 
