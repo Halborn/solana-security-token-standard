@@ -1,19 +1,23 @@
-# Solana Security Token Standard
+# Solana Security Token
+
+## Instructions and Accounts
+
+Check [documentation](./docs/program-instructions.md) for available security-token-program instructions.
 
 ## IDL
 
 The security-token-program has the following [Codama IDL](./idl/security_token_program.json). 
 
-### Generate IDL
+## Development
 
-```
-pnpm generate-idl
-```
+Here are useful commands for local development
 
-### Generate clients
+```sh
+# Regenerate IDL
+$ pnpm generate-idl
 
-```
-pnpm generate-clients
+# Regenerate clients
+$ pnpm generate-clients
 ```
 
 ### Run tests
