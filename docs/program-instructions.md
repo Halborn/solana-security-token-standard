@@ -1,76 +1,89 @@
 # Security Token Program Documentation
 
+
 ## Table of Contents
 
-1. [Authorization Types](#authorization-types)
-2. [Discriminators](#discriminators)
-3. [Accounts](#accounts)
-4. [Instructions](#instructions)
-5. [Verification Program Interface](#verification-program-interface)
+- [Authorization](#authorization)
+    - [Authorization Types](#authorization-types)
+        - [Permissionless](#permissionless)
+        - [Initial Mint Authority OR Verification Programs](#initial-mint-authority-or-verification-programs)
+        - [Verification Programs Only](#verification-programs-only)
+    - [Verification Modes](#verification-modes)
+        - [Introspection Mode (`cpi_mode = false`)](#introspection-mode-cpi_mode--false)
+        - [CPI Mode (`cpi_mode = true`)](#cpi-mode-cpi_mode--true)
+    - [Verification Overhead Accounts](#verification-overhead-accounts)
+        - [Verification Programs](#verification-programs)
+        - [Initial Mint Authority](#initial-mint-authority)
+- [Discriminators](#discriminators)
+- [Accounts](#accounts)
+- [Instructions](#instructions)
+- [Verification Program Interface](#verification-program-interface)
 
----
 
-## Authorization Types
+## Authorization
 
 The Security Token Program uses different authorization strategies depending on the instruction type. Each instruction falls into one of three authorization profiles:
 
-### Permissionless
+
+### Authorization Types
+
+#### Permissionless
 
 Instructions that require no special authorization.
 
 **Applicable instructions:** `InitializeMint`, `Verify`
 
-### Initial Mint Authority OR Verification Programs
+#### Initial Mint Authority OR Verification Programs
 
 Instructions that can be authorized by **either**:
 
 - **Verification Programs** - External programs configured in `VerificationConfig` that validate the operation
 - **OR Mint Creator Signature** - The original creator who initialized the mint, verified through `MintAuthority` account
 
-This dual authorization model allows flexibility: use verification programs for complex compliance workflows, or fall back to direct creator control when no verification is configured.
+This dual authorization model allows flexibility: use verification programs for complex compliance workflows, or fall back to direct creator control when no verification is configured. It applies to mint configuration-related instructions.
 
 **Applicable instructions:** `UpdateMetadata`, `InitializeVerificationConfig`, `UpdateVerificationConfig`, `TrimVerificationConfig`, `CreateRateAccount`, `UpdateRateAccount`, `CloseRateAccount`, `CreateDistributionEscrow`, `CloseActionReceiptAccount`, `CloseClaimReceiptAccount`
 
-### Verification Programs Only
+#### Verification Programs Only
 
 Instructions that **must** be authorized through configured verification programs. These are typically token operations that require compliance checks (KYC/AML, transfer restrictions, etc.).
 
 **Applicable instructions:** `Mint`, `Burn`, `Pause`, `Resume`, `Freeze`, `Thaw`, `Transfer`, `Split`, `Convert`, `CreateProofAccount`, `UpdateProofAccount`, `ClaimDistribution`
 
----
 
-## Verification Modes
+### Verification Modes
 
-When using verification programs, the Security Token Program supports two verification modes:
+When using verification programs, the Security Token Program supports two verification modes. The required verification flow is configured via the `cpi_mode` option in the corresponding verification config.
 
-### Introspection Mode (`cpi_mode = false`)
+#### Introspection Mode (`cpi_mode = false`)
 
-In introspection mode, the Security Token Program examines the Instructions Sysvar to verify that all required verification programs were called **before** the current instruction in the same transaction.
+In introspection mode, the Security Token Program examines the Instructions Sysvar to verify that all required verification programs were called **before** the current instruction within the same transaction. In order to pass authorization via verification programs in introspection mode, the following conditions must be satisfied:
 
-**Requirements:**
+- A corresponding instruction verification config exists with `cpi_mode` disabled and passed to Security Token Program.
+- A corresponding instruction verification config exists with `cpi_mode` disabled and is passed to the Security Token Program.
+- All verification programs must be invoked **before** the Security Token instruction and must complete successfully.
+- Each verification program call must include the same instruction data and target instruction discriminator prefix.
+- Each verification program call must include **at least** all accounts used in the Security Token instruction. Additional accounts may be included for verification purposes if needed, provided they appear at the end of the instruction's required account list.
 
-- All verification programs must be invoked before the Security Token instruction
-- Each verification program call must include the same instruction data and target instruction discriminator prefix
-- Each verification program call must include at least all accounts used in the Security Token instruction
+#### CPI Mode (`cpi_mode = true`)
 
-### CPI Mode (`cpi_mode = true`)
+In CPI mode, the Security Token Program directly invokes (via CPI) each configured verification program during instruction processing. In order to pass authorization via verification programs in CPI mode, the following conditions must be satisfied:
 
-In CPI mode, the Security Token Program directly invokes (via CPI) each configured verification program during instruction processing.
+- A corresponding instruction verification config exists with `cpi_mode` disabled and passed to Security Token Program.
+- A corresponding instruction verification config exists with `cpi_mode` enabled and is passed to the Security Token Program.
+- Verification program accounts must be appended at the end of the Security Token Program instruction accounts.
+- Each verification program receives the same instruction data and accounts (verification overhead and verification program accounts are stripped before CPI)
 
-**Requirements:**
+**Important:** When verification programs are invoked in CPI, they receive **only the core instruction accounts** - the overhead accounts and CPI program accounts are stripped. This ensures verification programs have a consistent interface regardless of the verification mode used.
 
-- Verification program accounts must be appended at the end of the instruction accounts
-- Each verification program receives the same instruction data and accounts (overhead and verification program accounts are stripped before CPI)
 
----
+### Verification Overhead Accounts
 
-## Verification Overhead
+Instructions that require authorization should include a **verification overhead** - 3 accounts at the beginning of the accounts list that handle the authorization logic. The exact accounts depend on the authorization type.
 
-Instructions that require authorization include a **verification overhead** - 3 accounts at the beginning of the accounts list that handle the authorization logic. The exact accounts depend on the authorization type.
+#### Verification Programs
 
-### Verification Programs Only Overhead
-
-For instructions that **require** verification programs (`Mint`, `Burn`, `Pause`, `Resume`, `Freeze`, `Thaw`, `Transfer`, `Split`, `Convert`, `CreateProofAccount`, `UpdateProofAccount`, `ClaimDistribution`):
+For instructions that support authorization via verification programs:
 
 | #   | Account             | Description                                                                   |
 | --- | ------------------- | ----------------------------------------------------------------------------- |
@@ -78,31 +91,18 @@ For instructions that **require** verification programs (`Mint`, `Burn`, `Pause`
 | 1   | verification_config | VerificationConfig PDA for this instruction type                              |
 | 2   | instructions_sysvar | Instructions Sysvar (introspection mode) or program_id placeholder (CPI mode) |
 
-### Initial Mint Authority OR Verification Programs Overhead
+#### Initial Mint Authority
 
-For instructions that support **either** verification programs **or** creator signature (`UpdateMetadata`, `InitializeVerificationConfig`, `UpdateVerificationConfig`, `TrimVerificationConfig`, `CreateRateAccount`, `UpdateRateAccount`, `CloseRateAccount`, `CreateDistributionEscrow`, `CloseActionReceiptAccount`, `CloseClaimReceiptAccount`):
+For instructions that support authorization via initial mint creator signature:
 
-| #   | Account                               | Description                                                                                          |
-| --- | ------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| 0   | mint                                  | The mint account being operated on                                                                   |
-| 1   | verification_config_or_mint_authority | VerificationConfig PDA (if using verification) **or** MintAuthority PDA (if using creator signature) |
-| 2   | instructions_sysvar_or_creator        | Instructions Sysvar (introspection mode) **or** Creator signer (if using creator signature fallback) |
+| #   | Account                               | Description                        |
+| --- | ------------------------------------- | ---------------------------------- |
+| 0   | mint                                  | The mint account being operated on |
+| 1   | mint_authority                        | MintAuthority PDA                  |
+| 2   | creator                               | Creator signer                     |
 
 After the overhead come the **instruction-specific accounts** (core accounts).
 
-### CPI Mode Additional Accounts
-
-When `cpi_mode = true`, verification program accounts must be appended **after** all other accounts:
-
-| #   | Account                | Description                      |
-| --- | ---------------------- | -------------------------------- |
-| N   | verification_program_1 | First verification program       |
-| N+1 | verification_program_2 | Second verification program      |
-| ... | ...                    | Additional verification programs |
-
-**Important:** When verification programs are invoked (both in CPI and introspection modes), they receive **only the core instruction accounts** - the overhead accounts and CPI program accounts are stripped. This ensures verification programs have a consistent interface regardless of the verification mode used.
-
----
 
 ## Discriminators
 
