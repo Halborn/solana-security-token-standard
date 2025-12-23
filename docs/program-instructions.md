@@ -943,7 +943,6 @@ struct ConvertArgs {
 }
 ```
 
----
 
 ### CreateProofAccount
 
@@ -966,13 +965,14 @@ Creates a Proof account to store Merkle proof data for distribution claims.
 **Arguments:**
 
 ```rust
+// Serialization: action_id (u64 LE, 8 bytes) + data length (u32 LE)
+// followed by each node as 32 raw bytes.
 struct CreateProofArgs {
     action_id: u64,
     data: Vec<[u8; 32]>,
 }
 ```
 
----
 
 ### UpdateProofAccount
 
@@ -995,6 +995,8 @@ Updates an existing Proof account with additional proof nodes.
 **Arguments:**
 
 ```rust
+// Serialization: action_id (u64 LE, 8 bytes) + data (32 raw bytes)
+// + offset (u32 LE).
 struct UpdateProofArgs {
     action_id: u64,
     data: [u8; 32],
@@ -1002,7 +1004,6 @@ struct UpdateProofArgs {
 }
 ```
 
----
 
 ### CreateDistributionEscrow
 
@@ -1027,13 +1028,13 @@ Creates an escrow token account for distribution (dividends/coupons).
 **Arguments:**
 
 ```rust
+// Serialization: action_id (u64 LE, 8 bytes) + merkle_root (32 raw bytes).
 struct CreateDistributionEscrowArgs {
     action_id: u64,
     merkle_root: [u8; 32],
 }
 ```
 
----
 
 ### ClaimDistribution
 
@@ -1061,6 +1062,9 @@ Claims tokens from a distribution escrow based on Merkle proof.
 **Arguments:**
 
 ```rust
+// Serialization: action_id (u64 LE, 8 bytes) + amount (u64 LE, 8 bytes) + merkle_root (32 raw bytes)
+// + leaf_index (u32 LE) + Option prefix (1 byte: 0 = None, 1 = Some) for merkle_proof.
+// If Some: proof length (u32 LE) followed by each node (32 raw bytes).
 struct ClaimDistributionArgs {
     action_id: u64,
     amount: u64,
@@ -1070,7 +1074,6 @@ struct ClaimDistributionArgs {
 }
 ```
 
----
 
 ### CloseActionReceiptAccount
 
@@ -1091,6 +1094,7 @@ Closes an action receipt account (for Split/Convert) and reclaims rent.
 **Arguments:**
 
 ```rust
+// Serialization: action_id (u64 LE, 8 bytes).
 struct CloseActionReceiptArgs {
     action_id: u64,
 }
@@ -1119,15 +1123,14 @@ Closes a claim receipt account (for ClaimDistribution) and reclaims rent.
 **Arguments:**
 
 ```rust
+// Serialization: action_id (u64 LE, 8 bytes) + Option prefix (1 byte: 0 = None, 1 = Some).
+// If Some: proof length (u32 LE) followed by each node (32 raw bytes).
 struct CloseClaimReceiptArgs {
     action_id: u64,
     merkle_proof: Option<Vec<[u8; 32]>>,
 }
 ```
 
----
-
----
 
 ## Verification Program Interface
 
