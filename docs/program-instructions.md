@@ -26,6 +26,8 @@
     - [PauseAuthority](#pauseauthority)
     - [FreezeAuthority](#freezeauthority)
     - [TransferHookAuthority](#transferhookauthority)
+- [Serialization Conventions](#serialization-conventions)
+- [Errors](#errors)
 - [Instructions](#instructions)
     - [InitializeMint](#initializemint)
     - [UpdateMetadata](#updatemetadata)
@@ -338,6 +340,37 @@ program_id = Security Token Program
 ```
 
 
+## Serialization Conventions
+
+This section summarizes common encoding rules used throughout the program to keep instruction and account serialization consistent.
+
+- Discriminators: First byte ($u8$) identifies the instruction or account type.
+- Endianness: All integer fields use little-endian ($u32$, $u64$).
+- Strings: UTF-8 with $u32$ (LE) length prefix, followed by raw bytes.
+- Vec<T>: $u32$ (LE) length prefix, then each element in order.
+- Option<T>: 1-byte prefix (0 = None, 1 = Some); if Some, the value bytes follow immediately.
+- Fixed-size arrays: Stored inline as raw bytes in field order (e.g., 32-byte hashes).
+
+Where a section provides explicit serialization notes, they follow these conventions. If unspecified, assume the rules above.
+
+
+## Errors
+
+Errors returned by the program map to `ProgramError::Custom(code)`. The table lists custom error codes and descriptions from `SecurityTokenError`.
+
+| Error Name                          | Code | Description                                               |
+| ----------------------------------- | ---- | --------------------------------------------------------- |
+| VerificationProgramNotFound         | 1    | Verification program not found                            |
+| NotEnoughAccountsForVerification    | 2    | Not enough accounts for verification                      |
+| AccountIntersectionMismatch         | 3    | Required account sets do not intersect as expected        |
+| InvalidVerificationConfigPda        | 4    | Provided VerificationConfig PDA does not match derivation |
+| CannotModifyExternalMetadataAccount | 5    | External metadata account cannot be modified              |
+| InternalMetadataRequiresData        | 6    | Internal metadata storage requires metadata to be present |
+| ExternalMetadataForbidsData         | 7    | External metadata storage forbids metadata in this call   |
+
+Refer to these when handling failures in verification flows or metadata updates.
+
+
 ## Instructions
 
 All instructions use a discriminator byte as the first byte of instruction data:
@@ -368,6 +401,7 @@ All instructions use a discriminator byte as the first byte of instruction data:
 | ClaimDistribution            | `21`          |
 | CloseActionReceiptAccount    | `22`          |
 | CloseClaimReceiptAccount     | `23`          |
+For general encoding rules and failure codes, see [Serialization Conventions](#serialization-conventions) and [Errors](#errors).
 
 
 ### InitializeMint
