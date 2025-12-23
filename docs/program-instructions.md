@@ -119,21 +119,21 @@ Instructions that require authorization should include a **verification overhead
 
 For instructions that support authorization via verification programs:
 
-| #   | Account             | Description                                                                   |
-| --- | ------------------- | ----------------------------------------------------------------------------- |
-| 0   | mint                | The mint account being operated on                                            |
-| 1   | verification_config | VerificationConfig PDA for this instruction type                              |
-| 2   | instructions_sysvar | Instructions Sysvar (introspection mode) or program_id placeholder (CPI mode) |
+| #   | Account             | Signer | Writable | Description                                                                   |
+| --- | ------------------- | ------ | -------- | ----------------------------------------------------------------------------- |
+| 0   | mint                |        |          | The mint account being operated on                                            |
+| 1   | verification_config |        |          | [VerificationConfig](#verificationconfig) PDA for this instruction type       |
+| 2   | instructions_sysvar |        |          | Instructions Sysvar (introspection mode) or program_id placeholder (CPI mode) |
 
 #### Initial Mint Authority
 
 For instructions that support authorization via initial mint creator signature:
 
-| #   | Account                               | Description                        |
-| --- | ------------------------------------- | ---------------------------------- |
-| 0   | mint                                  | The mint account being operated on |
-| 1   | mint_authority                        | MintAuthority PDA                  |
-| 2   | creator                               | Creator signer                     |
+| #   | Account        | Signer | Writable | Description                        |
+| --- | -------------- | ------ | -------- | ---------------------------------- |
+| 0   | mint           |        |          | The mint account being operated on |
+| 1   | mint_authority |        |          | [MintAuthority](#mintauthority) PDA |
+| 2   | creator        | ✓      |          | Creator signer                     |
 
 After the overhead come the **instruction-specific accounts** (core accounts).
 
