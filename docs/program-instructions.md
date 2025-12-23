@@ -93,7 +93,6 @@ When using verification programs, the Security Token Program supports two verifi
 
 In introspection mode, the Security Token Program examines the Instructions Sysvar to verify that all required verification programs were called **before** the current instruction within the same transaction. In order to pass authorization via verification programs in introspection mode, the following conditions must be satisfied:
 
-- A corresponding instruction verification config exists with `cpi_mode` disabled and passed to Security Token Program.
 - A corresponding instruction verification config exists with `cpi_mode` disabled and is passed to the Security Token Program.
 - All verification programs must be invoked **before** the Security Token instruction and must complete successfully.
 - Each verification program call must include the same instruction data and target instruction discriminator prefix.
@@ -103,10 +102,9 @@ In introspection mode, the Security Token Program examines the Instructions Sysv
 
 In CPI mode, the Security Token Program directly invokes (via CPI) each configured verification program during instruction processing. In order to pass authorization via verification programs in CPI mode, the following conditions must be satisfied:
 
-- A corresponding instruction verification config exists with `cpi_mode` disabled and passed to Security Token Program.
 - A corresponding instruction verification config exists with `cpi_mode` enabled and is passed to the Security Token Program.
 - Verification program accounts must be appended at the end of the Security Token Program instruction accounts.
-- Each verification program receives the same instruction data and accounts (verification overhead and verification program accounts are stripped before CPI)
+- Each verification program receives the same instruction data and accounts (verification overhead and verification program accounts are stripped before CPI).
 
 **Important:** When verification programs are invoked in CPI, they receive **only the core instruction accounts** - the overhead accounts and CPI program accounts are stripped. This ensures verification programs have a consistent interface regardless of the verification mode used.
 
@@ -639,7 +637,7 @@ struct VerifyArgs {
 
 **Description:**
 
-This instruction pefrormes a check if a specified instruction is successfully verified by all required verification programs and can proceed to execution.
+This instruction performs a check that a specified instruction is successfully verified by all required verification programs and can proceed to execution.
 
 
 ### Mint
@@ -668,7 +666,7 @@ amount: u64
 
 **Description:**
 
-Increases token supply and immediately credit a specifiend destination token account.
+Increases token supply and immediately credits the specified destination token account.
 
 
 ### Burn
@@ -697,7 +695,7 @@ amount: u64
 
 **Description:**
 
-Decreases token supply and immediately debit a specifiend destination token account.
+Decreases token supply and immediately debits the specified token account.
 
 
 ### Pause
