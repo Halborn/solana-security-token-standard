@@ -780,8 +780,6 @@ Transfers tokens between accounts (forced transfer).
 amount: u64
 ```
 
----
-
 ### CreateRateAccount
 
 Creates a rate configuration for split/convert operations.
@@ -803,6 +801,8 @@ Creates a rate configuration for split/convert operations.
 **Arguments:**
 
 ```rust
+// Serialization: action_id (u64 LE, 8 bytes) + rate.rounding (u8)
+// + rate.numerator (u8) + rate.denominator (u8).
 struct CreateRateArgs {
     action_id: u64,
     rate: RateArgs,
@@ -815,7 +815,6 @@ struct RateArgs {
 }
 ```
 
----
 
 ### UpdateRateAccount
 
@@ -836,19 +835,20 @@ Updates an existing rate configuration.
 **Arguments:**
 
 ```rust
+// Serialization: action_id (u64 LE, 8 bytes) + rate.rounding (u8)
+// + rate.numerator (u8) + rate.denominator (u8).
 struct UpdateRateArgs {
     action_id: u64,
     rate: RateArgs,
 }
 
 struct RateArgs {
-    rounding: u8,
+    rounding: u8,    // 0 = Up, 1 = Down
     numerator: u8,
     denominator: u8,
 }
 ```
 
----
 
 ### CloseRateAccount
 
@@ -870,12 +870,12 @@ Closes a rate account and reclaims rent.
 **Arguments:**
 
 ```rust
+// Serialization: action_id (u64 LE, 8 bytes).
 struct CloseRateArgs {
     action_id: u64,
 }
 ```
 
----
 
 ### Split
 
@@ -902,12 +902,12 @@ Executes a token split operation (e.g., stock split). Mints additional tokens to
 **Arguments:**
 
 ```rust
+// Serialization: action_id (u64 LE, 8 bytes).
 struct SplitArgs {
     action_id: u64,
 }
 ```
 
----
 
 ### Convert
 
@@ -936,6 +936,7 @@ Converts tokens from one mint to another based on rate (e.g., bond conversion).
 **Arguments:**
 
 ```rust
+// Serialization: action_id (u64 LE, 8 bytes) + amount_to_convert (u64 LE, 8 bytes).
 struct ConvertArgs {
     action_id: u64,
     amount_to_convert: u64,
