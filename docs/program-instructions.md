@@ -404,7 +404,6 @@ struct TokenMetadataArgs {
 Updates the token metadata stored in the mint account. If a metadata pointer is used, perform the update via the SPL Token 2022 Program directly.
 
 
-
 ### InitializeVerificationConfig
 
 Creates a new verification configuration for a specific instruction type.
@@ -430,6 +429,8 @@ Creates a new verification configuration for a specific instruction type.
 **Arguments:**
 
 ```rust
+// Serialization: instruction_discriminator (1 byte) + cpi_mode (1 byte, 0/1)
+// + program_addresses count (u32 LE) + each Pubkey (32 bytes).
 struct InitializeVerificationConfigArgs {
     instruction_discriminator: u8,
     cpi_mode: bool,
@@ -437,7 +438,6 @@ struct InitializeVerificationConfigArgs {
 }
 ```
 
----
 
 ### UpdateVerificationConfig
 
@@ -464,6 +464,8 @@ Updates an existing verification configuration.
 **Arguments:**
 
 ```rust
+// Serialization: instruction_discriminator (1 byte) + cpi_mode (1 byte, 0/1)
+// + offset (1 byte) + program_addresses count (u32 LE) + each Pubkey (32 bytes).
 struct UpdateVerificationConfigArgs {
     instruction_discriminator: u8,
     cpi_mode: bool,
@@ -472,7 +474,10 @@ struct UpdateVerificationConfigArgs {
 }
 ```
 
----
+**Description:**
+
+Updates the verification program list starting at the specified offset. You can also toggle CPI mode for the instruction config. If resizing is required, the VerificationConfig account is reallocated returning reclaimed rent to the payer.
+
 
 ### TrimVerificationConfig
 
@@ -499,12 +504,17 @@ Reduces the size of or closes a verification configuration.
 **Arguments:**
 
 ```rust
+// Serialization: instruction_discriminator (1 byte) + size (1 byte) + close (1 byte, 0/1).
 struct TrimVerificationConfigArgs {
     instruction_discriminator: u8,
     size: u8,
     close: bool,
 }
 ```
+
+**Description:**
+
+Reduces the verification program list to the specified size or closes the account, returning reclaimed rent to the recipient.
 
 ---
 
