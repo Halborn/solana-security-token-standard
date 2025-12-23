@@ -10,7 +10,7 @@ The security-token-program has the following [Codama IDL](./idl/security_token_p
 
 ## Development
 
-Here are useful commands for local development
+Here are useful commands for local development:
 
 ```sh
 # Regenerate IDL
