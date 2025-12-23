@@ -676,7 +676,6 @@ amount: u64
 Decreases token supply and immediately debit a specifiend destination token account.
 
 
-
 ### Pause
 
 Pauses all token transfers for the mint.
@@ -696,7 +695,6 @@ Pauses all token transfers for the mint.
 **Arguments:** None
 
 
-
 ### Resume
 
 Resumes token transfers for a paused mint.
@@ -714,7 +712,6 @@ Resumes token transfers for a paused mint.
 | 2   | token_program   |        |          | SPL Token 2022 Program |
 
 **Arguments:** None
-
 
 
 ### Freeze
@@ -737,7 +734,6 @@ Freezes a specific token account, preventing transfers.
 **Arguments:** None
 
 
-
 ### Thaw
 
 Unfreezes a frozen token account.
@@ -756,7 +752,6 @@ Unfreezes a frozen token account.
 | 3   | token_program    |        |          | SPL Token 2022 Program |
 
 **Arguments:** None
-
 
 
 ### Transfer
