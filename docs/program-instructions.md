@@ -14,7 +14,18 @@
     - [Verification Overhead Accounts](#verification-overhead-accounts)
         - [Verification Programs](#verification-programs)
         - [Initial Mint Authority](#initial-mint-authority)
-- [Accounts](#accounts)
+- [Program Accounts](#program-accounts)
+    - [MintAuthority](#mintauthority)
+    - [VerificationConfig](#verificationconfig)
+    - [Rate](#rate)
+    - [Receipt](#receipt)
+    - [Proof](#proof)
+- [Virtual PDAs](#virtual-pdas)
+    - [DistributionEscrowAuthority](#distributionescrowauthority)
+    - [PermanentDelegateAuthority](#permanentdelegateauthority)
+    - [PauseAuthority](#pauseauthority)
+    - [FreezeAuthority](#freezeauthority)
+    - [TransferHookAuthority](#transferhookauthority)
 - [Instructions](#instructions)
 - [Verification Program Interface](#verification-program-interface)
 
@@ -103,7 +114,7 @@ For instructions that support authorization via initial mint creator signature:
 After the overhead come the **instruction-specific accounts** (core accounts).
 
 
-## Accounts
+## Program Accounts
 
 All program-owned accounts use a discriminator byte as the first byte of serialized data:
 
@@ -235,6 +246,16 @@ program_id = Security Token Program
 ```
 
 
+## Virtual PDAs
+
+Virtual PDAs are program-derived addresses used as authorities when invoking SPL Token 2022 extension instructions or managing transfer-hook extras. They are not data accounts, and therefore:
+
+- Do not store any on-chain data and are never initialized or closed.
+- Hold no lamports and cannot be rent-exempt; they exist deterministically from seeds.
+- Are passed in instructions as authority accounts and sign via `invoke_signed`.
+- Are validated against expected derived keys in the program before use.
+- Use seed layouts defined by the program; some include additional components like `action_id` or `merkle_root`.
+
 ### DistributionEscrowAuthority
 
 Virtual PDA used as authority for distribution escrow token accounts. Does not store any data (not a program account).
@@ -243,6 +264,54 @@ Virtual PDA used as authority for distribution escrow token accounts. Does not s
 
 ```
 seeds = ["distribution_escrow_authority", mint_address, action_id (8 bytes LE), merkle_root (32 bytes)]
+program_id = Security Token Program
+```
+
+
+### PermanentDelegateAuthority
+
+Virtual PDA used as authority for permanent delegate operations (forced transfers and clawbacks). This PDA does not store data; it is derived and used as a signer via `invoke_signed` when calling SPL Token 2022 instructions.
+
+**PDA Derivation:**
+
+```
+seeds = ["mint.permanent_delegate", mint_address]
+program_id = Security Token Program
+```
+
+
+### PauseAuthority
+
+Virtual PDA used as authority for the Pausable extension (`Pause`/`Resume`). This PDA does not store data; it is derived and used as a signer via `invoke_signed` when calling SPL Token 2022 instructions.
+
+**PDA Derivation:**
+
+```
+seeds = ["mint.pause_authority", mint_address]
+program_id = Security Token Program
+```
+
+
+### FreezeAuthority
+
+Virtual PDA used as authority for freezing/thawing token accounts (`Freeze`/`Thaw`). This PDA does not store data; it is derived and used as a signer via `invoke_signed` when calling SPL Token 2022 instructions.
+
+**PDA Derivation:**
+
+```
+seeds = ["mint.freeze_authority", mint_address]
+program_id = Security Token Program
+```
+
+
+### TransferHookAuthority
+
+Virtual PDA used as authority for the TransferHook extension on a mint. It is also required when managing verification config for `Transfer` to authorize updates to the `ExtraAccountMetaList` associated with the mint. This PDA does not store data; it is derived and used as a signer via `invoke_signed` when calling SPL Token 2022 instructions.
+
+**PDA Derivation:**
+
+```
+seeds = ["mint.transfer_hook", mint_address]
 program_id = Security Token Program
 ```
 
