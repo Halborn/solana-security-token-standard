@@ -246,7 +246,6 @@ seeds = ["distribution_escrow_authority", mint_address, action_id (8 bytes LE), 
 program_id = Security Token Program
 ```
 
----
 
 ## Instructions
 
@@ -279,6 +278,7 @@ All instructions use a discriminator byte as the first byte of instruction data:
 | CloseActionReceiptAccount    | `22`          |
 | CloseClaimReceiptAccount     | `23`          |
 
+
 ### InitializeMint
 
 Creates a new security token mint with required extensions and optional metadata.
@@ -301,6 +301,10 @@ Creates a new security token mint with required extensions and optional metadata
 **Arguments:**
 
 ```rust
+// Serialization:
+// - InitializeMintArgs: bytes = MintArgs + 1-byte presence flags (in order)
+//   for ix_metadata_pointer, ix_metadata, ix_scaled_ui_amount, followed by
+//   serialized bytes of each present optional struct in the same order.
 struct InitializeMintArgs {
     ix_mint: MintArgs,
     ix_metadata_pointer: Option<MetadataPointerArgs>,
@@ -308,17 +312,21 @@ struct InitializeMintArgs {
     ix_scaled_ui_amount: Option<ScaledUiAmountConfigArgs>,
 }
 
+// - MintArgs: decimals (1 byte), mint_authority (32 bytes), freeze_authority (32 bytes).
 struct MintArgs {
     decimals: u8,
     mint_authority: Pubkey,
     freeze_authority: Pubkey,
 }
 
+// - MetadataPointerArgs: authority (32 bytes), metadata_address (32 bytes).
 struct MetadataPointerArgs {
     authority: Pubkey,
     metadata_address: Pubkey,
 }
 
+// - TokenMetadataArgs (Borsh-like): name/symbol/uri as UTF-8 with u32 LE length;
+//   additional_metadata as u32 LE length + raw bytes.
 struct TokenMetadataArgs {
     update_authority: Pubkey,
     mint: Pubkey,
@@ -328,6 +336,9 @@ struct TokenMetadataArgs {
     additional_metadata: Vec<u8>,
 }
 
+// - ScaledUiAmountConfigArgs: authority (32 bytes); multiplier and new_multiplier
+//   are [u8; 8] containing f64 little-endian bytes; new_multiplier_effective_timestamp
+//   is i64 little-endian.
 struct ScaledUiAmountConfigArgs {
     authority: Pubkey,
     multiplier: [u8; 8],
@@ -347,9 +358,9 @@ Initializes a new SPL Token 2022 mint with the following extensions:
 - **TokenMetadata** (optional) - Stores metadata in mint account
 - **ScaledUiAmount** (optional) - Display scaling for UI
 
-After initialization, mint authority is transferred to a program-controlled PDA.
+After initialization, mint authority is transferred to a program-controlled `MintAuthority` PDA. The provided `creator` is stored in the `MintAuthority` account, and the creator's signature may authorize subsequent instructions that use the [Initial Mint Authority](#initial-mint-authority) authorization type.
 
----
+
 
 ### UpdateMetadata
 
@@ -376,6 +387,8 @@ struct UpdateMetadataArgs {
     metadata: TokenMetadataArgs,
 }
 
+// - TokenMetadataArgs (Borsh-like): name/symbol/uri as UTF-8 with u32 LE length;
+//   additional_metadata as u32 LE length + raw bytes.
 struct TokenMetadataArgs {
     update_authority: Pubkey,
     mint: Pubkey,
@@ -386,7 +399,11 @@ struct TokenMetadataArgs {
 }
 ```
 
----
+**Description:**
+
+Updates the token metadata stored in the mint account. If a metadata pointer is used, perform the update via the SPL Token 2022 Program directly.
+
+
 
 ### InitializeVerificationConfig
 
