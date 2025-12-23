@@ -14,7 +14,6 @@
     - [Verification Overhead Accounts](#verification-overhead-accounts)
         - [Verification Programs](#verification-programs)
         - [Initial Mint Authority](#initial-mint-authority)
-- [Discriminators](#discriminators)
 - [Accounts](#accounts)
 - [Instructions](#instructions)
 - [Verification Program Interface](#verification-program-interface)
@@ -104,9 +103,7 @@ For instructions that support authorization via initial mint creator signature:
 After the overhead come the **instruction-specific accounts** (core accounts).
 
 
-## Discriminators
-
-### Account Discriminators
+## Accounts
 
 All program-owned accounts use a discriminator byte as the first byte of serialized data:
 
@@ -118,7 +115,140 @@ All program-owned accounts use a discriminator byte as the first byte of seriali
 | Receipt            | `3`           |
 | Proof              | `4`           |
 
-### Instruction Discriminators
+
+### MintAuthority
+
+Stores the original mint creator information used for authorization fallback when verification programs are not configured.
+
+**Structure:**
+
+| Field         | Type   | Size | Description                                    |
+| ------------- | ------ | ---- | ---------------------------------------------- |
+| discriminator | u8     | 1    | Account discriminator (`0`)                    |
+| mint          | Pubkey | 32   | SPL mint address this configuration belongs to |
+| mint_creator  | Pubkey | 32   | Original creator address                       |
+| bump          | u8     | 1    | PDA bump seed                                  |
+
+**Total size:** 66 bytes
+
+**PDA Derivation:**
+
+```
+seeds = ["mint.authority", mint_address, creator_address]
+program_id = Security Token Program
+```
+
+
+### VerificationConfig
+
+Stores verification program configuration for a specific instruction type on a specific mint.
+
+**Structure:**
+
+| Field                     | Type          | Size       | Description                                                            |
+| ------------------------- | ------------- | ---------- | ---------------------------------------------------------------------- |
+| discriminator             | u8            | 1          | Account discriminator (`1`)                                            |
+| instruction_discriminator | u8            | 1          | Instruction type this config applies to                                |
+| cpi_mode                  | bool          | 1          | `true` for CPI mode, `false` for introspection mode                    |
+| bump                      | u8            | 1          | PDA bump seed                                                          |
+| verification_programs     | Vec\<Pubkey\> | 4 + 32 × N | List of verification program addresses (u32 length prefix + addresses) |
+
+**Minimum size:** 8 bytes (empty program list)
+
+**PDA Derivation:**
+
+```
+seeds = ["verification_config", mint_address, instruction_discriminator]
+program_id = Security Token Program
+```
+
+### Rate
+
+Stores conversion/split rate configuration for corporate actions.
+
+**Structure:**
+
+| Field         | Type | Size | Description                              |
+| ------------- | ---- | ---- | ---------------------------------------- |
+| discriminator | u8   | 1    | Account discriminator (`2`)              |
+| rounding      | u8   | 1    | Rounding direction: `0` = Up, `1` = Down |
+| numerator     | u8   | 1    | Rate numerator                           |
+| denominator   | u8   | 1    | Rate denominator                         |
+| bump          | u8   | 1    | PDA bump seed                            |
+
+**Total size:** 5 bytes
+
+**PDA Derivation:**
+
+```
+seeds = ["rate", action_id (8 bytes LE), mint_from_address, mint_to_address]
+program_id = Security Token Program
+```
+
+
+### Receipt
+
+Records that a holder has participated in a corporate action (split/convert) or claimed a distribution. Prevents duplicate participation. Receipt has minimal structure (only discriminator) because all relevant information is encoded in the PDA seeds.
+
+**Structure:**
+
+| Field         | Type | Size | Description                 |
+| ------------- | ---- | ---- | --------------------------- |
+| discriminator | u8   | 1    | Account discriminator (`3`) |
+
+**Total size:** 1 byte
+
+**PDA Derivation (Action Receipt - for Split/Convert):**
+
+```
+seeds = ["receipt", mint_address, action_id (8 bytes LE)]
+program_id = Security Token Program
+```
+
+**PDA Derivation (Claim Receipt - for ClaimDistribution):**
+
+```
+seeds = ["receipt", mint_address, token_account_address, action_id (8 bytes LE), proof_hash (32 bytes)]
+program_id = Security Token Program
+```
+
+
+### Proof
+
+Stores Merkle proof data for distribution claims. Allows splitting large proofs into separate transactions via `CreateProofAccount` and `UpdateProofAccount`.
+
+**Structure:**
+
+| Field         | Type            | Size       | Description                                    |
+| ------------- | --------------- | ---------- | ---------------------------------------------- |
+| discriminator | u8              | 1          | Account discriminator (`4`)                    |
+| bump          | u8              | 1          | PDA bump seed                                  |
+| data          | Vec\<[u8; 32]\> | 4 + 32 × N | Merkle proof nodes (u32 length prefix + nodes) |
+
+**Minimum size:** 6 bytes (empty proof - invalid state, at least one node required)
+
+**PDA Derivation:**
+
+```
+seeds = ["proof", token_account_address, action_id (8 bytes LE)]
+program_id = Security Token Program
+```
+
+
+### DistributionEscrowAuthority
+
+Virtual PDA used as authority for distribution escrow token accounts. Does not store any data (not a program account).
+
+**PDA Derivation:**
+
+```
+seeds = ["distribution_escrow_authority", mint_address, action_id (8 bytes LE), merkle_root (32 bytes)]
+program_id = Security Token Program
+```
+
+---
+
+## Instructions
 
 All instructions use a discriminator byte as the first byte of instruction data:
 
@@ -148,150 +278,6 @@ All instructions use a discriminator byte as the first byte of instruction data:
 | ClaimDistribution            | `21`          |
 | CloseActionReceiptAccount    | `22`          |
 | CloseClaimReceiptAccount     | `23`          |
-
----
-
-## Accounts
-
-### MintAuthority
-
-Stores the original mint creator information used for authorization fallback when verification programs are not configured.
-
-**Structure:**
-
-| Field         | Type   | Size | Description                                    |
-| ------------- | ------ | ---- | ---------------------------------------------- |
-| discriminator | u8     | 1    | Account discriminator (`0`)                    |
-| mint          | Pubkey | 32   | SPL mint address this configuration belongs to |
-| mint_creator  | Pubkey | 32   | Original creator address                       |
-| bump          | u8     | 1    | PDA bump seed                                  |
-
-**Total size:** 66 bytes
-
-**PDA Derivation:**
-
-```
-seeds = ["mint.authority", mint_address, creator_address]
-program_id = Security Token Program
-```
-
----
-
-### VerificationConfig
-
-Stores verification program configuration for a specific instruction type on a specific mint.
-
-**Structure:**
-
-| Field                     | Type          | Size       | Description                                                            |
-| ------------------------- | ------------- | ---------- | ---------------------------------------------------------------------- |
-| discriminator             | u8            | 1          | Account discriminator (`1`)                                            |
-| instruction_discriminator | u8            | 1          | Instruction type this config applies to                                |
-| cpi_mode                  | bool          | 1          | `true` for CPI mode, `false` for introspection mode                    |
-| bump                      | u8            | 1          | PDA bump seed                                                          |
-| verification_programs     | Vec\<Pubkey\> | 4 + 32 × N | List of verification program addresses (u32 length prefix + addresses) |
-
-**Minimum size:** 8 bytes (empty program list)
-
-**PDA Derivation:**
-
-```
-seeds = ["verification_config", mint_address, instruction_discriminator]
-program_id = Security Token Program
-```
-
----
-
-### Rate
-
-Stores conversion/split rate configuration for corporate actions.
-
-**Structure:**
-
-| Field         | Type | Size | Description                              |
-| ------------- | ---- | ---- | ---------------------------------------- |
-| discriminator | u8   | 1    | Account discriminator (`2`)              |
-| rounding      | u8   | 1    | Rounding direction: `0` = Up, `1` = Down |
-| numerator     | u8   | 1    | Rate numerator                           |
-| denominator   | u8   | 1    | Rate denominator                         |
-| bump          | u8   | 1    | PDA bump seed                            |
-
-**Total size:** 5 bytes
-
-**PDA Derivation:**
-
-```
-seeds = ["rate", action_id (8 bytes LE), mint_from_address, mint_to_address]
-program_id = Security Token Program
-```
-
----
-
-### Receipt
-
-Records that a holder has participated in a corporate action (split/convert) or claimed a distribution. Prevents duplicate participation. Receipt has minimal structure (only discriminator) because all relevant information is encoded in the PDA seeds.
-
-**Structure:**
-
-| Field         | Type | Size | Description                 |
-| ------------- | ---- | ---- | --------------------------- |
-| discriminator | u8   | 1    | Account discriminator (`3`) |
-
-**Total size:** 1 byte
-
-**PDA Derivation (Action Receipt - for Split/Convert):**
-
-```
-seeds = ["receipt", mint_address, action_id (8 bytes LE)]
-program_id = Security Token Program
-```
-
-**PDA Derivation (Claim Receipt - for ClaimDistribution):**
-
-```
-seeds = ["receipt", mint_address, token_account_address, action_id (8 bytes LE), proof_hash (32 bytes)]
-program_id = Security Token Program
-```
-
----
-
-### Proof
-
-Stores Merkle proof data for distribution claims. Allows splitting large proofs into separate transactions via `CreateProofAccount` and `UpdateProofAccount`.
-
-**Structure:**
-
-| Field         | Type            | Size       | Description                                    |
-| ------------- | --------------- | ---------- | ---------------------------------------------- |
-| discriminator | u8              | 1          | Account discriminator (`4`)                    |
-| bump          | u8              | 1          | PDA bump seed                                  |
-| data          | Vec\<[u8; 32]\> | 4 + 32 × N | Merkle proof nodes (u32 length prefix + nodes) |
-
-**Minimum size:** 6 bytes (empty proof - invalid state, at least one node required)
-
-**PDA Derivation:**
-
-```
-seeds = ["proof", token_account_address, action_id (8 bytes LE)]
-program_id = Security Token Program
-```
-
----
-
-### DistributionEscrowAuthority
-
-Virtual PDA used as authority for distribution escrow token accounts. Does not store any data (not a program account).
-
-**PDA Derivation:**
-
-```
-seeds = ["distribution_escrow_authority", mint_address, action_id (8 bytes LE), merkle_root (32 bytes)]
-program_id = Security Token Program
-```
-
----
-
-## Instructions
 
 ### InitializeMint
 
