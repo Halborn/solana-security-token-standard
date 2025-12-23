@@ -1160,6 +1160,8 @@ struct CloseClaimReceiptArgs {
 
 Verification programs must implement a specific interface to be compatible with the Security Token Program.
 
+[A boilerplate example for verification program](./../examples/verification-program-example/README.md) is provided.
+
 ### Instruction Format
 
 Verification programs receive instructions with the following data format:
