@@ -638,7 +638,7 @@ Mints new tokens to a destination account.
 **Arguments:**
 
 ```rust
-// Serialization: amount is u64 little-endian (8 bytes).
+// Serialization: amount (u64 LE, 8 bytes).
 amount: u64
 ```
 
@@ -667,7 +667,7 @@ Burns tokens from a token account.
 **Arguments:**
 
 ```rust
-// Serialization: amount is u64 little-endian (8 bytes).
+// Serialization: amount (u64 LE, 8 bytes).
 amount: u64
 ```
 
@@ -776,7 +776,7 @@ Transfers tokens between accounts (forced transfer).
 **Arguments:**
 
 ```rust
-// Serialization: amount is u64 little-endian (8 bytes).
+// Serialization: amount (u64 LE, 8 bytes).
 amount: u64
 ```
 
