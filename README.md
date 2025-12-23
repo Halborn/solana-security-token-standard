@@ -6,7 +6,7 @@ Check [documentation](./docs/program-instructions.md) for available security-tok
 
 ## IDL
 
-The security-token-program has the following [Codama IDL](./idl/security_token_program.json). 
+The security-token-program has the following [Codama IDL](./idl/security_token_program.json).
 
 ## Development
 
