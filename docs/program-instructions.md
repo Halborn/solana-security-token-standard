@@ -585,7 +585,7 @@ struct TrimVerificationConfigArgs {
 
 Reduces the verification program list to the specified size or closes the account, returning reclaimed rent to the recipient.
 
----
+
 
 ### Verify
 
@@ -606,13 +606,17 @@ Validates that the caller has authority to execute a specific instruction. Used 
 **Arguments:**
 
 ```rust
+// Serialization: ix (1 byte) + instruction_data raw bytes (opaque to this instruction).
 struct VerifyArgs {
     ix: u8,
     instruction_data: Vec<u8>,
 }
 ```
 
----
+**Description:**
+
+This instruction pefrormes a check if a specified instruction is successfully verified by all required verification programs and can proceed to execution.
+
 
 ### Mint
 
@@ -634,14 +638,18 @@ Mints new tokens to a destination account.
 **Arguments:**
 
 ```rust
+// Serialization: amount is u64 little-endian (8 bytes).
 amount: u64
 ```
 
----
+**Description:**
+
+Increases token supply and immediately credit a specifiend destination token account.
+
 
 ### Burn
 
-Burns tokens from a token account using permanent delegate authority.
+Burns tokens from a token account.
 
 **Discriminator:** `7`
 
@@ -659,10 +667,15 @@ Burns tokens from a token account using permanent delegate authority.
 **Arguments:**
 
 ```rust
+// Serialization: amount is u64 little-endian (8 bytes).
 amount: u64
 ```
 
----
+**Description:**
+
+Decreases token supply and immediately debit a specifiend destination token account.
+
+
 
 ### Pause
 
@@ -682,7 +695,7 @@ Pauses all token transfers for the mint.
 
 **Arguments:** None
 
----
+
 
 ### Resume
 
@@ -702,7 +715,7 @@ Resumes token transfers for a paused mint.
 
 **Arguments:** None
 
----
+
 
 ### Freeze
 
@@ -723,7 +736,7 @@ Freezes a specific token account, preventing transfers.
 
 **Arguments:** None
 
----
+
 
 ### Thaw
 
@@ -744,11 +757,11 @@ Unfreezes a frozen token account.
 
 **Arguments:** None
 
----
+
 
 ### Transfer
 
-Transfers tokens between accounts using permanent delegate authority (forced transfer).
+Transfers tokens between accounts (forced transfer).
 
 **Discriminator:** `12`
 
@@ -768,6 +781,7 @@ Transfers tokens between accounts using permanent delegate authority (forced tra
 **Arguments:**
 
 ```rust
+// Serialization: amount is u64 little-endian (8 bytes).
 amount: u64
 ```
 
