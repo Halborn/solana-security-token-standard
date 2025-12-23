@@ -401,6 +401,7 @@ All instructions use a discriminator byte as the first byte of instruction data:
 | ClaimDistribution            | `21`          |
 | CloseActionReceiptAccount    | `22`          |
 | CloseClaimReceiptAccount     | `23`          |
+
 For general encoding rules and failure codes, see [Serialization Conventions](#serialization-conventions) and [Errors](#errors).
 
 
