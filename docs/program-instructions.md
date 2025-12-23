@@ -361,7 +361,7 @@ Creates a new security token mint with required extensions and optional metadata
 | #   | Account        | Signer | Writable | Description                     |
 | --- | -------------- | ------ | -------- | ------------------------------- |
 | 0   | mint           | ✓      | ✓        | New mint account (keypair)      |
-| 1   | mint_authority |        | ✓        | MintAuthority PDA to be created |
+| 1   | mint_authority |        | ✓        | [MintAuthority](#mintauthority) PDA to be created |
 | 2   | creator        | ✓      | ✓        | Mint creator and payer          |
 | 3   | token_program  |        |          | SPL Token 2022 Program          |
 | 4   | system_program |        |          | System Program                  |
@@ -443,7 +443,7 @@ Updates the token metadata stored in the mint account.
 
 | #   | Account        | Signer | Writable | Description            |
 | --- | -------------- | ------ | -------- | ---------------------- |
-| 0   | mint_authority |        |          | MintAuthority PDA      |
+| 0   | mint_authority |        |          | [MintAuthority](#mintauthority) PDA |
 | 1   | payer          | ✓      | ✓        | Transaction fee payer  |
 | 2   | mint_account   |        | ✓        | Mint account to update |
 | 3   | token_program  |        |          | SPL Token 2022 Program |
@@ -487,10 +487,10 @@ Creates a new verification configuration for a specific instruction type.
 | --- | --------------------- | ------ | -------- | -------------------------------- |
 | 0   | payer                 | ✓      | ✓        | Transaction fee payer            |
 | 1   | mint_account          |        |          | Mint account                     |
-| 2   | config_account        |        | ✓        | VerificationConfig PDA to create |
+| 2   | config_account        |        | ✓        | [VerificationConfig](#verificationconfig) account to create |
 | 3   | system_program        |        |          | System Program                   |
 | 4   | account_metas_pda     |        | ✓        | ExtraAccountMetaList PDA \*      |
-| 5   | transfer_hook_pda     |        |          | Transfer hook PDA \*             |
+| 5   | transfer_hook_pda     |        |          | [TransferHookAuthority](#transferhookauthority) PDA \* |
 | 6   | transfer_hook_program |        |          | Transfer hook program \*         |
 
 \* Required only when `instruction_discriminator = 12` (Transfer) to manage ExtraAccountMetaList for transfer hook.
@@ -522,10 +522,10 @@ Updates an existing verification configuration.
 | --- | --------------------- | ------ | -------- | -------------------------------- |
 | 0   | payer                 | ✓      | ✓        | Transaction fee payer            |
 | 1   | mint_account          |        |          | Mint account                     |
-| 2   | config_account        |        | ✓        | VerificationConfig PDA to update |
+| 2   | config_account        |        | ✓        | [VerificationConfig](#verificationconfig) account to update |
 | 3   | system_program        |        |          | System Program                   |
 | 4   | account_metas_pda     |        | ✓        | ExtraAccountMetaList PDA \*      |
-| 5   | transfer_hook_pda     |        |          | Transfer hook PDA \*             |
+| 5   | transfer_hook_pda     |        |          | [TransferHookAuthority](#transferhookauthority) PDA \* |
 | 6   | transfer_hook_program |        |          | Transfer hook program \*         |
 
 \* Required only when `instruction_discriminator = 12` (Transfer) to manage ExtraAccountMetaList for transfer hook.
@@ -561,11 +561,11 @@ Reduces the size of or closes a verification configuration.
 | #   | Account               | Signer | Writable | Description                    |
 | --- | --------------------- | ------ | -------- | ------------------------------ |
 | 0   | mint_account          |        | ✓        | Mint account                   |
-| 1   | config_account        |        | ✓        | VerificationConfig PDA to trim |
+| 1   | config_account        |        | ✓        | [VerificationConfig](#verificationconfig) account to trim |
 | 2   | recipient             |        | ✓        | Recipient for reclaimed rent   |
 | 3   | system_program        |        |          | System Program                 |
 | 4   | account_metas_pda     |        | ✓        | ExtraAccountMetaList PDA \*    |
-| 5   | transfer_hook_pda     |        |          | Transfer hook PDA \*           |
+| 5   | transfer_hook_pda     |        |          | [TransferHookAuthority](#transferhookauthority) PDA \* |
 | 6   | transfer_hook_program |        |          | Transfer hook program \*       |
 
 \* Required only when `instruction_discriminator = 12` (Transfer) to manage ExtraAccountMetaList for transfer hook.
@@ -600,7 +600,7 @@ Validates that the caller has authority to execute a specific instruction. Used 
 | #   | Account             | Signer | Writable | Description            |
 | --- | ------------------- | ------ | -------- | ---------------------- |
 | 0   | mint                |        |          | Mint account           |
-| 1   | verification_config |        |          | VerificationConfig PDA |
+| 1   | verification_config |        |          | [VerificationConfig](#verificationconfig) account |
 | 2   | instructions_sysvar |        |          | Instructions Sysvar    |
 
 **Arguments:**
@@ -630,7 +630,7 @@ Mints new tokens to a destination account.
 
 | #   | Account        | Signer | Writable | Description               |
 | --- | -------------- | ------ | -------- | ------------------------- |
-| 0   | mint_authority |        | ✓        | MintAuthority PDA         |
+| 0   | mint_authority |        | ✓        | [MintAuthority](#mintauthority) PDA |
 | 1   | mint_account   |        | ✓        | Mint account              |
 | 2   | destination    |        | ✓        | Destination token account |
 | 3   | token_program  |        |          | SPL Token 2022 Program    |
@@ -659,7 +659,7 @@ Burns tokens from a token account.
 
 | #   | Account            | Signer | Writable | Description                |
 | --- | ------------------ | ------ | -------- | -------------------------- |
-| 0   | permanent_delegate |        |          | PermanentDelegate PDA      |
+| 0   | permanent_delegate |        |          | [PermanentDelegate PDA](#permanentdelegateauthority) |
 | 1   | mint_account       |        | ✓        | Mint account               |
 | 2   | token_account      |        | ✓        | Token account to burn from |
 | 3   | token_program      |        |          | SPL Token 2022 Program     |
@@ -689,7 +689,7 @@ Pauses all token transfers for the mint.
 
 | #   | Account         | Signer | Writable | Description            |
 | --- | --------------- | ------ | -------- | ---------------------- |
-| 0   | pause_authority |        |          | PauseAuthority PDA     |
+| 0   | pause_authority |        |          | [PauseAuthority](#pauseauthority) PDA |
 | 1   | mint_account    |        | ✓        | Mint account           |
 | 2   | token_program   |        |          | SPL Token 2022 Program |
 
@@ -709,7 +709,7 @@ Resumes token transfers for a paused mint.
 
 | #   | Account         | Signer | Writable | Description            |
 | --- | --------------- | ------ | -------- | ---------------------- |
-| 0   | pause_authority |        |          | PauseAuthority PDA     |
+| 0   | pause_authority |        |          | [PauseAuthority](#pauseauthority) PDA |
 | 1   | mint_account    |        | ✓        | Mint account           |
 | 2   | token_program   |        |          | SPL Token 2022 Program |
 
@@ -729,7 +729,7 @@ Freezes a specific token account, preventing transfers.
 
 | #   | Account          | Signer | Writable | Description             |
 | --- | ---------------- | ------ | -------- | ----------------------- |
-| 0   | freeze_authority |        |          | FreezeAuthority PDA     |
+| 0   | freeze_authority |        |          | [FreezeAuthority](#freezeauthority) PDA |
 | 1   | mint_account     |        |          | Mint account            |
 | 2   | token_account    |        | ✓        | Token account to freeze |
 | 3   | token_program    |        |          | SPL Token 2022 Program  |
@@ -750,7 +750,7 @@ Unfreezes a frozen token account.
 
 | #   | Account          | Signer | Writable | Description            |
 | --- | ---------------- | ------ | -------- | ---------------------- |
-| 0   | freeze_authority |        |          | FreezeAuthority PDA    |
+| 0   | freeze_authority |        |          | [FreezeAuthority](#freezeauthority) PDA |
 | 1   | mint_account     |        |          | Mint account           |
 | 2   | token_account    |        | ✓        | Token account to thaw  |
 | 3   | token_program    |        |          | SPL Token 2022 Program |
@@ -771,7 +771,7 @@ Transfers tokens between accounts (forced transfer).
 
 | #   | Account                      | Signer | Writable | Description               |
 | --- | ---------------------------- | ------ | -------- | ------------------------- |
-| 0   | permanent_delegate_authority |        |          | PermanentDelegate PDA     |
+| 0   | permanent_delegate_authority |        |          | [PermanentDelegate PDA](#permanentdelegateauthority) |
 | 1   | mint_account                 |        |          | Mint account              |
 | 2   | from_token_account           |        | ✓        | Source token account      |
 | 3   | to_token_account             |        | ✓        | Destination token account |
@@ -800,7 +800,7 @@ Creates a rate configuration for split/convert operations.
 | #   | Account        | Signer | Writable | Description           |
 | --- | -------------- | ------ | -------- | --------------------- |
 | 0   | payer          | ✓      | ✓        | Transaction fee payer |
-| 1   | rate_account   |        | ✓        | Rate PDA to create    |
+| 1   | rate_account   |        | ✓        | [Rate](#rate) account to create |
 | 2   | mint_from      |        |          | Source mint           |
 | 3   | mint_to        |        |          | Destination mint      |
 | 4   | system_program |        |          | System Program        |
@@ -834,7 +834,7 @@ Updates an existing rate configuration.
 
 | #   | Account      | Signer | Writable | Description        |
 | --- | ------------ | ------ | -------- | ------------------ |
-| 0   | rate_account |        | ✓        | Rate PDA to update |
+| 0   | rate_account |        | ✓        | [Rate](#rate) account to update |
 | 1   | mint_from    |        |          | Source mint        |
 | 2   | mint_to      |        |          | Destination mint   |
 
@@ -865,12 +865,12 @@ Closes a rate account and reclaims rent.
 
 **Accounts:**
 
-| #   | Account      | Signer | Writable | Description                  |
-| --- | ------------ | ------ | -------- | ---------------------------- |
-| 0   | rate_account |        | ✓        | Rate PDA to close            |
-| 1   | destination  |        | ✓        | Recipient for reclaimed rent |
-| 2   | mint_from    |        |          | Source mint                  |
-| 3   | mint_to      |        |          | Destination mint             |
+| #   | Account      | Signer | Writable | Description                    |
+| --- | ------------ | ------ | -------- | ------------------------------ |
+| 0   | rate_account |        | ✓        | [Rate](#rate) account to close |
+| 1   | destination  |        | ✓        | Recipient for reclaimed rent   |
+| 2   | mint_from    |        |          | Source mint                    |
+| 3   | mint_to      |        |          | Destination mint               |
 
 **Arguments:**
 
@@ -894,13 +894,13 @@ Executes a token split operation (e.g., stock split). Mints additional tokens to
 
 | #   | Account            | Signer | Writable | Description            |
 | --- | ------------------ | ------ | -------- | ---------------------- |
-| 0   | mint_authority     |        |          | MintAuthority PDA      |
-| 1   | permanent_delegate |        |          | PermanentDelegate PDA  |
+| 0   | mint_authority     |        |          | [MintAuthority](#mintauthority) PDA |
+| 1   | permanent_delegate |        |          | [PermanentDelegate PDA](#permanentdelegateauthority) |
 | 2   | payer              | ✓      | ✓        | Transaction fee payer  |
 | 3   | mint_account       |        | ✓        | Mint account           |
 | 4   | token_account      |        | ✓        | Holder's token account |
-| 5   | rate_account       |        |          | Rate PDA               |
-| 6   | receipt_account    |        | ✓        | Receipt PDA to create  |
+| 5   | rate_account       |        |          | [Rate](#rate) account |
+| 6   | receipt_account    |        | ✓        | [Receipt](#receipt) account to create |
 | 7   | token_program      |        |          | SPL Token 2022 Program |
 | 8   | system_program     |        |          | System Program         |
 
@@ -926,15 +926,15 @@ Converts tokens from one mint to another based on rate (e.g., bond conversion).
 
 | #   | Account            | Signer | Writable | Description               |
 | --- | ------------------ | ------ | -------- | ------------------------- |
-| 0   | mint_authority     |        |          | MintAuthority PDA         |
-| 1   | permanent_delegate |        |          | PermanentDelegate PDA     |
+| 0   | mint_authority     |        |          | [MintAuthority](#mintauthority) PDA |
+| 1   | permanent_delegate |        |          | [PermanentDelegate PDA](#permanentdelegateauthority) |
 | 2   | payer              | ✓      | ✓        | Transaction fee payer     |
 | 3   | mint_from          |        | ✓        | Source mint account       |
 | 4   | mint_to            |        | ✓        | Destination mint account  |
 | 5   | token_account_from |        | ✓        | Source token account      |
 | 6   | token_account_to   |        | ✓        | Destination token account |
-| 7   | rate_account       |        |          | Rate PDA                  |
-| 8   | receipt_account    |        | ✓        | Receipt PDA to create     |
+| 7   | rate_account       |        |          | [Rate](#rate) account     |
+| 8   | receipt_account    |        | ✓        | [Receipt](#receipt) account to create |
 | 9   | token_program      |        |          | SPL Token 2022 Program    |
 | 10  | system_program     |        |          | System Program            |
 
@@ -963,7 +963,7 @@ Creates a Proof account to store Merkle proof data for distribution claims.
 | --- | -------------- | ------ | -------- | ------------------------------ |
 | 0   | payer          | ✓      | ✓        | Transaction fee payer          |
 | 1   | mint_account   |        |          | Mint account                   |
-| 2   | proof_account  |        | ✓        | Proof PDA to create            |
+| 2   | proof_account  |        | ✓        | [Proof](#proof) account to create |
 | 3   | token_account  |        |          | Token account the proof is for |
 | 4   | system_program |        |          | System Program                 |
 
@@ -992,7 +992,7 @@ Updates an existing Proof account with additional proof nodes.
 | --- | -------------- | ------ | -------- | ------------------------------ |
 | 0   | payer          | ✓      | ✓        | Transaction fee payer          |
 | 1   | mint_account   |        |          | Mint account                   |
-| 2   | proof_account  |        | ✓        | Proof PDA to update            |
+| 2   | proof_account  |        | ✓        | [Proof](#proof) account to update |
 | 3   | token_account  |        |          | Token account the proof is for |
 | 4   | system_program |        |          | System Program                 |
 
@@ -1020,7 +1020,7 @@ Creates an escrow token account for distribution (dividends/coupons).
 
 | #   | Account                          | Signer | Writable | Description                      |
 | --- | -------------------------------- | ------ | -------- | -------------------------------- |
-| 0   | distribution_escrow_authority    |        |          | DistributionEscrowAuthority PDA  |
+| 0   | distribution_escrow_authority    |        |          | [DistributionEscrowAuthority](#distributionescrowauthority) PDA |
 | 1   | payer                            | ✓      | ✓        | Transaction fee payer            |
 | 2   | distribution_token_account       |        | ✓        | Escrow token account to create   |
 | 3   | distribution_mint                |        |          | Distribution mint                |
@@ -1051,13 +1051,13 @@ Claims tokens from a distribution escrow based on Merkle proof.
 
 | #   | Account                      | Signer | Writable | Description                     |
 | --- | ---------------------------- | ------ | -------- | ------------------------------- |
-| 0   | permanent_delegate_authority |        |          | PermanentDelegate PDA           |
+| 0   | permanent_delegate_authority |        |          | [PermanentDelegate PDA](#permanentdelegateauthority) |
 | 1   | payer                        | ✓      | ✓        | Transaction fee payer           |
 | 2   | mint_account                 |        |          | Mint account                    |
 | 3   | eligible_token_account       |        | ✓        | Claimant's token account        |
 | 4   | escrow_token_account         |        | ✓        | (Optional) Escrow token account |
-| 5   | receipt_account              |        | ✓        | Receipt PDA to create           |
-| 6   | proof_account                |        |          | (Optional) Proof PDA            |
+| 5   | receipt_account              |        | ✓        | [Receipt](#receipt) account to create |
+| 6   | proof_account                |        |          | (Optional) [Proof](#proof) account |
 | 7   | transfer_hook_program        |        |          | Transfer hook program           |
 | 8   | token_program                |        |          | SPL Token 2022 Program          |
 | 9   | system_program               |        |          | System Program                  |
@@ -1088,7 +1088,7 @@ Closes an action receipt account (for Split/Convert) and reclaims rent.
 
 | #   | Account         | Signer | Writable | Description                  |
 | --- | --------------- | ------ | -------- | ---------------------------- |
-| 0   | receipt_account |        | ✓        | Receipt PDA to close         |
+| 0   | receipt_account |        | ✓        | [Receipt](#receipt) account to close |
 | 1   | destination     |        | ✓        | Recipient for reclaimed rent |
 | 2   | mint_account    |        |          | Mint account                 |
 
@@ -1114,11 +1114,11 @@ Closes a claim receipt account (for ClaimDistribution) and reclaims rent.
 
 | #   | Account                | Signer | Writable | Description                  |
 | --- | ---------------------- | ------ | -------- | ---------------------------- |
-| 0   | receipt_account        |        | ✓        | Receipt PDA to close         |
+| 0   | receipt_account        |        | ✓        | [Receipt](#receipt) account to close |
 | 1   | destination            |        | ✓        | Recipient for reclaimed rent |
 | 2   | mint_account           |        |          | Mint account                 |
 | 3   | eligible_token_account |        |          | Token account from the claim |
-| 4   | proof_account          |        |          | (Optional) Proof PDA         |
+| 4   | proof_account          |        |          | (Optional) [Proof](#proof) account |
 
 **Arguments:**
 
