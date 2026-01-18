@@ -127,7 +127,7 @@ impl VerificationConfig {
 
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), ProgramError> {
-        //TODO: test
+    
         if self.verification_programs.is_empty() {
             return Err(ProgramError::InvalidAccountData);
         }

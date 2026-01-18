@@ -121,7 +121,7 @@ impl InitializeVerificationConfigArgs {
             return Err(ProgramError::InvalidArgument);
         }
 
-        //TODO: test
+     
         if self.program_addresses.is_empty(){
             return Err(ProgramError::InvalidArgument);
         }

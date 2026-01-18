@@ -680,9 +680,8 @@ impl VerificationModule {
         }
 
         if config_data.verification_programs.is_empty() {
-            // If no verification programs configured, allow
-            //return Ok((mint_info, instruction_accounts));
-            //TODO:
+            // If no verification programs configured, return error
+           
             return Err(ProgramError::InvalidAccountData);
         }
 
