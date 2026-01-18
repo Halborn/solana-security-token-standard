@@ -681,7 +681,9 @@ impl VerificationModule {
 
         if config_data.verification_programs.is_empty() {
             // If no verification programs configured, allow
-            return Ok((mint_info, instruction_accounts));
+            //return Ok((mint_info, instruction_accounts));
+            //TODO:
+            return Err(ProgramError::InvalidAccountData);
         }
 
         let cleaned_accounts = if config_data.cpi_mode {

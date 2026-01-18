@@ -74,7 +74,8 @@ fn process_execute(accounts: &[AccountInfo], rest: &[u8]) -> ProgramResult {
     let verification_programs = load_verification_programs(mint, extra_accounts)?;
 
     if verification_programs.is_empty() {
-        return Ok(());
+        //TODO fix return Ok(());
+        return Err(ProgramError::InvalidAccountData);
     }
     let amount = rest
         .get(..8)
