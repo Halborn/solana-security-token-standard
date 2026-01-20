@@ -681,7 +681,7 @@ impl VerificationModule {
 
         if config_data.verification_programs.is_empty() {
             // If no verification programs configured, return error
-           
+
             return Err(ProgramError::InvalidAccountData);
         }
 

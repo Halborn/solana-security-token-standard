@@ -121,8 +121,7 @@ impl InitializeVerificationConfigArgs {
             return Err(ProgramError::InvalidArgument);
         }
 
-     
-        if self.program_addresses.is_empty(){
+        if self.program_addresses.is_empty() {
             return Err(ProgramError::InvalidArgument);
         }
         // Validate no default pubkeys
