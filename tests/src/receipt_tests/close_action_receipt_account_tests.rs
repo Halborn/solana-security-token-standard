@@ -11,7 +11,8 @@ use crate::{
         assert_account_exists, assert_transaction_failure, assert_transaction_success,
         create_minimal_security_token_mint, create_mint_verification_config, create_spl_account,
         create_token_account_and_mint_tokens, find_permanent_delegate_pda, from_ui_amount,
-        get_balance, mint_tokens_to, start_with_context, start_with_context_and_accounts, TX_FEE,
+        get_balance, get_default_verification_programs, mint_tokens_to, start_with_context,
+        start_with_context_and_accounts, TX_FEE,
     },
     rate_tests::rate_helpers::create_rate_account,
     receipt_tests::receipt_helpers::{
@@ -72,7 +73,7 @@ async fn test_should_close_action_receipt_account_after_split() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -81,7 +82,7 @@ async fn test_should_close_action_receipt_account_after_split() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -220,7 +221,7 @@ async fn test_should_close_action_receipt_account_after_convert() {
         context,
         &mint_keypair_to,
         mint_authority_pda_to.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -229,7 +230,7 @@ async fn test_should_close_action_receipt_account_after_convert() {
         context,
         &mint_keypair_from,
         mint_authority_pda_from.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -381,7 +382,7 @@ async fn test_should_not_close_not_owned_receipt_account() {
             context,
             &mint_keypair,
             mint_authority_pda.clone(),
-            vec![],
+            get_default_verification_programs(),
             Some(mint_creator),
         )
         .await;
@@ -390,7 +391,7 @@ async fn test_should_not_close_not_owned_receipt_account() {
             context,
             &mint_keypair,
             mint_authority_pda.clone(),
-            vec![],
+            get_default_verification_programs(),
             Some(mint_creator),
         )
         .await;

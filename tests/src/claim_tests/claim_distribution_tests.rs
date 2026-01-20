@@ -9,7 +9,8 @@ use crate::{
     },
     helpers::{
         assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        create_spl_account, from_ui_amount, get_token_account_state,
+        create_spl_account, from_ui_amount, get_default_verification_programs,
+        get_token_account_state,
     },
     proof_tests::proof_helpers::{
         create_create_proof_account_verification_config, execute_create_proof_account,
@@ -207,7 +208,7 @@ async fn test_should_claim_distribution_settlement_proof_account() {
         context,
         &distribution_mint_keypair,
         mint_authority_pda,
-        vec![],
+        get_default_verification_programs(),
         Some(&mint_creator),
     )
     .await;
@@ -458,7 +459,7 @@ async fn test_should_claim_distribution_external_settlement_proof_account() {
         context,
         &distribution_mint_keypair,
         mint_authority_pda,
-        vec![],
+        get_default_verification_programs(),
         Some(&mint_creator),
     )
     .await;
@@ -974,7 +975,7 @@ async fn test_should_not_claim_distribution_with_invalid_proof_account() {
         context,
         &distribution_mint_keypair,
         mint_authority_pda,
-        vec![],
+        get_default_verification_programs(),
         Some(&mint_creator),
     )
     .await;

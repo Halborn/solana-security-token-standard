@@ -8,8 +8,7 @@ use solana_sdk::signature::{Keypair, Signer};
 
 use crate::{
     helpers::{
-        assert_transaction_success, create_minimal_security_token_mint, create_spl_account,
-        get_account, get_balance, start_with_context, TX_FEE,
+        TX_FEE, assert_transaction_success, create_minimal_security_token_mint, create_spl_account, get_account, get_balance, get_default_verification_programs, start_with_context,
     },
     proof_tests::proof_helpers::{
         create_create_proof_account_verification_config,
@@ -35,7 +34,7 @@ async fn test_should_update_proof_account() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(&payer),
     )
     .await;
@@ -44,7 +43,7 @@ async fn test_should_update_proof_account() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(&payer),
     )
     .await;
@@ -182,7 +181,7 @@ async fn test_should_not_update_proof_account() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(&payer),
     )
     .await;
@@ -191,7 +190,7 @@ async fn test_should_not_update_proof_account() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(&payer),
     )
     .await;
@@ -289,7 +288,7 @@ async fn test_should_not_update_proof_account() {
         context,
         &mint_keypair2,
         mint_authority_pda2.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(&payer),
     )
     .await;

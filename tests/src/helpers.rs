@@ -6,11 +6,15 @@ use security_token_client::{
     programs::SECURITY_TOKEN_PROGRAM_ID,
     types::{InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs},
 };
+use solana_program::account_info::AccountInfo;
+use solana_program::entrypoint::ProgramResult;
 use solana_program::example_mocks::solana_sdk::sysvar;
-use solana_program_test::{BanksClient, BanksClientError, ProgramTest, ProgramTestContext};
+use solana_program_test::{
+    processor, BanksClient, BanksClientError, ProgramTest, ProgramTestContext,
+};
 use solana_sdk::{
     account::Account,
-    instruction::InstructionError,
+    instruction::{Instruction, InstructionError},
     pubkey::Pubkey,
     signature::{Keypair, Signer},
     transaction::TransactionError,
@@ -21,6 +25,53 @@ use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 use spl_transfer_hook_interface::get_extra_account_metas_address;
 
 pub const TX_FEE: u64 = 5000;
+
+pub const DEFAULT_DUMMY_VERIFICATION_PROGRAM_ID: Pubkey =
+    solana_sdk::pubkey!("DummyVer1f1cat1onProgram11111111111111111111");
+
+/// Always succeed dummy verification processor    
+pub fn dummy_verification_processor(
+    _program_id: &Pubkey,
+    _accounts: &[AccountInfo],
+    _instruction_data: &[u8],
+) -> ProgramResult {
+    Ok(())
+}
+
+/// Add the default dummy verification program to a ProgramTest
+pub fn add_dummy_verification_program(pt: &mut ProgramTest) {
+    pt.add_program(
+        "dummy_verification_program",
+        DEFAULT_DUMMY_VERIFICATION_PROGRAM_ID,
+        processor!(dummy_verification_processor),
+    );
+}
+
+/// Get a vector containing the default dummy verification program
+pub fn get_default_verification_programs() -> Vec<Pubkey> {
+    vec![DEFAULT_DUMMY_VERIFICATION_PROGRAM_ID]
+}
+
+/// Create dummy verification instruction from an existing security token instruction
+pub fn create_dummy_verification_from_instruction(instruction: &Instruction) -> Instruction {
+    // First byte is the discriminator
+    let discriminator = instruction.data[0];
+    // Rest is the instruction args
+    let instruction_args = &instruction.data[1..];
+
+    // Skip verification overhead accounts
+    let verification_accounts = if instruction.accounts.len() > 3 {
+        instruction.accounts[3..].to_vec()
+    } else {
+        vec![]
+    };
+
+    Instruction {
+        program_id: DEFAULT_DUMMY_VERIFICATION_PROGRAM_ID,
+        accounts: verification_accounts,
+        data: [&[discriminator], instruction_args].concat(),
+    }
+}
 
 /// Helper function to assert that a transaction failed with a specific SecurityTokenError
 pub fn assert_security_token_error(
@@ -305,7 +356,7 @@ pub async fn initialize_mint_verification_and_mint_to_account(
     let mint_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: MINT_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: vec![],
+        program_addresses: get_default_verification_programs(),
     };
     initialize_verification_config(
         &mint_keypair,
@@ -327,8 +378,10 @@ pub async fn initialize_mint_verification_and_mint_to_account(
 
     let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
+    let dummy_mint_ix = create_dummy_verification_from_instruction(&mint_ix);
+
     let mint_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[mint_ix],
+        &[dummy_mint_ix, mint_ix],
         Some(&context.payer.pubkey()),
         &[&context.payer],
         recent_blockhash,
@@ -399,7 +452,9 @@ pub fn initialize_program() -> ProgramTest {
 }
 
 pub async fn start_with_context() -> ProgramTestContext {
-    let pt = initialize_program();
+    let mut pt = initialize_program();
+    pt.prefer_bpf(false);
+    add_dummy_verification_program(&mut pt);
     pt.start_with_context().await
 }
 
@@ -422,7 +477,8 @@ pub async fn start_with_context_and_accounts(
             },
         );
     }
-
+    pt.prefer_bpf(false);
+    add_dummy_verification_program(&mut pt);
     pt.start_with_context().await
 }
 
@@ -559,10 +615,16 @@ pub async fn mint_tokens_to(
         .destination(destination_account)
         .amount(amount)
         .instruction();
-
+    let dummy_mint_ix = create_dummy_verification_from_instruction(&mint_ix);
     let signer = payer.insecure_clone();
     let signers = vec![&signer];
-    send_tx(banks_client, vec![mint_ix], &payer.pubkey(), signers).await
+    send_tx(
+        banks_client,
+        vec![dummy_mint_ix, mint_ix],
+        &payer.pubkey(),
+        signers,
+    )
+    .await
 }
 
 /// Create token account and mint tokens to it

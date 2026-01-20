@@ -1,8 +1,6 @@
 use crate::{
     helpers::{
-        assert_security_token_error, assert_transaction_success, find_mint_authority_pda,
-        find_mint_freeze_authority_pda, find_verification_config_pda, initialize_mint,
-        initialize_verification_config, send_tx,
+        add_dummy_verification_program, assert_security_token_error, assert_transaction_success, find_mint_authority_pda, find_mint_freeze_authority_pda, find_verification_config_pda, initialize_mint, initialize_verification_config, send_tx
     },
     verification_tests::verification_helpers::dummy_program_processor,
 };
@@ -55,6 +53,8 @@ async fn verification_test_setup() -> VerificationTestContext {
         dummy_program_2_id,
         processor!(dummy_program_processor),
     );
+
+    add_dummy_verification_program(&mut pt);
 
     let mut context = pt.start_with_context().await;
     let mint_keypair = Keypair::new();
@@ -409,6 +409,7 @@ async fn test_update_metadata_under_verification() {
         dummy_program_2_id,
         processor!(dummy_program_processor),
     );
+    add_dummy_verification_program(&mut pt);
 
     let mint_keypair = solana_sdk::signature::Keypair::new();
 

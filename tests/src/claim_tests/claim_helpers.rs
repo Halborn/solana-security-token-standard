@@ -18,9 +18,11 @@ use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 use crate::{
     claim_tests::merkle_tree_helpers::{create_merkle_tree, Leaf},
     helpers::{
-        assert_transaction_success, create_mint_verification_config, create_spl_account,
-        create_verification_config, find_permanent_delegate_pda, from_ui_amount,
-        initialize_program, mint_tokens_to, send_tx,
+        add_dummy_verification_program, assert_transaction_success,
+        create_dummy_verification_from_instruction, create_mint_verification_config,
+        create_spl_account, create_verification_config, find_permanent_delegate_pda,
+        from_ui_amount, get_default_verification_programs, initialize_program, mint_tokens_to,
+        send_tx,
     },
 };
 
@@ -53,7 +55,15 @@ pub async fn execute_create_distribution_escrow_account(
         create_distribution_escrow_args,
     });
 
-    send_tx(&banks_client, vec![ix], &payer_pubkey, vec![payer]).await
+    let dummy_ix = create_dummy_verification_from_instruction(&ix);
+
+    send_tx(
+        &banks_client,
+        vec![dummy_ix, ix],
+        &payer_pubkey,
+        vec![payer],
+    )
+    .await
 }
 
 pub async fn execute_claim_distribution(
@@ -91,7 +101,15 @@ pub async fn execute_claim_distribution(
         claim_distribution_args,
     });
 
-    send_tx(&banks_client, vec![ix], &payer_pubkey, vec![payer]).await
+    let dummy_ix = create_dummy_verification_from_instruction(&ix);
+
+    send_tx(
+        &banks_client,
+        vec![dummy_ix, ix],
+        &payer_pubkey,
+        vec![payer],
+    )
+    .await
 }
 
 pub fn find_distribution_escrow_authority_pda(
@@ -175,7 +193,7 @@ pub async fn create_distribution_for_users(
         context,
         &distribution_mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(mint_creator),
     )
     .await;
@@ -198,7 +216,7 @@ pub async fn create_distribution_for_users(
         context,
         &distribution_mint_keypair,
         mint_authority_pda,
-        vec![],
+        get_default_verification_programs(),
         Some(&mint_creator),
     )
     .await;
@@ -257,5 +275,7 @@ pub async fn start_with_context_and_transfer_hook() -> ProgramTestContext {
         None,
     );
 
+    pt.prefer_bpf(false);
+    add_dummy_verification_program(&mut pt);
     pt.start_with_context().await
 }

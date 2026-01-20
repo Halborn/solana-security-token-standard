@@ -9,7 +9,7 @@ use crate::{
     },
     helpers::{
         assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        create_spl_account, get_balance, TX_FEE,
+        create_spl_account, get_balance, get_default_verification_programs, TX_FEE,
     },
     proof_tests::proof_helpers::{
         create_create_proof_account_verification_config, execute_create_proof_account,
@@ -246,7 +246,7 @@ async fn test_should_close_claim_receipt_proof_account() {
         context,
         &distribution_mint_keypair,
         mint_authority_pda,
-        vec![],
+        get_default_verification_programs(),
         Some(&mint_creator),
     )
     .await;

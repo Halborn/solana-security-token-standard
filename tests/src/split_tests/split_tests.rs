@@ -7,8 +7,8 @@ use crate::{
     helpers::{
         assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
         create_mint_verification_config, create_spl_account, find_permanent_delegate_pda,
-        from_ui_amount, get_token_account_state, mint_tokens_to, start_with_context,
-        start_with_context_and_accounts,
+        from_ui_amount, get_default_verification_programs, get_token_account_state, mint_tokens_to,
+        start_with_context, start_with_context_and_accounts,
     },
     rate_tests::rate_helpers::{calculate_rate_amount, create_rate_account},
     receipt_tests::receipt_helpers::find_common_action_receipt_pda,
@@ -34,7 +34,7 @@ async fn test_should_split_with_mint_successfully() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -43,7 +43,7 @@ async fn test_should_split_with_mint_successfully() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -145,7 +145,7 @@ async fn test_should_split_with_burn_successfully() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -154,7 +154,7 @@ async fn test_should_split_with_burn_successfully() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -256,7 +256,7 @@ async fn test_should_not_split_twice() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -265,7 +265,7 @@ async fn test_should_not_split_twice() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -373,7 +373,7 @@ async fn test_should_not_split_token_zero_amount() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -382,7 +382,7 @@ async fn test_should_not_split_token_zero_amount() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -510,7 +510,7 @@ async fn test_should_not_split_with_invalid_random_accounts(
         context,
         &valid_mint_keypair,
         valid_mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -519,7 +519,7 @@ async fn test_should_not_split_with_invalid_random_accounts(
         context,
         &valid_mint_keypair,
         valid_mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -610,7 +610,7 @@ async fn test_should_not_split_not_owned_mint_or_token_account() {
         context,
         &mint_keypair1,
         mint_authority_pda1.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -619,7 +619,7 @@ async fn test_should_not_split_not_owned_mint_or_token_account() {
         context,
         &mint_keypair1,
         mint_authority_pda1.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -681,7 +681,7 @@ async fn test_should_not_split_not_owned_mint_or_token_account() {
         context,
         &mint_keypair2,
         mint_authority_pda2.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(&mint_creator2),
     )
     .await;

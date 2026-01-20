@@ -17,17 +17,18 @@ use spl_transfer_hook_interface::offchain::add_extra_account_metas_for_execute;
 use spl_type_length_value::state::TlvStateBorrowed;
 
 use crate::helpers::{
-    assert_transaction_success, create_spl_account, find_mint_authority_pda,
+    add_dummy_verification_program, assert_transaction_success,
+    create_dummy_verification_from_instruction, create_spl_account, find_mint_authority_pda,
     find_mint_freeze_authority_pda, find_mint_pause_authority_pda, find_permanent_delegate_pda,
-    find_transfer_hook_pda, find_verification_config_pda, get_mint_state, get_token_account_state,
-    initialize_mint, initialize_mint_verification_and_mint_to_account, initialize_program,
+    find_transfer_hook_pda, find_verification_config_pda, get_default_verification_programs,
+    get_mint_state, get_token_account_state, initialize_mint,
+    initialize_mint_verification_and_mint_to_account, initialize_program,
     initialize_verification_config, send_tx,
 };
 use security_token_transfer_hook;
 use solana_program_test::*;
 use solana_pubkey::Pubkey;
-use solana_sdk::signature::Signer;
-use solana_sdk::{signature::Keypair, sysvar};
+use solana_sdk::signature::{Keypair, Signer};
 use spl_discriminator::SplDiscriminate;
 use spl_pod::primitives::PodBool;
 use spl_token_2022::extension::pausable::PausableConfig;
@@ -40,7 +41,9 @@ use spl_transfer_hook_interface::get_extra_account_metas_address;
 #[tokio::test]
 async fn test_basic_t22_operations() {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(true);
+    pt.prefer_bpf(false);
+
+    add_dummy_verification_program(&mut pt);
 
     let mint_keypair = Keypair::new();
 
@@ -77,7 +80,7 @@ async fn test_basic_t22_operations() {
     )
     .await;
 
-    // Prepare all verification configs
+    // Prepare all verification configs with default dummy programs
     let instructions = vec![
         MINT_DISCRIMINATOR,
         BURN_DISCRIMINATOR,
@@ -94,7 +97,7 @@ async fn test_basic_t22_operations() {
         let initialize_verification_config_args = InitializeVerificationConfigArgs {
             instruction_discriminator: discriminator,
             cpi_mode: false,
-            program_addresses: vec![],
+            program_addresses: get_default_verification_programs(),
         };
 
         initialize_verification_config(
@@ -132,16 +135,18 @@ async fn test_basic_t22_operations() {
     let mint_ix = MintBuilder::new()
         .mint(mint_keypair.pubkey())
         .verification_config(verification_configs[0])
-        .instructions_sysvar(sysvar::instructions::ID)
         .mint_account(mint_keypair.pubkey())
         .mint_authority(mint_authority_pda)
         .destination(destination_account)
         .amount(1_000_000)
         .instruction();
 
+    // Create dummy verification instruction automatically from the mint instruction
+    let dummy_mint_ix = create_dummy_verification_from_instruction(&mint_ix);
+
     let result = send_tx(
         &context.banks_client,
-        vec![mint_ix],
+        vec![dummy_mint_ix, mint_ix],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
@@ -160,16 +165,17 @@ async fn test_basic_t22_operations() {
     let burn_ix = BurnBuilder::new()
         .mint(mint_keypair.pubkey())
         .verification_config(verification_configs[1])
-        .instructions_sysvar(sysvar::instructions::ID)
         .permanent_delegate(permanent_delegate_pda)
         .mint_account(mint_keypair.pubkey())
         .token_account(destination_account)
         .amount(500_000)
         .instruction();
 
+    let dummy_burn_ix = create_dummy_verification_from_instruction(&burn_ix);
+
     let result = send_tx(
         &context.banks_client,
-        vec![burn_ix],
+        vec![dummy_burn_ix, burn_ix],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
@@ -192,9 +198,11 @@ async fn test_basic_t22_operations() {
         .token_account(destination_account)
         .instruction();
 
+    let dummy_freeze_ix = create_dummy_verification_from_instruction(&freeze_ix);
+
     let result = send_tx(
         &context.banks_client,
-        vec![freeze_ix],
+        vec![dummy_freeze_ix, freeze_ix],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
@@ -213,9 +221,11 @@ async fn test_basic_t22_operations() {
         .token_account(destination_account)
         .instruction();
 
+    let dummy_thaw_ix = create_dummy_verification_from_instruction(&thaw_ix);
+
     let result = send_tx(
         &context.banks_client,
-        vec![thaw_ix],
+        vec![dummy_thaw_ix, thaw_ix],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
@@ -229,7 +239,9 @@ async fn test_basic_t22_operations() {
 #[tokio::test]
 async fn test_t22_extension_operations() {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(true);
+    pt.prefer_bpf(false);
+
+    add_dummy_verification_program(&mut pt);
 
     let mint_keypair = Keypair::new();
 
@@ -266,7 +278,7 @@ async fn test_t22_extension_operations() {
     let pause_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: PAUSE_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: vec![],
+        program_addresses: get_default_verification_programs(),
     };
     initialize_verification_config(
         &mint_keypair,
@@ -284,10 +296,12 @@ async fn test_t22_extension_operations() {
         .pause_authority(pause_authority_pda)
         .instruction();
 
+    let dummy_pause_ix = create_dummy_verification_from_instruction(&pause_ix);
+
     // Pause the mint
     let result = send_tx(
         &context.banks_client,
-        vec![pause_ix],
+        vec![dummy_pause_ix, pause_ix],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
@@ -307,7 +321,7 @@ async fn test_t22_extension_operations() {
     let resume_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: RESUME_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: vec![],
+        program_addresses: get_default_verification_programs(),
     };
 
     initialize_verification_config(
@@ -326,9 +340,11 @@ async fn test_t22_extension_operations() {
         .pause_authority(pause_authority_pda)
         .instruction();
 
+    let dummy_resume_ix = create_dummy_verification_from_instruction(&resume_ix);
+
     let result = send_tx(
         &context.banks_client,
-        vec![resume_ix],
+        vec![dummy_resume_ix, resume_ix],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
@@ -346,12 +362,14 @@ async fn test_t22_extension_operations() {
 #[tokio::test]
 async fn test_t22_transfer_operations() {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(true);
     pt.add_program(
         "security_token_transfer_hook",
         Pubkey::from(security_token_transfer_hook::id()),
         None,
     );
+    pt.prefer_bpf(false);
+
+    add_dummy_verification_program(&mut pt);
 
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
 
@@ -391,7 +409,7 @@ async fn test_t22_transfer_operations() {
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: vec![],
+        program_addresses: get_default_verification_programs(),
     };
 
     initialize_verification_config(
@@ -427,9 +445,11 @@ async fn test_t22_transfer_operations() {
         .amount(100_000)
         .instruction();
 
+    let dummy_transfer_ix = create_dummy_verification_from_instruction(&transfer_ix);
+
     let result = send_tx(
         &context.banks_client,
-        vec![transfer_ix],
+        vec![dummy_transfer_ix, transfer_ix],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
@@ -484,6 +504,7 @@ async fn test_p2p_transfer_direct_spl() {
         dummy_program_2_id,
         processor!(dummy_program_1_processor),
     );
+    add_dummy_verification_program(&mut pt);
 
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
 
@@ -821,7 +842,7 @@ async fn test_transfer_hook_extra_account_metas_init_update_trim() {
 
     let trim_verification_config_args = TrimVerificationConfigArgs {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
-        size: 0,
+        size: 1,
         close: false,
     };
 
@@ -864,8 +885,8 @@ async fn test_transfer_hook_extra_account_metas_init_update_trim() {
         ExtraAccountMetaList::unpack_with_tlv_state::<ExecuteInstruction>(&tlv_state)
             .expect("extra meta list should deserialize");
 
-    // Must be 1 account: verification config
-    assert_eq!(extra_metas_data.data().len(), 1);
+    // Must be 2 accounts
+    assert_eq!(extra_metas_data.data().len(), 2);
     // Verify the metas are correct
     let metas = extra_metas_data
         .data()

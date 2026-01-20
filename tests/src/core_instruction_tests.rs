@@ -1,18 +1,19 @@
 //! Security Token Standard Integration Tests
 
 use crate::helpers::{
-    assert_instruction_error, assert_security_token_error, assert_transaction_success,
-    create_spl_account, find_mint_authority_pda, find_mint_freeze_authority_pda,
-    find_permanent_delegate_pda, find_transfer_hook_pda, find_verification_config_pda,
+    add_dummy_verification_program, assert_instruction_error, assert_security_token_error,
+    assert_transaction_success, create_dummy_verification_from_instruction, create_spl_account,
+    find_mint_authority_pda, find_mint_freeze_authority_pda, find_permanent_delegate_pda,
+    find_transfer_hook_pda, find_verification_config_pda, get_default_verification_programs,
     initialize_mint, initialize_verification_config, send_tx, start_with_context,
 };
 use borsh::BorshDeserialize;
 use security_token_client::accounts::{MintAuthority, VerificationConfig};
 use security_token_client::errors::SecurityTokenProgramError;
 use security_token_client::instructions::{
-    InitializeMintBuilder, InitializeVerificationConfigBuilder,
-    TrimVerificationConfigBuilder, UpdateMetadataBuilder, UpdateVerificationConfigBuilder,
-    MINT_DISCRIMINATOR, TRANSFER_DISCRIMINATOR, UPDATE_METADATA_DISCRIMINATOR,
+    InitializeMintBuilder, InitializeVerificationConfigBuilder, TrimVerificationConfigBuilder,
+    UpdateMetadataBuilder, UpdateVerificationConfigBuilder, MINT_DISCRIMINATOR,
+    TRANSFER_DISCRIMINATOR, UPDATE_METADATA_DISCRIMINATOR,
 };
 use security_token_client::programs::SECURITY_TOKEN_PROGRAM_ID;
 use security_token_client::types::{
@@ -20,6 +21,7 @@ use security_token_client::types::{
     ScaledUiAmountConfigArgs, TokenMetadataArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
     UpdateVerificationConfigArgs,
 };
+use security_token_transfer_hook;
 use solana_program_test::ProgramTest;
 use solana_sdk::sysvar;
 use solana_sdk::{pubkey::Pubkey, signature::Signer};
@@ -32,7 +34,6 @@ use spl_token_2022::extension::{
 use spl_token_2022::state::Mint;
 use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 use spl_token_metadata_interface::state::TokenMetadata as SolanaProgramTokenMetadata;
-use security_token_transfer_hook;
 
 fn encode_additional_metadata(pairs: &[(String, String)]) -> Vec<u8> {
     let mut buf = Vec::new();
@@ -349,7 +350,9 @@ async fn test_initialize_mint_with_all_extensions() {
 #[tokio::test]
 async fn test_update_metadata() {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(true);
+    pt.prefer_bpf(false);
+
+    add_dummy_verification_program(&mut pt);
 
     // Create mint keypair - mint account must be a signer when creating new account
     let mint_keypair = solana_sdk::signature::Keypair::new();
@@ -399,7 +402,7 @@ async fn test_update_metadata() {
     let verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: vec![],
+        program_addresses: get_default_verification_programs(),
     };
 
     initialize_verification_config(
@@ -448,10 +451,12 @@ async fn test_update_metadata() {
         .update_metadata_args(update_metadata_args)
         .instruction();
 
+    let dummy_update_metadata_ix = create_dummy_verification_from_instruction(&update_metadata_ix);
+
     // Process transaction
     let result = send_tx(
         &context.banks_client,
-        vec![update_metadata_ix],
+        vec![dummy_update_metadata_ix, update_metadata_ix],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
@@ -1372,12 +1377,13 @@ async fn test_mint_fails_with_empty_verification_config() {
 #[tokio::test]
 async fn test_transfer_fails_with_empty_verification_config() {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(true);
     pt.add_program(
         "security_token_transfer_hook",
         Pubkey::from(security_token_transfer_hook::id()),
         None,
     );
+    pt.prefer_bpf(false);
+    add_dummy_verification_program(&mut pt);
 
     let mut context: solana_program_test::ProgramTestContext = pt.start_with_context().await;
 
@@ -1463,11 +1469,11 @@ async fn test_transfer_fails_with_empty_verification_config() {
     // Create a valid verification config for MINT (needed to mint tokens)
     let (mint_verification_config_pda, _bump) =
         find_verification_config_pda(mint_keypair.pubkey(), MINT_DISCRIMINATOR);
-    let mint_program = Pubkey::new_unique();
+
     let mint_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: MINT_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: vec![mint_program], // Valid non-empty vector
+        program_addresses: get_default_verification_programs(), // Valid non-empty vector
     };
 
     initialize_verification_config(
@@ -1490,10 +1496,10 @@ async fn test_transfer_fails_with_empty_verification_config() {
         .destination(source_account)
         .amount(200_000)
         .instruction();
-
+    let dummy_mint_ix = create_dummy_verification_from_instruction(&mint_ix);
     let result = send_tx(
         &context.banks_client,
-        vec![mint_ix],
+        vec![dummy_mint_ix, mint_ix],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
@@ -1516,10 +1522,11 @@ async fn test_transfer_fails_with_empty_verification_config() {
         .recipient(context.payer.pubkey())
         .trim_verification_config_args(trim_verification_config_args)
         .instruction();
+    let dummy_trim_ix = create_dummy_verification_from_instruction(&trim_config_ix);
 
     let result = send_tx(
         &context.banks_client,
-        vec![trim_config_ix],
+        vec![dummy_trim_ix, trim_config_ix],
         &context.payer.pubkey(),
         vec![&context.payer],
     )

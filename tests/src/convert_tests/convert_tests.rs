@@ -9,8 +9,9 @@ use crate::{
     helpers::{
         assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
         create_mint_verification_config, create_spl_account, create_token_account_and_mint_tokens,
-        find_permanent_delegate_pda, from_ui_amount, get_token_account_state,
-        mint_tokens_to, start_with_context, start_with_context_and_accounts,
+        find_permanent_delegate_pda, from_ui_amount, get_default_verification_programs,
+        get_token_account_state, mint_tokens_to, start_with_context,
+        start_with_context_and_accounts,
     },
     rate_tests::rate_helpers::create_rate_account,
     receipt_tests::receipt_helpers::find_common_action_receipt_pda,
@@ -41,7 +42,7 @@ async fn test_should_convert_successfully() {
         context,
         &mint_keypair_from,
         mint_authority_pda_from.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(mint_creator),
     )
     .await;
@@ -77,7 +78,7 @@ async fn test_should_convert_successfully() {
         context,
         &mint_keypair_to,
         mint_authority_pda_to.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -188,7 +189,7 @@ async fn test_should_not_convert_twice() {
         context,
         &mint_keypair_from,
         mint_authority_pda_from.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -224,7 +225,7 @@ async fn test_should_not_convert_twice() {
         context,
         &mint_keypair_to,
         mint_authority_pda_to.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -334,7 +335,7 @@ async fn test_should_not_convert_insufficient_tokens_amount() {
         context,
         &mint_keypair_from,
         mint_authority_pda_from.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -360,7 +361,7 @@ async fn test_should_not_convert_insufficient_tokens_amount() {
         context,
         &mint_keypair_to,
         mint_authority_pda_to.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -482,7 +483,7 @@ async fn test_should_fail_when_conversion_target_amount_zero() {
         context,
         &mint_keypair_from,
         mint_authority_pda_from.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -518,7 +519,7 @@ async fn test_should_fail_when_conversion_target_amount_zero() {
         context,
         &mint_keypair_to,
         mint_authority_pda_to.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -604,7 +605,7 @@ async fn test_should_not_panic_when_overflow_occur() {
         context,
         &mint_keypair_from,
         mint_authority_pda_from.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;
@@ -640,7 +641,7 @@ async fn test_should_not_panic_when_overflow_occur() {
         context,
         &mint_keypair_to,
         mint_authority_pda_to.clone(),
-        vec![],
+        get_default_verification_programs(),
         None,
     )
     .await;

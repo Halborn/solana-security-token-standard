@@ -9,7 +9,7 @@ use solana_sdk::signature::{Keypair, Signer};
 use crate::{
     helpers::{
         assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        create_spl_account, start_with_context,
+        create_spl_account, get_default_verification_programs, start_with_context,
     },
     proof_tests::proof_helpers::{
         create_create_proof_account_verification_config, execute_create_proof_account,
@@ -33,7 +33,7 @@ async fn test_should_create_proof_account() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(&payer),
     )
     .await;
@@ -100,7 +100,7 @@ async fn test_should_not_create_proof_account_twice() {
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(&payer),
     )
     .await;
@@ -224,7 +224,7 @@ async fn test_should_not_create_proof_account(
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(&payer),
     )
     .await;

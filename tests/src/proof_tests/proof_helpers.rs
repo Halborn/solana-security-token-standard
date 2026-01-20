@@ -11,7 +11,9 @@ use solana_program_test::{BanksClient, BanksClientError};
 use solana_pubkey::Pubkey;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
-use crate::helpers::{create_verification_config, send_tx};
+use crate::helpers::{
+    create_dummy_verification_from_instruction, create_verification_config, send_tx,
+};
 
 pub async fn execute_create_proof_account(
     banks_client: &BanksClient,
@@ -37,7 +39,15 @@ pub async fn execute_create_proof_account(
     }
     .instruction(CreateProofAccountInstructionArgs { create_proof_args });
 
-    send_tx(&banks_client, vec![ix], &payer_pubkey, vec![payer]).await
+    let dummy_ix = create_dummy_verification_from_instruction(&ix);
+
+    send_tx(
+        &banks_client,
+        vec![dummy_ix, ix],
+        &payer_pubkey,
+        vec![payer],
+    )
+    .await
 }
 
 pub async fn execute_update_proof_account(
@@ -64,7 +74,15 @@ pub async fn execute_update_proof_account(
     }
     .instruction(UpdateProofAccountInstructionArgs { update_proof_args });
 
-    send_tx(&banks_client, vec![ix], &payer_pubkey, vec![payer]).await
+    let dummy_ix = create_dummy_verification_from_instruction(&ix);
+
+    send_tx(
+        &banks_client,
+        vec![dummy_ix, ix],
+        &payer_pubkey,
+        vec![payer],
+    )
+    .await
 }
 
 pub fn find_proof_pda(token_account: &Pubkey, action_id: u64) -> (Pubkey, u8) {

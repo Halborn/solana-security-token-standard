@@ -9,8 +9,9 @@ use solana_sdk::{
 };
 
 use crate::helpers::{
-    create_minimal_security_token_mint, create_mint_verification_config,
-    create_token_account_and_mint_tokens, create_verification_config, send_tx,
+    create_dummy_verification_from_instruction, create_minimal_security_token_mint,
+    create_mint_verification_config, create_token_account_and_mint_tokens,
+    create_verification_config, get_default_verification_programs, send_tx,
 };
 
 /// Build and send Convert instruction
@@ -51,7 +52,9 @@ pub async fn execute_convert(
     }
     .instruction(ConvertInstructionArgs { convert_args });
 
-    send_tx(banks_client, vec![convert_ix], &payer.pubkey(), vec![payer]).await
+    let dummy_convert_ix = create_dummy_verification_from_instruction(&convert_ix);
+
+    send_tx(banks_client, vec![dummy_convert_ix, convert_ix], &payer.pubkey(), vec![payer]).await
 }
 
 pub async fn create_convert_verification_config(
@@ -98,7 +101,7 @@ pub async fn build_creator_resources(
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(mint_creator),
     )
     .await;
@@ -107,7 +110,7 @@ pub async fn build_creator_resources(
         context,
         &mint_keypair,
         mint_authority_pda.clone(),
-        vec![],
+        get_default_verification_programs(),
         Some(mint_creator),
     )
     .await;
