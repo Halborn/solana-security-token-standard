@@ -81,6 +81,7 @@ impl ClaimDistributionArgs {
             0 => None,
             1 => {
                 let proof_data = Self::try_proof_data_from_bytes(&data[offset + 1..])?;
+                Self::validate_proof_data_len(&proof_data)?;
                 Self::validate_proof_data(&proof_data)?;
                 Some(proof_data)
             }
@@ -190,6 +191,14 @@ mod tests {
         "Zero merkle root should be invalid"
     )]
     #[case(42u64, 1u64, random_32_bytes(), 0u32, Some(vec![EMPTY_MERKLE_TREE_NODE]), "Zero proof node should be invalid")]
+    #[case(
+        42u64,
+        1u64,
+        random_32_bytes(),
+        0u32,
+        Some(random_32_bytes_vec(33)),
+        "Proof exceeding MAX_PROOF_LEVELS should be invalid"
+    )]
     fn test_claim_distribution_args_invalid_deserialization(
         #[case] action_id: u64,
         #[case] amount: u64,

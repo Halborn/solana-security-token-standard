@@ -50,6 +50,7 @@ impl CloseClaimReceiptArgs {
             0 => None,
             1 => {
                 let proof_data = Self::try_proof_data_from_bytes(&data[offset..])?;
+                Self::validate_proof_data_len(&proof_data)?;
                 Self::validate_proof_data(&proof_data)?;
                 Some(proof_data)
             }
@@ -97,7 +98,7 @@ mod tests {
     #[rstest]
     #[case(42u64, None)]
     #[case(1u64, Some(random_32_bytes_vec(3)))]
-    #[case(u64::MAX, Some(random_32_bytes_vec(42)))]
+    #[case(u64::MAX, Some(random_32_bytes_vec(32)))]
     fn test_close_claim_receipt_args_try_from_bytes(
         #[case] action_id: u64,
         #[case] merkle_proof: Option<ProofData>,
@@ -118,6 +119,11 @@ mod tests {
     #[case(0u64, None, "Zero action_id should be invalid")]
     #[case(5u64, Some(vec![EMPTY_MERKLE_TREE_NODE, random_32_bytes(), random_32_bytes()]), "CloseClaimReceiptArgs proof_data with zero node should be invalid")]
     #[case(5u64, Some(vec![]), "CloseClaimReceiptArgs with empty proof_data should be invalid")]
+    #[case(
+        5u64,
+        Some(random_32_bytes_vec(33)),
+        "CloseClaimReceiptArgs with proof_data exceeding MAX_PROOF_LEVELS should be invalid"
+    )]
     fn test_close_claim_receipt_args_validation(
         #[case] action_id: u64,
         #[case] merkle_proof: Option<ProofData>,
