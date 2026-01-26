@@ -8,7 +8,7 @@ pub type ProofData = Vec<ProofNode>;
 
 pub const MERKLE_TREE_NODE_LEN: usize = 32;
 pub const MERKLE_ROOT_LEN: usize = 32;
-/// Maximum number of levels (nodes) in a Merkle proof. 32 levels provides 2^32 (~4.3 billion) leaves,
+/// Maximum number of levels (nodes) in a Merkle proof. 32 levels supports up to 2^32 (~4.3 billion) leaves.
 pub const MAX_PROOF_LEVELS: usize = 32;
 pub const EMPTY_MERKLE_TREE_NODE: ProofNode = [0u8; MERKLE_TREE_NODE_LEN];
 pub const EMPTY_MERKLE_ROOT: MerkleTreeRoot = EMPTY_MERKLE_TREE_NODE;
