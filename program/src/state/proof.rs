@@ -11,7 +11,8 @@ use shank::ShankAccount;
 use crate::{
     constants::seeds::PROOF_ACCOUNT,
     merkle_tree_utils::{
-        MerkleTreeNode, ProofData, ProofNode, EMPTY_MERKLE_TREE_NODE, MERKLE_TREE_NODE_LEN,
+        MerkleTreeNode, ProofData, ProofNode, EMPTY_MERKLE_TREE_NODE, MAX_PROOF_LEVELS,
+        MERKLE_TREE_NODE_LEN,
     },
     modules::{verify_account_initialized, verify_pda_keys_match},
     state::{
@@ -78,12 +79,14 @@ pub trait ProofDataDeserializer {
 pub trait ProofDataValidator {
     fn error() -> ProgramError;
 
-    /// Validate proof data length is sufficient
+    /// Validate proof data length is within valid bounds
     fn validate_proof_data_len(data: &ProofData) -> ProgramResult {
         if data.is_empty() {
             return Err(Self::error());
         }
-
+        if data.len() > MAX_PROOF_LEVELS {
+            return Err(Self::error());
+        }
         Ok(())
     }
 
@@ -362,6 +365,25 @@ mod tests {
         assert_eq!(proof.data[offset], new_node);
         assert_eq!(proof.data[1], proof_data[1]);
         assert_eq!(proof.data.len(), 2);
+    }
+
+    #[test]
+    fn test_proof_should_not_create_proof_with_too_many_levels() {
+        let bump = 5u8;
+
+        // 33 levels should fail validation (exceeds MAX_PROOF_LEVELS)
+        let proof_33_levels = random_32_bytes_vec(33);
+        let proof_error = Proof::new(&proof_33_levels, bump)
+            .expect_err("Proof with 33 levels should fail validation");
+        assert_eq!(proof_error, ProgramError::InvalidAccountData);
+
+        // 32 levels should succeed (at the limit)
+        let proof_32_levels = random_32_bytes_vec(32);
+        let result = Proof::new(&proof_32_levels, bump);
+        assert!(
+            result.is_ok(),
+            "Proof with 32 levels should pass validation"
+        );
     }
 
     #[test]

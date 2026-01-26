@@ -8,6 +8,8 @@ pub type ProofData = Vec<ProofNode>;
 
 pub const MERKLE_TREE_NODE_LEN: usize = 32;
 pub const MERKLE_ROOT_LEN: usize = 32;
+/// Maximum number of levels (nodes) in a Merkle proof. 32 levels provides 2^32 (~4.3 billion) leaves,
+pub const MAX_PROOF_LEVELS: usize = 32;
 pub const EMPTY_MERKLE_TREE_NODE: ProofNode = [0u8; MERKLE_TREE_NODE_LEN];
 pub const EMPTY_MERKLE_ROOT: MerkleTreeRoot = EMPTY_MERKLE_TREE_NODE;
 
@@ -29,8 +31,11 @@ pub fn verify_merkle_proof(
 ) -> bool {
     if !proof.is_empty() {
         let levels = proof.len();
-        let max_leaves = 1u32 << levels;
-        if leaf_index >= max_leaves {
+        if levels > MAX_PROOF_LEVELS {
+            return false;
+        }
+        let max_leaves = 1u64 << levels;
+        if (leaf_index as u64) >= max_leaves {
             return false;
         }
     }
@@ -136,6 +141,47 @@ mod tests {
                 idx
             );
         }
+    }
+
+    #[test]
+    fn test_merkle_tree_utils_should_reject_proof_exceeding_max_levels() {
+        let node = random_32_bytes();
+        let root = random_32_bytes();
+        let leaf_index = 0u32;
+
+        // 33 levels - exceeds MAX_PROOF_LEVELS (32)
+        let proof_33_levels = random_32_bytes_vec(33);
+        assert!(
+            !verify_merkle_proof(&node, &root, &proof_33_levels, leaf_index),
+            "Proof with 33 levels should be rejected"
+        );
+
+        // 64 levels - would overflow even u64
+        let proof_64_levels = random_32_bytes_vec(64);
+        assert!(
+            !verify_merkle_proof(&node, &root, &proof_64_levels, leaf_index),
+            "Proof with 64 levels should be rejected"
+        );
+    }
+
+    #[test]
+    fn test_merkle_tree_utils_should_accept_proof_at_max_levels() {
+        // 32 levels is the maximum allowed (supports up to 2^32 leaves)
+        let node = random_32_bytes();
+        let proof_32_levels = random_32_bytes_vec(32);
+        let leaf_index = 0u32;
+
+        // Compute expected root by manually hashing through all 32 levels
+        let mut expected_root = node;
+        for sibling in &proof_32_levels {
+            expected_root = hashv(&[&expected_root, sibling]).to_bytes();
+        }
+
+        // Verify the proof is accepted and computes correctly when given matching root
+        assert!(
+            verify_merkle_proof(&node, &expected_root, &proof_32_levels, leaf_index),
+            "Proof with 32 levels should be accepted"
+        );
     }
 
     #[test]
