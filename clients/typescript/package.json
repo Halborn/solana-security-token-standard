@@ -7,14 +7,21 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
+    "test": "mocha --require tsx/cjs --extensions ts test/**/*.ts",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "author": "SSTS Foundation",
   "license": "Apache-2.0",
   "dependencies": {
+    "@noble/hashes": "^1.3.3",
     "@solana/kit": "^2.1.0"
   },
   "devDependencies": {
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
+    "chai": "^4.3.10",
+    "mocha": "^10.2.0",
+    "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   },
   "files": [
