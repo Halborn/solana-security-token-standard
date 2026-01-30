@@ -95,12 +95,13 @@ export function createMerkleTreeLeafNode(
  * Formula: output_amount = (input_amount * rate_to) / rate_from
  *
  * @param inputAmount - The amount being converted
- * @param rateFrom - The rate of the input token
- * @param rateTo - The rate of the output token
+ * @param rateFrom - The denominator of the conversion ratio (e.g., 1 in a 1:2 ratio)
+ * @param rateTo - The numerator of the conversion ratio (e.g., 2 in a 1:2 ratio)
  * @returns The output amount after conversion
  *
  * @example
  * ```typescript
+ * // Convert at 1:2 ratio (1 token becomes 2 tokens)
  * const outputAmount = calculateConvertAmount(1000n, 1n, 2n);
  * console.log(outputAmount); // 2000n
  * ```
@@ -123,8 +124,8 @@ export function calculateConvertAmount(
  * Formula: output_amount = (input_amount * split_rate_to) / split_rate_from
  *
  * @param inputAmount - The amount being split
- * @param rateFrom - The numerator of the split rate
- * @param rateTo - The denominator of the split rate
+ * @param rateFrom - The denominator of the split ratio (e.g., 1 in a 1:2 ratio)
+ * @param rateTo - The numerator of the split ratio (e.g., 2 in a 1:2 ratio)
  * @returns The output amount after split
  *
  * @example
