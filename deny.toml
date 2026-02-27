@@ -1,6 +1,14 @@
+[graph]
+# Exclude the integration test crate from the dependency graph.
+# All remaining vulnerabilities are in solana-program-test (test harness only)
+# and cannot be fixed without a major Solana SDK upgrade.
+exclude = ["security-token-tests"]
+
 [advisories]
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/RustSec/advisory-db"]
+# unmaintained: only flag our own workspace crates, not transitive Solana SDK deps
+unmaintained = "workspace"
 ignore = []
 
 [licenses]
@@ -16,6 +24,7 @@ allow = [
     "MPL-2.0",
     "0BSD",
     "CDLA-Permissive-2.0",
+    "Zlib",
 ]
 confidence-threshold = 0.8
 exceptions = []

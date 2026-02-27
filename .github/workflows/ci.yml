@@ -20,7 +20,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.87.0"
+          toolchain: "1.88.0"
 
       - name: Install Solana CLI
         run: |
@@ -114,7 +114,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.87.0"
+          toolchain: "1.88.0"
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -123,18 +123,17 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ~/.cargo/bin
-          key: ${{ runner.os }}-cargo-audit-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-deny-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-audit-
+            ${{ runner.os }}-cargo-deny-
             ${{ runner.os }}-cargo-
 
       - name: Install cargo tools (pinned)
         run: |
-          cargo install cargo-audit --version 0.22.1 --locked
-          cargo install cargo-deny --version 0.18.3 --locked
+          cargo install cargo-deny --version 0.19.0 --locked
 
       - name: Audit advisories
-        run: cargo audit
+        run: cargo deny check advisories -c deny.toml
 
       - name: Audit licenses
         run: cargo deny check licenses -c deny.toml --hide-inclusion-graph
@@ -151,7 +150,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.87.0"
+          toolchain: "1.88.0"
 
       - name: Install Solana CLI
         run: |
