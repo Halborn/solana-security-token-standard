@@ -130,7 +130,11 @@ jobs:
 
       - name: Install cargo tools (pinned)
         run: |
-          cargo install cargo-deny --version 0.19.0 --locked
+          if cargo deny --version 2>/dev/null | grep -qF "cargo-deny 0.19.0"; then
+            echo "cargo-deny 0.19.0 already cached, skipping install"
+          else
+            cargo install cargo-deny --version 0.19.0 --locked
+          fi
 
       - name: Audit advisories
         run: cargo deny check advisories -c deny.toml
