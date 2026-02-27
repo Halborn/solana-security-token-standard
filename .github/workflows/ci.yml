@@ -78,11 +78,11 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.87.0"
+          toolchain: "1.88.0"
           components: rustfmt, clippy
 
       - name: Ensure rustfmt & clippy components
-        run: rustup component add rustfmt clippy --toolchain 1.87.0
+        run: rustup component add rustfmt clippy --toolchain 1.88.0
 
       - name: Cache dependencies
         uses: actions/cache@v4
