@@ -178,7 +178,7 @@ The test script automatically runs additional quality checks:
 
 - Code formatting (`cargo fmt --check`)
 - Linting (`cargo clippy`)
-- Security audit (`cargo audit` - if installed)
+- Security audit (`cargo deny check advisories -c deny.toml` - if installed)
 
 These checks run automatically and don't require any parameters.
 

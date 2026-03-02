@@ -89,14 +89,14 @@ echo ""
 echo "📋 Running Security Audit..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-if command -v cargo-audit &> /dev/null; then
-    if cargo audit; then
+if command -v cargo-deny &> /dev/null; then
+    if cargo deny check advisories -c deny.toml; then
         echo "✅ Security audit passed!"
     else
         echo "⚠️  Security audit found issues!"
     fi
 else
-    echo "⚠️  cargo-audit not installed. Run 'cargo install cargo-audit --version 0.22.1 --locked' to enable security audits."
+    echo "⚠️  cargo-deny not installed. Run 'cargo install cargo-deny --version 0.19.0 --locked' to enable security audits."
 fi
 
 # Generate test coverage report (if tarpaulin is installed)
