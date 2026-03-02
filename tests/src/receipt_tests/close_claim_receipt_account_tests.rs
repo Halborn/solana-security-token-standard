@@ -8,8 +8,9 @@ use crate::{
         execute_claim_distribution, start_with_context_and_transfer_hook,
     },
     helpers::{
-        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        create_spl_account, get_balance, get_default_verification_programs, TX_FEE,
+        advance_slot, assert_account_exists, assert_transaction_success,
+        create_minimal_security_token_mint, create_spl_account, get_balance,
+        get_default_verification_programs, TX_FEE,
     },
     proof_tests::proof_helpers::{
         create_create_proof_account_verification_config, execute_create_proof_account,
@@ -148,6 +149,8 @@ async fn test_should_close_claim_receipt_proof_argument() {
         rent_refund, receipt_account_rent,
         "Payer should receive rent lamports from closed Receipt account"
     );
+
+    advance_slot(context).await;
 
     // Close again should fail
     let result = close_claim_receipt_account(
@@ -328,6 +331,8 @@ async fn test_should_close_claim_receipt_proof_account() {
         rent_refund, receipt_account_rent,
         "Payer should receive rent lamports from closed Receipt account"
     );
+    advance_slot(context).await;
+
     // Close again should fail
     let result = close_claim_receipt_account(
         context,

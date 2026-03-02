@@ -13,8 +13,8 @@ use solana_sdk::signature::{Keypair, Signer};
 
 use crate::{
     helpers::{
-        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        find_rate_pda, send_tx, start_with_context,
+        advance_slot, assert_account_exists, assert_transaction_success,
+        create_minimal_security_token_mint, find_rate_pda, send_tx, start_with_context,
     },
     rate_tests::rate_helpers::{close_rate_account, create_rate_account},
 };
@@ -219,6 +219,8 @@ async fn test_should_not_create_rate_account_twice() {
     .await;
     assert_transaction_success(result);
     assert_account_exists(context, rate_pda, true).await;
+
+    advance_slot(context).await;
 
     // Try creating the same Rate account again, should fail
     let (_, result) = create_rate_account(

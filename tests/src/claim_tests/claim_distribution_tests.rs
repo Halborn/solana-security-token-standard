@@ -8,9 +8,9 @@ use crate::{
         execute_claim_distribution, start_with_context_and_transfer_hook,
     },
     helpers::{
-        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        create_spl_account, from_ui_amount, get_default_verification_programs,
-        get_token_account_state,
+        advance_slot, assert_account_exists, assert_transaction_success,
+        create_minimal_security_token_mint, create_spl_account, from_ui_amount,
+        get_default_verification_programs, get_token_account_state,
     },
     proof_tests::proof_helpers::{
         create_create_proof_account_verification_config, execute_create_proof_account,
@@ -612,6 +612,8 @@ async fn test_should_not_claim_distribution_twice() {
     )
     .await;
     assert_transaction_success(result);
+
+    advance_slot(context).await;
 
     // Try to claim again
     let result = execute_claim_distribution(

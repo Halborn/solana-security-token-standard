@@ -8,11 +8,11 @@ use solana_sdk::{
 use crate::{
     convert_tests::convert_helpers::{create_convert_verification_config, execute_convert},
     helpers::{
-        assert_account_exists, assert_transaction_failure, assert_transaction_success,
-        create_minimal_security_token_mint, create_mint_verification_config, create_spl_account,
-        create_token_account_and_mint_tokens, find_permanent_delegate_pda, from_ui_amount,
-        get_balance, get_default_verification_programs, mint_tokens_to, start_with_context,
-        start_with_context_and_accounts, TX_FEE,
+        advance_slot, assert_account_exists, assert_transaction_failure,
+        assert_transaction_success, create_minimal_security_token_mint,
+        create_mint_verification_config, create_spl_account, create_token_account_and_mint_tokens,
+        find_permanent_delegate_pda, from_ui_amount, get_balance, get_default_verification_programs,
+        mint_tokens_to, start_with_context, start_with_context_and_accounts, TX_FEE,
     },
     rate_tests::rate_helpers::create_rate_account,
     receipt_tests::receipt_helpers::{
@@ -149,6 +149,8 @@ async fn test_should_close_action_receipt_account_after_split() {
         rent_refund, receipt_account_rent,
         "Payer should receive rent lamports from closed Receipt account"
     );
+
+    advance_slot(context).await;
 
     // Try closing already closed Receipt account
     let result = close_action_receipt_account(
@@ -302,6 +304,8 @@ async fn test_should_close_action_receipt_account_after_convert() {
         rent_refund, receipt_account_rent,
         "Payer should receive rent lamports from closed Receipt account"
     );
+
+    advance_slot(context).await;
 
     // Try closing already closed Receipt account
     let result = close_action_receipt_account(
