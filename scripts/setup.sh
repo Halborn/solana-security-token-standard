@@ -31,13 +31,12 @@ fi
 
 # Install required Rust components
 echo "🦀 Installing Rust components..."
-RUST_TOOLCHAIN_VERSION="1.87.0"
+RUST_TOOLCHAIN_VERSION="1.88.0"
 rustup component add --toolchain "$RUST_TOOLCHAIN_VERSION" rustfmt clippy
 
-# Install cargo tools (pinned versions for Rust 1.87 compatibility)
+# Install cargo tools (pinned versions for Rust 1.88 compatibility)
 echo "🔨 Installing cargo tools..."
-CARGO_AUDIT_VERSION="0.22.1"
-CARGO_DENY_VERSION="0.18.3"
+CARGO_DENY_VERSION="0.19.0"
 CARGO_EXPAND_VERSION="1.0.118"
 
 install_cargo_tool() {
@@ -56,7 +55,6 @@ install_cargo_tool() {
     cargo install "$name" --version "$version" --locked --force
 }
 
-install_cargo_tool cargo-audit "$CARGO_AUDIT_VERSION"
 install_cargo_tool cargo-deny "$CARGO_DENY_VERSION"
 install_cargo_tool cargo-expand "$CARGO_EXPAND_VERSION"
 

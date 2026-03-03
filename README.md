@@ -16,10 +16,10 @@ A comprehensive security token implementation on Solana using Token-2022 extensi
 
 Before you begin, ensure you have the following installed:
 
-- **Rust** 1.87.0 (pinned via `rust-toolchain.toml`)
+- **Rust** 1.88.0 (pinned via `rust-toolchain.toml`)
   - Install from [https://rustup.rs/](https://rustup.rs/)
   - Required components: `rustfmt`, `clippy`
-  - Note: This repository includes a `rust-toolchain.toml` file; when using `rustup`, the correct Rust version (1.87.0) will be selected automatically. Newer Rust versions are not guaranteed to be compatible.
+  - Note: This repository includes a `rust-toolchain.toml` file; when using `rustup`, the correct Rust version (1.88.0) will be selected automatically. Newer Rust versions are not guaranteed to be compatible.
 - **Solana CLI** (recommended: v2.2.0)
   - Install (pinned): `sh -c "$(curl -sSfL https://release.anza.xyz/v2.2.0/install)"`
   - Verify: `solana --version`
@@ -30,8 +30,7 @@ Before you begin, ensure you have the following installed:
   - Install pnpm: `npm install -g pnpm`
 
 - **Cargo Tools** (optional but recommended):
-  - `cargo-audit` - Security vulnerability scanning
-  - `cargo-deny` - Dependency linting
+  - `cargo-deny` - Security vulnerability scanning & Dependency linting
   - `cargo-expand` - Macro expansion for debugging
 
 ## Installation
@@ -48,7 +47,7 @@ This script will:
 
 - Verify Rust and Solana CLI installations
 - Install required Rust components (`rustfmt`, `clippy`)
-- Install recommended cargo tools (`cargo-audit`, `cargo-deny`, `cargo-expand`)
+- Install recommended cargo tools (`cargo-deny`, `cargo-expand`)
 - Configure Solana CLI for devnet
 - Generate a keypair if one doesn't exist
 - Build both the main program and transfer hook
@@ -61,9 +60,8 @@ If you prefer manual setup:
 # Install Rust components
 rustup component add rustfmt clippy
 
-# Install cargo tools (pinned for Rust 1.87 compatibility)
-cargo install cargo-audit --version 0.22.1 --locked
-cargo install cargo-deny --version 0.18.3 --locked
+# Install cargo tools (pinned for Rust 1.88 compatibility)
+cargo install cargo-deny --version 0.19.0 --locked
 cargo install cargo-expand --version 1.0.118 --locked
 
 # Configure Solana for devnet
@@ -178,7 +176,7 @@ The test script automatically runs additional quality checks:
 
 - Code formatting (`cargo fmt --check`)
 - Linting (`cargo clippy`)
-- Security audit (`cargo audit` - if installed)
+- Security audit (`cargo deny check advisories -c deny.toml` - if installed)
 
 These checks run automatically and don't require any parameters.
 
