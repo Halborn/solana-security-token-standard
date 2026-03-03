@@ -20,6 +20,9 @@ import { keccak_256 } from '@noble/hashes/sha3';
  * ```
  */
 export function hashProofData(proof: Uint8Array[]): Uint8Array {
+  if (!proof.every((node) => node.length === 32)) {
+    throw new Error('every proof node must be exactly 32 bytes');
+  }
   // Flatten proof array into single Uint8Array by concatenating all nodes
   const proofData = new Uint8Array(proof.length * 32);
   proof.forEach((node, i) => {

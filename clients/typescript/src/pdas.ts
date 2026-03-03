@@ -66,6 +66,9 @@ export const deriveVerificationConfigPda = ({
   mint: Address;
   discriminator: number;
 }) => {
+  if (!Number.isInteger(discriminator) || discriminator < 0 || discriminator > 255) {
+    throw new Error('discriminator must be an integer in the range 0–255');
+  }
   const addressEncoder = getAddressEncoder();
   return getProgramDerivedAddress({
     programAddress: SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS,
@@ -222,6 +225,9 @@ export const deriveClaimReceiptPda = ({
   if (actionId === 0n) {
     throw new Error('action_id must not be 0');
   }
+  if (proofHash.length !== 32) {
+    throw new Error('proofHash must be exactly 32 bytes');
+  }
   const addressEncoder = getAddressEncoder();
   const u64Encoder = getU64Encoder();
   return getProgramDerivedAddress({
@@ -290,6 +296,9 @@ export const deriveDistributionEscrowAuthorityPda = ({
 }) => {
   if (actionId === 0n) {
     throw new Error('action_id must not be 0');
+  }
+  if (merkleRoot.length !== 32) {
+    throw new Error('merkleRoot must be exactly 32 bytes');
   }
   const addressEncoder = getAddressEncoder();
   const u64Encoder = getU64Encoder();

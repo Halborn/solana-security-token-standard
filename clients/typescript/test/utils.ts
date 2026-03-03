@@ -9,6 +9,15 @@ import {
 
 describe('Utils', () => {
   describe('hashProofData', () => {
+    it('should throw when a proof node is not 32 bytes', () => {
+      const node1 = new Uint8Array(32).fill(1);
+      const shortNode = new Uint8Array(16).fill(2);
+      assert.throws(
+        () => hashProofData([node1, shortNode]),
+        'every proof node must be exactly 32 bytes',
+      );
+    });
+
     it('should be deterministic and order-sensitive', () => {
       const node1 = new Uint8Array(32).fill(1);
       const node2 = new Uint8Array(32).fill(2);
