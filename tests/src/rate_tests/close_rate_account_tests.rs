@@ -7,8 +7,9 @@ use solana_sdk::{
 
 use crate::{
     helpers::{
-        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        get_balance, start_with_context, start_with_context_and_accounts, TX_FEE,
+        advance_slot, assert_account_exists, assert_transaction_success,
+        create_minimal_security_token_mint, get_balance, start_with_context,
+        start_with_context_and_accounts, TX_FEE,
     },
     rate_tests::rate_helpers::{close_rate_account, create_rate_account},
 };
@@ -132,6 +133,8 @@ async fn test_should_close_rate_account() {
         rent_refund2, rate_account_rent2,
         "Payer should receive rent lamports from closed Rate account 2"
     );
+
+    advance_slot(context).await;
 
     // Try closing already closed Rate account
     let result = close_rate_account(
