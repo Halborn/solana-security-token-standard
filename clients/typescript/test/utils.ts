@@ -34,6 +34,18 @@ describe('Utils', () => {
       // Output is 32 bytes
       assert.equal(hash1a.length, 32);
     });
+
+    it('should match on-chain keccak256 output for known inputs', () => {
+      // Golden vector: keccak256(fill(1,32) ++ fill(2,32))
+      // Must match solana_keccak_hasher::hashv on-chain
+      const node1 = new Uint8Array(32).fill(1);
+      const node2 = new Uint8Array(32).fill(2);
+      const expected = Buffer.from(
+        '346d8c96a2454213fcc0daff3c96ad0398148181b9fa6488f7ae2c0af5b20aa0',
+        'hex',
+      );
+      assert.deepEqual(hashProofData([node1, node2]), new Uint8Array(expected));
+    });
   });
 
   describe('createMerkleTreeLeafNode', () => {
@@ -60,6 +72,21 @@ describe('Utils', () => {
 
       assert.deepEqual(leaf1, leaf2);
       assert.equal(leaf1.length, 32);
+    });
+
+    it('should match on-chain keccak256 output for known inputs', () => {
+      // Golden vector: keccak256(tokenAccount(32) ++ mint(32) ++ actionId(8,le) ++ amount(8,le))
+      // Must match on-chain leaf creation logic
+      const tokenAccount = address('tbFevHibEdBNFJfZ7xKC8k1th8pt2YPEXTk4sGMxCGa');
+      const mint = address('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+      const expected = Buffer.from(
+        '04cdba254800b57c0aab166dd87f7755b1b94f699ed23bee73aed2d0d5adaa83',
+        'hex',
+      );
+      assert.deepEqual(
+        createMerkleTreeLeafNode(tokenAccount, mint, 12345n, 1000000000n),
+        new Uint8Array(expected),
+      );
     });
 
     it('should produce different leaves for different inputs', () => {

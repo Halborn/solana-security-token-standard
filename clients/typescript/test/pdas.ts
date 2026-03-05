@@ -1,10 +1,5 @@
 import { assert } from 'chai';
-import {
-  address,
-  getAddressEncoder,
-  getProgramDerivedAddress,
-  getU64Encoder,
-} from '@solana/kit';
+import { address } from '@solana/kit';
 import {
   deriveMintAuthorityPda,
   deriveVerificationConfigPda,
@@ -16,17 +11,7 @@ import {
   deriveClaimReceiptPda,
   deriveProofPda,
   deriveDistributionEscrowAuthorityPda,
-  MINT_AUTHORITY_SEED,
-  FREEZE_AUTHORITY_SEED,
-  PAUSE_AUTHORITY_SEED,
-  PERMANENT_DELEGATE_SEED,
-  VERIFICATION_CONFIG_SEED,
-  RATE_SEED,
-  RECEIPT_SEED,
-  PROOF_SEED,
-  DISTRIBUTION_ESCROW_AUTHORITY_SEED,
 } from '../src';
-import { SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS } from '../src/generated';
 
 const MINT = address('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 const TOKEN_ACCOUNT = address('G6QmvUp3a1Kv9rX2LqHDH8AWcKD8yaufcoXEB1h6SzN8');
@@ -131,114 +116,69 @@ describe('PDAs', () => {
   });
 
   describe('PDA derivation', () => {
-    const enc = getAddressEncoder();
-    const u64 = getU64Encoder();
-    const program = SECURITY_TOKEN_PROGRAM_PROGRAM_ADDRESS;
+    // Precomputed golden addresses for program SSTS8Qk2bW3aVaBEsY1Ras95YdbaaYQQx21JWHxvjap.
+    // If any seed string or encoding changes on-chain, these assertions will fail.
 
-    it('should derive mint authority PDA from correct seeds', async () => {
-      const expected = await getProgramDerivedAddress({
-        programAddress: program,
-        seeds: [MINT_AUTHORITY_SEED, enc.encode(MINT), enc.encode(CREATOR)],
-      });
-      assert.deepEqual(await deriveMintAuthorityPda({ mint: MINT, creator: CREATOR }), expected);
+    it('should derive mint authority PDA', async () => {
+      const [pda, bump] = await deriveMintAuthorityPda({ mint: MINT, creator: CREATOR });
+      assert.equal(pda, 'GLpBiBfz8zzoyAFpbkymBPTMBYrBSsHv4qs5Fs25EUQt');
+      assert.equal(bump, 255);
     });
 
-    it('should derive verification config PDA from correct seeds', async () => {
-      const discriminator = 1;
-      const expected = await getProgramDerivedAddress({
-        programAddress: program,
-        seeds: [VERIFICATION_CONFIG_SEED, enc.encode(MINT), new Uint8Array([discriminator])],
-      });
-      assert.deepEqual(
-        await deriveVerificationConfigPda({ mint: MINT, discriminator }),
-        expected,
-      );
+    it('should derive verification config PDA', async () => {
+      const [pda, bump] = await deriveVerificationConfigPda({ mint: MINT, discriminator: 1 });
+      assert.equal(pda, 'DKJ5KnnqTCbae68qiMfsJdszeoZcfn6GqSFBMjEN4DpY');
+      assert.equal(bump, 255);
     });
 
-    it('should derive freeze authority PDA from correct seeds', async () => {
-      const expected = await getProgramDerivedAddress({
-        programAddress: program,
-        seeds: [FREEZE_AUTHORITY_SEED, enc.encode(MINT)],
-      });
-      assert.deepEqual(await deriveFreezeAuthorityPda({ mint: MINT }), expected);
+    it('should derive freeze authority PDA', async () => {
+      const [pda, bump] = await deriveFreezeAuthorityPda({ mint: MINT });
+      assert.equal(pda, '4SPTobhTmzMs9VKB97ruzeC1Me8UaecmhkLN6E5Mzb3S');
+      assert.equal(bump, 255);
     });
 
-    it('should derive pause authority PDA from correct seeds', async () => {
-      const expected = await getProgramDerivedAddress({
-        programAddress: program,
-        seeds: [PAUSE_AUTHORITY_SEED, enc.encode(MINT)],
-      });
-      assert.deepEqual(await derivePauseAuthorityPda({ mint: MINT }), expected);
+    it('should derive pause authority PDA', async () => {
+      const [pda, bump] = await derivePauseAuthorityPda({ mint: MINT });
+      assert.equal(pda, '7nze7BaooFMi2xverhsMvkkDcHsvicxinB3Vzzh6KEtz');
+      assert.equal(bump, 255);
     });
 
-    it('should derive permanent delegate PDA from correct seeds', async () => {
-      const expected = await getProgramDerivedAddress({
-        programAddress: program,
-        seeds: [PERMANENT_DELEGATE_SEED, enc.encode(MINT)],
-      });
-      assert.deepEqual(await derivePermanentDelegatePda({ mint: MINT }), expected);
+    it('should derive permanent delegate PDA', async () => {
+      const [pda, bump] = await derivePermanentDelegatePda({ mint: MINT });
+      assert.equal(pda, '9waW3SJnxdsAQfer8n7eFKZBxAFfpsh4DShxoow2k4s8');
+      assert.equal(bump, 255);
     });
 
-    it('should derive rate PDA from correct seeds', async () => {
-      const expected = await getProgramDerivedAddress({
-        programAddress: program,
-        seeds: [RATE_SEED, u64.encode(ACTION_ID), enc.encode(MINT_FROM), enc.encode(MINT_TO)],
-      });
-      assert.deepEqual(
-        await deriveRatePda({ actionId: ACTION_ID, mintFrom: MINT_FROM, mintTo: MINT_TO }),
-        expected,
-      );
+    it('should derive rate PDA', async () => {
+      const [pda, bump] = await deriveRatePda({ actionId: ACTION_ID, mintFrom: MINT_FROM, mintTo: MINT_TO });
+      assert.equal(pda, 'DaBRX4SQdMZECJGaHcN33CVAVyA2QCLN1CHsoDuQG9X5');
+      assert.equal(bump, 255);
     });
 
-    it('should derive common action receipt PDA from correct seeds', async () => {
-      const expected = await getProgramDerivedAddress({
-        programAddress: program,
-        seeds: [RECEIPT_SEED, enc.encode(MINT), u64.encode(ACTION_ID)],
-      });
-      assert.deepEqual(await deriveCommonActionReceiptPda({ mint: MINT, actionId: ACTION_ID }), expected);
+    it('should derive common action receipt PDA', async () => {
+      const [pda, bump] = await deriveCommonActionReceiptPda({ mint: MINT, actionId: ACTION_ID });
+      assert.equal(pda, '8NGjM9JnVqUsuZWgrifBhgMqKyUu98mfrfVA6RaFAZCC');
+      assert.equal(bump, 255);
     });
 
-    it('should derive claim receipt PDA from correct seeds', async () => {
+    it('should derive claim receipt PDA', async () => {
       const proofHash = new Uint8Array(32).fill(1);
-      const expected = await getProgramDerivedAddress({
-        programAddress: program,
-        seeds: [
-          RECEIPT_SEED,
-          enc.encode(MINT),
-          enc.encode(TOKEN_ACCOUNT),
-          u64.encode(ACTION_ID),
-          proofHash,
-        ],
-      });
-      assert.deepEqual(
-        await deriveClaimReceiptPda({ mint: MINT, tokenAccount: TOKEN_ACCOUNT, actionId: ACTION_ID, proofHash }),
-        expected,
-      );
+      const [pda, bump] = await deriveClaimReceiptPda({ mint: MINT, tokenAccount: TOKEN_ACCOUNT, actionId: ACTION_ID, proofHash });
+      assert.equal(pda, 'FYzTLNeNxQh8B6kdFRRPKn1oWh8Qd6YMmQbD5umBWSCi');
+      assert.equal(bump, 255);
     });
 
-    it('should derive proof PDA from correct seeds', async () => {
-      const expected = await getProgramDerivedAddress({
-        programAddress: program,
-        seeds: [PROOF_SEED, enc.encode(TOKEN_ACCOUNT), u64.encode(ACTION_ID)],
-      });
-      assert.deepEqual(await deriveProofPda({ tokenAccount: TOKEN_ACCOUNT, actionId: ACTION_ID }), expected);
+    it('should derive proof PDA', async () => {
+      const [pda, bump] = await deriveProofPda({ tokenAccount: TOKEN_ACCOUNT, actionId: ACTION_ID });
+      assert.equal(pda, 'C8iRbMV8tjTBKtJUuLQMSKz2cwbyvwvpGxm2mK1UjL9u');
+      assert.equal(bump, 251);
     });
 
-    it('should derive distribution escrow authority PDA from correct seeds', async () => {
+    it('should derive distribution escrow authority PDA', async () => {
       const merkleRoot = new Uint8Array(32).fill(2);
-      const expected = await getProgramDerivedAddress({
-        programAddress: program,
-        seeds: [
-          DISTRIBUTION_ESCROW_AUTHORITY_SEED,
-          enc.encode(MINT),
-          u64.encode(ACTION_ID),
-          merkleRoot,
-        ],
-      });
-      assert.deepEqual(
-        await deriveDistributionEscrowAuthorityPda({ mint: MINT, actionId: ACTION_ID, merkleRoot }),
-        expected,
-      );
+      const [pda, bump] = await deriveDistributionEscrowAuthorityPda({ mint: MINT, actionId: ACTION_ID, merkleRoot });
+      assert.equal(pda, 'BhiBBbZh2c7ErGrm7AqaCKNdiSJfsYc1Tbi9kLKgeDEe');
+      assert.equal(bump, 253);
     });
   });
 });
