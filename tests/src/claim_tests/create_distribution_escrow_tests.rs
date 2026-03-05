@@ -12,8 +12,8 @@ use crate::{
         merkle_tree_helpers::{create_merkle_tree, Leaf},
     },
     helpers::{
-        assert_transaction_success, create_minimal_security_token_mint, get_token_account_state,
-        start_with_context,
+        advance_slot, assert_transaction_success, create_minimal_security_token_mint,
+        get_token_account_state, start_with_context,
     },
 };
 
@@ -124,6 +124,8 @@ async fn test_should_not_create_distribution_account_twice() {
     )
     .await;
     assert_transaction_success(result);
+
+    advance_slot(context).await;
 
     let second_result = execute_create_distribution_escrow_account(
         &context.banks_client,

@@ -703,3 +703,14 @@ pub async fn get_balance(banks_client: &BanksClient, pubkey: Pubkey) -> u64 {
         .await
         .expect("Should fetch balance")
 }
+
+/// Advance the bank by one slot to get a new blockhash.
+///
+/// In `solana-program-test`, `get_latest_blockhash()` returns the same hash within a slot.
+/// Two transactions with identical content submitted in the same slot will have the same signature,
+/// and the second one will return a cached result from the StatusCache instead of executing the
+/// program. Call this before sending a transaction that is identical to a previous one.
+pub async fn advance_slot(context: &mut ProgramTestContext) {
+    let current_slot = context.banks_client.get_root_slot().await.unwrap();
+    context.warp_to_slot(current_slot + 1).unwrap();
+}

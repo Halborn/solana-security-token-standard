@@ -7,11 +7,11 @@ use crate::{
         build_creator_resources, create_convert_verification_config, execute_convert,
     },
     helpers::{
-        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        create_mint_verification_config, create_spl_account, create_token_account_and_mint_tokens,
-        find_permanent_delegate_pda, from_ui_amount, get_default_verification_programs,
-        get_token_account_state, mint_tokens_to, start_with_context,
-        start_with_context_and_accounts,
+        advance_slot, assert_account_exists, assert_transaction_success,
+        create_minimal_security_token_mint, create_mint_verification_config, create_spl_account,
+        create_token_account_and_mint_tokens, find_permanent_delegate_pda, from_ui_amount,
+        get_default_verification_programs, get_token_account_state, mint_tokens_to,
+        start_with_context, start_with_context_and_accounts,
     },
     rate_tests::rate_helpers::create_rate_account,
     receipt_tests::receipt_helpers::find_common_action_receipt_pda,
@@ -286,6 +286,8 @@ async fn test_should_not_convert_twice() {
     assert_account_exists(context, receipt_pda, true)
         .await
         .expect("Receipt should be created");
+
+    advance_slot(context).await;
 
     let second_conversion = execute_convert(
         &context.banks_client,

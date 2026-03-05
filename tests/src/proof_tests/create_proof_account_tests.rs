@@ -8,8 +8,9 @@ use solana_sdk::signature::{Keypair, Signer};
 
 use crate::{
     helpers::{
-        assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        create_spl_account, get_default_verification_programs, start_with_context,
+        advance_slot, assert_account_exists, assert_transaction_success,
+        create_minimal_security_token_mint, create_spl_account, get_default_verification_programs,
+        start_with_context,
     },
     proof_tests::proof_helpers::{
         create_create_proof_account_verification_config, execute_create_proof_account,
@@ -132,6 +133,8 @@ async fn test_should_not_create_proof_account_twice() {
     assert_account_exists(context, proof_account, true)
         .await
         .unwrap();
+
+    advance_slot(context).await;
 
     // Try creating the same proof account again
     let result = execute_create_proof_account(
