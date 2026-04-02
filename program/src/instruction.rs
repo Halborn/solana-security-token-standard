@@ -385,6 +385,7 @@ mod idl_gen {
         #[account(3, writable, name = "receipt_account")]
         #[account(4, writable, name = "destination")]
         #[account(5, name = "mint_account")]
+        #[account(6, name = "token_account")]
         CloseActionReceiptAccount(CloseActionReceiptArgs) = 22,
 
         // Verification overhead

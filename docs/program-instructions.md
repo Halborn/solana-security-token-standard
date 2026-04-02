@@ -236,7 +236,7 @@ Records that a holder has participated in a corporate action (split/convert) or 
 **PDA Derivation (Action Receipt - for Split/Convert):**
 
 ```
-seeds = ["receipt", mint_address, action_id (8 bytes LE)]
+seeds = ["receipt", mint_address, token_account_address, action_id (8 bytes LE)]
 program_id = Security Token Program
 ```
 
@@ -1147,6 +1147,7 @@ Closes an action receipt account (for Split/Convert) and reclaims rent.
 | 0   | receipt_account |        | ✓        | [Receipt](#receipt) account to close |
 | 1   | destination     |        | ✓        | Recipient for reclaimed rent |
 | 2   | mint_account    |        |          | Mint account                 |
+| 3   | token_account   |        |          | Token account                |
 
 **Arguments:**
 

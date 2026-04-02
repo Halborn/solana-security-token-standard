@@ -113,7 +113,11 @@ async fn test_should_convert_successfully() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, _) = find_common_action_receipt_pda(&mint_pubkey_to, action_id);
+    let (receipt_pda, _) = find_common_action_receipt_pda(
+        &mint_pubkey_to,
+        &token_account_pubkey_from,
+        action_id,
+    );
 
     let ui_amount_to_convert = 900u64;
     let amount_to_convert = from_ui_amount(ui_amount_to_convert, decimals_from);
@@ -260,7 +264,11 @@ async fn test_should_not_convert_twice() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, _) = find_common_action_receipt_pda(&mint_pubkey_to, action_id);
+    let (receipt_pda, _) = find_common_action_receipt_pda(
+        &mint_pubkey_to,
+        &token_account_pubkey_from,
+        action_id,
+    );
 
     let ui_amount_to_convert = 900u64;
     let amount_to_convert = from_ui_amount(ui_amount_to_convert, decimals_from);
@@ -398,7 +406,11 @@ async fn test_should_not_convert_insufficient_tokens_amount() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(&mint_pubkey_from, action_id);
+    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(
+        &mint_pubkey_from,
+        &token_account_pubkey_from,
+        action_id,
+    );
 
     let ui_amount_to_convert = 10u64;
     let amount_to_convert = from_ui_amount(ui_amount_to_convert, decimals_from);
@@ -556,7 +568,11 @@ async fn test_should_fail_when_conversion_target_amount_zero() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(&mint_pubkey_from, action_id);
+    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(
+        &mint_pubkey_from,
+        &token_account_pubkey_from,
+        action_id,
+    );
 
     // convert small amount of tokens that would lead to 0 target tokens
     let amount_to_convert = 1_000u64;
@@ -678,7 +694,11 @@ async fn test_should_not_panic_when_overflow_occur() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(&mint_pubkey_from, action_id);
+    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(
+        &mint_pubkey_from,
+        &token_account_pubkey_from,
+        action_id,
+    );
 
     // convert small amount of tokens that would lead to 0 target tokens
     let amount_to_convert = u64::MAX;
@@ -792,8 +812,10 @@ async fn test_should_not_convert_token_from_wrong_mint() {
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_1, _) = find_permanent_delegate_pda(&mint_pubkey_1);
     let (_permanent_delegate_pda_2, _) = find_permanent_delegate_pda(&mint_pubkey_2);
-    let (receipt_pda1, _) = find_common_action_receipt_pda(&mint_pubkey_1, action_id);
-    let (receipt_pda2, _) = find_common_action_receipt_pda(&mint_pubkey_2, action_id);
+    let (receipt_pda1, _) =
+        find_common_action_receipt_pda(&mint_pubkey_1, &token_account_owner_1_mint_1, action_id);
+    let (receipt_pda2, _) =
+        find_common_action_receipt_pda(&mint_pubkey_2, &token_account_owner_1_mint_1, action_id);
 
     let ui_amount_to_convert = 1u64;
     let amount_to_convert = from_ui_amount(ui_amount_to_convert, decimals);

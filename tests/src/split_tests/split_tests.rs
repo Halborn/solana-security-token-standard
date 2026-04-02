@@ -92,7 +92,8 @@ async fn test_should_split_with_mint_successfully() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_keypair.pubkey());
-    let (receipt_pda, _) = find_common_action_receipt_pda(&mint_pubkey, action_id);
+    let (receipt_pda, _) =
+        find_common_action_receipt_pda(&mint_pubkey, &token_account_pubkey, action_id);
 
     // Execute split
     let split_result = execute_split(
@@ -203,7 +204,8 @@ async fn test_should_split_with_burn_successfully() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey);
-    let (receipt_pda, _) = find_common_action_receipt_pda(&mint_pubkey, action_id);
+    let (receipt_pda, _) =
+        find_common_action_receipt_pda(&mint_pubkey, &token_account_pubkey, action_id);
 
     // Execute split
     let split_result = execute_split(
@@ -312,7 +314,8 @@ async fn test_should_not_split_twice() {
     assert_transaction_success(rate_create_result);
 
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey);
-    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(&mint_pubkey, action_id);
+    let (receipt_pda, _receipt_bump) =
+        find_common_action_receipt_pda(&mint_pubkey, &token_account_pubkey, action_id);
 
     // Execute split
     let split_result = execute_split(
@@ -416,7 +419,8 @@ async fn test_should_not_split_token_zero_amount() {
     assert_transaction_success(rate_create_result);
 
     let (permanent_delegate_pda, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey);
-    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(&mint_pubkey, action_id);
+    let (receipt_pda, _receipt_bump) =
+        find_common_action_receipt_pda(&mint_pubkey, &token_account_pubkey, action_id);
 
     let split_result = execute_split(
         &context.banks_client,
@@ -568,7 +572,7 @@ async fn test_should_not_split_with_invalid_random_accounts(
     assert_transaction_success(rate_create_result);
 
     let (valid_receipt_pda, _receipt_bump) =
-        find_common_action_receipt_pda(&valid_mint_pubkey, action_id);
+        find_common_action_receipt_pda(&valid_mint_pubkey, &valid_token_account_pubkey, action_id);
 
     // Execute split
     let split_result = execute_split(
@@ -664,7 +668,8 @@ async fn test_should_not_split_not_owned_mint_or_token_account() {
     .await;
     assert_transaction_success(rate_create_result);
 
-    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(&mint_pubkey1, action_id);
+    let (receipt_pda, _receipt_bump) =
+        find_common_action_receipt_pda(&mint_pubkey1, &token_account_pubkey1, action_id);
 
     // Create security mint for mint creator 2
     let mint_creator_pubkey2 = mint_creator2.pubkey();

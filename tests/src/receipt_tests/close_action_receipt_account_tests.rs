@@ -61,9 +61,8 @@ async fn test_should_close_action_receipt_account_after_split() {
     .await;
     assert_transaction_success(result1);
 
-    // Derive permanent delegate & receipt PDAs
+    // Derive permanent delegate PDA
     let (permanent_delegate_pda, _) = find_permanent_delegate_pda(&mint_keypair.pubkey());
-    let (receipt_pda, _) = find_common_action_receipt_pda(&mint_from_pubkey, action_id);
 
     assert_account_exists(context, rate_pda, true)
         .await
@@ -88,6 +87,10 @@ async fn test_should_close_action_receipt_account_after_split() {
     .await;
 
     let token_account_pubkey = create_spl_account(context, &mint_keypair, &mint_creator).await;
+
+    // Derive receipt PDA (requires token_account)
+    let (receipt_pda, _) =
+        find_common_action_receipt_pda(&mint_from_pubkey, &token_account_pubkey, action_id);
 
     let amount = from_ui_amount(1000, decimals);
     let result = mint_tokens_to(
@@ -132,6 +135,7 @@ async fn test_should_close_action_receipt_account_after_split() {
         mint_creator.pubkey(),
         receipt_pda,
         mint_from_pubkey,
+        token_account_pubkey,
         &mint_creator,
         CloseActionReceiptArgs { action_id },
     )
@@ -160,6 +164,7 @@ async fn test_should_close_action_receipt_account_after_split() {
         mint_creator.pubkey(),
         receipt_pda,
         mint_from_pubkey,
+        token_account_pubkey,
         &mint_creator,
         CloseActionReceiptArgs { action_id },
     )
@@ -211,9 +216,8 @@ async fn test_should_close_action_receipt_account_after_convert() {
     .await;
     assert_transaction_success(result);
 
-    // Derive permanent delegate & receipt PDAs
+    // Derive permanent delegate PDA
     let (permanent_delegate_pda_from, _) = find_permanent_delegate_pda(&mint_keypair_from.pubkey());
-    let (receipt_pda, _) = find_common_action_receipt_pda(&mint_to_pubkey, action_id);
 
     assert_account_exists(context, rate_pda, true)
         .await
@@ -249,6 +253,10 @@ async fn test_should_close_action_receipt_account_after_convert() {
         initial_ui_amount,
     )
     .await;
+
+    // Derive receipt PDA (requires token_account_from)
+    let (receipt_pda, _) =
+        find_common_action_receipt_pda(&mint_to_pubkey, &token_account_pubkey_from, action_id);
 
     let token_account_pubkey_to =
         create_spl_account(context, &mint_keypair_to, &mint_creator).await;
@@ -287,6 +295,7 @@ async fn test_should_close_action_receipt_account_after_convert() {
         mint_creator.pubkey(),
         receipt_pda,
         mint_to_pubkey,
+        token_account_pubkey_from,
         &mint_creator,
         CloseActionReceiptArgs { action_id },
     )
@@ -315,6 +324,7 @@ async fn test_should_close_action_receipt_account_after_convert() {
         mint_creator.pubkey(),
         receipt_pda,
         mint_to_pubkey,
+        token_account_pubkey_from,
         &mint_creator,
         CloseActionReceiptArgs { action_id },
     )
@@ -374,9 +384,8 @@ async fn test_should_not_close_not_owned_receipt_account() {
         .await;
         assert_transaction_success(result);
 
-        // Derive permanent delegate & receipt PDAs
+        // Derive permanent delegate PDA
         let (permanent_delegate_pda, _) = find_permanent_delegate_pda(&mint_pubkey);
-        let (receipt_pda, _) = find_common_action_receipt_pda(&mint_pubkey, action_id);
 
         assert_account_exists(context, rate_pda, true)
             .await
@@ -401,6 +410,10 @@ async fn test_should_not_close_not_owned_receipt_account() {
         .await;
 
         let token_account_pubkey = create_spl_account(context, &mint_keypair, &mint_creator).await;
+
+        // Derive receipt PDA (requires token_account)
+        let (receipt_pda, _) =
+            find_common_action_receipt_pda(&mint_pubkey, &token_account_pubkey, action_id);
 
         let amount = from_ui_amount(1000, decimals);
         let result = mint_tokens_to(
@@ -441,6 +454,7 @@ async fn test_should_not_close_not_owned_receipt_account() {
             mint_creator.pubkey(),
             receipt_pda,
             mint_pubkey,
+            token_account_pubkey,
             mint_creator.insecure_clone(),
             CloseActionReceiptArgs { action_id },
         );
@@ -454,6 +468,7 @@ async fn test_should_not_close_not_owned_receipt_account() {
         mint_creator_pubkey_1,
         receipt_pda_1,
         mint_from_pubkey_1,
+        token_account_pubkey_1,
         mint_creator_1,
         close_receipt_args_1,
     ), (
@@ -462,6 +477,7 @@ async fn test_should_not_close_not_owned_receipt_account() {
         mint_creator_pubkey_2,
         receipt_pda_2,
         mint_from_pubkey_2,
+        token_account_pubkey_2,
         mint_creator_2,
         close_receipt_args_2,
     )] = &creator_resources[..]
@@ -476,6 +492,7 @@ async fn test_should_not_close_not_owned_receipt_account() {
         *mint_creator_pubkey_1,
         *receipt_pda_2,
         *mint_from_pubkey_1,
+        *token_account_pubkey_1,
         &mint_creator_1,
         close_receipt_args_1.clone(),
     )
@@ -488,6 +505,7 @@ async fn test_should_not_close_not_owned_receipt_account() {
         *mint_creator_pubkey_2,
         *receipt_pda_2,
         *mint_from_pubkey_2,
+        *token_account_pubkey_2,
         &mint_creator_1,
         close_receipt_args_2.clone(),
     )
@@ -502,6 +520,7 @@ async fn test_should_not_close_not_owned_receipt_account() {
         *mint_creator_pubkey_1,
         *receipt_pda_1,
         *mint_from_pubkey_1,
+        *token_account_pubkey_1,
         &mint_creator_1,
         close_receipt_args_1.clone(),
     )
@@ -515,6 +534,7 @@ async fn test_should_not_close_not_owned_receipt_account() {
         *mint_creator_pubkey_2,
         *receipt_pda_2,
         *mint_from_pubkey_2,
+        *token_account_pubkey_2,
         &mint_creator_2,
         close_receipt_args_2.clone(),
     )
@@ -573,6 +593,7 @@ async fn test_should_not_close_wrong_account_type() {
         mint_creator.pubkey(),
         rate_pda, // Passing Rate PDA instead of Receipt PDA
         mint_from_pubkey,
+        mint_from_pubkey, // dummy token_account; test expects failure
         &mint_creator,
         CloseActionReceiptArgs { action_id },
     )

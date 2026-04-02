@@ -470,7 +470,7 @@ impl OperationsModule {
         verify_pda_keys_match(permanent_delegate.key(), &permanent_delegate_pda)?;
 
         let (expected_receipt_pda, receipt_bump) =
-            Receipt::find_common_action_pda(mint_split_key, action_id);
+            Receipt::find_common_action_pda(mint_split_key, token_account.key(), action_id);
         verify_pda_keys_match(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify Rate account with optimized derive_pda
@@ -537,7 +537,7 @@ impl OperationsModule {
         // Create Receipt PDA account for Split operation
         let action_id_seed = action_id.to_le_bytes();
         let bump_seed = [receipt_bump];
-        let seeds = Receipt::common_action_seeds(mint_split_key, &action_id_seed, &bump_seed);
+        let seeds = Receipt::common_action_seeds(mint_split_key, token_account.key(), &action_id_seed, &bump_seed);
         Receipt::issue(receipt_account, payer, &seeds)?;
 
         Ok(())
@@ -584,7 +584,7 @@ impl OperationsModule {
         verify_pda_keys_match(permanent_delegate.key(), &permanent_delegate_pda)?;
 
         let (expected_receipt_pda, receipt_bump) =
-            Receipt::find_common_action_pda(verified_mint_key, action_id);
+            Receipt::find_common_action_pda(verified_mint_key, token_account_from.key(), action_id);
         verify_pda_keys_match(receipt_account.key(), &expected_receipt_pda)?;
 
         // Verify Rate account with optimized derive_pda
@@ -655,7 +655,7 @@ impl OperationsModule {
         // Create Receipt PDA account for Convert operation
         let action_id_seed = action_id.to_le_bytes();
         let bump_seed = [receipt_bump];
-        let seeds = Receipt::common_action_seeds(verified_mint_key, &action_id_seed, &bump_seed);
+        let seeds = Receipt::common_action_seeds(verified_mint_key, token_account_from.key(), &action_id_seed, &bump_seed);
         Receipt::issue(receipt_account, payer, &seeds)?;
 
         Ok(())
@@ -939,7 +939,7 @@ impl OperationsModule {
         accounts: &[AccountInfo],
         action_id: u64,
     ) -> ProgramResult {
-        let [receipt_account, destination_account, mint_account] = accounts else {
+        let [receipt_account, destination_account, mint_account, token_account] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -952,7 +952,7 @@ impl OperationsModule {
         // Deserialize to ensure it's valid Receipt account (checks discriminator and ownership)
         Receipt::from_account_info(receipt_account)?;
         let (expected_receipt_pda, _bump) =
-            Receipt::find_common_action_pda(mint_account.key(), action_id);
+            Receipt::find_common_action_pda(mint_account.key(), token_account.key(), action_id);
         verify_pda_keys_match(receipt_account.key(), &expected_receipt_pda)?;
 
         Receipt::close(receipt_account, destination_account)?;
