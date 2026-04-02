@@ -77,7 +77,7 @@ impl Receipt {
         Ok(())
     }
 
-    /// Seeds for common operation connected to action id and mint (e.g. Split, Convert)
+    /// Seeds for common operation connected to action id, mint, and token account (e.g. Split, Convert)
     pub fn common_action_seeds<'a>(
         mint: &'a Pubkey,
         token_account: &'a Pubkey,
@@ -93,7 +93,7 @@ impl Receipt {
         ]
     }
 
-    /// Find receipt PDA for common operation connected to action id and mint (e.g. Split, Convert)
+    /// Find receipt PDA for common operation connected to action id, mint, and token account (e.g. Split, Convert)
     pub fn find_common_action_pda(
         mint: &Pubkey,
         token_account: &Pubkey,

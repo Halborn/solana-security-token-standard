@@ -23,7 +23,7 @@ pub async fn close_action_receipt_account(
     destination: &Keypair,
     close_action_receipt_args: CloseActionReceiptArgs,
 ) -> Result<(), BanksClientError> {
-    let close_rate_ix = CloseActionReceiptAccount {
+    let close_receipt_ix = CloseActionReceiptAccount {
         mint: security_token_mint,
         verification_config_or_mint_authority,
         instructions_sysvar_or_creator,
@@ -37,7 +37,7 @@ pub async fn close_action_receipt_account(
 
     send_tx(
         &context.banks_client,
-        vec![close_rate_ix],
+        vec![close_receipt_ix],
         &destination.pubkey(),
         vec![destination],
     )
@@ -56,7 +56,7 @@ pub async fn close_claim_receipt_account(
     destination: &Keypair,
     close_claim_receipt_args: CloseClaimReceiptArgs,
 ) -> Result<(), BanksClientError> {
-    let close_rate_ix = CloseClaimReceiptAccount {
+    let close_receipt_ix = CloseClaimReceiptAccount {
         mint: security_token_mint,
         verification_config_or_mint_authority,
         instructions_sysvar_or_creator,
@@ -72,7 +72,7 @@ pub async fn close_claim_receipt_account(
 
     send_tx(
         &context.banks_client,
-        vec![close_rate_ix],
+        vec![close_receipt_ix],
         &destination.pubkey(),
         vec![destination],
     )

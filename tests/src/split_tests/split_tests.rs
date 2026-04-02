@@ -753,3 +753,143 @@ async fn test_should_not_split_not_owned_mint_or_token_account() {
     .await;
     assert!(split_result.is_err(), "Should not split at wrong rate");
 }
+
+#[tokio::test]
+async fn test_one_rate_serves_multiple_holders() {
+    let holder_2 = Keypair::new();
+    let context =
+        &mut start_with_context_and_accounts(vec![(&holder_2, sol_str_to_lamports("2").unwrap())])
+            .await;
+
+    let mint_keypair = Keypair::new();
+    let mint_pubkey = mint_keypair.pubkey();
+    let decimals = 6u8;
+    let holder_1 = &context.payer.insecure_clone();
+
+    let (mint_authority_pda, _) =
+        create_minimal_security_token_mint(context, &mint_keypair, Some(holder_1), decimals).await;
+
+    let split_verification_config_pda = create_split_verification_config(
+        context,
+        &mint_keypair,
+        mint_authority_pda.clone(),
+        get_default_verification_programs(),
+        None,
+    )
+    .await;
+
+    let mint_verification_config_pda = create_mint_verification_config(
+        context,
+        &mint_keypair,
+        mint_authority_pda.clone(),
+        get_default_verification_programs(),
+        None,
+    )
+    .await;
+
+    // Two holders share the same action_id
+    let action_id = 42u64;
+    let rounding = Rounding::Up as u8;
+    let numerator = 2u8;
+    let denominator = 1u8;
+
+    let (rate_pda, rate_result) = create_rate_account(
+        context,
+        mint_keypair.pubkey(),
+        mint_authority_pda,
+        context.payer.pubkey(),
+        mint_pubkey,
+        mint_pubkey,
+        CreateRateArgs {
+            action_id,
+            rate: RateConfig {
+                rounding,
+                numerator,
+                denominator,
+            },
+        },
+        None,
+    )
+    .await;
+    assert_transaction_success(rate_result);
+
+    let (permanent_delegate_pda, _) = find_permanent_delegate_pda(&mint_pubkey);
+    let amount = from_ui_amount(1000, decimals);
+
+    // Holder 1
+    let token_account_1 = create_spl_account(context, &mint_keypair, holder_1).await;
+    let result = mint_tokens_to(
+        &mut context.banks_client,
+        amount,
+        mint_pubkey,
+        token_account_1,
+        mint_authority_pda,
+        mint_verification_config_pda,
+        holder_1,
+    )
+    .await;
+    assert_transaction_success(result);
+
+    let (receipt_pda_1, _) =
+        find_common_action_receipt_pda(&mint_pubkey, &token_account_1, action_id);
+    let split_result_1 = execute_split(
+        &context.banks_client,
+        split_verification_config_pda,
+        mint_pubkey,
+        mint_authority_pda,
+        permanent_delegate_pda,
+        rate_pda,
+        receipt_pda_1,
+        token_account_1,
+        holder_1,
+        action_id,
+    )
+    .await;
+    assert_transaction_success(split_result_1);
+
+    // Holder 2 — same Rate, same action_id, must succeed independently
+    let token_account_2 = create_spl_account(context, &mint_keypair, &holder_2).await;
+    let result = mint_tokens_to(
+        &mut context.banks_client,
+        amount,
+        mint_pubkey,
+        token_account_2,
+        mint_authority_pda,
+        mint_verification_config_pda,
+        holder_1,
+    )
+    .await;
+    assert_transaction_success(result);
+
+    let (receipt_pda_2, _) =
+        find_common_action_receipt_pda(&mint_pubkey, &token_account_2, action_id);
+    let split_result_2 = execute_split(
+        &context.banks_client,
+        split_verification_config_pda,
+        mint_pubkey,
+        mint_authority_pda,
+        permanent_delegate_pda,
+        rate_pda,
+        receipt_pda_2,
+        token_account_2,
+        holder_1,
+        action_id,
+    )
+    .await;
+    assert_transaction_success(split_result_2);
+
+    // Both receipts exist independently
+    assert_account_exists(context, receipt_pda_1, true)
+        .await
+        .expect("Receipt 1 should exist");
+    assert_account_exists(context, receipt_pda_2, true)
+        .await
+        .expect("Receipt 2 should exist");
+
+    // Each holder's balance doubled
+    let expected_amount = calculate_rate_amount(numerator, denominator, rounding, amount).unwrap();
+    let balance_1 = get_token_account_state(&mut context.banks_client, token_account_1).await;
+    let balance_2 = get_token_account_state(&mut context.banks_client, token_account_2).await;
+    assert_eq!(balance_1.base.amount, expected_amount);
+    assert_eq!(balance_2.base.amount, expected_amount);
+}

@@ -113,11 +113,8 @@ async fn test_should_convert_successfully() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, _) = find_common_action_receipt_pda(
-        &mint_pubkey_to,
-        &token_account_pubkey_from,
-        action_id,
-    );
+    let (receipt_pda, _) =
+        find_common_action_receipt_pda(&mint_pubkey_to, &token_account_pubkey_from, action_id);
 
     let ui_amount_to_convert = 900u64;
     let amount_to_convert = from_ui_amount(ui_amount_to_convert, decimals_from);
@@ -264,11 +261,8 @@ async fn test_should_not_convert_twice() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, _) = find_common_action_receipt_pda(
-        &mint_pubkey_to,
-        &token_account_pubkey_from,
-        action_id,
-    );
+    let (receipt_pda, _) =
+        find_common_action_receipt_pda(&mint_pubkey_to, &token_account_pubkey_from, action_id);
 
     let ui_amount_to_convert = 900u64;
     let amount_to_convert = from_ui_amount(ui_amount_to_convert, decimals_from);
@@ -406,11 +400,8 @@ async fn test_should_not_convert_insufficient_tokens_amount() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(
-        &mint_pubkey_to,
-        &token_account_pubkey_from,
-        action_id,
-    );
+    let (receipt_pda, _receipt_bump) =
+        find_common_action_receipt_pda(&mint_pubkey_to, &token_account_pubkey_from, action_id);
 
     let ui_amount_to_convert = 10u64;
     let amount_to_convert = from_ui_amount(ui_amount_to_convert, decimals_from);
@@ -568,11 +559,8 @@ async fn test_should_fail_when_conversion_target_amount_zero() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(
-        &mint_pubkey_to,
-        &token_account_pubkey_from,
-        action_id,
-    );
+    let (receipt_pda, _receipt_bump) =
+        find_common_action_receipt_pda(&mint_pubkey_to, &token_account_pubkey_from, action_id);
 
     // convert small amount of tokens that would lead to 0 target tokens
     let amount_to_convert = 1_000u64;
@@ -694,11 +682,8 @@ async fn test_should_not_panic_when_overflow_occur() {
 
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
-    let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(
-        &mint_pubkey_to,
-        &token_account_pubkey_from,
-        action_id,
-    );
+    let (receipt_pda, _receipt_bump) =
+        find_common_action_receipt_pda(&mint_pubkey_to, &token_account_pubkey_from, action_id);
 
     // convert small amount of tokens that would lead to 0 target tokens
     let amount_to_convert = u64::MAX;
@@ -933,4 +918,155 @@ async fn test_should_not_convert_token_from_wrong_mint() {
         .await;
         assert_transaction_success(convert_result);
     }
+}
+
+#[tokio::test]
+async fn test_one_rate_serves_multiple_holders_convert() {
+    let holder_2 = Keypair::new();
+    let context =
+        &mut start_with_context_and_accounts(vec![(&holder_2, sol_str_to_lamports("2").unwrap())])
+            .await;
+
+    let mint_creator = &context.payer.insecure_clone();
+
+    let mint_keypair_from = Keypair::new();
+    let mint_pubkey_from = mint_keypair_from.pubkey();
+    let decimals = 6u8;
+    let (mint_authority_pda_from, _) = create_minimal_security_token_mint(
+        context,
+        &mint_keypair_from,
+        Some(mint_creator),
+        decimals,
+    )
+    .await;
+
+    let mint_keypair_to = Keypair::new();
+    let mint_pubkey_to = mint_keypair_to.pubkey();
+    let (mint_authority_pda_to, _) =
+        create_minimal_security_token_mint(context, &mint_keypair_to, Some(mint_creator), decimals)
+            .await;
+
+    let convert_verification_config_pda = create_convert_verification_config(
+        context,
+        &mint_keypair_to,
+        mint_authority_pda_to.clone(),
+        get_default_verification_programs(),
+        None,
+    )
+    .await;
+
+    let mint_verification_config_pda_from = create_mint_verification_config(
+        context,
+        &mint_keypair_from,
+        mint_authority_pda_from.clone(),
+        get_default_verification_programs(),
+        Some(mint_creator),
+    )
+    .await;
+
+    let action_id = 42u64;
+    let rounding = Rounding::Up as u8;
+    let numerator = 2u8;
+    let denominator = 1u8;
+
+    let (rate_pda, rate_result) = create_rate_account(
+        context,
+        mint_pubkey_to,
+        mint_authority_pda_to,
+        mint_creator.pubkey(),
+        mint_pubkey_from,
+        mint_pubkey_to,
+        CreateRateArgs {
+            action_id,
+            rate: RateConfig {
+                rounding,
+                numerator,
+                denominator,
+            },
+        },
+        None,
+    )
+    .await;
+    assert_transaction_success(rate_result);
+
+    let (permanent_delegate_pda_from, _) = find_permanent_delegate_pda(&mint_pubkey_from);
+
+    let initial_ui_amount = 1000u64;
+
+    // Holder 1
+    let (_, token_account_from_1) = create_token_account_and_mint_tokens(
+        context,
+        &mint_keypair_from,
+        mint_authority_pda_from,
+        mint_verification_config_pda_from,
+        mint_creator,
+        mint_creator,
+        decimals,
+        initial_ui_amount,
+    )
+    .await;
+    let token_account_to_1 = create_spl_account(context, &mint_keypair_to, mint_creator).await;
+    let (receipt_pda_1, _) =
+        find_common_action_receipt_pda(&mint_pubkey_to, &token_account_from_1, action_id);
+
+    let amount_to_convert = from_ui_amount(100, decimals);
+    let convert_result_1 = execute_convert(
+        &context.banks_client,
+        convert_verification_config_pda,
+        mint_pubkey_from,
+        mint_pubkey_to,
+        token_account_from_1,
+        token_account_to_1,
+        mint_authority_pda_to,
+        permanent_delegate_pda_from,
+        rate_pda,
+        receipt_pda_1,
+        mint_creator,
+        action_id,
+        amount_to_convert,
+    )
+    .await;
+    assert_transaction_success(convert_result_1);
+
+    // Holder 2 — same Rate, same action_id, must succeed independently
+    let (_, token_account_from_2) = create_token_account_and_mint_tokens(
+        context,
+        &mint_keypair_from,
+        mint_authority_pda_from,
+        mint_verification_config_pda_from,
+        &holder_2,
+        mint_creator,
+        decimals,
+        initial_ui_amount,
+    )
+    .await;
+    let token_account_to_2 = create_spl_account(context, &mint_keypair_to, &holder_2).await;
+    let (receipt_pda_2, _) =
+        find_common_action_receipt_pda(&mint_pubkey_to, &token_account_from_2, action_id);
+
+    let convert_result_2 = execute_convert(
+        &context.banks_client,
+        convert_verification_config_pda,
+        mint_pubkey_from,
+        mint_pubkey_to,
+        token_account_from_2,
+        token_account_to_2,
+        mint_authority_pda_to,
+        permanent_delegate_pda_from,
+        rate_pda,
+        receipt_pda_2,
+        mint_creator,
+        action_id,
+        amount_to_convert,
+    )
+    .await;
+    assert_transaction_success(convert_result_2);
+
+    // Both receipts exist independently
+    assert_account_exists(context, receipt_pda_1, true)
+        .await
+        .expect("Receipt 1 should exist");
+    assert_account_exists(context, receipt_pda_2, true)
+        .await
+        .expect("Receipt 2 should exist");
 }
