@@ -1295,11 +1295,6 @@
           "name": "mintAccount",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "tokenAccount",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -1825,6 +1820,10 @@
           {
             "name": "actionId",
             "type": "u64"
+          },
+          {
+            "name": "tokenAccount",
+            "type": "publicKey"
           }
         ]
       }

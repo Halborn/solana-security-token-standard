@@ -8,25 +8,40 @@
 
 import {
   combineCodec,
+  getAddressDecoder,
+  getAddressEncoder,
   getStructDecoder,
   getStructEncoder,
   getU64Decoder,
   getU64Encoder,
+  type Address,
   type FixedSizeCodec,
   type FixedSizeDecoder,
   type FixedSizeEncoder,
 } from '@solana/kit';
 
-export type CloseActionReceiptArgs = { actionId: bigint };
+export type CloseActionReceiptArgs = {
+  actionId: bigint;
+  tokenAccount: Address;
+};
 
-export type CloseActionReceiptArgsArgs = { actionId: number | bigint };
+export type CloseActionReceiptArgsArgs = {
+  actionId: number | bigint;
+  tokenAccount: Address;
+};
 
 export function getCloseActionReceiptArgsEncoder(): FixedSizeEncoder<CloseActionReceiptArgsArgs> {
-  return getStructEncoder([['actionId', getU64Encoder()]]);
+  return getStructEncoder([
+    ['actionId', getU64Encoder()],
+    ['tokenAccount', getAddressEncoder()],
+  ]);
 }
 
 export function getCloseActionReceiptArgsDecoder(): FixedSizeDecoder<CloseActionReceiptArgs> {
-  return getStructDecoder([['actionId', getU64Decoder()]]);
+  return getStructDecoder([
+    ['actionId', getU64Decoder()],
+    ['tokenAccount', getAddressDecoder()],
+  ]);
 }
 
 export function getCloseActionReceiptArgsCodec(): FixedSizeCodec<

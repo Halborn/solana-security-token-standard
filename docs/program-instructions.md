@@ -1147,14 +1147,14 @@ Closes an action receipt account (for Split/Convert) and reclaims rent.
 | 0   | receipt_account |        | ✓        | [Receipt](#receipt) account to close |
 | 1   | destination     |        | ✓        | Recipient for reclaimed rent |
 | 2   | mint_account    |        |          | Mint account                 |
-| 3   | token_account   |        |          | Token account                |
 
 **Arguments:**
 
 ```rust
-// Serialization: action_id (u64 LE, 8 bytes).
+// Serialization: action_id (u64 LE, 8 bytes) + token_account (32 bytes).
 struct CloseActionReceiptArgs {
     action_id: u64,
+    token_account: Pubkey,
 }
 ```
 

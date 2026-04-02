@@ -20,7 +20,6 @@ pub async fn close_action_receipt_account(
     instructions_sysvar_or_creator: Pubkey,
     receipt_account: Pubkey,
     mint_account: Pubkey,
-    token_account: Pubkey,
     destination: &Keypair,
     close_action_receipt_args: CloseActionReceiptArgs,
 ) -> Result<(), BanksClientError> {
@@ -31,7 +30,6 @@ pub async fn close_action_receipt_account(
         receipt_account,
         destination: destination.pubkey(),
         mint_account,
-        token_account,
     }
     .instruction(CloseActionReceiptAccountInstructionArgs {
         close_action_receipt_args,

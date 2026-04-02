@@ -948,8 +948,9 @@ impl OperationsModule {
         verified_mint_info: &AccountInfo,
         accounts: &[AccountInfo],
         action_id: u64,
+        token_account: &Pubkey,
     ) -> ProgramResult {
-        let [receipt_account, destination_account, mint_account, token_account] = accounts else {
+        let [receipt_account, destination_account, mint_account] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -962,7 +963,7 @@ impl OperationsModule {
         // Deserialize to ensure it's valid Receipt account (checks discriminator and ownership)
         Receipt::from_account_info(receipt_account)?;
         let (expected_receipt_pda, _bump) =
-            Receipt::find_common_action_pda(mint_account.key(), token_account.key(), action_id);
+            Receipt::find_common_action_pda(mint_account.key(), token_account, action_id);
         verify_pda_keys_match(receipt_account.key(), &expected_receipt_pda)?;
 
         Receipt::close(receipt_account, destination_account)?;
