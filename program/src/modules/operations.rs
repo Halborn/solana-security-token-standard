@@ -537,7 +537,12 @@ impl OperationsModule {
         // Create Receipt PDA account for Split operation
         let action_id_seed = action_id.to_le_bytes();
         let bump_seed = [receipt_bump];
-        let seeds = Receipt::common_action_seeds(mint_split_key, token_account.key(), &action_id_seed, &bump_seed);
+        let seeds = Receipt::common_action_seeds(
+            mint_split_key,
+            token_account.key(),
+            &action_id_seed,
+            &bump_seed,
+        );
         Receipt::issue(receipt_account, payer, &seeds)?;
 
         Ok(())
@@ -655,7 +660,12 @@ impl OperationsModule {
         // Create Receipt PDA account for Convert operation
         let action_id_seed = action_id.to_le_bytes();
         let bump_seed = [receipt_bump];
-        let seeds = Receipt::common_action_seeds(verified_mint_key, token_account_from.key(), &action_id_seed, &bump_seed);
+        let seeds = Receipt::common_action_seeds(
+            verified_mint_key,
+            token_account_from.key(),
+            &action_id_seed,
+            &bump_seed,
+        );
         Receipt::issue(receipt_account, payer, &seeds)?;
 
         Ok(())
