@@ -407,7 +407,7 @@ async fn test_should_not_convert_insufficient_tokens_amount() {
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
     let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(
-        &mint_pubkey_from,
+        &mint_pubkey_to,
         &token_account_pubkey_from,
         action_id,
     );
@@ -569,7 +569,7 @@ async fn test_should_fail_when_conversion_target_amount_zero() {
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
     let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(
-        &mint_pubkey_from,
+        &mint_pubkey_to,
         &token_account_pubkey_from,
         action_id,
     );
@@ -695,7 +695,7 @@ async fn test_should_not_panic_when_overflow_occur() {
     // Derive permanent delegate & receipt PDAs
     let (permanent_delegate_pda_from, _pd_bump) = find_permanent_delegate_pda(&mint_pubkey_from);
     let (receipt_pda, _receipt_bump) = find_common_action_receipt_pda(
-        &mint_pubkey_from,
+        &mint_pubkey_to,
         &token_account_pubkey_from,
         action_id,
     );
