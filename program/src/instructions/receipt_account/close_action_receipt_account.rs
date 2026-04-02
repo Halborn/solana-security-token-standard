@@ -54,7 +54,7 @@ mod tests {
     #[case(1u64)]
     #[case(u64::MAX)]
     fn test_close_action_receipt_args_try_from_bytes(#[case] action_id: u64) {
-        let token_account = [7u8; 32];
+        let token_account = [7u8; PUBKEY_BYTES];
         let original = CloseActionReceiptArgs {
             action_id,
             token_account,
@@ -75,7 +75,7 @@ mod tests {
     ) {
         let original = CloseActionReceiptArgs {
             action_id,
-            token_account: [0u8; 32],
+            token_account: [0u8; PUBKEY_BYTES],
         };
 
         assert!(
