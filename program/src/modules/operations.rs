@@ -942,7 +942,7 @@ impl OperationsModule {
         Ok(())
     }
 
-    /// Close Receipt account of operation tied to the action_id and token account(e.g. split, convert)
+    /// Close Receipt account of operation tied to the action_id and token account (e.g. split, convert)
     pub fn execute_close_action_receipt_account(
         _program_id: &Pubkey,
         verified_mint_info: &AccountInfo,
