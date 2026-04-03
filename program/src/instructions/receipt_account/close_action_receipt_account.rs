@@ -8,7 +8,7 @@ use crate::{
     constants::ACTION_ID_LEN, instructions::rate_account::shared::parse_action_id_argument,
 };
 
-/// Arguments to closing Receipt account of operation tied to action_id (e.g. split, convert)
+/// Arguments to closing Receipt account of operation tied to action_id and token account (e.g. split, convert)
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, ShankType)]
 pub struct CloseActionReceiptArgs {

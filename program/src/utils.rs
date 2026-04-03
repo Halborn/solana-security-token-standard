@@ -103,7 +103,7 @@ pub fn find_rate_pda(
     )
 }
 
-/// Derive receipt PDA for common operation connected to action id and mint (e.g. Split, Convert)
+/// Derive receipt PDA for common operation connected to action id, mint and token account (e.g. Split, Convert)
 /// Seeds: ["receipt", mint, token_account, action_id]
 pub fn find_common_action_receipt_pda(
     mint: &Pubkey,
