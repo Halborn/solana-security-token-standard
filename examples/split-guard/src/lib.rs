@@ -1,0 +1,261 @@
+//! Split Guard Verification Program
+//!
+//! ## Problem
+//!
+//! Split adjusts token balances in-place without consuming them. A holder can transfer
+//! their tokens to another account after splitting and split again, amplifying supply
+//! indefinitely. Since mints and burns do not go through the transfer hook, only transfers
+//! can be gated without interfering with the Split operation itself.
+//!
+//! ## Mechanism
+//!
+//! A "split guard" PDA account acts as a circuit breaker. The verification program is
+//! registered in the Transfer VerificationConfig. During each transfer it checks whether
+//! the split guard account for the mint is initialized:
+//!
+//! - Guard exists -> transfer rejected
+//! - Guard absent -> transfer allowed
+//!
+//! The issuer creates the guard before initiating Split and closes it after all holders
+//! have been processed, restoring normal trading.
+//!
+//! ## Lifecycle
+//!
+//! 1. Register this program in the Transfer VerificationConfig
+//! 2. Register `split_guard_pda` as a PDA-based extra account in Token-2022
+//!    ExtraAccountMetaList (seeds: ["split_guard", mint], owner: this program)
+//! 3. Issue `ActivateHalt` → creates the guard account, blocks all transfers
+//! 4. Execute Split for all holders (mints/burns are unaffected by the halt)
+//! 5. Issue `DeactivateHalt` → closes the guard account, transfers resume
+
+#![allow(unexpected_cfgs)]
+
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::{find_program_address, Pubkey},
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
+};
+use pinocchio_log::log;
+use pinocchio_pubkey::declare_id;
+use pinocchio_system::instructions::CreateAccount;
+
+// Replace with the actual program ID generated
+declare_id!("SGuard1111111111111111111111111111111111111");
+
+/// PDA seed for the split guard account: ["split_guard", mint]
+const SPLIT_GUARD_SEED: &[u8] = b"split_guard";
+
+/// Split guard account data: stores the authority pubkey (32 bytes).
+/// Presence of this account with this length, owned by this program = halt active.
+const SPLIT_GUARD_LEN: usize = 32;
+
+/// Transfer discriminator from the Security Token Program (matches TRANSFER_DISCRIMINATOR).
+const TRANSFER_DISCRIMINATOR: u8 = 12;
+
+/// This program's own instruction discriminators.
+const ACTIVATE_HALT_DISCRIMINATOR: u8 = 0;
+const DEACTIVATE_HALT_DISCRIMINATOR: u8 = 1;
+
+/// Custom error: transfers are halted because a Split operation is in progress.
+pub const ERR_SPLIT_HALT_ACTIVE: u32 = 0;
+
+#[cfg(not(feature = "no-entrypoint"))]
+use pinocchio::entrypoint;
+#[cfg(not(feature = "no-entrypoint"))]
+entrypoint!(process_instruction);
+
+/// Program entry point.
+///
+/// Routes to the appropriate handler based on the first byte of instruction_data:
+/// - `0` (ActivateHalt): creates the split guard PDA, blocking all transfers
+/// - `1` (DeactivateHalt): closes the split guard PDA, restoring transfers
+/// - `12` (Transfer): checks whether a halt is active and rejects if so
+/// - anything else: passes through (Ok) - this program only enforces transfer restrictions
+pub fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    let discriminator = *instruction_data
+        .first()
+        .ok_or(ProgramError::InvalidInstructionData)?;
+
+    let args_data = &instruction_data[1..];
+
+    match discriminator {
+        ACTIVATE_HALT_DISCRIMINATOR => activate_halt(program_id, accounts),
+        DEACTIVATE_HALT_DISCRIMINATOR => deactivate_halt(program_id, accounts),
+        TRANSFER_DISCRIMINATOR => verify_transfer(program_id, accounts, args_data),
+        _ => Ok(()),
+    }
+}
+
+/// Activate the transfer halt for a mint.
+///
+/// Creates the split guard PDA account. The caller becomes the authority that can
+/// later deactivate the halt. Fails if the halt is already active.
+///
+/// Accounts:
+///   0. `[signer, writable]` authority - payer and deactivation authority
+///   1. `[]`                  mint - the protected security token mint
+///   2. `[writable]`          split_guard_pda - PDA ["split_guard", mint]; must not exist
+///   3. `[]`                  system_program
+fn activate_halt(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let [authority, mint, split_guard_pda, _system_program] = accounts else {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
+
+    if !authority.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    let (expected_pda, bump) =
+        find_program_address(&[SPLIT_GUARD_SEED, mint.key().as_ref()], program_id);
+
+    if split_guard_pda.key() != &expected_pda {
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    if split_guard_pda.data_len() > 0 {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
+    let lamports = Rent::get()?.minimum_balance(SPLIT_GUARD_LEN);
+    let bump_seed = [bump];
+    let signer_seeds = [
+        Seed::from(SPLIT_GUARD_SEED),
+        Seed::from(mint.key().as_ref()),
+        Seed::from(bump_seed.as_ref()),
+    ];
+    let signer = [Signer::from(&signer_seeds)];
+
+    CreateAccount {
+        from: authority,
+        to: split_guard_pda,
+        lamports,
+        space: SPLIT_GUARD_LEN as u64,
+        owner: program_id,
+    }
+    .invoke_signed(&signer)?;
+
+    // Store authority so only they can deactivate the halt.
+    let mut data = split_guard_pda.try_borrow_mut_data()?;
+    data.copy_from_slice(authority.key().as_ref());
+
+    log!("Split halt activated for mint {}", mint.key());
+
+    Ok(())
+}
+
+/// Deactivate the transfer halt for a mint.
+///
+/// Closes the split guard PDA account, restoring normal transfers.
+/// Only the authority that activated the halt can deactivate it.
+///
+/// Accounts:
+///   0. `[signer]`   authority - must match the authority stored in split_guard_pda
+///   1. `[]`         mint - the protected security token mint (used to verify PDA seeds)
+///   2. `[writable]` split_guard_pda - PDA ["split_guard", mint]
+///   3. `[writable]` destination - receives the reclaimed rent lamports
+fn deactivate_halt(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let [authority, mint, split_guard_pda, destination] = accounts else {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
+
+    if !authority.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    if split_guard_pda.data_len() != SPLIT_GUARD_LEN {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    if !split_guard_pda.is_owned_by(program_id) {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    // Verify PDA seeds match the provided mint.
+    let (expected_pda, _) =
+        find_program_address(&[SPLIT_GUARD_SEED, mint.key().as_ref()], program_id);
+    if split_guard_pda.key() != &expected_pda {
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    // Verify the caller is the stored authority.
+    let stored_authority: Pubkey = {
+        let data = split_guard_pda.try_borrow_data()?;
+        data[..SPLIT_GUARD_LEN]
+            .try_into()
+            .map_err(|_| ProgramError::InvalidAccountData)?
+    };
+
+    if authority.key() != &stored_authority {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    // Transfer all lamports to destination, then close the account.
+    {
+        let mut guard_lamports = split_guard_pda.try_borrow_mut_lamports()?;
+        let lamports = *guard_lamports;
+        *guard_lamports = 0;
+        *destination.try_borrow_mut_lamports()? = destination
+            .lamports()
+            .checked_add(lamports)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+    }
+
+    split_guard_pda.resize(0)?;
+
+    log!("Split halt deactivated");
+
+    Ok(())
+}
+
+/// Verify a token transfer.
+///
+/// Called by the Security Token transfer hook for every transfer. Checks whether
+/// the split guard account is active for this mint. If so, rejects the transfer.
+///
+/// Accounts (standard transfer verification layout + split_guard_pda as extra):
+///   0. `[]` permanent_delegate_authority
+///   1. `[]` mint
+///   2. `[]` from_token_account
+///   3. `[]` to_token_account
+///   4. `[]` transfer_hook_program
+///   5. `[]` token_program
+///   6. `[]` split_guard_pda - PDA ["split_guard", mint]; checked for existence
+///
+/// Instruction data: amount (u64 LE, 8 bytes)
+fn verify_transfer(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    let [_permanent_delegate_authority, _mint, _from_token_account, _to_token_account, _transfer_hook_program, _token_program, split_guard_pda] =
+        accounts
+    else {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
+
+    if instruction_data.len() < 8 {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    let amount = u64::from_le_bytes(
+        instruction_data[..8]
+            .try_into()
+            .map_err(|_| ProgramError::InvalidInstructionData)?,
+    );
+
+    // Halt is active when the split guard account is initialized and owned by this program.
+    let halt_active =
+        split_guard_pda.data_len() == SPLIT_GUARD_LEN && split_guard_pda.is_owned_by(program_id);
+
+    if halt_active {
+        log!("Transfer of {} rejected: split halt is active", amount);
+        return Err(ProgramError::Custom(ERR_SPLIT_HALT_ACTIVE));
+    }
+
+    Ok(())
+}
