@@ -112,9 +112,13 @@ pub fn process_instruction(
 ///   3. `[]`                  ssts_mint_authority - SSTS MintAuthority PDA for this mint
 ///   4. `[]`                  system_program
 fn activate_halt(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-    let [authority, mint, split_guard_pda, ssts_mint_authority, _system_program] = accounts else {
+    let [authority, mint, split_guard_pda, ssts_mint_authority, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
+
+    if system_program.key() != &pinocchio_system::ID {
+        return Err(ProgramError::IncorrectProgramId);
+    }
 
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
