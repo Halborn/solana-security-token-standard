@@ -302,13 +302,19 @@ async fn mint_tokens(
     assert_ok(context.banks_client.process_transaction(tx).await);
 }
 
-fn activate_halt_ix(authority: &Pubkey, mint: &Pubkey, pda: &Pubkey) -> Instruction {
+fn activate_halt_ix(
+    authority: &Pubkey,
+    mint: &Pubkey,
+    pda: &Pubkey,
+    mint_authority_pda: &Pubkey,
+) -> Instruction {
     Instruction {
         program_id: SPLIT_GUARD_PROGRAM_ID,
         accounts: vec![
             AccountMeta::new(*authority, true),
             AccountMeta::new_readonly(*mint, false),
             AccountMeta::new(*pda, false),
+            AccountMeta::new_readonly(*mint_authority_pda, false),
             AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
         ],
         data: vec![ACTIVATE_HALT_DISCRIMINATOR],
@@ -376,6 +382,7 @@ fn split_guard_verify_ix(
 struct Ctx {
     context: ProgramTestContext,
     mint: Keypair,
+    mint_authority_pda: Pubkey,
     permanent_delegate_pda: Pubkey,
     transfer_vc_pda: Pubkey,
     source_account: Pubkey,
@@ -451,6 +458,7 @@ async fn setup() -> Ctx {
     Ctx {
         context,
         mint,
+        mint_authority_pda,
         permanent_delegate_pda,
         transfer_vc_pda,
         source_account,
@@ -518,6 +526,7 @@ async fn test_split_guard_blocks_transfers_in_introspection_mode() {
                 &payer.pubkey(),
                 &ctx.mint.pubkey(),
                 &ctx.split_guard_pda,
+                &ctx.mint_authority_pda,
             )],
             &payer.pubkey(),
             vec![&payer],

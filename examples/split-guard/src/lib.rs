@@ -34,16 +34,22 @@ use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
-    pubkey::{find_program_address, Pubkey},
+    pubkey::{checked_create_program_address, find_program_address, Pubkey, PUBKEY_BYTES},
     sysvars::{rent::Rent, Sysvar},
     ProgramResult,
 };
 use pinocchio_log::log;
-use pinocchio_pubkey::declare_id;
+use pinocchio_pubkey::{declare_id, pubkey};
 use pinocchio_system::instructions::CreateAccount;
 
 // Replace with the actual program ID generated
 declare_id!("SGuard1111111111111111111111111111111111111");
+
+/// SSTS MintAuthority account: [discriminator(1), mint(32), mint_creator(32), bump(1)].
+/// Seeds: ["mint.authority", mint, mint_creator]. Owner: SSTS program.
+const SSTS_PROGRAM_ID: Pubkey = pubkey!("SSTS8Qk2bW3aVaBEsY1Ras95YdbaaYQQx21JWHxvjap");
+const SSTS_MINT_AUTHORITY_SEED: &[u8] = b"mint.authority";
+const SSTS_MINT_AUTHORITY_LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES + 1;
 
 /// PDA seed for the split guard account: ["split_guard", mint]
 const SPLIT_GUARD_SEED: &[u8] = b"split_guard";
@@ -96,15 +102,17 @@ pub fn process_instruction(
 /// Activate the transfer halt for a mint.
 ///
 /// Creates the split guard PDA account. The caller becomes the authority that can
-/// later deactivate the halt. Fails if the halt is already active.
+/// later deactivate the halt. Only the SSTS mint creator may activate the halt,
+/// verified via the SSTS MintAuthority PDA. Fails if the halt is already active.
 ///
 /// Accounts:
-///   0. `[signer, writable]` authority - payer and deactivation authority
+///   0. `[signer, writable]` authority - must match the mint_creator in ssts_mint_authority
 ///   1. `[]`                  mint - the protected security token mint
 ///   2. `[writable]`          split_guard_pda - PDA ["split_guard", mint]; must not exist
-///   3. `[]`                  system_program
+///   3. `[]`                  ssts_mint_authority - SSTS MintAuthority PDA for this mint
+///   4. `[]`                  system_program
 fn activate_halt(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-    let [authority, mint, split_guard_pda, _system_program] = accounts else {
+    let [authority, mint, split_guard_pda, ssts_mint_authority, _system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -112,15 +120,57 @@ fn activate_halt(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
         return Err(ProgramError::MissingRequiredSignature);
     }
 
+    if split_guard_pda.data_len() > 0 {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
+    // Only the SSTS mint creator may activate — prevents griefing by arbitrary signers.
+    {
+        if !ssts_mint_authority.is_owned_by(&SSTS_PROGRAM_ID) {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+        let ma_data = ssts_mint_authority.try_borrow_data()?;
+        if ma_data.len() != SSTS_MINT_AUTHORITY_LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        let mut offset = 1; // skip discriminator
+
+        let stored_mint: Pubkey = ma_data[offset..offset + PUBKEY_BYTES]
+            .try_into()
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        offset += PUBKEY_BYTES;
+        if &stored_mint != mint.key() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let mint_creator: Pubkey = ma_data[offset..offset + PUBKEY_BYTES]
+            .try_into()
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        offset += PUBKEY_BYTES;
+        if authority.key() != &mint_creator {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let bump = ma_data[offset];
+        let expected_ma_pda = checked_create_program_address(
+            &[
+                SSTS_MINT_AUTHORITY_SEED,
+                mint.key().as_ref(),
+                mint_creator.as_ref(),
+                &[bump],
+            ],
+            &SSTS_PROGRAM_ID,
+        )?;
+        if ssts_mint_authority.key() != &expected_ma_pda {
+            return Err(ProgramError::InvalidSeeds);
+        }
+    }
+
     let (expected_pda, bump) =
         find_program_address(&[SPLIT_GUARD_SEED, mint.key().as_ref()], program_id);
 
     if split_guard_pda.key() != &expected_pda {
         return Err(ProgramError::InvalidSeeds);
-    }
-
-    if split_guard_pda.data_len() > 0 {
-        return Err(ProgramError::AccountAlreadyInitialized);
     }
 
     let lamports = Rent::get()?.minimum_balance(SPLIT_GUARD_LEN);
@@ -176,13 +226,6 @@ fn deactivate_halt(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResu
         return Err(ProgramError::InvalidAccountOwner);
     }
 
-    // Verify PDA seeds match the provided mint.
-    let (expected_pda, _) =
-        find_program_address(&[SPLIT_GUARD_SEED, mint.key().as_ref()], program_id);
-    if split_guard_pda.key() != &expected_pda {
-        return Err(ProgramError::InvalidSeeds);
-    }
-
     // Verify the caller is the stored authority.
     let stored_authority: Pubkey = {
         let data = split_guard_pda.try_borrow_data()?;
@@ -190,9 +233,15 @@ fn deactivate_halt(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResu
             .try_into()
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
-
     if authority.key() != &stored_authority {
         return Err(ProgramError::InvalidArgument);
+    }
+
+    // Verify PDA seeds match the provided mint.
+    let (expected_pda, _) =
+        find_program_address(&[SPLIT_GUARD_SEED, mint.key().as_ref()], program_id);
+    if split_guard_pda.key() != &expected_pda {
+        return Err(ProgramError::InvalidSeeds);
     }
 
     // Transfer all lamports to destination, then close the account.
@@ -233,7 +282,7 @@ fn verify_transfer(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    let [_permanent_delegate_authority, _mint, _from_token_account, _to_token_account, _transfer_hook_program, _token_program, split_guard_pda] =
+    let [_permanent_delegate_authority, mint, _from_token_account, _to_token_account, _transfer_hook_program, _token_program, split_guard_pda] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -247,6 +296,13 @@ fn verify_transfer(
             .try_into()
             .map_err(|_| ProgramError::InvalidInstructionData)?,
     );
+
+    // Verify the account is actually the expected PDA, not an arbitrary same-owner account.
+    let (expected_pda, _) =
+        find_program_address(&[SPLIT_GUARD_SEED, mint.key().as_ref()], program_id);
+    if split_guard_pda.key() != &expected_pda {
+        return Err(ProgramError::InvalidSeeds);
+    }
 
     // Halt is active when the split guard account is initialized and owned by this program.
     let halt_active =
