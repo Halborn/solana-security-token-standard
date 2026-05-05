@@ -270,12 +270,20 @@ fn deactivate_halt(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResu
     Ok(())
 }
 
-/// Verify a token transfer.
+/// Verify a token transfer (introspection mode).
 ///
-/// Called by the Security Token transfer hook for every transfer. Checks whether
-/// the split guard account is active for this mint. If so, rejects the transfer.
+/// In introspection mode this instruction is placed explicitly before the Security
+/// Token Transfer in the same transaction. The Security Token program then confirms
+/// via the instructions sysvar that this instruction was executed with matching
+/// accounts and data. Checks whether the split guard account is active for this
+/// mint and rejects if so.
 ///
-/// Accounts (standard transfer verification layout + split_guard_pda as extra):
+/// In CPI mode this would instead be invoked directly by the transfer hook.
+///
+/// Accounts must be a prefix of the Transfer instruction accounts after the
+/// INSTRUCTION_ACCOUNTS_OFFSET (i.e. skipping [mint, verification_config,
+/// instructions_sysvar]). split_guard_pda is appended as an extra account.
+///
 ///   0. `[]` permanent_delegate_authority
 ///   1. `[]` mint
 ///   2. `[]` from_token_account
