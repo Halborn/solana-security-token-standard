@@ -562,10 +562,16 @@ impl Processor {
         accounts: &[AccountInfo],
         args_data: &[u8],
     ) -> ProgramResult {
-        let CloseActionReceiptArgs { action_id } =
-            CloseActionReceiptArgs::try_from_bytes(args_data)?;
+        let CloseActionReceiptArgs {
+            action_id,
+            token_account,
+        } = CloseActionReceiptArgs::try_from_bytes(args_data)?;
         OperationsModule::execute_close_action_receipt_account(
-            program_id, mint_info, accounts, action_id,
+            program_id,
+            mint_info,
+            accounts,
+            action_id,
+            &token_account,
         )?;
         Ok(())
     }

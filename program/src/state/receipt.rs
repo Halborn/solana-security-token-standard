@@ -77,23 +77,29 @@ impl Receipt {
         Ok(())
     }
 
-    /// Seeds for common operation connected to action id and mint (e.g. Split, Convert)
+    /// Seeds for common operation connected to action id, mint, and token account (e.g. Split, Convert)
     pub fn common_action_seeds<'a>(
         mint: &'a Pubkey,
+        token_account: &'a Pubkey,
         action_id_seed: &'a [u8],
         bump_seed: &'a [u8; 1],
-    ) -> [Seed<'a>; 4] {
+    ) -> [Seed<'a>; 5] {
         [
             Seed::from(RECEIPT_ACCOUNT),
             Seed::from(mint.as_ref()),
+            Seed::from(token_account.as_ref()),
             Seed::from(action_id_seed),
             Seed::from(bump_seed.as_ref()),
         ]
     }
 
-    /// Find receipt PDA for common operation connected to action id and mint (e.g. Split, Convert)
-    pub fn find_common_action_pda(mint: &Pubkey, action_id: u64) -> (Pubkey, u8) {
-        find_common_action_receipt_pda(mint, action_id, &crate::id())
+    /// Find receipt PDA for common operation connected to action id, mint, and token account (e.g. Split, Convert)
+    pub fn find_common_action_pda(
+        mint: &Pubkey,
+        token_account: &Pubkey,
+        action_id: u64,
+    ) -> (Pubkey, u8) {
+        find_common_action_receipt_pda(mint, token_account, action_id, &crate::id())
     }
 
     /// Seeds for Claim operation

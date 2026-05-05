@@ -11,7 +11,9 @@ use solana_sdk::{
 };
 
 use crate::{
-    helpers::{advance_slot, assert_account_exists, create_minimal_security_token_mint, find_rate_pda},
+    helpers::{
+        advance_slot, assert_account_exists, create_minimal_security_token_mint, find_rate_pda,
+    },
     rate_tests::rate_helpers::{close_rate_account, create_rate_account},
 };
 use crate::{
