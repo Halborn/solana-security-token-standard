@@ -341,18 +341,19 @@ fn deactivate_halt_ix(
 
 /// Verification instruction preceding security token Transfer in the same transaction.
 ///
-/// Accounts must be a prefix of the Transfer instruction accounts (positions 0-5)
-/// because introspection validation uses `starts_with` to check account intersection.
-/// split_guard_pda is appended as the extra account (position 6).
+/// The Transfer instruction accounts (positions 0-5, after skipping the 3 overhead
+/// accounts) must be a prefix of this instruction's accounts. Introspection validation
+/// checks: verification_accounts.starts_with(transfer_accounts_after_offset).
+/// split_guard_pda is appended as an extra trailing account (position 6).
 ///
-/// Transfer account layout (positions 0-5):
+/// Transfer account layout after offset (positions 0-5):
 ///   0. permanent_delegate_authority
 ///   1. mint
 ///   2. from_token_account
 ///   3. to_token_account
 ///   4. transfer_hook_program
 ///   5. token_program (TOKEN_22_PROGRAM_ID)
-///   6. split_guard_pda (extra account for split_guard_verify_ix)
+///   6. split_guard_pda (extra trailing account for split_guard_verify_ix)
 fn split_guard_verify_ix(
     permanent_delegate: &Pubkey,
     mint: &Pubkey,

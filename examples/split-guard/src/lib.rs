@@ -21,12 +21,15 @@
 //!
 //! ## Lifecycle
 //!
-//! 1. Register this program in the Transfer VerificationConfig
-//! 2. Register `split_guard_pda` as a PDA-based extra account in Token-2022
-//!    ExtraAccountMetaList (seeds: ["split_guard", mint], owner: this program)
-//! 3. Issue `ActivateHalt` → creates the guard account, blocks all transfers
-//! 4. Execute Split for all holders (mints/burns are unaffected by the halt)
-//! 5. Issue `DeactivateHalt` → closes the guard account, transfers resume
+//! 1. Register this program in the Transfer VerificationConfig (introspection mode)
+//! 2. Issue `ActivateHalt` → creates the guard account, blocks all transfers
+//! 3. Execute Split for all holders (mints/burns are unaffected by the halt)
+//! 4. Issue `DeactivateHalt` → closes the guard account, transfers resume
+//!
+//! > **CPI/transfer-hook mode only:** additionally register `split_guard_pda` as a
+//! > PDA-based extra account in Token-2022 ExtraAccountMetaList
+//! > (seeds: `["split_guard", mint]`, owner: this program). Not required for the
+//! > introspection flow shown in the tests.
 
 #![allow(unexpected_cfgs)]
 
@@ -280,9 +283,11 @@ fn deactivate_halt(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResu
 ///
 /// In CPI mode this would instead be invoked directly by the transfer hook.
 ///
-/// Accounts must be a prefix of the Transfer instruction accounts after the
-/// INSTRUCTION_ACCOUNTS_OFFSET (i.e. skipping [mint, verification_config,
-/// instructions_sysvar]). split_guard_pda is appended as an extra account.
+/// The Transfer instruction accounts (after INSTRUCTION_ACCOUNTS_OFFSET, skipping
+/// [mint, verification_config, instructions_sysvar]) must be a prefix of these
+/// accounts. Introspection validation checks:
+///   verification_accounts.starts_with(transfer_accounts_after_offset)
+/// split_guard_pda is the extra trailing account beyond that prefix.
 ///
 ///   0. `[]` permanent_delegate_authority
 ///   1. `[]` mint
