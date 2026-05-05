@@ -223,6 +223,10 @@ fn deactivate_halt(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResu
         return Err(ProgramError::MissingRequiredSignature);
     }
 
+    if destination.key() == split_guard_pda.key() {
+        return Err(ProgramError::InvalidArgument);
+    }
+
     if split_guard_pda.data_len() != SPLIT_GUARD_LEN {
         return Err(ProgramError::InvalidAccountData);
     }
