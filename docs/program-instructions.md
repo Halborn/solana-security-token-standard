@@ -236,7 +236,7 @@ Records that a holder has participated in a corporate action (split/convert) or 
 **PDA Derivation (Action Receipt - for Split/Convert):**
 
 ```
-seeds = ["receipt", mint_address, action_id (8 bytes LE)]
+seeds = ["receipt", mint_address, token_account_address, action_id (8 bytes LE)]
 program_id = Security Token Program
 ```
 
@@ -1151,9 +1151,10 @@ Closes an action receipt account (for Split/Convert) and reclaims rent.
 **Arguments:**
 
 ```rust
-// Serialization: action_id (u64 LE, 8 bytes).
+// Serialization: action_id (u64 LE, 8 bytes) + token_account (32 bytes).
 struct CloseActionReceiptArgs {
     action_id: u64,
+    token_account: Pubkey,
 }
 ```
 

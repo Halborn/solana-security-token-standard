@@ -3,7 +3,6 @@ use security_token_client::{
         CloseRateAccount, CloseRateAccountInstructionArgs, CreateRateAccount,
         CreateRateAccountInstructionArgs, UpdateRateAccount, UpdateRateAccountInstructionArgs,
     },
-    programs::SECURITY_TOKEN_PROGRAM_ID,
     types::{CloseRateArgs, CreateRateArgs, Rounding, UpdateRateArgs},
 };
 use solana_program_test::*;

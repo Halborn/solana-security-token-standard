@@ -1820,6 +1820,10 @@
           {
             "name": "actionId",
             "type": "u64"
+          },
+          {
+            "name": "tokenAccount",
+            "type": "publicKey"
           }
         ]
       }
