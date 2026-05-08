@@ -3727,7 +3727,7 @@ dependencies = [
 
 [[package]]
 name = "security-token-program"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bs58 0.4.0",
  "bytemuck",
@@ -3751,7 +3751,7 @@ dependencies = [
 
 [[package]]
 name = "security-token-tests"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "assert_matches",
  "borsh 0.10.4",
@@ -3779,7 +3779,7 @@ dependencies = [
 
 [[package]]
 name = "security-token-transfer-hook"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bytemuck",
  "pinocchio",
@@ -7767,7 +7767,7 @@ dependencies = [
 
 [[package]]
 name = "ssts-org-client"
-version = "1.0.0"
+version = "0.2.0"
 dependencies = [
  "borsh 0.10.4",
  "num-derive",
