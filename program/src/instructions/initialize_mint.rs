@@ -1,6 +1,7 @@
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 use pinocchio::ProgramResult;
+use pinocchio_token_2022::state::AccountState;
 use shank::ShankType;
 
 #[repr(C)]
@@ -490,9 +491,16 @@ impl InitializeMintArgs {
     }
 
     pub fn validate(&self) -> ProgramResult {
-        // Metadata requires metadata pointer
         if self.ix_metadata.is_some() && self.ix_metadata_pointer.is_none() {
             return Err(ProgramError::InvalidArgument);
+        }
+        if let Some(state) = self.ix_default_account_state {
+            if !matches!(
+                AccountState::from(state),
+                AccountState::Initialized | AccountState::Frozen
+            ) {
+                return Err(ProgramError::InvalidArgument);
+            }
         }
         Ok(())
     }
@@ -687,5 +695,31 @@ mod tests {
             None,
         );
         assert_eq!(args_invalid.validate(), Err(ProgramError::InvalidArgument));
+    }
+
+    #[test]
+    fn test_default_account_state_only_roundtrip() {
+        let mint_authority = random_pubkey();
+        let freeze_authority = random_pubkey();
+
+        for state in [1u8, 2u8] {
+            let original = InitializeMintArgs::new(
+                6,
+                mint_authority,
+                freeze_authority,
+                None,
+                None,
+                None,
+                Some(state),
+            );
+
+            let bytes = original.to_bytes_inner();
+            let deserialized = InitializeMintArgs::try_from_bytes(&bytes).unwrap();
+
+            assert!(deserialized.ix_metadata_pointer.is_none());
+            assert!(deserialized.ix_metadata.is_none());
+            assert!(deserialized.ix_scaled_ui_amount.is_none());
+            assert_eq!(deserialized.ix_default_account_state, Some(state));
+        }
     }
 }

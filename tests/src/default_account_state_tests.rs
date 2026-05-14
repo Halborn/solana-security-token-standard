@@ -8,17 +8,52 @@ use solana_pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 use spl_token_2022::extension::default_account_state::DefaultAccountState as DefaultAccountStateExt;
 use spl_token_2022::extension::BaseStateWithExtensions;
+use spl_token_2022::state::AccountState;
 
 use crate::helpers::{
     add_dummy_verification_program, assert_transaction_success,
     create_dummy_verification_from_instruction, create_spl_account, create_verification_config,
     find_mint_authority_pda, find_mint_freeze_authority_pda, get_mint_state,
-    get_token_account_state, initialize_mint, send_tx,
+    get_token_account_state, initialize_mint, send_tx, DEFAULT_DUMMY_VERIFICATION_PROGRAM_ID,
 };
 
-// 1 = Initialized, 2 = Frozen
-const STATE_INITIALIZED: u8 = 1;
-const STATE_FROZEN: u8 = 2;
+const STATE_INITIALIZED: u8 = AccountState::Initialized as u8;
+const STATE_FROZEN: u8 = AccountState::Frozen as u8;
+
+async fn setup() -> (ProgramTestContext, Keypair, Pubkey, Pubkey) {
+    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
+    pt.prefer_bpf(false);
+    add_dummy_verification_program(&mut pt);
+    let context = pt.start_with_context().await;
+    let mint_keypair = Keypair::new();
+    let (mint_authority_pda, _) =
+        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
+    let (freeze_authority_pda, _) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
+    (
+        context,
+        mint_keypair,
+        mint_authority_pda,
+        freeze_authority_pda,
+    )
+}
+
+fn mint_args(
+    payer: Pubkey,
+    freeze_authority: Pubkey,
+    default_state: Option<u8>,
+) -> InitializeMintArgs {
+    InitializeMintArgs {
+        ix_mint: MintArgs {
+            decimals: 6,
+            mint_authority: payer,
+            freeze_authority,
+        },
+        ix_metadata_pointer: None,
+        ix_metadata: None,
+        ix_scaled_ui_amount: None,
+        ix_default_account_state: default_state,
+    }
+}
 
 fn make_update_ix(
     mint_pubkey: Pubkey,
@@ -41,29 +76,19 @@ fn make_update_ix(
 
 #[tokio::test]
 async fn test_initialize_mint_with_default_account_state_frozen() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(false);
-    add_dummy_verification_program(&mut pt);
-    let mut context = pt.start_with_context().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
 
-    let mint_keypair = Keypair::new();
-    let (mint_authority_pda, _) =
-        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
-    let (freeze_authority_pda, _) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
-
-    let mint_args = InitializeMintArgs {
-        ix_mint: MintArgs {
-            decimals: 6,
-            mint_authority: context.payer.pubkey(),
-            freeze_authority: freeze_authority_pda,
-        },
-        ix_metadata_pointer: None,
-        ix_metadata: None,
-        ix_scaled_ui_amount: None,
-        ix_default_account_state: Some(STATE_FROZEN),
-    };
-
-    initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
+    initialize_mint(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        &mint_args(
+            context.payer.pubkey(),
+            freeze_authority_pda,
+            Some(STATE_FROZEN),
+        ),
+    )
+    .await;
 
     let mint_state = get_mint_state(&mut context.banks_client, mint_keypair.pubkey()).await;
     let ext = mint_state
@@ -79,82 +104,58 @@ async fn test_initialize_mint_with_default_account_state_frozen() {
     let token_state = get_token_account_state(&mut context.banks_client, token_account).await;
     assert_eq!(
         token_state.base.state,
-        spl_token_2022::state::AccountState::Frozen,
+        AccountState::Frozen,
         "new token account should start frozen"
     );
 }
 
 #[tokio::test]
 async fn test_initialize_mint_without_default_account_state() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(false);
-    add_dummy_verification_program(&mut pt);
-    let mut context = pt.start_with_context().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
 
-    let mint_keypair = Keypair::new();
-    let (mint_authority_pda, _) =
-        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
-    let (freeze_authority_pda, _) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
-
-    let mint_args = InitializeMintArgs {
-        ix_mint: MintArgs {
-            decimals: 6,
-            mint_authority: context.payer.pubkey(),
-            freeze_authority: freeze_authority_pda,
-        },
-        ix_metadata_pointer: None,
-        ix_metadata: None,
-        ix_scaled_ui_amount: None,
-        ix_default_account_state: None,
-    };
-
-    initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
+    initialize_mint(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        &mint_args(context.payer.pubkey(), freeze_authority_pda, None),
+    )
+    .await;
 
     let mint_state = get_mint_state(&mut context.banks_client, mint_keypair.pubkey()).await;
-    let ext = mint_state.get_extension::<DefaultAccountStateExt>();
     assert!(
-        ext.is_err(),
+        mint_state
+            .get_extension::<DefaultAccountStateExt>()
+            .is_err(),
         "DefaultAccountState extension should not exist when not requested"
     );
 }
 
 #[tokio::test]
 async fn test_update_default_account_state_via_mint_authority() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(false);
-    add_dummy_verification_program(&mut pt);
-    let mut context = pt.start_with_context().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
 
-    let mint_keypair = Keypair::new();
-    let (mint_authority_pda, _) =
-        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
-    let (freeze_authority_pda, _) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
-
-    // Initialize with Frozen default state
-    let mint_args = InitializeMintArgs {
-        ix_mint: MintArgs {
-            decimals: 6,
-            mint_authority: context.payer.pubkey(),
-            freeze_authority: freeze_authority_pda,
-        },
-        ix_metadata_pointer: None,
-        ix_metadata: None,
-        ix_scaled_ui_amount: None,
-        ix_default_account_state: Some(STATE_FROZEN),
-    };
-    initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
-
-    // Switch Frozen to Initialized via mint authority path
-    let update_ix = make_update_ix(
-        mint_keypair.pubkey(),
+    initialize_mint(
+        &mint_keypair,
+        &mut context,
         mint_authority_pda,
-        freeze_authority_pda,
-        context.payer.pubkey(),
-        STATE_INITIALIZED,
-    );
+        &mint_args(
+            context.payer.pubkey(),
+            freeze_authority_pda,
+            Some(STATE_FROZEN),
+        ),
+    )
+    .await;
+
+    // Switch Frozen → Initialized via mint authority path
     let result = send_tx(
         &context.banks_client,
-        vec![update_ix],
+        vec![make_update_ix(
+            mint_keypair.pubkey(),
+            mint_authority_pda,
+            freeze_authority_pda,
+            context.payer.pubkey(),
+            STATE_INITIALIZED,
+        )],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
@@ -173,42 +174,31 @@ async fn test_update_default_account_state_via_mint_authority() {
 
 #[tokio::test]
 async fn test_update_default_account_state_via_verification_programs() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(false);
-    add_dummy_verification_program(&mut pt);
-    let mut context = pt.start_with_context().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
 
-    let mint_keypair = Keypair::new();
-    let (mint_authority_pda, _) =
-        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
-    let (freeze_authority_pda, _) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
+    initialize_mint(
+        &mint_keypair,
+        &mut context,
+        mint_authority_pda,
+        &mint_args(
+            context.payer.pubkey(),
+            freeze_authority_pda,
+            Some(STATE_INITIALIZED),
+        ),
+    )
+    .await;
 
-    // Initialize with Initialized default state
-    let mint_args = InitializeMintArgs {
-        ix_mint: MintArgs {
-            decimals: 6,
-            mint_authority: context.payer.pubkey(),
-            freeze_authority: freeze_authority_pda,
-        },
-        ix_metadata_pointer: None,
-        ix_metadata: None,
-        ix_scaled_ui_amount: None,
-        ix_default_account_state: Some(STATE_INITIALIZED),
-    };
-    initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
-
-    // Set up verification config for UpdateDefaultAccountState (discriminant 24)
     let verification_config_pda = create_verification_config(
         &mut context,
         &mint_keypair,
         mint_authority_pda,
         UPDATE_DEFAULT_ACCOUNT_STATE_DISCRIMINATOR,
-        vec![crate::helpers::DEFAULT_DUMMY_VERIFICATION_PROGRAM_ID],
+        vec![DEFAULT_DUMMY_VERIFICATION_PROGRAM_ID],
         None,
     )
     .await;
 
-    // Switch Initialized to Frozen via verification programs path
+    // Switch Initialized → Frozen via verification programs path
     let update_ix = UpdateDefaultAccountStateBuilder::new()
         .mint(mint_keypair.pubkey())
         .verification_config_or_mint_authority(verification_config_pda)
@@ -220,11 +210,12 @@ async fn test_update_default_account_state_via_verification_programs() {
         })
         .instruction();
 
-    let dummy_ix = create_dummy_verification_from_instruction(&update_ix);
-
     let result = send_tx(
         &context.banks_client,
-        vec![dummy_ix, update_ix],
+        vec![
+            create_dummy_verification_from_instruction(&update_ix),
+            update_ix,
+        ],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
@@ -243,85 +234,57 @@ async fn test_update_default_account_state_via_verification_programs() {
 
 #[tokio::test]
 async fn test_update_default_account_state_invalid_state_rejected() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(false);
-    add_dummy_verification_program(&mut pt);
-    let mut context = pt.start_with_context().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
 
-    let mint_keypair = Keypair::new();
-    let (mint_authority_pda, _) =
-        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
-    let (freeze_authority_pda, _) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
-
-    let mint_args = InitializeMintArgs {
-        ix_mint: MintArgs {
-            decimals: 6,
-            mint_authority: context.payer.pubkey(),
-            freeze_authority: freeze_authority_pda,
-        },
-        ix_metadata_pointer: None,
-        ix_metadata: None,
-        ix_scaled_ui_amount: None,
-        ix_default_account_state: Some(STATE_FROZEN),
-    };
-    initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
-
-    // state=0 (Uninitialized) is invalid — program should reject it
-    let update_ix = make_update_ix(
-        mint_keypair.pubkey(),
+    initialize_mint(
+        &mint_keypair,
+        &mut context,
         mint_authority_pda,
-        freeze_authority_pda,
-        context.payer.pubkey(),
-        0, // invalid
-    );
+        &mint_args(
+            context.payer.pubkey(),
+            freeze_authority_pda,
+            Some(STATE_FROZEN),
+        ),
+    )
+    .await;
+
     let result = send_tx(
         &context.banks_client,
-        vec![update_ix],
+        vec![make_update_ix(
+            mint_keypair.pubkey(),
+            mint_authority_pda,
+            freeze_authority_pda,
+            context.payer.pubkey(),
+            AccountState::Uninitialized as u8,
+        )],
         &context.payer.pubkey(),
         vec![&context.payer],
     )
     .await;
-    // ProgramError::InvalidArgument maps to InstructionError::InvalidArgument, not a custom error
     assert!(result.is_err(), "invalid state value should be rejected");
 }
 
 #[tokio::test]
 async fn test_update_default_account_state_without_extension_fails() {
-    let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
-    pt.prefer_bpf(false);
-    add_dummy_verification_program(&mut pt);
-    let mut context = pt.start_with_context().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
 
-    let mint_keypair = Keypair::new();
-    let (mint_authority_pda, _) =
-        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
-    let (freeze_authority_pda, _) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
-
-    // Initialize WITHOUT DefaultAccountState
-    let mint_args = InitializeMintArgs {
-        ix_mint: MintArgs {
-            decimals: 6,
-            mint_authority: context.payer.pubkey(),
-            freeze_authority: freeze_authority_pda,
-        },
-        ix_metadata_pointer: None,
-        ix_metadata: None,
-        ix_scaled_ui_amount: None,
-        ix_default_account_state: None,
-    };
-    initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
-
-    // UpdateDefaultAccountState on a mint without the extension should fail
-    let update_ix = make_update_ix(
-        mint_keypair.pubkey(),
+    initialize_mint(
+        &mint_keypair,
+        &mut context,
         mint_authority_pda,
-        freeze_authority_pda,
-        context.payer.pubkey(),
-        STATE_INITIALIZED,
-    );
+        &mint_args(context.payer.pubkey(), freeze_authority_pda, None),
+    )
+    .await;
+
     let result = send_tx(
         &context.banks_client,
-        vec![update_ix],
+        vec![make_update_ix(
+            mint_keypair.pubkey(),
+            mint_authority_pda,
+            freeze_authority_pda,
+            context.payer.pubkey(),
+            STATE_INITIALIZED,
+        )],
         &context.payer.pubkey(),
         vec![&context.payer],
     )

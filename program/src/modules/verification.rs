@@ -233,9 +233,7 @@ impl VerificationModule {
         if let Some(&state_byte) = default_account_state_opt.as_ref() {
             InitializeDefaultAccountState {
                 mint: mint_info,
-                state: crate::token22_extensions::default_account_state::AccountState::from(
-                    state_byte,
-                ),
+                state: AccountState::from(state_byte),
             }
             .invoke()?;
         }

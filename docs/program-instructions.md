@@ -430,10 +430,11 @@ Creates a new security token mint with required extensions and optional metadata
 
 ```rust
 // Serialization:
-// - InitializeMintArgs: bytes = MintArgs + 1-byte presence flags (in order)
-//   for ix_metadata_pointer, ix_metadata, ix_scaled_ui_amount, ix_default_account_state,
-//   followed by serialized bytes of each present optional struct in the same order.
-//   ix_default_account_state is a single byte: 1 = Initialized, 2 = Frozen.
+// - InitializeMintArgs: bytes = MintArgs, then for each optional field in order
+//   (ix_metadata_pointer, ix_metadata, ix_scaled_ui_amount, ix_default_account_state):
+//   a 1-byte presence flag (0 = absent, 1 = present) immediately followed by the
+//   field's bytes if present. Layout: flag | [payload], flag | [payload], ...
+//   ix_default_account_state payload is a single byte: 1 = Initialized, 2 = Frozen.
 struct InitializeMintArgs {
     ix_mint: MintArgs,
     ix_metadata_pointer: Option<MetadataPointerArgs>,
