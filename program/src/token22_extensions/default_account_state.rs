@@ -61,7 +61,11 @@ impl InitializeDefaultAccountState<'_> {
         let mut instruction_data = [UNINIT_BYTE; 3];
         write_bytes(
             &mut instruction_data,
-            &[INSTRUCTION_DISCRIMINATOR, SUBCOMMAND_INITIALIZE, self.state as u8],
+            &[
+                INSTRUCTION_DISCRIMINATOR,
+                SUBCOMMAND_INITIALIZE,
+                self.state as u8,
+            ],
         );
 
         let instruction = Instruction {
@@ -93,7 +97,11 @@ impl UpdateDefaultAccountState<'_> {
     }
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
-        let instruction_data = [INSTRUCTION_DISCRIMINATOR, SUBCOMMAND_UPDATE, self.state as u8];
+        let instruction_data = [
+            INSTRUCTION_DISCRIMINATOR,
+            SUBCOMMAND_UPDATE,
+            self.state as u8,
+        ];
         let account_metas = [
             AccountMeta::writable(self.mint.key()),
             AccountMeta::readonly_signer(self.freeze_authority.key()),
