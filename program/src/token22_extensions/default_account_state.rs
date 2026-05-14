@@ -96,6 +96,7 @@ impl UpdateDefaultAccountState<'_> {
         self.invoke_signed(&[])
     }
 
+    #[inline(always)]
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         let instruction_data = [
             INSTRUCTION_DISCRIMINATOR,
