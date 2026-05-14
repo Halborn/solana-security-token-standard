@@ -53,6 +53,7 @@
     - [ClaimDistribution](#claimdistribution)
     - [CloseActionReceiptAccount](#closeactionreceiptaccount)
     - [CloseClaimReceiptAccount](#closeclaimreceiptaccount)
+    - [UpdateDefaultAccountState](#updatedefaultaccountstate)
 - [Verification Program Interface](#verification-program-interface)
 
 
@@ -78,7 +79,7 @@ Instructions that can be authorized by **either**:
 
 This dual authorization model allows flexibility: use verification programs for complex compliance workflows, or fall back to direct creator control when no verification is configured. It applies to mint configuration-related instructions.
 
-**Applicable instructions:** `UpdateMetadata`, `InitializeVerificationConfig`, `UpdateVerificationConfig`, `TrimVerificationConfig`, `CreateRateAccount`, `UpdateRateAccount`, `CloseRateAccount`, `CreateDistributionEscrow`, `CloseActionReceiptAccount`, `CloseClaimReceiptAccount`
+**Applicable instructions:** `UpdateMetadata`, `InitializeVerificationConfig`, `UpdateVerificationConfig`, `TrimVerificationConfig`, `CreateRateAccount`, `UpdateRateAccount`, `CloseRateAccount`, `CreateDistributionEscrow`, `CloseActionReceiptAccount`, `CloseClaimReceiptAccount`, `UpdateDefaultAccountState`
 
 #### Verification Programs Only
 
@@ -401,6 +402,7 @@ All instructions use a discriminator byte as the first byte of instruction data:
 | ClaimDistribution            | `21`          |
 | CloseActionReceiptAccount    | `22`          |
 | CloseClaimReceiptAccount     | `23`          |
+| UpdateDefaultAccountState    | `24`          |
 
 For general encoding rules and failure codes, see [Serialization Conventions](#serialization-conventions) and [Errors](#errors).
 
@@ -429,13 +431,15 @@ Creates a new security token mint with required extensions and optional metadata
 ```rust
 // Serialization:
 // - InitializeMintArgs: bytes = MintArgs + 1-byte presence flags (in order)
-//   for ix_metadata_pointer, ix_metadata, ix_scaled_ui_amount, followed by
-//   serialized bytes of each present optional struct in the same order.
+//   for ix_metadata_pointer, ix_metadata, ix_scaled_ui_amount, ix_default_account_state,
+//   followed by serialized bytes of each present optional struct in the same order.
+//   ix_default_account_state is a single byte: 1 = Initialized, 2 = Frozen.
 struct InitializeMintArgs {
     ix_mint: MintArgs,
     ix_metadata_pointer: Option<MetadataPointerArgs>,
     ix_metadata: Option<TokenMetadataArgs>,
     ix_scaled_ui_amount: Option<ScaledUiAmountConfigArgs>,
+    ix_default_account_state: Option<u8>, // 1 = Initialized, 2 = Frozen
 }
 
 // - MintArgs: decimals (1 byte), mint_authority (32 bytes), freeze_authority (32 bytes).
@@ -483,6 +487,7 @@ Initializes a new SPL Token 2022 mint with the following extensions:
 - **MetadataPointer** (optional) - Points to metadata location
 - **TokenMetadata** (optional) - Stores metadata in mint account
 - **ScaledUiAmount** (optional) - Display scaling for UI
+- **DefaultAccountState** (optional) - Sets the initial state for newly created token accounts (`Initialized` or `Frozen`). When `Frozen`, new accounts are frozen by default and must be explicitly thawed before use. Managed by the program-owned [FreezeAuthority PDA](#freezeauthority).
 
 After initialization, mint authority is transferred to a program-controlled `MintAuthority` PDA. The provided `creator` is stored in the `MintAuthority` account, and the creator's signature may authorize subsequent instructions that use the [Initial Mint Authority](#initial-mint-authority) authorization type.
 
@@ -1188,6 +1193,41 @@ struct CloseClaimReceiptArgs {
     merkle_proof: Option<Vec<[u8; 32]>>,
 }
 ```
+
+
+### UpdateDefaultAccountState
+
+Changes the default state applied to newly created token accounts for a mint that was initialized with the `DefaultAccountState` extension.
+
+**Discriminator:** `24`
+
+**Authorization:** Initial Mint Authority OR Verification Programs
+
+**Accounts:**
+
+| #   | Account                                | Signer | Writable | Description                                          |
+| --- | -------------------------------------- | ------ | -------- | ---------------------------------------------------- |
+| 0   | mint                                   |        |          | Mint account (verification overhead)                 |
+| 1   | verification_config_or_mint_authority  |        |          | [VerificationConfig](#verificationconfig) PDA **or** [MintAuthority](#mintauthority) PDA |
+| 2   | instructions_sysvar_or_creator         | (✓)    |          | Instructions Sysvar (introspection) **or** creator (mint authority path) |
+| 3   | freeze_authority                       |        |          | [FreezeAuthority PDA](#freezeauthority) — program-owned signer for the CPI |
+| 4   | mint_account                           |        | ✓        | Mint account to update                               |
+| 5   | token_program                          |        |          | SPL Token 2022 Program                               |
+
+**Arguments:**
+
+```rust
+// Serialization: state (1 byte). Valid values: 1 = Initialized, 2 = Frozen.
+struct UpdateDefaultAccountStateArgs {
+    state: u8,
+}
+```
+
+**Description:**
+
+Updates the `DefaultAccountState` Token-2022 extension on an existing mint. The new `state` value determines the initial state of all token accounts created after this call. `Uninitialized` (`0`) is rejected.
+
+The instruction proxies the Token-2022 `UpdateDefaultAccountState` CPI, signing with the program-owned `FreezeAuthority` PDA. The mint **must** have been initialized with `ix_default_account_state` set; calling this instruction on a mint without the extension will fail.
 
 
 ## Verification Program Interface

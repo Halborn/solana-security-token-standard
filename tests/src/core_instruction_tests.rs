@@ -140,6 +140,7 @@ async fn test_initialize_mint_with_all_extensions() {
             new_multiplier_effective_timestamp: 0,
             new_multiplier: [1u8; 8].into(),
         }),
+        ix_default_account_state: None,
     };
 
     initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
@@ -395,6 +396,7 @@ async fn test_update_metadata() {
             additional_metadata: encoded,
         }),
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
@@ -549,6 +551,7 @@ async fn test_initialize_mint_with_different_decimals() {
             ix_metadata_pointer: None, // No metadata pointer for this test
             ix_metadata: None,
             ix_scaled_ui_amount: None, // No scaled UI amount for this test
+            ix_default_account_state: None,
         };
 
         initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
@@ -599,6 +602,7 @@ async fn test_initialize_mint_error_cases() {
                 ix_metadata_pointer: None, // No metadata pointer for this test
                 ix_metadata: None,
                 ix_scaled_ui_amount: None, // No scaled UI amount for this test
+                ix_default_account_state: None,
             })
             .instruction();
 
@@ -653,6 +657,7 @@ async fn test_initialize_mint_error_cases() {
                 ix_metadata_pointer: None, // No metadata pointer for this test
                 ix_metadata: None,
                 ix_scaled_ui_amount: None, // No scaled UI amount for this test
+                ix_default_account_state: None,
             })
             .instruction();
 
@@ -720,6 +725,7 @@ async fn test_verification_config() {
             additional_metadata: vec![],
         }),
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
@@ -1045,6 +1051,7 @@ async fn test_metadata_pointer_validation() {
             }),
             ix_metadata: None, // But no metadata provided
             ix_scaled_ui_amount: None,
+            ix_default_account_state: None,
         };
 
         let ix = InitializeMintBuilder::new()
@@ -1094,6 +1101,7 @@ async fn test_metadata_pointer_validation() {
                 additional_metadata: vec![],
             }),
             ix_scaled_ui_amount: None,
+            ix_default_account_state: None,
         };
 
         let ix = InitializeMintBuilder::new()
@@ -1138,6 +1146,7 @@ async fn test_metadata_pointer_validation() {
         }),
         ix_metadata: None, // No metadata - VALID for external storage
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
@@ -1198,6 +1207,7 @@ async fn test_initialize_verification_config_rejects_empty_vector() {
         ix_metadata_pointer: None,
         ix_metadata: None,
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
@@ -1255,6 +1265,7 @@ async fn test_update_verification_config_rejects_resulting_empty_vector() {
         ix_metadata_pointer: None,
         ix_metadata: None,
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(&mint_keypair, &mut context, mint_authority_pda, &mint_args).await;
@@ -1333,6 +1344,7 @@ async fn test_mint_fails_with_empty_verification_config() {
         ix_metadata_pointer: None,
         ix_metadata: None,
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(
@@ -1404,6 +1416,7 @@ async fn test_transfer_fails_with_empty_verification_config() {
         ix_metadata_pointer: None,
         ix_metadata: None,
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(

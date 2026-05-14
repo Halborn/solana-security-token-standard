@@ -1,5 +1,6 @@
 use pinocchio_token_2022::state::{Mint, TokenAccount};
 
+pub mod default_account_state;
 pub mod metadata;
 pub mod metadata_pointer;
 pub mod pausable;

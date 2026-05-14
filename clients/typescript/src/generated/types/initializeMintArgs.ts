@@ -12,6 +12,8 @@ import {
   getOptionEncoder,
   getStructDecoder,
   getStructEncoder,
+  getU8Decoder,
+  getU8Encoder,
   type Codec,
   type Decoder,
   type Encoder,
@@ -42,6 +44,7 @@ export type InitializeMintArgs = {
   ixMetadataPointer: Option<MetadataPointerArgs>;
   ixMetadata: Option<TokenMetadataArgs>;
   ixScaledUiAmount: Option<ScaledUiAmountConfigArgs>;
+  ixDefaultAccountState: Option<number>;
 };
 
 export type InitializeMintArgsArgs = {
@@ -49,6 +52,7 @@ export type InitializeMintArgsArgs = {
   ixMetadataPointer: OptionOrNullable<MetadataPointerArgsArgs>;
   ixMetadata: OptionOrNullable<TokenMetadataArgsArgs>;
   ixScaledUiAmount: OptionOrNullable<ScaledUiAmountConfigArgsArgs>;
+  ixDefaultAccountState: OptionOrNullable<number>;
 };
 
 export function getInitializeMintArgsEncoder(): Encoder<InitializeMintArgsArgs> {
@@ -60,6 +64,7 @@ export function getInitializeMintArgsEncoder(): Encoder<InitializeMintArgsArgs> 
       'ixScaledUiAmount',
       getOptionEncoder(getScaledUiAmountConfigArgsEncoder()),
     ],
+    ['ixDefaultAccountState', getOptionEncoder(getU8Encoder())],
   ]);
 }
 
@@ -72,6 +77,7 @@ export function getInitializeMintArgsDecoder(): Decoder<InitializeMintArgs> {
       'ixScaledUiAmount',
       getOptionDecoder(getScaledUiAmountConfigArgsDecoder()),
     ],
+    ['ixDefaultAccountState', getOptionDecoder(getU8Decoder())],
   ]);
 }
 

@@ -25,6 +25,7 @@ export * from './split';
 export * from './thaw';
 export * from './transfer';
 export * from './trimVerificationConfig';
+export * from './updateDefaultAccountState';
 export * from './updateMetadata';
 export * from './updateProofAccount';
 export * from './updateRateAccount';

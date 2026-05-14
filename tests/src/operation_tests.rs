@@ -70,6 +70,7 @@ async fn test_basic_t22_operations() {
         ix_metadata_pointer: None,
         ix_metadata: None,
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(
@@ -260,6 +261,7 @@ async fn test_t22_extension_operations() {
         ix_metadata_pointer: None,
         ix_metadata: None,
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(
@@ -396,6 +398,7 @@ async fn test_t22_transfer_operations() {
         ix_metadata_pointer: None,
         ix_metadata: None,
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(
@@ -529,6 +532,7 @@ async fn test_p2p_transfer_direct_spl() {
         ix_metadata_pointer: None,
         ix_metadata: None,
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(
@@ -692,6 +696,7 @@ async fn test_transfer_hook_extra_account_metas_init_update_trim() {
         ix_metadata_pointer: None,
         ix_metadata: None,
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint(

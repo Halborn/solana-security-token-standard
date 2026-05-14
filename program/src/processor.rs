@@ -6,8 +6,9 @@ use crate::{
         update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs,
         ClaimDistributionArgs, CloseActionReceiptArgs, CloseClaimReceiptArgs,
         CreateDistributionEscrowArgs, CreateRateArgs, InitializeMintArgs,
-        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
-        UpdateVerificationConfigArgs, VerifyArgs,
+        InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateDefaultAccountStateArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs,
+        VerifyArgs,
     },
     modules::{verification::VerificationModule, OperationsModule, VerificationProfile},
 };
@@ -38,7 +39,8 @@ impl Processor {
             | InitializeVerificationConfig
             | UpdateVerificationConfig
             | TrimVerificationConfig
-            | UpdateMetadata => VerificationProgramsOrMintAuthority,
+            | UpdateMetadata
+            | UpdateDefaultAccountState => VerificationProgramsOrMintAuthority,
             Burn | Mint | Pause | Resume | Freeze | Thaw | Transfer | Split | Convert
             | CreateProofAccount | UpdateProofAccount | ClaimDistribution => VerificationPrograms,
         }
@@ -228,6 +230,14 @@ impl Processor {
             }
             SecurityTokenInstruction::CloseClaimReceiptAccount => {
                 Self::process_close_claim_receipt_account(
+                    program_id,
+                    verified_mint_info,
+                    instruction_accounts,
+                    args_data,
+                )
+            }
+            SecurityTokenInstruction::UpdateDefaultAccountState => {
+                Self::process_update_default_account_state(
                     program_id,
                     verified_mint_info,
                     instruction_accounts,
@@ -594,5 +604,22 @@ impl Processor {
             merkle_proof,
         )?;
         Ok(())
+    }
+
+    fn process_update_default_account_state(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        args_data: &[u8],
+    ) -> ProgramResult {
+        let args = UpdateDefaultAccountStateArgs::try_from_bytes(args_data)
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+        args.validate()?;
+        VerificationModule::update_default_account_state(
+            program_id,
+            verified_mint_info,
+            accounts,
+            &args,
+        )
     }
 }

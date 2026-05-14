@@ -32,6 +32,7 @@ import {
   type ParsedThawInstruction,
   type ParsedTransferInstruction,
   type ParsedTrimVerificationConfigInstruction,
+  type ParsedUpdateDefaultAccountStateInstruction,
   type ParsedUpdateMetadataInstruction,
   type ParsedUpdateProofAccountInstruction,
   type ParsedUpdateRateAccountInstruction,
@@ -74,6 +75,7 @@ export enum SecurityTokenProgramInstruction {
   ClaimDistribution,
   CloseActionReceiptAccount,
   CloseClaimReceiptAccount,
+  UpdateDefaultAccountState,
 }
 
 export function identifySecurityTokenProgramInstruction(
@@ -151,6 +153,9 @@ export function identifySecurityTokenProgramInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(23), 0)) {
     return SecurityTokenProgramInstruction.CloseClaimReceiptAccount;
+  }
+  if (containsBytes(data, getU8Encoder().encode(24), 0)) {
+    return SecurityTokenProgramInstruction.UpdateDefaultAccountState;
   }
   throw new Error(
     'The provided instruction could not be identified as a securityTokenProgram instruction.'
@@ -231,4 +236,7 @@ export type ParsedSecurityTokenProgramInstruction<
     } & ParsedCloseActionReceiptAccountInstruction<TProgram>)
   | ({
       instructionType: SecurityTokenProgramInstruction.CloseClaimReceiptAccount;
-    } & ParsedCloseClaimReceiptAccountInstruction<TProgram>);
+    } & ParsedCloseClaimReceiptAccountInstruction<TProgram>)
+  | ({
+      instructionType: SecurityTokenProgramInstruction.UpdateDefaultAccountState;
+    } & ParsedUpdateDefaultAccountStateInstruction<TProgram>);

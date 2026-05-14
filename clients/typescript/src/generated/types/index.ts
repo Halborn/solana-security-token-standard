@@ -24,6 +24,7 @@ export * from './scaledUiAmountConfigArgs';
 export * from './splitArgs';
 export * from './tokenMetadataArgs';
 export * from './trimVerificationConfigArgs';
+export * from './updateDefaultAccountStateArgs';
 export * from './updateMetadataArgs';
 export * from './updateProofArgs';
 export * from './updateRateArgs';

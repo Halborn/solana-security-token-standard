@@ -1,7 +1,8 @@
 //! Utility functions for PDA derivation and common operations
 
 use crate::token22_extensions::{
-    metadata_pointer::MetadataPointer, pausable::Pausable, permanent_delegate::PermanentDelegate,
+    default_account_state::DefaultAccountStateExtension, metadata_pointer::MetadataPointer,
+    pausable::Pausable, permanent_delegate::PermanentDelegate,
     scaled_ui_amount::ScaledUiAmountConfig, transfer_hook::TransferHook, Extension, ExtensionType,
     EXTENSIONS_PADDING, EXTENSION_LENGTH_LEN, EXTENSION_START_OFFSET, EXTENSION_TYPE_LEN,
 };
@@ -282,6 +283,7 @@ pub fn calculate_mint_size_with_extensions(extensions: &[ExtensionType]) -> usiz
                 ExtensionType::Pausable => Pausable::LEN,
                 ExtensionType::MetadataPointer => MetadataPointer::LEN,
                 ExtensionType::ScaledUiAmount => ScaledUiAmountConfig::LEN,
+                ExtensionType::DefaultAccountState => DefaultAccountStateExtension::LEN,
                 _ => unreachable!(),
             };
             EXTENSION_TYPE_LEN + EXTENSION_LENGTH_LEN + extension_data_size

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added optional `DefaultAccountState` Token-2022 extension support at mint initialization (`ix_default_account_state: Option<u8>` in `InitializeMintArgs`). Accepted values: `1` (Initialized) or `2` (Frozen).
+- Added `UpdateDefaultAccountState` instruction (discriminator `24`) to change the default state for newly created token accounts. Uses the `VerificationProgramsOrMintAuthority` authorization profile and signs the Token-2022 CPI with the program-owned `FreezeAuthority` PDA.
+
 ## 0.2.0 - 2026-05-08
 
 ### Breaking Changes
