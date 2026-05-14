@@ -1,8 +1,8 @@
 //! DefaultAccountState extension
 
-const EXTENSION_DISCRIMINATOR: u8 = 28;
-const IX_INITIALIZE: u8 = 0;
-const IX_UPDATE: u8 = 1;
+const INSTRUCTION_DISCRIMINATOR: u8 = 28;
+const SUBCOMMAND_INITIALIZE: u8 = 0;
+const SUBCOMMAND_UPDATE: u8 = 1;
 
 use crate::token22_extensions::{write_bytes, BaseState, Extension, ExtensionType, UNINIT_BYTE};
 use pinocchio::{
@@ -42,7 +42,7 @@ impl DefaultAccountStateExtension {
 /// Must be called before `InitializeMint`.
 ///
 /// Instruction data: `[28, 0, state]`
-/// where `28` = DefaultAccountState extension discriminator, `0` = Initialize sub-command.
+/// where `28` = Token-2022 instruction discriminator for DefaultAccountState, `0` = Initialize sub-command.
 pub struct InitializeDefaultAccountState<'a> {
     pub mint: &'a AccountInfo,
     pub state: AccountState,
@@ -61,7 +61,7 @@ impl InitializeDefaultAccountState<'_> {
         let mut instruction_data = [UNINIT_BYTE; 3];
         write_bytes(
             &mut instruction_data,
-            &[EXTENSION_DISCRIMINATOR, IX_INITIALIZE, self.state as u8],
+            &[INSTRUCTION_DISCRIMINATOR, SUBCOMMAND_INITIALIZE, self.state as u8],
         );
 
         let instruction = Instruction {
@@ -77,7 +77,7 @@ impl InitializeDefaultAccountState<'_> {
 /// Wrapper for UpdateDefaultAccountState.
 ///
 /// Instruction data: `[28, 1, state]`
-/// where `28` = DefaultAccountState extension discriminator, `1` = Update sub-command.
+/// where `28` = Token-2022 instruction discriminator for DefaultAccountState, `1` = Update sub-command.
 ///
 /// Accounts: writable mint, signer freeze_authority.
 pub struct UpdateDefaultAccountState<'a> {
@@ -93,7 +93,7 @@ impl UpdateDefaultAccountState<'_> {
     }
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
-        let instruction_data = [EXTENSION_DISCRIMINATOR, IX_UPDATE, self.state as u8];
+        let instruction_data = [INSTRUCTION_DISCRIMINATOR, SUBCOMMAND_UPDATE, self.state as u8];
         let account_metas = [
             AccountMeta::writable(self.mint.key()),
             AccountMeta::readonly_signer(self.freeze_authority.key()),

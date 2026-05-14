@@ -1206,14 +1206,11 @@ Changes the default state applied to newly created token accounts for a mint tha
 
 **Accounts:**
 
-| #   | Account                                | Signer | Writable | Description                                          |
-| --- | -------------------------------------- | ------ | -------- | ---------------------------------------------------- |
-| 0   | mint                                   |        |          | Mint account (verification overhead)                 |
-| 1   | verification_config_or_mint_authority  |        |          | [VerificationConfig](#verificationconfig) PDA **or** [MintAuthority](#mintauthority) PDA |
-| 2   | instructions_sysvar_or_creator         | (✓)    |          | Instructions Sysvar (introspection) **or** creator (mint authority path) |
-| 3   | freeze_authority                       |        |          | [FreezeAuthority PDA](#freezeauthority) — program-owned signer for the CPI |
-| 4   | mint_account                           |        | ✓        | Mint account to update                               |
-| 5   | token_program                          |        |          | SPL Token 2022 Program                               |
+| #   | Account          | Signer | Writable | Description                                                   |
+| --- | ---------------- | ------ | -------- | ------------------------------------------------------------- |
+| 0   | freeze_authority |        |          | [FreezeAuthority PDA](#freezeauthority) — program-owned signer for the CPI |
+| 1   | mint_account     |        | ✓        | Mint account to update                                        |
+| 2   | token_program    |        |          | SPL Token 2022 Program                                        |
 
 **Arguments:**
 
