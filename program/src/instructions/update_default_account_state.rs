@@ -25,7 +25,10 @@ impl UpdateDefaultAccountStateArgs {
     }
 
     pub fn validate(&self) -> Result<(), ProgramError> {
-        if !matches!(AccountState::from(self.state), AccountState::Initialized | AccountState::Frozen) {
+        if !matches!(
+            AccountState::from(self.state),
+            AccountState::Initialized | AccountState::Frozen
+        ) {
             return Err(ProgramError::InvalidArgument);
         }
         Ok(())
