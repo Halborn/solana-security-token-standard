@@ -1,5 +1,9 @@
 //! DefaultAccountState extension
 
+const EXTENSION_DISCRIMINATOR: u8 = 28;
+const IX_INITIALIZE: u8 = 0;
+const IX_UPDATE: u8 = 1;
+
 use crate::token22_extensions::{write_bytes, BaseState, Extension, ExtensionType, UNINIT_BYTE};
 use pinocchio::{
     account_info::AccountInfo,
@@ -55,7 +59,7 @@ impl InitializeDefaultAccountState<'_> {
         let account_metas = [AccountMeta::writable(self.mint.key())];
 
         let mut instruction_data = [UNINIT_BYTE; 3];
-        write_bytes(&mut instruction_data, &[28, 0, self.state as u8]);
+        write_bytes(&mut instruction_data, &[EXTENSION_DISCRIMINATOR, IX_INITIALIZE, self.state as u8]);
 
         let instruction = Instruction {
             program_id: &pinocchio_token_2022::ID,
@@ -86,7 +90,7 @@ impl UpdateDefaultAccountState<'_> {
     }
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
-        let instruction_data = [28u8, 1u8, self.state as u8];
+        let instruction_data = [EXTENSION_DISCRIMINATOR, IX_UPDATE, self.state as u8];
         let account_metas = [
             AccountMeta::writable(self.mint.key()),
             AccountMeta::readonly_signer(self.freeze_authority.key()),
