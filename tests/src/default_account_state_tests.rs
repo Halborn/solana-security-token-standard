@@ -20,20 +20,21 @@ use crate::helpers::{
 const STATE_INITIALIZED: u8 = AccountState::Initialized as u8;
 const STATE_FROZEN: u8 = AccountState::Frozen as u8;
 
-async fn setup() -> (ProgramTestContext, Keypair, Pubkey, Pubkey) {
+async fn setup() -> (ProgramTestContext, Keypair, Pubkey, Pubkey, Pubkey) {
     let mut pt = ProgramTest::new("security_token_program", SECURITY_TOKEN_PROGRAM_ID, None);
     pt.prefer_bpf(false);
     add_dummy_verification_program(&mut pt);
     let context = pt.start_with_context().await;
+    let payer = context.payer.pubkey();
     let mint_keypair = Keypair::new();
-    let (mint_authority_pda, _) =
-        find_mint_authority_pda(&mint_keypair.pubkey(), &context.payer.pubkey());
+    let (mint_authority_pda, _) = find_mint_authority_pda(&mint_keypair.pubkey(), &payer);
     let (freeze_authority_pda, _) = find_mint_freeze_authority_pda(&mint_keypair.pubkey());
     (
         context,
         mint_keypair,
         mint_authority_pda,
         freeze_authority_pda,
+        payer,
     )
 }
 
@@ -76,17 +77,14 @@ fn make_update_ix(
 
 #[tokio::test]
 async fn test_initialize_mint_with_default_account_state_frozen() {
-    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda, payer) =
+        setup().await;
 
     initialize_mint(
         &mint_keypair,
         &mut context,
         mint_authority_pda,
-        &mint_args(
-            context.payer.pubkey(),
-            freeze_authority_pda,
-            Some(STATE_FROZEN),
-        ),
+        &mint_args(payer, freeze_authority_pda, Some(STATE_FROZEN)),
     )
     .await;
 
@@ -111,13 +109,14 @@ async fn test_initialize_mint_with_default_account_state_frozen() {
 
 #[tokio::test]
 async fn test_initialize_mint_without_default_account_state() {
-    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda, payer) =
+        setup().await;
 
     initialize_mint(
         &mint_keypair,
         &mut context,
         mint_authority_pda,
-        &mint_args(context.payer.pubkey(), freeze_authority_pda, None),
+        &mint_args(payer, freeze_authority_pda, None),
     )
     .await;
 
@@ -132,17 +131,14 @@ async fn test_initialize_mint_without_default_account_state() {
 
 #[tokio::test]
 async fn test_update_default_account_state_via_mint_authority() {
-    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda, payer) =
+        setup().await;
 
     initialize_mint(
         &mint_keypair,
         &mut context,
         mint_authority_pda,
-        &mint_args(
-            context.payer.pubkey(),
-            freeze_authority_pda,
-            Some(STATE_FROZEN),
-        ),
+        &mint_args(payer, freeze_authority_pda, Some(STATE_FROZEN)),
     )
     .await;
 
@@ -153,10 +149,10 @@ async fn test_update_default_account_state_via_mint_authority() {
             mint_keypair.pubkey(),
             mint_authority_pda,
             freeze_authority_pda,
-            context.payer.pubkey(),
+            payer,
             STATE_INITIALIZED,
         )],
-        &context.payer.pubkey(),
+        &payer,
         vec![&context.payer],
     )
     .await;
@@ -174,17 +170,14 @@ async fn test_update_default_account_state_via_mint_authority() {
 
 #[tokio::test]
 async fn test_update_default_account_state_via_verification_programs() {
-    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda, payer) =
+        setup().await;
 
     initialize_mint(
         &mint_keypair,
         &mut context,
         mint_authority_pda,
-        &mint_args(
-            context.payer.pubkey(),
-            freeze_authority_pda,
-            Some(STATE_INITIALIZED),
-        ),
+        &mint_args(payer, freeze_authority_pda, Some(STATE_INITIALIZED)),
     )
     .await;
 
@@ -216,7 +209,7 @@ async fn test_update_default_account_state_via_verification_programs() {
             create_dummy_verification_from_instruction(&update_ix),
             update_ix,
         ],
-        &context.payer.pubkey(),
+        &payer,
         vec![&context.payer],
     )
     .await;
@@ -234,17 +227,14 @@ async fn test_update_default_account_state_via_verification_programs() {
 
 #[tokio::test]
 async fn test_update_default_account_state_invalid_state_rejected() {
-    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda, payer) =
+        setup().await;
 
     initialize_mint(
         &mint_keypair,
         &mut context,
         mint_authority_pda,
-        &mint_args(
-            context.payer.pubkey(),
-            freeze_authority_pda,
-            Some(STATE_FROZEN),
-        ),
+        &mint_args(payer, freeze_authority_pda, Some(STATE_FROZEN)),
     )
     .await;
 
@@ -254,10 +244,10 @@ async fn test_update_default_account_state_invalid_state_rejected() {
             mint_keypair.pubkey(),
             mint_authority_pda,
             freeze_authority_pda,
-            context.payer.pubkey(),
+            payer,
             AccountState::Uninitialized as u8,
         )],
-        &context.payer.pubkey(),
+        &payer,
         vec![&context.payer],
     )
     .await;
@@ -266,13 +256,14 @@ async fn test_update_default_account_state_invalid_state_rejected() {
 
 #[tokio::test]
 async fn test_update_default_account_state_without_extension_fails() {
-    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda) = setup().await;
+    let (mut context, mint_keypair, mint_authority_pda, freeze_authority_pda, payer) =
+        setup().await;
 
     initialize_mint(
         &mint_keypair,
         &mut context,
         mint_authority_pda,
-        &mint_args(context.payer.pubkey(), freeze_authority_pda, None),
+        &mint_args(payer, freeze_authority_pda, None),
     )
     .await;
 
@@ -282,10 +273,10 @@ async fn test_update_default_account_state_without_extension_fails() {
             mint_keypair.pubkey(),
             mint_authority_pda,
             freeze_authority_pda,
-            context.payer.pubkey(),
+            payer,
             STATE_INITIALIZED,
         )],
-        &context.payer.pubkey(),
+        &payer,
         vec![&context.payer],
     )
     .await;

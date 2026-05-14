@@ -59,7 +59,10 @@ impl InitializeDefaultAccountState<'_> {
         let account_metas = [AccountMeta::writable(self.mint.key())];
 
         let mut instruction_data = [UNINIT_BYTE; 3];
-        write_bytes(&mut instruction_data, &[EXTENSION_DISCRIMINATOR, IX_INITIALIZE, self.state as u8]);
+        write_bytes(
+            &mut instruction_data,
+            &[EXTENSION_DISCRIMINATOR, IX_INITIALIZE, self.state as u8],
+        );
 
         let instruction = Instruction {
             program_id: &pinocchio_token_2022::ID,
