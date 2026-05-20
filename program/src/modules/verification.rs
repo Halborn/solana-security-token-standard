@@ -1327,6 +1327,7 @@ impl VerificationModule {
         verify_mint_keys_match(verified_mint_info, &mint_info)?;
         verify_token22_program(token_program)?;
         verify_writable(mint_info)?;
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
 
         let (freeze_authority_pda, bump) =
             utils::find_freeze_authority_pda(mint_info.key(), program_id);
