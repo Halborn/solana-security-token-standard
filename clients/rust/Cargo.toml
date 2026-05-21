@@ -1,6 +1,6 @@
 [package]
 name = "ssts-org-client"
-version = "0.2.0"
+version = "0.3.0"
 description = "Rust client for the Solana Security Token"
 authors = ["SSTS Foundation"]
 repository = "https://github.com/Solana-Security-Token-Standard/solana-security-token-standard"
