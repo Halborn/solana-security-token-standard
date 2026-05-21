@@ -582,6 +582,7 @@ pub async fn create_minimal_security_token_mint(
         ix_metadata_pointer: None,
         ix_metadata: None,
         ix_scaled_ui_amount: None,
+        ix_default_account_state: None,
     };
 
     initialize_mint_for_creator(

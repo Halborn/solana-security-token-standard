@@ -1,6 +1,7 @@
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 use pinocchio::ProgramResult;
+use pinocchio_token_2022::state::AccountState;
 use shank::ShankType;
 
 #[repr(C)]
@@ -250,6 +251,8 @@ pub struct InitializeMintArgs {
     pub ix_metadata: Option<TokenMetadataArgs>, // pinocchio_token_2022::extensions::metadata::TokenMetadata
     /// Optional scaled UI amount configuration
     pub ix_scaled_ui_amount: Option<ScaledUiAmountConfigArgs>, //  pinocchio_token_2022::extensions::scaled_ui_amount::ScaledUiAmountConfig
+    /// Optional default account state (pinocchio_token_2022::state::AccountState as u8: 1=Initialized, 2=Frozen)
+    pub ix_default_account_state: Option<u8>,
 }
 
 impl MintArgs {
@@ -310,6 +313,7 @@ impl std::fmt::Debug for InitializeMintArgs {
             .field("ix_metadata_pointer", &self.ix_metadata_pointer)
             .field("ix_metadata", &self.ix_metadata)
             .field("ix_scaled_ui_amount", &self.ix_scaled_ui_amount)
+            .field("ix_default_account_state", &self.ix_default_account_state)
             .finish()
     }
 }
@@ -323,6 +327,7 @@ impl InitializeMintArgs {
         metadata_pointer: Option<MetadataPointerArgs>,
         metadata: Option<TokenMetadataArgs>,
         scaled_ui_amount: Option<ScaledUiAmountConfigArgs>,
+        default_account_state: Option<u8>,
     ) -> Self {
         Self {
             ix_mint: MintArgs {
@@ -333,6 +338,7 @@ impl InitializeMintArgs {
             ix_metadata_pointer: metadata_pointer,
             ix_metadata: metadata,
             ix_scaled_ui_amount: scaled_ui_amount,
+            ix_default_account_state: default_account_state,
         }
     }
 
@@ -367,6 +373,14 @@ impl InitializeMintArgs {
             buf.push(0); // no scaled UI amount
         }
 
+        // Pack default account state presence flag and state byte if present
+        if let Some(state) = self.ix_default_account_state {
+            buf.push(1); // has default account state
+            buf.push(state);
+        } else {
+            buf.push(0); // no default account state
+        }
+
         buf
     }
 
@@ -384,6 +398,7 @@ impl InitializeMintArgs {
                 ix_metadata_pointer: None,
                 ix_metadata: None,
                 ix_scaled_ui_amount: None,
+                ix_default_account_state: None,
             });
         }
         // Check metadata pointer flag
@@ -405,6 +420,7 @@ impl InitializeMintArgs {
                 ix_metadata_pointer,
                 ix_metadata: None,
                 ix_scaled_ui_amount: None,
+                ix_default_account_state: None,
             });
         }
 
@@ -421,23 +437,46 @@ impl InitializeMintArgs {
         };
 
         // Check scaled UI amount flag
-        let has_scaled_ui_amount = if data.len() > offset { data[offset] } else { 0 };
-
-        if has_scaled_ui_amount == 0 || data.len() <= offset + 1 {
-            // No scaled UI amount or not enough data
+        if data.len() <= offset {
             return Ok(Self {
                 ix_mint,
                 ix_metadata_pointer,
                 ix_metadata,
                 ix_scaled_ui_amount: None,
+                ix_default_account_state: None,
             });
         }
 
+        let has_scaled_ui_amount = data[offset];
         offset += 1;
 
         let ix_scaled_ui_amount = if has_scaled_ui_amount == 1 {
             let scaled_ui_amount = ScaledUiAmountConfigArgs::try_from_bytes(&data[offset..])?;
+            offset += ScaledUiAmountConfigArgs::LEN;
             Some(scaled_ui_amount)
+        } else {
+            None
+        };
+
+        // Check default account state flag
+        if data.len() <= offset {
+            return Ok(Self {
+                ix_mint,
+                ix_metadata_pointer,
+                ix_metadata,
+                ix_scaled_ui_amount,
+                ix_default_account_state: None,
+            });
+        }
+
+        let has_default_account_state = data[offset];
+        offset += 1;
+
+        let ix_default_account_state = if has_default_account_state == 1 {
+            if data.len() <= offset {
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            Some(data[offset])
         } else {
             None
         };
@@ -447,13 +486,21 @@ impl InitializeMintArgs {
             ix_metadata_pointer,
             ix_metadata,
             ix_scaled_ui_amount,
+            ix_default_account_state,
         })
     }
 
     pub fn validate(&self) -> ProgramResult {
-        // Metadata requires metadata pointer
         if self.ix_metadata.is_some() && self.ix_metadata_pointer.is_none() {
             return Err(ProgramError::InvalidArgument);
+        }
+        if let Some(state) = self.ix_default_account_state {
+            if !matches!(
+                AccountState::from(state),
+                AccountState::Initialized | AccountState::Frozen
+            ) {
+                return Err(ProgramError::InvalidArgument);
+            }
         }
         Ok(())
     }
@@ -522,6 +569,7 @@ mod tests {
             Some(metadata_pointer.clone()),
             Some(metadata.clone()),
             Some(scaled_ui_amount.clone()),
+            None,
         );
 
         let inner_bytes = original.to_bytes_inner();
@@ -583,6 +631,7 @@ mod tests {
             None, // no metadata pointer for this simpler test
             None, // no metadata for this simpler test
             None, // no scaled UI amount
+            None, // no default account state
         );
 
         let inner_bytes = original.to_bytes_inner();
@@ -626,6 +675,7 @@ mod tests {
                 additional_metadata: vec![],
             }),
             None,
+            None,
         );
         assert!(args_valid.validate().is_ok());
 
@@ -642,7 +692,34 @@ mod tests {
                 additional_metadata: vec![],
             }),
             None,
+            None,
         );
         assert_eq!(args_invalid.validate(), Err(ProgramError::InvalidArgument));
+    }
+
+    #[test]
+    fn test_default_account_state_only_roundtrip() {
+        let mint_authority = random_pubkey();
+        let freeze_authority = random_pubkey();
+
+        for state in [1u8, 2u8] {
+            let original = InitializeMintArgs::new(
+                6,
+                mint_authority,
+                freeze_authority,
+                None,
+                None,
+                None,
+                Some(state),
+            );
+
+            let bytes = original.to_bytes_inner();
+            let deserialized = InitializeMintArgs::try_from_bytes(&bytes).unwrap();
+
+            assert!(deserialized.ix_metadata_pointer.is_none());
+            assert!(deserialized.ix_metadata.is_none());
+            assert!(deserialized.ix_scaled_ui_amount.is_none());
+            assert_eq!(deserialized.ix_default_account_state, Some(state));
+        }
     }
 }

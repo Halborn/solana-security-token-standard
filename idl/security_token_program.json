@@ -1367,6 +1367,53 @@
         "type": "u8",
         "value": 23
       }
+    },
+    {
+      "name": "UpdateDefaultAccountState",
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verificationConfigOrMintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructionsSysvarOrCreator",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "freezeAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "updateDefaultAccountStateArgs",
+          "type": {
+            "defined": "UpdateDefaultAccountStateArgs"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 24
+      }
     }
   ],
   "accounts": [
@@ -1686,6 +1733,12 @@
                 "defined": "ScaledUiAmountConfigArgs"
               }
             }
+          },
+          {
+            "name": "ixDefaultAccountState",
+            "type": {
+              "option": "u8"
+            }
           }
         ]
       }
@@ -1864,6 +1917,18 @@
           {
             "name": "actionId",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateDefaultAccountStateArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "state",
+            "type": "u8"
           }
         ]
       }

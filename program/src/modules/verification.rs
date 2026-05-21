@@ -3,6 +3,10 @@
 //! Handles authorization checks, compliance verification, and instruction validation
 //! according to the Security Token specification.
 
+use crate::token22_extensions::default_account_state::{
+    AccountState, InitializeDefaultAccountState,
+    UpdateDefaultAccountState as UpdateDefaultAccountStateCpi,
+};
 use crate::token22_extensions::metadata::{Field, UpdateField};
 use crate::token22_extensions::pausable::InitializePausable;
 use crate::token22_extensions::permanent_delegate::InitializePermanentDelegate;
@@ -25,7 +29,9 @@ use crate::constants::{seeds, INSTRUCTION_ACCOUNTS_OFFSET, TRANSFER_HOOK_PROGRAM
 use crate::error::SecurityTokenError;
 use crate::instruction::SecurityTokenInstruction;
 use crate::instructions::verification_config::TrimVerificationConfigArgs;
-use crate::instructions::{InitializeMintArgs, UpdateMetadataArgs, VerifyArgs};
+use crate::instructions::{
+    InitializeMintArgs, UpdateDefaultAccountStateArgs, UpdateMetadataArgs, VerifyArgs,
+};
 use crate::modules::{
     verify_account_initialized, verify_account_not_initialized, verify_instructions_sysvar,
     verify_mint_keys_match, verify_owner, verify_pda_keys_match, verify_rent_sysvar, verify_signer,
@@ -65,6 +71,7 @@ impl VerificationModule {
         let metadata_pointer_opt = &args.ix_metadata_pointer;
         let metadata_opt = &args.ix_metadata;
         let scaled_ui_amount_opt = &args.ix_scaled_ui_amount;
+        let default_account_state_opt = &args.ix_default_account_state;
 
         let [mint_info, mint_authority_account, creator_info, token_program_info, system_program_info, rent_info] =
             accounts
@@ -115,7 +122,7 @@ impl VerificationModule {
             }
         }
 
-        let mut extensions_buf: [ExtensionType; 5] = [ExtensionType::Pausable; 5];
+        let mut extensions_buf: [ExtensionType; 6] = [ExtensionType::Pausable; 6];
         let mut ext_count: usize = 0;
         let required_extensions: &[ExtensionType] = &[
             ExtensionType::PermanentDelegate,
@@ -136,6 +143,12 @@ impl VerificationModule {
         // Add ScaledUiAmount if provided by client
         if scaled_ui_amount_opt.is_some() {
             extensions_buf[ext_count] = ExtensionType::ScaledUiAmount;
+            ext_count += 1;
+        }
+
+        // Add DefaultAccountState if provided by client
+        if default_account_state_opt.is_some() {
+            extensions_buf[ext_count] = ExtensionType::DefaultAccountState;
             ext_count += 1;
         }
 
@@ -214,6 +227,15 @@ impl VerificationModule {
             };
 
             scaled_ui_amount_initialize.invoke()?;
+        }
+
+        // Initialize DefaultAccountState extension if provided by client
+        if let Some(&state_byte) = default_account_state_opt.as_ref() {
+            InitializeDefaultAccountState {
+                mint: mint_info,
+                state: AccountState::from(state_byte),
+            }
+            .invoke()?;
         }
 
         // Use client-provided authorities for base initialize to match client expectations/tests
@@ -1290,5 +1312,41 @@ impl VerificationModule {
                 .ok_or(ProgramError::InsufficientFunds)?;
         }
         Ok(())
+    }
+
+    pub fn update_default_account_state(
+        program_id: &Pubkey,
+        verified_mint_info: &AccountInfo,
+        accounts: &[AccountInfo],
+        args: &UpdateDefaultAccountStateArgs,
+    ) -> ProgramResult {
+        let [freeze_authority, mint_info, token_program] = accounts else {
+            return Err(ProgramError::NotEnoughAccountKeys);
+        };
+
+        verify_mint_keys_match(verified_mint_info, &mint_info)?;
+        verify_token22_program(token_program)?;
+        verify_writable(mint_info)?;
+        verify_owner(mint_info, &pinocchio_token_2022::ID)?;
+
+        let (freeze_authority_pda, bump) =
+            utils::find_freeze_authority_pda(mint_info.key(), program_id);
+        verify_pda_keys_match(freeze_authority.key(), &freeze_authority_pda)?;
+
+        let state = AccountState::from(args.state);
+        let bump_seed = [bump];
+        let signer_seeds = [
+            Seed::from(seeds::FREEZE_AUTHORITY),
+            Seed::from(mint_info.key().as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+        let freeze_authority_signer = Signer::from(&signer_seeds);
+
+        UpdateDefaultAccountStateCpi {
+            mint: mint_info,
+            freeze_authority,
+            state,
+        }
+        .invoke_signed(&[freeze_authority_signer])
     }
 }

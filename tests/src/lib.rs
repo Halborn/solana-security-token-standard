@@ -29,3 +29,6 @@ pub mod receipt_tests;
 
 #[cfg(test)]
 pub mod claim_tests;
+
+#[cfg(test)]
+pub mod default_account_state_tests;

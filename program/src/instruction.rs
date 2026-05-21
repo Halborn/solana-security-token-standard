@@ -28,6 +28,7 @@ pub enum SecurityTokenInstruction {
     ClaimDistribution = 21,
     CloseActionReceiptAccount = 22,
     CloseClaimReceiptAccount = 23,
+    UpdateDefaultAccountState = 24,
 }
 
 impl TryFrom<u8> for SecurityTokenInstruction {
@@ -59,6 +60,7 @@ impl TryFrom<u8> for SecurityTokenInstruction {
             21 => Ok(SecurityTokenInstruction::ClaimDistribution),
             22 => Ok(SecurityTokenInstruction::CloseActionReceiptAccount),
             23 => Ok(SecurityTokenInstruction::CloseClaimReceiptAccount),
+            24 => Ok(SecurityTokenInstruction::UpdateDefaultAccountState),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -98,10 +100,12 @@ mod idl_gen {
         update_proof_account::UpdateProofArgs, update_rate_account::UpdateRateArgs,
         ClaimDistributionArgs, CloseActionReceiptArgs, CloseClaimReceiptArgs,
         CreateDistributionEscrowArgs, CreateRateArgs, InitializeMintArgs,
-        InitializeVerificationConfigArgs, TrimVerificationConfigArgs, UpdateMetadataArgs,
-        UpdateVerificationConfigArgs, VerifyArgs,
+        InitializeVerificationConfigArgs, TrimVerificationConfigArgs,
+        UpdateDefaultAccountStateArgs, UpdateMetadataArgs, UpdateVerificationConfigArgs,
+        VerifyArgs,
     };
 
+    #[allow(clippy::large_enum_variant)]
     #[derive(shank::ShankInstruction)]
     #[repr(u8)]
     enum _SecurityTokenInstruction {
@@ -398,5 +402,15 @@ mod idl_gen {
         #[account(6, name = "eligible_token_account")]
         #[account(7, optional, name = "proof_account")]
         CloseClaimReceiptAccount(CloseClaimReceiptArgs) = 23,
+
+        // Verification overhead
+        #[account(0, name = "mint")]
+        #[account(1, name = "verification_config_or_mint_authority")]
+        #[account(2, name = "instructions_sysvar_or_creator")]
+        // Instruction accounts
+        #[account(3, name = "freeze_authority")]
+        #[account(4, writable, name = "mint_account")]
+        #[account(5, name = "token_program")]
+        UpdateDefaultAccountState(UpdateDefaultAccountStateArgs) = 24,
     }
 }

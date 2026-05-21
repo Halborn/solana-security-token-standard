@@ -43,6 +43,8 @@ pub mod initialize_mint;
 pub mod split;
 /// Token wrapper utilities
 pub mod token_wrappers;
+/// Update default account state instruction arguments and implementations
+pub mod update_default_account_state;
 /// Update metadata instruction arguments and implementations
 pub mod update_metadata;
 /// Verification configuration instruction arguments and implementations
@@ -61,6 +63,7 @@ pub use create_rate_account::*;
 pub use initialize_mint::*;
 pub use split::*;
 pub use token_wrappers::*;
+pub use update_default_account_state::*;
 pub use update_metadata::*;
 pub use update_proof_account::*;
 pub use update_rate_account::*;
