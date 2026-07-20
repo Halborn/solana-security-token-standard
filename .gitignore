@@ -10,9 +10,6 @@ target/
 *.swo
 *~
 
-# Harness
-.harness/
-
 # OS
 .DS_Store
 Thumbs.db

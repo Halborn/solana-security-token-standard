@@ -39,9 +39,10 @@ pub fn burn_checked(
     };
 
     match permissioned_burn_state {
-        // If the Permissioned Burn extension is not present,
-        // or if it is present but has no authority,
-        // use the standard BurnChecked instruction with the permanent delegate authority.
+        // Legacy mints do not have the extension. SSTS cannot clear a configured
+        // Permissioned Burn authority, but if it is cleared externally, Token-2022
+        // already permits native burns. Falling back to BurnChecked keeps SSTS
+        // burn, split, and convert usable because there is no recovery path.
         PermissionedBurnState::NotPresent | PermissionedBurnState::PresentWithoutAuthority => {
             BurnChecked {
                 mint,

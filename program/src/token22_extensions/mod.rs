@@ -103,7 +103,7 @@ pub enum ExtensionType {
     /// Indicates that the account belongs to a pausable mint
     PausableAccount,
     /// Restricts burns to the configured permissioned authority
-    PermissionedBurn = 28,
+    PermissionedBurn,
 }
 
 impl ExtensionType {
