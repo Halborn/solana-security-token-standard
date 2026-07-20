@@ -20,4 +20,5 @@ pub struct InitializeMintArgs {
     pub ix_metadata: Option<TokenMetadataArgs>,
     pub ix_scaled_ui_amount: Option<ScaledUiAmountConfigArgs>,
     pub ix_default_account_state: Option<u8>,
+    pub ix_permissioned_burn: bool,
 }

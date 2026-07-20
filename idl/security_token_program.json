@@ -1739,6 +1739,10 @@
             "type": {
               "option": "u8"
             }
+          },
+          {
+            "name": "ixPermissionedBurn",
+            "type": "bool"
           }
         ]
       }
@@ -2081,6 +2085,16 @@
       "code": 7,
       "name": "ExternalMetadataForbidsData",
       "msg": "External metadata storage cannot accept metadata data in this instruction"
+    },
+    {
+      "code": 8,
+      "name": "MalformedPermissionedBurn",
+      "msg": "Malformed Permissioned Burn configuration"
+    },
+    {
+      "code": 9,
+      "name": "PermissionedBurnAuthorityMismatch",
+      "msg": "Permissioned Burn authority mismatch"
     }
   ],
   "metadata": {

@@ -28,6 +28,10 @@ export const SECURITY_TOKEN_PROGRAM_ERROR__CANNOT_MODIFY_EXTERNAL_METADATA_ACCOU
 export const SECURITY_TOKEN_PROGRAM_ERROR__INTERNAL_METADATA_REQUIRES_DATA = 0x6; // 6
 /** ExternalMetadataForbidsData: External metadata storage cannot accept metadata data in this instruction */
 export const SECURITY_TOKEN_PROGRAM_ERROR__EXTERNAL_METADATA_FORBIDS_DATA = 0x7; // 7
+/** MalformedPermissionedBurn: Malformed Permissioned Burn configuration */
+export const SECURITY_TOKEN_PROGRAM_ERROR__MALFORMED_PERMISSIONED_BURN = 0x8; // 8
+/** PermissionedBurnAuthorityMismatch: Permissioned Burn authority mismatch */
+export const SECURITY_TOKEN_PROGRAM_ERROR__PERMISSIONED_BURN_AUTHORITY_MISMATCH = 0x9; // 9
 
 export type SecurityTokenProgramError =
   | typeof SECURITY_TOKEN_PROGRAM_ERROR__ACCOUNT_INTERSECTION_MISMATCH
@@ -35,7 +39,9 @@ export type SecurityTokenProgramError =
   | typeof SECURITY_TOKEN_PROGRAM_ERROR__EXTERNAL_METADATA_FORBIDS_DATA
   | typeof SECURITY_TOKEN_PROGRAM_ERROR__INTERNAL_METADATA_REQUIRES_DATA
   | typeof SECURITY_TOKEN_PROGRAM_ERROR__INVALID_VERIFICATION_CONFIG_PDA
+  | typeof SECURITY_TOKEN_PROGRAM_ERROR__MALFORMED_PERMISSIONED_BURN
   | typeof SECURITY_TOKEN_PROGRAM_ERROR__NOT_ENOUGH_ACCOUNTS_FOR_VERIFICATION
+  | typeof SECURITY_TOKEN_PROGRAM_ERROR__PERMISSIONED_BURN_AUTHORITY_MISMATCH
   | typeof SECURITY_TOKEN_PROGRAM_ERROR__VERIFICATION_PROGRAM_NOT_FOUND;
 
 let securityTokenProgramErrorMessages:
@@ -48,7 +54,9 @@ if (process.env.NODE_ENV !== 'production') {
     [SECURITY_TOKEN_PROGRAM_ERROR__EXTERNAL_METADATA_FORBIDS_DATA]: `External metadata storage cannot accept metadata data in this instruction`,
     [SECURITY_TOKEN_PROGRAM_ERROR__INTERNAL_METADATA_REQUIRES_DATA]: `Internal metadata storage requires metadata to be provided`,
     [SECURITY_TOKEN_PROGRAM_ERROR__INVALID_VERIFICATION_CONFIG_PDA]: `Invalid Verification Config PDA`,
+    [SECURITY_TOKEN_PROGRAM_ERROR__MALFORMED_PERMISSIONED_BURN]: `Malformed Permissioned Burn configuration`,
     [SECURITY_TOKEN_PROGRAM_ERROR__NOT_ENOUGH_ACCOUNTS_FOR_VERIFICATION]: `Not enough accounts for verification`,
+    [SECURITY_TOKEN_PROGRAM_ERROR__PERMISSIONED_BURN_AUTHORITY_MISMATCH]: `Permissioned Burn authority mismatch`,
     [SECURITY_TOKEN_PROGRAM_ERROR__VERIFICATION_PROGRAM_NOT_FOUND]: `Verification program not found`,
   };
 }

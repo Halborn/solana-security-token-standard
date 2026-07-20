@@ -25,6 +25,9 @@ Before you begin, ensure you have the following installed:
   - Verify: `solana --version`
   - Warning: Newer Solana CLI versions (e.g., 3.x) may not be compatible with the local test harness yet. If you see flaky or failing tests, downgrade to v2.2.0.
 
+- **Token-2022 v11 or newer** for protected mint creation. The integration tests
+  load the pinned v11 fixture documented in [`tests/fixtures/README.md`](tests/fixtures/README.md).
+
 - **Node.js** (v18 or later) and **pnpm**
   - Install Node.js from [https://nodejs.org/](https://nodejs.org/)
   - Install pnpm: `npm install -g pnpm`
@@ -123,6 +126,10 @@ Format all Rust code in the project:
 ## Testing
 
 The project includes comprehensive unit and integration tests.
+
+New mint builders should set `ix_permissioned_burn: true`. This prevents holders
+from bypassing SSTS verification with native Token-2022 burn instructions; use
+`false` only when intentionally creating a legacy-compatible, unprotected mint.
 
 ### Run All Tests
 

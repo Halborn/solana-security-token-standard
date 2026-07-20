@@ -5,7 +5,15 @@ use pinocchio::{
 };
 use pinocchio_token_2022::instructions::{BurnChecked, MintToChecked};
 
-use crate::{constants::seeds, instructions::TransferCheckedWithHook, state::MintAuthority};
+use crate::{
+    constants::seeds,
+    error::SecurityTokenError,
+    instructions::TransferCheckedWithHook,
+    state::MintAuthority,
+    token22_extensions::permissioned_burn::{
+        get_permissioned_burn_state, PermissionedBurnChecked, PermissionedBurnState,
+    },
+};
 
 /// Burn tokens from token account using permanent delegate authority
 pub fn burn_checked(
@@ -23,15 +31,50 @@ pub fn burn_checked(
         Seed::from(bump_seed.as_ref()),
     ];
     let permanent_delegate_signer = Signer::from(&seeds);
-    BurnChecked {
-        mint,
-        account: token_account,
-        authority: permanent_delegate_authority,
-        amount,
-        decimals,
-        token_program: &pinocchio_token_2022::ID,
+    // Scope the mint-data borrow so it is released before the Token-2022 CPI,
+    // which needs mutable access to the mint account.
+    let permissioned_burn_state = {
+        let mint_data = mint.try_borrow_data()?;
+        get_permissioned_burn_state(&mint_data)
+    };
+
+    match permissioned_burn_state {
+        // If the Permissioned Burn extension is not present,
+        // or if it is present but has no authority,
+        // use the standard BurnChecked instruction with the permanent delegate authority.
+        PermissionedBurnState::NotPresent | PermissionedBurnState::PresentWithoutAuthority => {
+            BurnChecked {
+                mint,
+                account: token_account,
+                authority: permanent_delegate_authority,
+                amount,
+                decimals,
+                token_program: &pinocchio_token_2022::ID,
+            }
+            .invoke_signed(&[permanent_delegate_signer])
+        }
+        PermissionedBurnState::PresentWithAuthority(authority)
+            if authority == *permanent_delegate_authority.key() =>
+        {
+            // The SSTS Permanent Delegate PDA fulfills both Token-2022 signer roles:
+            // the configured Permissioned Burn authority and the token burn authority.
+            PermissionedBurnChecked {
+                account: token_account,
+                mint,
+                permissioned_burn_authority: permanent_delegate_authority,
+                authority: permanent_delegate_authority,
+                amount,
+                decimals,
+            }
+            .invoke_signed(&[permanent_delegate_signer])
+        }
+        PermissionedBurnState::PresentWithAuthority(_) => {
+            Err(SecurityTokenError::PermissionedBurnAuthorityMismatch.into())
+        }
+        PermissionedBurnState::Malformed => {
+            Err(SecurityTokenError::MalformedPermissionedBurn.into())
+        }
     }
-    .invoke_signed(&[permanent_delegate_signer])
 }
 
 /// Mint tokens to token account using mint authority PDA

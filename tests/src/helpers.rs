@@ -16,6 +16,7 @@ use solana_sdk::{
     account::Account,
     instruction::{Instruction, InstructionError},
     pubkey::Pubkey,
+    rent::Rent,
     signature::{Keypair, Signer},
     transaction::TransactionError,
 };
@@ -25,6 +26,7 @@ use spl_token_2022::ID as TOKEN_22_PROGRAM_ID;
 use spl_transfer_hook_interface::get_extra_account_metas_address;
 
 pub const TX_FEE: u64 = 5000;
+const TOKEN_2022_V11_ELF: &[u8] = include_bytes!("../fixtures/spl_token_2022_v11.so");
 
 pub const DEFAULT_DUMMY_VERIFICATION_PROGRAM_ID: Pubkey =
     solana_sdk::pubkey!("DummyVer1f1cat1onProgram11111111111111111111");
@@ -451,6 +453,23 @@ pub fn initialize_program() -> ProgramTest {
     pt
 }
 
+pub async fn start_with_token_2022_v11_context() -> ProgramTestContext {
+    let mut pt = initialize_program();
+    pt.add_account(
+        TOKEN_22_PROGRAM_ID,
+        Account {
+            lamports: Rent::default().minimum_balance(TOKEN_2022_V11_ELF.len()),
+            data: TOKEN_2022_V11_ELF.to_vec(),
+            owner: solana_sdk::bpf_loader::id(),
+            executable: true,
+            rent_epoch: 0,
+        },
+    );
+    pt.prefer_bpf(false);
+    add_dummy_verification_program(&mut pt);
+    pt.start_with_context().await
+}
+
 pub async fn start_with_context() -> ProgramTestContext {
     let mut pt = initialize_program();
     pt.prefer_bpf(false);
@@ -565,6 +584,27 @@ pub async fn create_minimal_security_token_mint(
     mint_creator: Option<&Keypair>,
     decimals: u8,
 ) -> (Pubkey, Pubkey) {
+    create_minimal_security_token_mint_inner(context, mint_keypair, mint_creator, decimals, false)
+        .await
+}
+
+pub async fn create_permissioned_burn_mint(
+    context: &mut solana_program_test::ProgramTestContext,
+    mint_keypair: &solana_sdk::signature::Keypair,
+    mint_creator: Option<&Keypair>,
+    decimals: u8,
+) -> (Pubkey, Pubkey) {
+    create_minimal_security_token_mint_inner(context, mint_keypair, mint_creator, decimals, true)
+        .await
+}
+
+async fn create_minimal_security_token_mint_inner(
+    context: &mut solana_program_test::ProgramTestContext,
+    mint_keypair: &solana_sdk::signature::Keypair,
+    mint_creator: Option<&Keypair>,
+    decimals: u8,
+    permissioned_burn: bool,
+) -> (Pubkey, Pubkey) {
     let payer = mint_creator.unwrap_or(&context.payer).insecure_clone();
     let mint_authority = payer.pubkey();
 
@@ -583,6 +623,7 @@ pub async fn create_minimal_security_token_mint(
         ix_metadata: None,
         ix_scaled_ui_amount: None,
         ix_default_account_state: None,
+        ix_permissioned_burn: permissioned_burn,
     };
 
     initialize_mint_for_creator(

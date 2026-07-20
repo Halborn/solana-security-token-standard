@@ -6,9 +6,10 @@ use solana_sdk::{native_token::sol_str_to_lamports, signature::Keypair, signer::
 use crate::{
     helpers::{
         assert_account_exists, assert_transaction_success, create_minimal_security_token_mint,
-        create_mint_verification_config, create_spl_account, find_permanent_delegate_pda,
-        from_ui_amount, get_default_verification_programs, get_token_account_state, mint_tokens_to,
-        start_with_context, start_with_context_and_accounts,
+        create_mint_verification_config, create_permissioned_burn_mint, create_spl_account,
+        find_permanent_delegate_pda, from_ui_amount, get_default_verification_programs,
+        get_mint_state, get_token_account_state, mint_tokens_to, start_with_context,
+        start_with_context_and_accounts, start_with_token_2022_v11_context,
     },
     rate_tests::rate_helpers::{calculate_rate_amount, create_rate_account},
     receipt_tests::receipt_helpers::find_common_action_receipt_pda,
@@ -129,7 +130,7 @@ async fn test_should_split_with_mint_successfully() {
 
 #[tokio::test]
 async fn test_should_split_with_burn_successfully() {
-    let context = &mut start_with_context().await;
+    let context = &mut start_with_token_2022_v11_context().await;
 
     // Create mint + authority
     let mint_keypair = Keypair::new();
@@ -139,8 +140,7 @@ async fn test_should_split_with_burn_successfully() {
     let _mint_creator_pubkey = mint_creator.pubkey();
 
     let (mint_authority_pda, _) =
-        create_minimal_security_token_mint(context, &mint_keypair, Some(mint_creator), decimals)
-            .await;
+        create_permissioned_burn_mint(context, &mint_keypair, Some(mint_creator), decimals).await;
 
     let split_verification_config_pda = create_split_verification_config(
         context,
@@ -232,6 +232,13 @@ async fn test_should_split_with_burn_successfully() {
         token_account_after.base.amount
     );
     assert_eq!(token_account_after.base.amount, expected_amount);
+    assert_eq!(
+        get_mint_state(&mut context.banks_client, mint_pubkey)
+            .await
+            .base
+            .supply,
+        expected_amount
+    );
 
     // Verify receipt account exists
     assert_account_exists(context, receipt_pda, true)

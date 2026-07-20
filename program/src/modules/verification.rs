@@ -10,6 +10,7 @@ use crate::token22_extensions::default_account_state::{
 use crate::token22_extensions::metadata::{Field, UpdateField};
 use crate::token22_extensions::pausable::InitializePausable;
 use crate::token22_extensions::permanent_delegate::InitializePermanentDelegate;
+use crate::token22_extensions::permissioned_burn::InitializePermissionedBurn;
 use crate::token22_extensions::scaled_ui_amount::InitializeScaledUiAmount;
 use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::{Seed, Signer};
@@ -72,6 +73,7 @@ impl VerificationModule {
         let metadata_opt = &args.ix_metadata;
         let scaled_ui_amount_opt = &args.ix_scaled_ui_amount;
         let default_account_state_opt = &args.ix_default_account_state;
+        let permissioned_burn = args.ix_permissioned_burn;
 
         let [mint_info, mint_authority_account, creator_info, token_program_info, system_program_info, rent_info] =
             accounts
@@ -122,7 +124,7 @@ impl VerificationModule {
             }
         }
 
-        let mut extensions_buf: [ExtensionType; 6] = [ExtensionType::Pausable; 6];
+        let mut extensions_buf: [ExtensionType; 7] = [ExtensionType::Pausable; 7];
         let mut ext_count: usize = 0;
         let required_extensions: &[ExtensionType] = &[
             ExtensionType::PermanentDelegate,
@@ -149,6 +151,11 @@ impl VerificationModule {
         // Add DefaultAccountState if provided by client
         if default_account_state_opt.is_some() {
             extensions_buf[ext_count] = ExtensionType::DefaultAccountState;
+            ext_count += 1;
+        }
+
+        if permissioned_burn {
+            extensions_buf[ext_count] = ExtensionType::PermissionedBurn;
             ext_count += 1;
         }
 
@@ -191,6 +198,14 @@ impl VerificationModule {
         };
 
         permanent_delegate_initialize.invoke()?;
+
+        if permissioned_burn {
+            InitializePermissionedBurn {
+                mint: mint_info,
+                authority: permanent_delegate_pda,
+            }
+            .invoke()?;
+        }
 
         let transfer_hook_initialize = InitializeTransferHook {
             mint: mint_info,

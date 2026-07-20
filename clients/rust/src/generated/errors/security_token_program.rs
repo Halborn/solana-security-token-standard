@@ -31,6 +31,12 @@ pub enum SecurityTokenProgramError {
     /// 7 - External metadata storage cannot accept metadata data in this instruction
     #[error("External metadata storage cannot accept metadata data in this instruction")]
     ExternalMetadataForbidsData = 0x7,
+    /// 8 - Malformed Permissioned Burn configuration
+    #[error("Malformed Permissioned Burn configuration")]
+    MalformedPermissionedBurn = 0x8,
+    /// 9 - Permissioned Burn authority mismatch
+    #[error("Permissioned Burn authority mismatch")]
+    PermissionedBurnAuthorityMismatch = 0x9,
 }
 
 impl From<SecurityTokenProgramError> for solana_program_error::ProgramError {

@@ -76,6 +76,7 @@ async fn verification_test_setup() -> VerificationTestContext {
         ix_metadata: None,
         ix_scaled_ui_amount: None,
         ix_default_account_state: None,
+        ix_permissioned_burn: false,
     };
 
     initialize_mint(
@@ -445,6 +446,7 @@ async fn test_update_metadata_under_verification() {
         }),
         ix_scaled_ui_amount: None,
         ix_default_account_state: None,
+        ix_permissioned_burn: false,
     };
 
     initialize_mint(

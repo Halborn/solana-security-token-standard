@@ -3,8 +3,9 @@
 use crate::token22_extensions::{
     default_account_state::DefaultAccountStateExtension, metadata_pointer::MetadataPointer,
     pausable::Pausable, permanent_delegate::PermanentDelegate,
-    scaled_ui_amount::ScaledUiAmountConfig, transfer_hook::TransferHook, Extension, ExtensionType,
-    EXTENSIONS_PADDING, EXTENSION_LENGTH_LEN, EXTENSION_START_OFFSET, EXTENSION_TYPE_LEN,
+    permissioned_burn::PermissionedBurnConfig, scaled_ui_amount::ScaledUiAmountConfig,
+    transfer_hook::TransferHook, Extension, ExtensionType, EXTENSIONS_PADDING,
+    EXTENSION_LENGTH_LEN, EXTENSION_START_OFFSET, EXTENSION_TYPE_LEN,
 };
 use pinocchio::{
     program_error::ProgramError,
@@ -284,6 +285,7 @@ pub fn calculate_mint_size_with_extensions(extensions: &[ExtensionType]) -> usiz
                 ExtensionType::MetadataPointer => MetadataPointer::LEN,
                 ExtensionType::ScaledUiAmount => ScaledUiAmountConfig::LEN,
                 ExtensionType::DefaultAccountState => DefaultAccountStateExtension::LEN,
+                ExtensionType::PermissionedBurn => PermissionedBurnConfig::LEN,
                 _ => unreachable!(),
             };
             EXTENSION_TYPE_LEN + EXTENSION_LENGTH_LEN + extension_data_size

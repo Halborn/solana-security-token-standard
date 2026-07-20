@@ -253,6 +253,8 @@ pub struct InitializeMintArgs {
     pub ix_scaled_ui_amount: Option<ScaledUiAmountConfigArgs>, //  pinocchio_token_2022::extensions::scaled_ui_amount::ScaledUiAmountConfig
     /// Optional default account state (pinocchio_token_2022::state::AccountState as u8: 1=Initialized, 2=Frozen)
     pub ix_default_account_state: Option<u8>,
+    /// Whether to protect burns with the Token-2022 Permissioned Burn extension
+    pub ix_permissioned_burn: bool,
 }
 
 impl MintArgs {
@@ -314,12 +316,14 @@ impl std::fmt::Debug for InitializeMintArgs {
             .field("ix_metadata", &self.ix_metadata)
             .field("ix_scaled_ui_amount", &self.ix_scaled_ui_amount)
             .field("ix_default_account_state", &self.ix_default_account_state)
+            .field("ix_permissioned_burn", &self.ix_permissioned_burn)
             .finish()
     }
 }
 
 impl InitializeMintArgs {
     /// Create new InitializeArgs with optional metadata pointer and metadata
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         decimals: u8,
         mint_authority: Pubkey,
@@ -328,6 +332,7 @@ impl InitializeMintArgs {
         metadata: Option<TokenMetadataArgs>,
         scaled_ui_amount: Option<ScaledUiAmountConfigArgs>,
         default_account_state: Option<u8>,
+        permissioned_burn: bool,
     ) -> Self {
         Self {
             ix_mint: MintArgs {
@@ -339,6 +344,7 @@ impl InitializeMintArgs {
             ix_metadata: metadata,
             ix_scaled_ui_amount: scaled_ui_amount,
             ix_default_account_state: default_account_state,
+            ix_permissioned_burn: permissioned_burn,
         }
     }
 
@@ -381,6 +387,8 @@ impl InitializeMintArgs {
             buf.push(0); // no default account state
         }
 
+        buf.push(u8::from(self.ix_permissioned_burn));
+
         buf
     }
 
@@ -399,6 +407,7 @@ impl InitializeMintArgs {
                 ix_metadata: None,
                 ix_scaled_ui_amount: None,
                 ix_default_account_state: None,
+                ix_permissioned_burn: false,
             });
         }
         // Check metadata pointer flag
@@ -421,6 +430,7 @@ impl InitializeMintArgs {
                 ix_metadata: None,
                 ix_scaled_ui_amount: None,
                 ix_default_account_state: None,
+                ix_permissioned_burn: false,
             });
         }
 
@@ -444,6 +454,7 @@ impl InitializeMintArgs {
                 ix_metadata,
                 ix_scaled_ui_amount: None,
                 ix_default_account_state: None,
+                ix_permissioned_burn: false,
             });
         }
 
@@ -466,6 +477,7 @@ impl InitializeMintArgs {
                 ix_metadata,
                 ix_scaled_ui_amount,
                 ix_default_account_state: None,
+                ix_permissioned_burn: false,
             });
         }
 
@@ -476,9 +488,17 @@ impl InitializeMintArgs {
             if data.len() <= offset {
                 return Err(ProgramError::InvalidInstructionData);
             }
-            Some(data[offset])
+            let state = data[offset];
+            offset += 1;
+            Some(state)
         } else {
             None
+        };
+
+        let ix_permissioned_burn = match data.get(offset).copied() {
+            None | Some(0) => false,
+            Some(1) => true,
+            Some(_) => return Err(ProgramError::InvalidInstructionData),
         };
 
         Ok(Self {
@@ -487,6 +507,7 @@ impl InitializeMintArgs {
             ix_metadata,
             ix_scaled_ui_amount,
             ix_default_account_state,
+            ix_permissioned_burn,
         })
     }
 
@@ -570,6 +591,7 @@ mod tests {
             Some(metadata.clone()),
             Some(scaled_ui_amount.clone()),
             None,
+            true,
         );
 
         let inner_bytes = original.to_bytes_inner();
@@ -632,6 +654,7 @@ mod tests {
             None, // no metadata for this simpler test
             None, // no scaled UI amount
             None, // no default account state
+            false,
         );
 
         let inner_bytes = original.to_bytes_inner();
@@ -676,6 +699,7 @@ mod tests {
             }),
             None,
             None,
+            false,
         );
         assert!(args_valid.validate().is_ok());
 
@@ -693,6 +717,7 @@ mod tests {
             }),
             None,
             None,
+            false,
         );
         assert_eq!(args_invalid.validate(), Err(ProgramError::InvalidArgument));
     }
@@ -711,6 +736,7 @@ mod tests {
                 None,
                 None,
                 Some(state),
+                false,
             );
 
             let bytes = original.to_bytes_inner();
@@ -721,5 +747,52 @@ mod tests {
             assert!(deserialized.ix_scaled_ui_amount.is_none());
             assert_eq!(deserialized.ix_default_account_state, Some(state));
         }
+    }
+
+    #[test]
+    fn test_permissioned_burn_roundtrip_and_legacy_default() {
+        let args = InitializeMintArgs::new(
+            6,
+            random_pubkey(),
+            random_pubkey(),
+            None,
+            None,
+            None,
+            None,
+            true,
+        );
+        let mut bytes = args.to_bytes_inner();
+        assert!(
+            InitializeMintArgs::try_from_bytes(&bytes)
+                .unwrap()
+                .ix_permissioned_burn
+        );
+
+        bytes.pop();
+        assert!(
+            !InitializeMintArgs::try_from_bytes(&bytes)
+                .unwrap()
+                .ix_permissioned_burn
+        );
+    }
+
+    #[test]
+    fn test_permissioned_burn_rejects_invalid_bool() {
+        let args = InitializeMintArgs::new(
+            6,
+            random_pubkey(),
+            random_pubkey(),
+            None,
+            None,
+            None,
+            None,
+            false,
+        );
+        let mut bytes = args.to_bytes_inner();
+        *bytes.last_mut().unwrap() = 2;
+        assert!(matches!(
+            InitializeMintArgs::try_from_bytes(&bytes),
+            Err(ProgramError::InvalidInstructionData)
+        ));
     }
 }
