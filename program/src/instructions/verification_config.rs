@@ -2,8 +2,34 @@
 use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{Pubkey, PUBKEY_BYTES};
 use shank::ShankType;
+use spl_tlv_account_resolution::{pubkey_data::PubkeyData, seeds::Seed};
 
-use crate::constants::MAX_VERIFICATION_PROGRAMS;
+use crate::constants::{
+    MAX_TOTAL_VERIFICATION_EXTRAS, MAX_VERIFICATION_EXTRAS_PER_PROGRAM, MAX_VERIFICATION_PROGRAMS,
+};
+use crate::instruction::SecurityTokenInstruction;
+
+/// Wire-compatible representation of SPL `ExtraAccountMeta`.
+#[repr(C)]
+#[derive(Clone, Debug, Eq, PartialEq, ShankType)]
+pub struct VerificationAccountMeta {
+    pub discriminator: u8,
+    pub address_config: [u8; 32],
+    pub is_signer: bool,
+    pub is_writable: bool,
+}
+
+impl VerificationAccountMeta {
+    pub const LEN: usize = 35;
+}
+
+/// One verification program and its private ordered extra-account declarations.
+#[repr(C)]
+#[derive(Clone, Debug, Eq, PartialEq, ShankType)]
+pub struct VerificationProgramConfig {
+    pub program_id: Pubkey,
+    pub extra_accounts: Vec<VerificationAccountMeta>,
+}
 
 /// Arguments for InitializeVerificationConfig instruction
 #[repr(C)]
@@ -13,8 +39,8 @@ pub struct InitializeVerificationConfigArgs {
     pub instruction_discriminator: u8,
     /// 1-byte CPI mode
     pub cpi_mode: bool,
-    /// Vector of verification program addresses
-    pub program_addresses: Vec<Pubkey>,
+    /// Verification programs and their extra account declarations
+    pub programs: Vec<VerificationProgramConfig>,
 }
 
 /// Arguments for UpdateVerificationConfig instruction
@@ -27,8 +53,277 @@ pub struct UpdateVerificationConfigArgs {
     pub cpi_mode: bool,
     /// Offset at which to start replacement/insertion (0-based index)
     pub offset: u8,
-    /// Vector of new verification program addresses to add/replace
-    pub program_addresses: Vec<Pubkey>,
+    /// New verification programs and their extra account declarations
+    pub programs: Vec<VerificationProgramConfig>,
+}
+
+fn read_u32(data: &[u8], offset: &mut usize) -> Result<usize, ProgramError> {
+    let end = offset
+        .checked_add(4)
+        .ok_or(ProgramError::InvalidInstructionData)?;
+    let value = u32::from_le_bytes(
+        data.get(*offset..end)
+            .ok_or(ProgramError::InvalidInstructionData)?
+            .try_into()
+            .map_err(|_| ProgramError::InvalidInstructionData)?,
+    ) as usize;
+    *offset = end;
+    Ok(value)
+}
+
+fn read_bool(data: &[u8], offset: &mut usize) -> Result<bool, ProgramError> {
+    let value = *data
+        .get(*offset)
+        .ok_or(ProgramError::InvalidInstructionData)?;
+    *offset = offset
+        .checked_add(1)
+        .ok_or(ProgramError::InvalidInstructionData)?;
+    match value {
+        0 => Ok(false),
+        1 => Ok(true),
+        _ => Err(ProgramError::InvalidInstructionData),
+    }
+}
+
+pub(crate) fn serialize_programs(programs: &[VerificationProgramConfig], data: &mut Vec<u8>) {
+    data.extend_from_slice(&(programs.len() as u32).to_le_bytes());
+    for program in programs {
+        data.extend_from_slice(program.program_id.as_ref());
+        data.extend_from_slice(&(program.extra_accounts.len() as u32).to_le_bytes());
+        for meta in &program.extra_accounts {
+            data.push(meta.discriminator);
+            data.extend_from_slice(&meta.address_config);
+            data.push(meta.is_signer as u8);
+            data.push(meta.is_writable as u8);
+        }
+    }
+}
+
+pub(crate) fn parse_programs(
+    data: &[u8],
+    offset: &mut usize,
+) -> Result<Vec<VerificationProgramConfig>, ProgramError> {
+    let program_count = read_u32(data, offset)?;
+    if program_count > MAX_VERIFICATION_PROGRAMS {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    let mut total_extras = 0usize;
+    let mut programs = Vec::with_capacity(program_count);
+    for _ in 0..program_count {
+        let program_end = offset
+            .checked_add(PUBKEY_BYTES)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        let program_id = Pubkey::from(
+            <[u8; PUBKEY_BYTES]>::try_from(
+                data.get(*offset..program_end)
+                    .ok_or(ProgramError::InvalidInstructionData)?,
+            )
+            .map_err(|_| ProgramError::InvalidInstructionData)?,
+        );
+        *offset = program_end;
+
+        let extra_count = read_u32(data, offset)?;
+        if extra_count > MAX_VERIFICATION_EXTRAS_PER_PROGRAM {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        total_extras = total_extras
+            .checked_add(extra_count)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        if total_extras > MAX_TOTAL_VERIFICATION_EXTRAS {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let mut extra_accounts = Vec::with_capacity(extra_count);
+        for _ in 0..extra_count {
+            let discriminator = *data
+                .get(*offset)
+                .ok_or(ProgramError::InvalidInstructionData)?;
+            *offset = offset
+                .checked_add(1)
+                .ok_or(ProgramError::InvalidInstructionData)?;
+            let address_end = offset
+                .checked_add(32)
+                .ok_or(ProgramError::InvalidInstructionData)?;
+            let address_config = data
+                .get(*offset..address_end)
+                .ok_or(ProgramError::InvalidInstructionData)?
+                .try_into()
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            *offset = address_end;
+            let is_signer = read_bool(data, offset)?;
+            let is_writable = read_bool(data, offset)?;
+            extra_accounts.push(VerificationAccountMeta {
+                discriminator,
+                address_config,
+                is_signer,
+                is_writable,
+            });
+        }
+        programs.push(VerificationProgramConfig {
+            program_id,
+            extra_accounts,
+        });
+    }
+    Ok(programs)
+}
+
+/// Number of fixed Core accounts (verification overhead excluded).
+pub fn core_account_count(instruction_discriminator: u8) -> Result<usize, ProgramError> {
+    use SecurityTokenInstruction::*;
+    match SecurityTokenInstruction::try_from(instruction_discriminator)
+        .map_err(|_| ProgramError::InvalidArgument)?
+    {
+        InitializeMint | Verify => Err(ProgramError::InvalidArgument),
+        UpdateMetadata => Ok(5),
+        InitializeVerificationConfig | UpdateVerificationConfig | TrimVerificationConfig => Ok(7),
+        Mint | Burn | Freeze | Thaw => Ok(4),
+        Pause
+        | Resume
+        | UpdateRateAccount
+        | CloseActionReceiptAccount
+        | UpdateDefaultAccountState => Ok(3),
+        Transfer => Ok(6),
+        CreateRateAccount | CreateProofAccount | UpdateProofAccount | CloseClaimReceiptAccount => {
+            Ok(5)
+        }
+        CloseRateAccount => Ok(4),
+        Split => Ok(9),
+        Convert => Ok(11),
+        CreateDistributionEscrow => Ok(7),
+        ClaimDistribution => Ok(10),
+    }
+}
+
+/// Number of accounts visible in a verifier's canonical base.
+pub fn canonical_base_count(instruction_discriminator: u8) -> Result<usize, ProgramError> {
+    if instruction_discriminator == SecurityTokenInstruction::Transfer.discriminant() {
+        Ok(4)
+    } else {
+        core_account_count(instruction_discriminator)
+    }
+}
+
+fn fixed_instruction_data_len(instruction_discriminator: u8) -> Option<usize> {
+    use SecurityTokenInstruction::*;
+    match SecurityTokenInstruction::try_from(instruction_discriminator).ok()? {
+        TrimVerificationConfig => Some(4),
+        Mint | Burn | Transfer => Some(9),
+        Pause | Resume | Freeze | Thaw => Some(1),
+        CloseActionReceiptAccount => Some(41),
+        UpdateDefaultAccountState => Some(2),
+        _ => None,
+    }
+}
+
+fn validate_meta(
+    meta: &VerificationAccountMeta,
+    available_accounts: usize,
+    instruction_data_len: Option<usize>,
+) -> ProgramResult {
+    match meta.discriminator {
+        0 => Ok(()),
+        1 => {
+            if meta.is_signer {
+                return Err(ProgramError::InvalidArgument);
+            }
+            let seeds = Seed::unpack_address_config(&meta.address_config)
+                .map_err(|_| ProgramError::InvalidArgument)?;
+            if Seed::pack_into_address_config(&seeds).map_err(|_| ProgramError::InvalidArgument)?
+                != meta.address_config
+            {
+                return Err(ProgramError::InvalidArgument);
+            }
+            for seed in seeds {
+                match seed {
+                    Seed::AccountKey { index } if index as usize >= available_accounts => {
+                        return Err(ProgramError::InvalidArgument)
+                    }
+                    Seed::AccountData { account_index, .. }
+                        if account_index as usize >= available_accounts =>
+                    {
+                        return Err(ProgramError::InvalidArgument)
+                    }
+                    Seed::InstructionData { index, length }
+                        if instruction_data_len.is_some_and(|data_len| {
+                            match (index as usize).checked_add(length as usize) {
+                                Some(end) => end > data_len,
+                                None => true,
+                            }
+                        }) =>
+                    {
+                        return Err(ProgramError::InvalidArgument)
+                    }
+                    _ => {}
+                }
+            }
+            Ok(())
+        }
+        2 => {
+            let pubkey_data = PubkeyData::unpack(&meta.address_config)
+                .map_err(|_| ProgramError::InvalidArgument)?;
+            if PubkeyData::pack_into_address_config(&pubkey_data)
+                .map_err(|_| ProgramError::InvalidArgument)?
+                != meta.address_config
+            {
+                return Err(ProgramError::InvalidArgument);
+            }
+            match pubkey_data {
+                PubkeyData::Uninitialized => Err(ProgramError::InvalidArgument),
+                PubkeyData::AccountData { account_index, .. }
+                    if account_index as usize >= available_accounts =>
+                {
+                    Err(ProgramError::InvalidArgument)
+                }
+                PubkeyData::InstructionData { index }
+                    if instruction_data_len.is_some_and(|data_len| {
+                        match (index as usize).checked_add(PUBKEY_BYTES) {
+                            Some(end) => end > data_len,
+                            None => true,
+                        }
+                    }) =>
+                {
+                    Err(ProgramError::InvalidArgument)
+                }
+                _ => Ok(()),
+            }
+        }
+        _ => Err(ProgramError::InvalidArgument),
+    }
+}
+
+pub fn validate_programs(
+    instruction_discriminator: u8,
+    programs: &[VerificationProgramConfig],
+) -> ProgramResult {
+    // Validate program count doesn't exceed maximum
+    if programs.is_empty() || programs.len() > MAX_VERIFICATION_PROGRAMS {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    let base_count = canonical_base_count(instruction_discriminator)?;
+    let instruction_data_len = fixed_instruction_data_len(instruction_discriminator);
+    let transfer = instruction_discriminator == SecurityTokenInstruction::Transfer.discriminant();
+    let mut total_extras = 0usize;
+    for program in programs {
+        // Validate program address and extra account declarations
+        if program.program_id == Pubkey::default()
+            || program.extra_accounts.len() > MAX_VERIFICATION_EXTRAS_PER_PROGRAM
+            || (transfer && !program.extra_accounts.is_empty())
+        {
+            return Err(ProgramError::InvalidArgument);
+        }
+        for (index, meta) in program.extra_accounts.iter().enumerate() {
+            validate_meta(meta, base_count + index, instruction_data_len)?;
+        }
+        total_extras = total_extras
+            .checked_add(program.extra_accounts.len())
+            .ok_or(ProgramError::InvalidArgument)?;
+        if total_extras > MAX_TOTAL_VERIFICATION_EXTRAS {
+            return Err(ProgramError::InvalidArgument);
+        }
+    }
+    Ok(())
 }
 
 impl InitializeVerificationConfigArgs {
@@ -39,12 +334,12 @@ impl InitializeVerificationConfigArgs {
     pub fn new(
         instruction_discriminator: u8,
         cpi_mode: bool,
-        program_addresses: &[Pubkey],
+        programs: &[VerificationProgramConfig],
     ) -> Result<Self, ProgramError> {
         Ok(Self {
             instruction_discriminator,
             cpi_mode,
-            program_addresses: program_addresses.to_vec(),
+            programs: programs.to_vec(),
         })
     }
 
@@ -57,13 +352,8 @@ impl InitializeVerificationConfigArgs {
         // Write cpi_mode (1 byte)
         data.push(self.cpi_mode as u8);
 
-        // Write program count (4 bytes)
-        data.extend(&(self.program_addresses.len() as u32).to_le_bytes());
-
-        // Write each program address (32 bytes each)
-        for program in &self.program_addresses {
-            data.extend_from_slice(program.as_ref());
-        }
+        // Write programs and their extra account declarations
+        serialize_programs(&self.programs, &mut data);
 
         data
     }
@@ -81,72 +371,36 @@ impl InitializeVerificationConfigArgs {
         offset += 1;
 
         // Read cpi_mode (1 byte)
-        let cpi_mode = data[offset];
+        let cpi_mode = data[offset] != 0;
         offset += 1;
 
-        // Read program count (4 bytes)
-        let program_count = u32::from_le_bytes(
-            data[offset..offset + 4]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidInstructionData)?,
-        ) as usize;
-        offset += 4;
-
-        // Validate we have enough data for all programs
-        if data.len() < offset + (program_count * PUBKEY_BYTES) {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        // Read program addresses (32 bytes each)
-        let mut program_addresses = Vec::with_capacity(program_count);
-        for _ in 0..program_count {
-            let program_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-            let program_pubkey = Pubkey::from(program_bytes);
-            program_addresses.push(program_pubkey);
-            offset += PUBKEY_BYTES;
-        }
+        // Read programs and their extra account declarations
+        let programs = parse_programs(data, &mut offset)?;
 
         Ok(Self {
             instruction_discriminator,
-            cpi_mode: cpi_mode != 0,
-            program_addresses,
+            cpi_mode,
+            programs,
         })
     }
 
-    pub fn validate(&self) -> Result<(), ProgramError> {
-        // Validate program count doesn't exceed maximum
-        if self.program_addresses.len() > MAX_VERIFICATION_PROGRAMS {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        if self.program_addresses.is_empty() {
-            return Err(ProgramError::InvalidArgument);
-        }
-        // Validate no default pubkeys
-        for program in &self.program_addresses {
-            if *program == Pubkey::default() {
-                return Err(ProgramError::InvalidArgument);
-            }
-        }
-
-        Ok(())
+    pub fn validate(&self) -> ProgramResult {
+        validate_programs(self.instruction_discriminator, &self.programs)
     }
 
     /// Get program count
     pub fn program_count(&self) -> u8 {
-        self.program_addresses.len() as u8
+        self.programs.len() as u8
     }
 
-    /// Get program addresses as slice
-    pub fn program_addresses(&self) -> &[Pubkey] {
-        &self.program_addresses
+    /// Get programs and their extra account declarations as a slice
+    pub fn programs(&self) -> &[VerificationProgramConfig] {
+        &self.programs
     }
 
     /// Get specific program address by index
     pub fn get_program_address(&self, index: usize) -> Option<Pubkey> {
-        self.program_addresses.get(index).copied()
+        self.programs.get(index).map(|program| program.program_id)
     }
 }
 
@@ -158,13 +412,13 @@ impl UpdateVerificationConfigArgs {
     pub fn new(
         instruction_discriminator: u8,
         cpi_mode: bool,
-        program_addresses: &[Pubkey],
+        programs: &[VerificationProgramConfig],
         offset: u8,
     ) -> Result<Self, ProgramError> {
         Ok(Self {
             instruction_discriminator,
             cpi_mode,
-            program_addresses: program_addresses.to_vec(),
+            programs: programs.to_vec(),
             offset,
         })
     }
@@ -182,13 +436,8 @@ impl UpdateVerificationConfigArgs {
         // Write offset (1 byte)
         data.push(self.offset);
 
-        // Write program count (4 bytes)
-        data.extend(&(self.program_addresses.len() as u32).to_le_bytes());
-
-        // Write each program address (32 bytes each)
-        for program in &self.program_addresses {
-            data.extend_from_slice(program.as_ref());
-        }
+        // Write programs and their extra account declarations
+        serialize_programs(&self.programs, &mut data);
 
         data
     }
@@ -206,70 +455,44 @@ impl UpdateVerificationConfigArgs {
         offset_pos += 1;
 
         // Read cpi_mode (1 byte)
-        let cpi_mode = data[offset_pos];
+        let cpi_mode = data[offset_pos] != 0;
         offset_pos += 1;
 
         // Read offset (1 byte)
         let offset = data[offset_pos];
         offset_pos += 1;
 
-        // Read program count (4 bytes)
-        let program_count = u32::from_le_bytes(
-            data[offset_pos..offset_pos + 4]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidInstructionData)?,
-        ) as usize;
-        offset_pos += 4;
-
-        // Validate we have enough data for all programs
-        if data.len() < offset_pos + (program_count * PUBKEY_BYTES) {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        // Read program addresses (32 bytes each)
-        let mut program_addresses = Vec::with_capacity(program_count);
-        for _ in 0..program_count {
-            let program_bytes: [u8; PUBKEY_BYTES] = data[offset_pos..offset_pos + PUBKEY_BYTES]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-            let program_pubkey = Pubkey::from(program_bytes);
-            program_addresses.push(program_pubkey);
-            offset_pos += PUBKEY_BYTES;
-        }
+        // Read programs and their extra account declarations
+        let programs = parse_programs(data, &mut offset_pos)?;
 
         Ok(Self {
             instruction_discriminator,
-            cpi_mode: cpi_mode != 0,
-            program_addresses,
+            cpi_mode,
             offset,
+            programs,
         })
     }
 
-    pub fn validate(&self) -> Result<(), ProgramError> {
+    pub fn validate(&self) -> ProgramResult {
         // Validate offset is within bounds (0-based index, so offset < MAX)
         if self.offset >= MAX_VERIFICATION_PROGRAMS as u8 {
             return Err(ProgramError::InvalidArgument);
         }
 
         // Validate that offset + program count doesn't exceed maximum
-        let total_programs = self.offset as usize + self.program_addresses.len();
+        let total_programs = self.offset as usize + self.programs.len();
         if total_programs > MAX_VERIFICATION_PROGRAMS {
             return Err(ProgramError::InvalidArgument);
         }
-
-        // Validate no default pubkeys
-        for program in &self.program_addresses {
-            if *program == Pubkey::default() {
-                return Err(ProgramError::InvalidArgument);
-            }
+        if self.programs.is_empty() {
+            return Ok(());
         }
-
-        Ok(())
+        validate_programs(self.instruction_discriminator, &self.programs)
     }
 
-    /// Get program addresses as slice
-    pub fn program_addresses(&self) -> &[Pubkey] {
-        &self.program_addresses
+    /// Get programs as slice with their extra account declarations
+    pub fn programs(&self) -> &[VerificationProgramConfig] {
+        &self.programs
     }
 
     /// Get offset
@@ -341,22 +564,48 @@ impl TrimVerificationConfigArgs {
     }
 }
 
+type ProgramResult = Result<(), ProgramError>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::instruction::SecurityTokenInstruction;
     use crate::test_utils::random_pubkey;
     use rstest::rstest;
+    use spl_tlv_account_resolution::{
+        account::ExtraAccountMeta, pubkey_data::PubkeyData, seeds::Seed,
+    };
+
+    fn fixed(key: Pubkey) -> VerificationAccountMeta {
+        VerificationAccountMeta {
+            discriminator: 0,
+            address_config: key,
+            is_signer: false,
+            is_writable: true,
+        }
+    }
+
+    fn program(
+        program_id: Pubkey,
+        extras: Vec<VerificationAccountMeta>,
+    ) -> VerificationProgramConfig {
+        VerificationProgramConfig {
+            program_id,
+            extra_accounts: extras,
+        }
+    }
 
     #[test]
     fn test_initialize_verification_config_args_to_bytes_inner_try_from_bytes() {
         let program1 = random_pubkey();
         let program2 = random_pubkey();
-        let program_addresses = vec![program1, program2];
+        let programs = vec![
+            program(program1, vec![fixed(random_pubkey())]),
+            program(program2, vec![]),
+        ];
         let original = InitializeVerificationConfigArgs::new(
             SecurityTokenInstruction::UpdateMetadata.discriminant(),
             false,
-            &program_addresses,
+            &programs,
         )
         .unwrap();
 
@@ -368,12 +617,8 @@ mod tests {
             deserialized.instruction_discriminator
         );
         assert_eq!(original.cpi_mode, deserialized.cpi_mode);
-        assert_eq!(original.program_count(), deserialized.program_count());
-
-        let original_addresses = original.program_addresses();
-        let deserialized_addresses = deserialized.program_addresses();
-        assert_eq!(original_addresses, deserialized_addresses);
-        assert_eq!(program_addresses, deserialized_addresses);
+        assert_eq!(original.programs(), deserialized.programs());
+        assert_eq!(programs, deserialized.programs());
     }
 
     #[rstest]
@@ -384,7 +629,9 @@ mod tests {
         #[case] num_programs: usize,
         #[case] should_succeed: bool,
     ) {
-        let programs: Vec<Pubkey> = (0..num_programs).map(|_| random_pubkey()).collect();
+        let programs: Vec<VerificationProgramConfig> = (0..num_programs)
+            .map(|_| program(random_pubkey(), vec![]))
+            .collect();
         let args = InitializeVerificationConfigArgs::new(
             SecurityTokenInstruction::Mint.discriminant(),
             false,
@@ -412,7 +659,9 @@ mod tests {
         #[case] num_programs: usize,
         #[case] should_succeed: bool,
     ) {
-        let programs: Vec<Pubkey> = (0..num_programs).map(|_| random_pubkey()).collect();
+        let programs: Vec<VerificationProgramConfig> = (0..num_programs)
+            .map(|_| program(random_pubkey(), vec![]))
+            .collect();
 
         let args = UpdateVerificationConfigArgs::new(
             SecurityTokenInstruction::Mint.discriminant(),
@@ -443,16 +692,16 @@ mod tests {
 
     #[test]
     fn test_initialize_verification_config_rejects_default_pubkey() {
-        let program1 = random_pubkey();
-        let default_pubkey = Pubkey::default();
-        let program2 = random_pubkey();
-
-        let program_addresses = vec![program1, default_pubkey, program2];
+        let programs = vec![
+            program(random_pubkey(), vec![]),
+            program(Pubkey::default(), vec![]),
+            program(random_pubkey(), vec![]),
+        ];
 
         let args = InitializeVerificationConfigArgs::new(
             SecurityTokenInstruction::Mint.discriminant(),
             false,
-            &program_addresses,
+            &programs,
         )
         .unwrap();
 
@@ -463,15 +712,15 @@ mod tests {
 
     #[test]
     fn test_update_verification_config_rejects_default_pubkey() {
-        let program1 = random_pubkey();
-        let default_pubkey = Pubkey::default();
-
-        let program_addresses = vec![program1, default_pubkey];
+        let programs = vec![
+            program(random_pubkey(), vec![]),
+            program(Pubkey::default(), vec![]),
+        ];
 
         let args = UpdateVerificationConfigArgs::new(
             SecurityTokenInstruction::Transfer.discriminant(),
             false,
-            &program_addresses,
+            &programs,
             0,
         )
         .unwrap();
@@ -479,5 +728,102 @@ mod tests {
         let result = args.validate();
 
         assert!(matches!(result, Err(ProgramError::InvalidArgument)));
+    }
+
+    #[test]
+    fn validates_pda_references_and_signer_rule() {
+        let spl_meta =
+            ExtraAccountMeta::new_with_seeds(&[Seed::AccountKey { index: 3 }], false, false)
+                .unwrap();
+        let valid = VerificationAccountMeta {
+            discriminator: spl_meta.discriminator,
+            address_config: spl_meta.address_config,
+            is_signer: false,
+            is_writable: false,
+        };
+        assert!(validate_programs(
+            SecurityTokenInstruction::Mint.discriminant(),
+            &[program(random_pubkey(), vec![valid.clone()])]
+        )
+        .is_ok());
+
+        let signer = VerificationAccountMeta {
+            is_signer: true,
+            ..valid
+        };
+        assert!(validate_programs(
+            SecurityTokenInstruction::Mint.discriminant(),
+            &[program(random_pubkey(), vec![signer])]
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn transfer_temporarily_rejects_extras() {
+        assert!(validate_programs(
+            SecurityTokenInstruction::Transfer.discriminant(),
+            &[program(random_pubkey(), vec![fixed(random_pubkey())])]
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn validates_pubkey_data_ranges_and_forward_references() {
+        let at_token_account = ExtraAccountMeta::new_with_pubkey_data(
+            &PubkeyData::InstructionData { index: 9 },
+            false,
+            false,
+        )
+        .unwrap();
+        let valid = VerificationAccountMeta {
+            discriminator: at_token_account.discriminator,
+            address_config: at_token_account.address_config,
+            is_signer: false,
+            is_writable: false,
+        };
+        assert!(validate_programs(
+            SecurityTokenInstruction::CloseActionReceiptAccount.discriminant(),
+            &[program(random_pubkey(), vec![valid])]
+        )
+        .is_ok());
+
+        let out_of_range = ExtraAccountMeta::new_with_pubkey_data(
+            &PubkeyData::InstructionData { index: 10 },
+            false,
+            false,
+        )
+        .unwrap();
+        let invalid_range = VerificationAccountMeta {
+            discriminator: out_of_range.discriminator,
+            address_config: out_of_range.address_config,
+            is_signer: false,
+            is_writable: false,
+        };
+        assert!(validate_programs(
+            SecurityTokenInstruction::CloseActionReceiptAccount.discriminant(),
+            &[program(random_pubkey(), vec![invalid_range])]
+        )
+        .is_err());
+
+        let forward = ExtraAccountMeta::new_with_pubkey_data(
+            &PubkeyData::AccountData {
+                account_index: 4,
+                data_index: 0,
+            },
+            false,
+            false,
+        )
+        .unwrap();
+        let invalid_forward = VerificationAccountMeta {
+            discriminator: forward.discriminator,
+            address_config: forward.address_config,
+            is_signer: false,
+            is_writable: false,
+        };
+        assert!(validate_programs(
+            SecurityTokenInstruction::Mint.discriminant(),
+            &[program(random_pubkey(), vec![invalid_forward])]
+        )
+        .is_err());
     }
 }

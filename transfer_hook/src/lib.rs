@@ -164,27 +164,90 @@ fn load_verification_programs(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let verification_programs_data = &config_data[8..];
+    parse_zero_extra_programs(&config_data)
+}
 
-    if verification_programs_data.len() % 32 != 0 {
+fn parse_zero_extra_programs(config_data: &[u8]) -> Result<Vec<[u8; 32]>, ProgramError> {
+    if config_data.len() < 8 || !matches!(config_data[2], 0 | 1) {
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let verification_programs_count = verification_programs_data.len() / 32;
-
-    // Anti CPI DDOS
-    if verification_programs_count > MAX_VERIFICATION_PROGRAMS {
+    let verification_programs_count = u32::from_le_bytes(
+        config_data[4..8]
+            .try_into()
+            .map_err(|_| ProgramError::InvalidAccountData)?,
+    ) as usize;
+    if verification_programs_count == 0 || verification_programs_count > MAX_VERIFICATION_PROGRAMS {
         return Err(ProgramError::InvalidAccountData);
     }
 
-    verification_programs_data
-        .chunks_exact(32)
-        .map(|chunk| {
-            chunk
+    let mut offset = 8usize;
+    let mut verification_programs = Vec::with_capacity(verification_programs_count);
+    for _ in 0..verification_programs_count {
+        let program_end = offset
+            .checked_add(32)
+            .ok_or(ProgramError::InvalidAccountData)?;
+        verification_programs.push(
+            config_data
+                .get(offset..program_end)
+                .ok_or(ProgramError::InvalidAccountData)?
                 .try_into()
-                .map_err(|_| ProgramError::InvalidAccountData)
-        })
-        .collect()
+                .map_err(|_| ProgramError::InvalidAccountData)?,
+        );
+        offset = program_end;
+        let extras_end = offset
+            .checked_add(4)
+            .ok_or(ProgramError::InvalidAccountData)?;
+        let extra_count = u32::from_le_bytes(
+            config_data
+                .get(offset..extras_end)
+                .ok_or(ProgramError::InvalidAccountData)?
+                .try_into()
+                .map_err(|_| ProgramError::InvalidAccountData)?,
+        );
+        if extra_count != 0 {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        offset = extras_end;
+    }
+    if offset != config_data.len() {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    Ok(verification_programs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn nested_config(extra_count: u32) -> Vec<u8> {
+        let mut data = vec![
+            TRANSFER_VERIFICATION_CONFIG_DISCRIMINATOR,
+            TRANSFER_DISCRIMINATOR,
+            0,
+            255,
+        ];
+        data.extend_from_slice(&1u32.to_le_bytes());
+        data.extend_from_slice(&[7; 32]);
+        data.extend_from_slice(&extra_count.to_le_bytes());
+        data
+    }
+
+    #[test]
+    fn parses_nested_zero_extra_config() {
+        assert_eq!(
+            parse_zero_extra_programs(&nested_config(0)).unwrap(),
+            vec![[7; 32]]
+        );
+    }
+
+    #[test]
+    fn rejects_dynamic_or_trailing_hook_config() {
+        assert!(parse_zero_extra_programs(&nested_config(1)).is_err());
+        let mut trailing = nested_config(0);
+        trailing.push(0);
+        assert!(parse_zero_extra_programs(&trailing).is_err());
+    }
 }
 
 fn execute_verification_programs(
