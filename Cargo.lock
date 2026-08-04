@@ -3750,6 +3750,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "security-token-program-verification-program-example"
+version = "0.3.0"
+dependencies = [
+ "borsh 0.10.4",
+ "pinocchio",
+ "pinocchio-log",
+ "ssts-org-client",
+]
+
+[[package]]
 name = "security-token-tests"
 version = "0.3.0"
 dependencies = [
@@ -7764,6 +7774,27 @@ dependencies = [
  "spl-discriminator",
  "spl-pod 0.5.1",
  "thiserror 2.0.16",
+]
+
+[[package]]
+name = "split-guard"
+version = "0.3.0"
+dependencies = [
+ "pinocchio",
+ "pinocchio-log",
+ "pinocchio-pubkey",
+ "pinocchio-system",
+ "security-token-program",
+ "security-token-transfer-hook",
+ "solana-program",
+ "solana-program-test",
+ "solana-pubkey",
+ "solana-sdk",
+ "spl-associated-token-account",
+ "spl-token-2022 9.0.0",
+ "spl-transfer-hook-interface 0.9.0",
+ "ssts-org-client",
+ "tokio",
 ]
 
 [[package]]

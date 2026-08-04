@@ -10,18 +10,18 @@
 //!
 //! ### CPI Mode (cpi_mode: true)
 //! - Security Token makes CPI calls to verification programs
-//! - Same accounts and instruction_data are passed via CPI
+//! - Canonical operation accounts and this verifier's own extras are passed via CPI
 //! - Verification programs listed in VerificationConfig are called automatically
 //!
 //! ### Introspection Mode (cpi_mode: false)
 //! - Verification programs must be called BEFORE the main operation
 //! - Security Token checks Instructions Sysvar to verify the calls were made
-//! - Must use identical accounts (except the verification overhead) and instruction_data as the main operation
+//! - Must use the exact canonical accounts, own extras, and instruction_data expected by the config
 //!
 //! ## Implementation Guide
 //!
 //! Each operation handler demonstrates:
-//! 1. Account destructuring (using array pattern matching)
+//! 1. Canonical account-prefix and verifier-owned extra-account destructuring
 //! 2. Argument parsing from instruction_data
 //! 3. Where to add custom validation logic
 //!
@@ -113,8 +113,10 @@ pub fn process_instruction(
 /// - Use types from security_token_client (shown here)
 /// - Parse bytes manually (see program/src/instructions/*.rs for examples)
 fn verify_update_metadata(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [mint_authority, payer, mint, token_program, system_program] = accounts else {
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [mint_authority, payer, mint, token_program, system_program, _own_extra_accounts @ ..] =
+        accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     // Parse args using types from security_token_client
@@ -130,13 +132,14 @@ fn verify_update_metadata(accounts: &[AccountInfo], instruction_data: &[u8]) -> 
 /// Instruction data: [InitializeVerificationConfigArgs (serialized)]
 ///
 /// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
-/// Note: transfer_hook_accounts are only present when discriminator == Transfer (12)
+/// Note: the final three canonical accounts are hook accounts for Transfer configs and
+/// placeholders otherwise.
 fn verify_initialize_verification_config(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    // Destructure accounts (transfer_hook_accounts @ .. only for Transfer discriminator)
-    let [payer, mint_account, config_account, system_program, transfer_hook_accounts @ ..] =
+    // The three hook accounts are canonical placeholders for non-Transfer configs.
+    let [payer, mint_account, config_account, system_program, account_metas_pda, transfer_hook_pda, transfer_hook_program, _own_extra_accounts @ ..] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -160,13 +163,14 @@ fn verify_initialize_verification_config(
 /// Instruction data: [UpdateVerificationConfigArgs (serialized)]
 ///
 /// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
-/// Note: transfer_hook_accounts are only present when discriminator == Transfer (12)
+/// Note: the final three canonical accounts are hook accounts for Transfer configs and
+/// placeholders otherwise.
 fn verify_update_verification_config(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    // Destructure accounts (transfer_hook_accounts @ .. only for Transfer discriminator)
-    let [payer, mint_account, config_account, system_program, transfer_hook_accounts @ ..] =
+    // The three hook accounts are canonical placeholders for non-Transfer configs.
+    let [payer, mint_account, config_account, system_program, account_metas_pda, transfer_hook_pda, transfer_hook_program, _own_extra_accounts @ ..] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -190,13 +194,14 @@ fn verify_update_verification_config(
 /// Instruction data: [TrimVerificationConfigArgs (serialized)]
 ///
 /// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
-/// Note: transfer_hook_accounts are only present when discriminator == Transfer (12)
+/// Note: the final three canonical accounts are hook accounts for Transfer configs and
+/// placeholders otherwise.
 fn verify_trim_verification_config(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    // Destructure accounts (transfer_hook_accounts @ .. only for Transfer discriminator)
-    let [mint_account, config_account, recipient, system_program, transfer_hook_accounts @ ..] =
+    // The three hook accounts are canonical placeholders for non-Transfer configs.
+    let [mint_account, config_account, recipient, system_program, account_metas_pda, transfer_hook_pda, transfer_hook_program, _own_extra_accounts @ ..] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -213,8 +218,10 @@ fn verify_trim_verification_config(
 ///
 /// Instruction data: [amount: u64]
 fn verify_mint(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [mint_authority, mint, destination_account, token_program] = accounts else {
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [mint_authority, mint, destination_account, token_program, _own_extra_accounts @ ..] =
+        accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -242,8 +249,10 @@ fn verify_mint(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResu
 ///
 /// Instruction data: [amount: u64]
 fn verify_burn(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [permanent_delegate_authority, mint, token_account, token_program] = accounts else {
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [permanent_delegate_authority, mint, token_account, token_program, _own_extra_accounts @ ..] =
+        accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -271,10 +280,8 @@ fn verify_burn(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResu
 ///
 /// Instruction data: [amount: u64]
 fn verify_transfer(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [permanent_delegate_authority, mint, from_token_account, to_token_account, transfer_hook_program, token_program] =
-        accounts
-    else {
+    // Transfer has the same canonical interface in Core and the Token-2022 hook.
+    let [source, mint, destination, authority, _own_extra_accounts @ ..] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -291,8 +298,8 @@ fn verify_transfer(accounts: &[AccountInfo], instruction_data: &[u8]) -> Program
     log!(
         "Transfer verification: amount={}, from={}, to={}",
         amount,
-        from_token_account.key(),
-        to_token_account.key()
+        source.key(),
+        destination.key()
     );
 
     // Your validation logic here
@@ -303,8 +310,8 @@ fn verify_transfer(accounts: &[AccountInfo], instruction_data: &[u8]) -> Program
 ///
 /// Instruction data: []
 fn verify_pause(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [pause_authority, mint, token_program] = accounts else {
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [pause_authority, mint, token_program, _own_extra_accounts @ ..] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -318,8 +325,8 @@ fn verify_pause(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramRe
 ///
 /// Instruction data: []
 fn verify_resume(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [pause_authority, mint, token_program] = accounts else {
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [pause_authority, mint, token_program, _own_extra_accounts @ ..] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -333,8 +340,9 @@ fn verify_resume(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramR
 ///
 /// Instruction data: []
 fn verify_freeze(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [freeze_authority, mint, token_account, token_program] = accounts else {
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [freeze_authority, mint, token_account, token_program, _own_extra_accounts @ ..] = accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -348,8 +356,9 @@ fn verify_freeze(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramR
 ///
 /// Instruction data: []
 fn verify_thaw(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [freeze_authority, mint, token_account, token_program] = accounts else {
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [freeze_authority, mint, token_account, token_program, _own_extra_accounts @ ..] = accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -364,8 +373,10 @@ fn verify_thaw(accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramRes
 ///
 /// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
 fn verify_create_rate_account(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [payer, rate_account, mint_from_account, mint_to_account, system_program] = accounts else {
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [payer, rate_account, mint_from_account, mint_to_account, system_program, _own_extra_accounts @ ..] =
+        accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     // Parse args using types from security_token_client
@@ -389,8 +400,9 @@ fn verify_create_rate_account(accounts: &[AccountInfo], instruction_data: &[u8])
 ///
 /// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
 fn verify_update_rate_account(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [rate_account, mint_from_account, mint_to_account] = accounts else {
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [rate_account, mint_from_account, mint_to_account, _own_extra_accounts @ ..] = accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     // Parse args using types from security_token_client
@@ -414,8 +426,10 @@ fn verify_update_rate_account(accounts: &[AccountInfo], instruction_data: &[u8])
 ///
 /// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
 fn verify_close_rate_account(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [rate_account, destination_account, mint_from_account, mint_to_account] = accounts else {
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [rate_account, destination_account, mint_from_account, mint_to_account, _own_extra_accounts @ ..] =
+        accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     // Parse args using types from security_token_client
@@ -438,8 +452,8 @@ fn verify_close_rate_account(accounts: &[AccountInfo], instruction_data: &[u8]) 
 ///
 /// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
 fn verify_split(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [mint_authority, permanent_delegate, payer, mint_account, token_account, rate_account, receipt_account, token_program, system_program] =
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [mint_authority, permanent_delegate, payer, mint_account, token_account, rate_account, receipt_account, token_program, system_program, _own_extra_accounts @ ..] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -463,8 +477,8 @@ fn verify_split(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
 ///
 /// Note: You can parse manually instead of using client types - see program/src/instructions/*.rs
 fn verify_convert(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    // Destructure accounts
-    let [mint_authority, permanent_delegate, payer, mint_from_account, mint_to_account, token_account_from, token_account_to, rate_account, receipt_account, token_program, system_program] =
+    // Destructure the canonical prefix and this verifier's configured extras.
+    let [mint_authority, permanent_delegate, payer, mint_from_account, mint_to_account, token_account_from, token_account_to, rate_account, receipt_account, token_program, system_program, _own_extra_accounts @ ..] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
