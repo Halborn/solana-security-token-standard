@@ -1,13 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-    "program",
-    "transfer_hook",
-    "clients/rust",
-    "tests",
-    "examples/split-guard",
-    "examples/verification-program-example",
-]
+members = ["program", "transfer_hook", "clients/rust", "tests"]
 
 [workspace.package]
 version = "0.3.0"
