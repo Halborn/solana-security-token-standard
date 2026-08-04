@@ -13,8 +13,6 @@ import {
   decodeAccount,
   fetchEncodedAccount,
   fetchEncodedAccounts,
-  getAddressDecoder,
-  getAddressEncoder,
   getArrayDecoder,
   getArrayEncoder,
   getBooleanDecoder,
@@ -34,16 +32,28 @@ import {
   type MaybeAccount,
   type MaybeEncodedAccount,
 } from '@solana/kit';
+import {
+  getVerificationProgramConfigDecoder,
+  getVerificationProgramConfigEncoder,
+  type VerificationProgramConfig,
+  type VerificationProgramConfigArgs,
+} from '../types';
 
 export type VerificationConfig = {
   discriminator: number;
   instructionDiscriminator: number;
   cpiMode: boolean;
   bump: number;
-  verificationPrograms: Array<Address>;
+  programs: Array<VerificationProgramConfig>;
 };
 
-export type VerificationConfigArgs = VerificationConfig;
+export type VerificationConfigArgs = {
+  discriminator: number;
+  instructionDiscriminator: number;
+  cpiMode: boolean;
+  bump: number;
+  programs: Array<VerificationProgramConfigArgs>;
+};
 
 export function getVerificationConfigEncoder(): Encoder<VerificationConfigArgs> {
   return getStructEncoder([
@@ -51,7 +61,7 @@ export function getVerificationConfigEncoder(): Encoder<VerificationConfigArgs> 
     ['instructionDiscriminator', getU8Encoder()],
     ['cpiMode', getBooleanEncoder()],
     ['bump', getU8Encoder()],
-    ['verificationPrograms', getArrayEncoder(getAddressEncoder())],
+    ['programs', getArrayEncoder(getVerificationProgramConfigEncoder())],
   ]);
 }
 
@@ -61,7 +71,7 @@ export function getVerificationConfigDecoder(): Decoder<VerificationConfig> {
     ['instructionDiscriminator', getU8Decoder()],
     ['cpiMode', getBooleanDecoder()],
     ['bump', getU8Decoder()],
-    ['verificationPrograms', getArrayDecoder(getAddressDecoder())],
+    ['programs', getArrayDecoder(getVerificationProgramConfigDecoder())],
   ]);
 }
 

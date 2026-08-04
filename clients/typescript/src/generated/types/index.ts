@@ -29,4 +29,6 @@ export * from './updateMetadataArgs';
 export * from './updateProofArgs';
 export * from './updateRateArgs';
 export * from './updateVerificationConfigArgs';
+export * from './verificationAccountMeta';
+export * from './verificationProgramConfig';
 export * from './verifyArgs';

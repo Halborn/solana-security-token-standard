@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
+    "test": "npm run build && node --test tests/*.test.cjs",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "author": "SSTS Foundation",

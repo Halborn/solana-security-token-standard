@@ -5,14 +5,14 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use crate::generated::types::VerificationProgramConfig;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct InitializeVerificationConfigArgs {
-    pub instruction_discriminator: u8,
-    pub cpi_mode: bool,
-    pub programs: Vec<VerificationProgramConfig>,
+pub struct VerificationAccountMeta {
+    pub discriminator: u8,
+    pub address_config: [u8; 32],
+    pub is_signer: bool,
+    pub is_writable: bool,
 }

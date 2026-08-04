@@ -1507,9 +1507,11 @@
             "type": "u8"
           },
           {
-            "name": "verificationPrograms",
+            "name": "programs",
             "type": {
-              "vec": "publicKey"
+              "vec": {
+                "defined": "VerificationProgramConfig"
+              }
             }
           }
         ]
@@ -1948,6 +1950,55 @@
       }
     },
     {
+      "name": "VerificationAccountMeta",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discriminator",
+            "type": "u8"
+          },
+          {
+            "name": "addressConfig",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "isSigner",
+            "type": "bool"
+          },
+          {
+            "name": "isWritable",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VerificationProgramConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "programId",
+            "type": "publicKey"
+          },
+          {
+            "name": "extraAccounts",
+            "type": {
+              "vec": {
+                "defined": "VerificationAccountMeta"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "InitializeVerificationConfigArgs",
       "type": {
         "kind": "struct",
@@ -1961,9 +2012,11 @@
             "type": "bool"
           },
           {
-            "name": "programAddresses",
+            "name": "programs",
             "type": {
-              "vec": "publicKey"
+              "vec": {
+                "defined": "VerificationProgramConfig"
+              }
             }
           }
         ]
@@ -1987,9 +2040,11 @@
             "type": "u8"
           },
           {
-            "name": "programAddresses",
+            "name": "programs",
             "type": {
-              "vec": "publicKey"
+              "vec": {
+                "defined": "VerificationProgramConfig"
+              }
             }
           }
         ]

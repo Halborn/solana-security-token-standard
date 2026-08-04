@@ -28,6 +28,8 @@ pub(crate) mod r#update_metadata_args;
 pub(crate) mod r#update_proof_args;
 pub(crate) mod r#update_rate_args;
 pub(crate) mod r#update_verification_config_args;
+pub(crate) mod r#verification_account_meta;
+pub(crate) mod r#verification_program_config;
 pub(crate) mod r#verify_args;
 
 pub use self::r#claim_distribution_args::*;
@@ -53,4 +55,6 @@ pub use self::r#update_metadata_args::*;
 pub use self::r#update_proof_args::*;
 pub use self::r#update_rate_args::*;
 pub use self::r#update_verification_config_args::*;
+pub use self::r#verification_account_meta::*;
+pub use self::r#verification_program_config::*;
 pub use self::r#verify_args::*;

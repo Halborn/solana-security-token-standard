@@ -8,8 +8,6 @@
 
 import {
   combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
   getArrayDecoder,
   getArrayEncoder,
   getBooleanDecoder,
@@ -18,27 +16,37 @@ import {
   getStructEncoder,
   getU8Decoder,
   getU8Encoder,
-  type Address,
   type Codec,
   type Decoder,
   type Encoder,
 } from '@solana/kit';
+import {
+  getVerificationProgramConfigDecoder,
+  getVerificationProgramConfigEncoder,
+  type VerificationProgramConfig,
+  type VerificationProgramConfigArgs,
+} from '.';
 
 export type UpdateVerificationConfigArgs = {
   instructionDiscriminator: number;
   cpiMode: boolean;
   offset: number;
-  programAddresses: Array<Address>;
+  programs: Array<VerificationProgramConfig>;
 };
 
-export type UpdateVerificationConfigArgsArgs = UpdateVerificationConfigArgs;
+export type UpdateVerificationConfigArgsArgs = {
+  instructionDiscriminator: number;
+  cpiMode: boolean;
+  offset: number;
+  programs: Array<VerificationProgramConfigArgs>;
+};
 
 export function getUpdateVerificationConfigArgsEncoder(): Encoder<UpdateVerificationConfigArgsArgs> {
   return getStructEncoder([
     ['instructionDiscriminator', getU8Encoder()],
     ['cpiMode', getBooleanEncoder()],
     ['offset', getU8Encoder()],
-    ['programAddresses', getArrayEncoder(getAddressEncoder())],
+    ['programs', getArrayEncoder(getVerificationProgramConfigEncoder())],
   ]);
 }
 
@@ -47,7 +55,7 @@ export function getUpdateVerificationConfigArgsDecoder(): Decoder<UpdateVerifica
     ['instructionDiscriminator', getU8Decoder()],
     ['cpiMode', getBooleanDecoder()],
     ['offset', getU8Decoder()],
-    ['programAddresses', getArrayDecoder(getAddressDecoder())],
+    ['programs', getArrayDecoder(getVerificationProgramConfigDecoder())],
   ]);
 }
 
