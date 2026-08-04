@@ -2,7 +2,7 @@ use crate::{
     helpers::{
         add_dummy_verification_program, assert_security_token_error, assert_transaction_success,
         find_mint_authority_pda, find_mint_freeze_authority_pda, find_verification_config_pda,
-        initialize_mint, initialize_verification_config, send_tx,
+        initialize_mint, initialize_verification_config, send_tx, verification_program_configs,
     },
     verification_tests::verification_helpers::dummy_program_processor,
 };
@@ -36,6 +36,20 @@ struct VerificationTestContext {
     dummy_program_2_id: Pubkey,
     mint_keypair: Keypair,
     verification_config_pda: Pubkey,
+}
+
+fn standalone_verify_accounts(
+    setup: &VerificationTestContext,
+    first: Pubkey,
+    second: Pubkey,
+) -> Vec<AccountMeta> {
+    vec![
+        AccountMeta::new_readonly(first, false),
+        AccountMeta::new_readonly(second, false),
+        AccountMeta::new_readonly(setup.mint_keypair.pubkey(), false),
+        AccountMeta::new_readonly(setup.context.payer.pubkey(), false),
+        AccountMeta::new_readonly(system_program::ID, false),
+    ]
 }
 
 #[fixture]
@@ -93,7 +107,7 @@ async fn verification_test_setup() -> VerificationTestContext {
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: verification_programs,
+        programs: verification_program_configs(verification_programs),
     };
 
     initialize_verification_config(
@@ -120,6 +134,11 @@ async fn test_verify_without_prior_verification_calls(
     #[future] verification_test_setup: VerificationTestContext,
 ) {
     let setup = verification_test_setup.await;
+    let verify_accounts = standalone_verify_accounts(
+        &setup,
+        setup.mint_keypair.pubkey(),
+        setup.context.payer.pubkey(),
+    );
     let verify_only_ix = VerifyBuilder::new()
         .mint(setup.mint_keypair.pubkey())
         .verification_config(setup.verification_config_pda)
@@ -127,6 +146,7 @@ async fn test_verify_without_prior_verification_calls(
             ix: UPDATE_METADATA_DISCRIMINATOR,
             instruction_data: vec![],
         })
+        .add_remaining_accounts(&verify_accounts)
         .instruction();
 
     let result = send_tx(
@@ -151,28 +171,22 @@ async fn test_verify_with_proper_prior_calls_succeeds(
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
 
+    let success_verify_accounts = standalone_verify_accounts(
+        &setup,
+        account_for_verification_1.pubkey(),
+        account_for_verification_2.pubkey(),
+    );
     let success_instructions = vec![
         Instruction {
             program_id: setup.dummy_program_1_id,
-            accounts: vec![
-                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
-            ],
+            accounts: success_verify_accounts.clone(),
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
         Instruction {
             program_id: setup.dummy_program_2_id,
-            accounts: vec![
-                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
-            ],
+            accounts: success_verify_accounts.clone(),
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
-    ];
-
-    let success_verify_accounts = vec![
-        AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-        AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
     ];
 
     let verify_instruction_success = VerifyBuilder::new()
@@ -207,28 +221,22 @@ async fn test_verify_with_wrong_discriminator_fails(
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
 
+    let verify_accounts = standalone_verify_accounts(
+        &setup,
+        account_for_verification_1.pubkey(),
+        account_for_verification_2.pubkey(),
+    );
     let instructions = vec![
         Instruction {
             program_id: setup.dummy_program_2_id,
-            accounts: vec![
-                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
-            ],
+            accounts: verify_accounts.clone(),
             data: vec![128u8, 1u8],
         },
         Instruction {
             program_id: setup.dummy_program_1_id,
-            accounts: vec![
-                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
-            ],
+            accounts: verify_accounts.clone(),
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
-    ];
-
-    let success_verify_accounts = vec![
-        AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-        AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
     ];
 
     let verify_ix = VerifyBuilder::new()
@@ -238,7 +246,7 @@ async fn test_verify_with_wrong_discriminator_fails(
             ix: UPDATE_METADATA_DISCRIMINATOR,
             instruction_data: vec![],
         })
-        .add_remaining_accounts(&success_verify_accounts)
+        .add_remaining_accounts(&verify_accounts)
         .instruction();
 
     let mut tx_instructions = instructions.clone();
@@ -266,20 +274,17 @@ async fn test_verify_with_system_instructions_succeeds(
     let account_for_verification_1 = Keypair::new();
     let account_for_verification_2 = Keypair::new();
 
+    let success_verify_accounts = standalone_verify_accounts(
+        &setup,
+        account_for_verification_1.pubkey(),
+        account_for_verification_2.pubkey(),
+    );
     let instructions = vec![
         system_instruction::transfer(
             &setup.context.payer.pubkey(),
             &setup.mint_keypair.pubkey(),
             1,
         ),
-        Instruction {
-            program_id: setup.dummy_program_2_id,
-            accounts: vec![
-                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
-            ],
-            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
-        },
         system_instruction::transfer(
             &setup.context.payer.pubkey(),
             &setup.mint_keypair.pubkey(),
@@ -287,25 +292,14 @@ async fn test_verify_with_system_instructions_succeeds(
         ),
         Instruction {
             program_id: setup.dummy_program_1_id,
-            accounts: vec![
-                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
-            ],
+            accounts: success_verify_accounts.clone(),
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
         Instruction {
-            program_id: setup.dummy_program_1_id,
-            accounts: vec![
-                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
-            ],
-            data: vec![125u8, 1u8],
+            program_id: setup.dummy_program_2_id,
+            accounts: success_verify_accounts.clone(),
+            data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8],
         },
-    ];
-
-    let success_verify_accounts = vec![
-        AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-        AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
     ];
 
     let verify_ix = VerifyBuilder::new()
@@ -341,28 +335,22 @@ async fn test_verify_with_correct_accounts_but_wrong_data_fails(
     let account_for_verification_2 = Keypair::new();
 
     // Programs are called with correct discriminator and data
+    let verify_accounts = standalone_verify_accounts(
+        &setup,
+        account_for_verification_1.pubkey(),
+        account_for_verification_2.pubkey(),
+    );
     let instructions = vec![
         Instruction {
             program_id: setup.dummy_program_1_id,
-            accounts: vec![
-                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
-            ],
+            accounts: verify_accounts.clone(),
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8, 2u8],
         },
         Instruction {
             program_id: setup.dummy_program_2_id,
-            accounts: vec![
-                AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-                AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
-            ],
+            accounts: verify_accounts.clone(),
             data: vec![UPDATE_METADATA_DISCRIMINATOR, 1u8, 2u8],
         },
-    ];
-
-    let verify_accounts = vec![
-        AccountMeta::new_readonly(account_for_verification_1.pubkey(), false),
-        AccountMeta::new_readonly(account_for_verification_2.pubkey(), false),
     ];
 
     // Verify instruction has wrong data (more arguments for the target instruction)
@@ -461,7 +449,7 @@ async fn test_update_metadata_under_verification() {
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: verification_programs,
+        programs: verification_program_configs(verification_programs),
     };
 
     initialize_verification_config(

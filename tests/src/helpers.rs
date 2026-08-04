@@ -1,10 +1,13 @@
 use security_token_client::{
+    accounts::VerificationConfig,
     errors::SecurityTokenProgramError,
     instructions::{
         InitializeMintBuilder, InitializeVerificationConfigBuilder, MintBuilder, MINT_DISCRIMINATOR,
     },
     programs::SECURITY_TOKEN_PROGRAM_ID,
-    types::{InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs},
+    types::{
+        InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs, VerificationProgramConfig,
+    },
 };
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::ProgramResult;
@@ -52,6 +55,18 @@ pub fn get_default_verification_programs() -> Vec<Pubkey> {
     vec![DEFAULT_DUMMY_VERIFICATION_PROGRAM_ID]
 }
 
+pub fn verification_program_configs(
+    program_addresses: impl IntoIterator<Item = Pubkey>,
+) -> Vec<VerificationProgramConfig> {
+    program_addresses
+        .into_iter()
+        .map(|program_id| VerificationProgramConfig {
+            program_id,
+            extra_accounts: vec![],
+        })
+        .collect()
+}
+
 /// Create dummy verification instruction from an existing security token instruction
 pub fn create_dummy_verification_from_instruction(instruction: &Instruction) -> Instruction {
     // First byte is the discriminator
@@ -59,8 +74,13 @@ pub fn create_dummy_verification_from_instruction(instruction: &Instruction) -> 
     // Rest is the instruction args
     let instruction_args = &instruction.data[1..];
 
-    // Skip verification overhead accounts
-    let verification_accounts = if instruction.accounts.len() > 3 {
+    // Skip verification overhead accounts and use the canonical Transfer projection.
+    let verification_accounts = if discriminator == 12 && instruction.accounts.len() >= 7 {
+        [5usize, 4, 6, 3]
+            .into_iter()
+            .map(|index| instruction.accounts[index].clone())
+            .collect()
+    } else if instruction.accounts.len() > 3 {
         instruction.accounts[3..].to_vec()
     } else {
         vec![]
@@ -356,7 +376,7 @@ pub async fn initialize_mint_verification_and_mint_to_account(
     let mint_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: MINT_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: get_default_verification_programs(),
+        programs: verification_program_configs(get_default_verification_programs()),
     };
     initialize_verification_config(
         &mint_keypair,
@@ -376,21 +396,14 @@ pub async fn initialize_mint_verification_and_mint_to_account(
         .amount(amount)
         .instruction();
 
-    let recent_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
     let dummy_mint_ix = create_dummy_verification_from_instruction(&mint_ix);
-
-    let mint_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[dummy_mint_ix, mint_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        recent_blockhash,
-    );
-
-    let result = context
-        .banks_client
-        .process_transaction(mint_transaction)
-        .await;
+    let result = send_tx(
+        &context.banks_client,
+        vec![dummy_mint_ix, mint_ix],
+        &context.payer.pubkey(),
+        vec![&context.payer],
+    )
+    .await;
     assert_transaction_success(result);
 }
 
@@ -409,7 +422,7 @@ pub async fn create_verification_config(
 
     let init_vc_args = security_token_client::types::InitializeVerificationConfigArgs {
         instruction_discriminator,
-        program_addresses,
+        programs: verification_program_configs(program_addresses),
         cpi_mode: false,
     };
     let payer = owner.unwrap_or(&context.payer);
@@ -484,10 +497,13 @@ pub async fn start_with_context_and_accounts(
 
 pub async fn send_tx(
     banks_client: &BanksClient,
-    ixs: Vec<solana_sdk::instruction::Instruction>,
+    mut ixs: Vec<solana_sdk::instruction::Instruction>,
     payer: &Pubkey,
     signers: Vec<&Keypair>,
 ) -> Result<(), BanksClientError> {
+    for ix in &mut ixs {
+        append_zero_extra_routing(banks_client, ix).await?;
+    }
     let recent_blockhash = banks_client.get_latest_blockhash().await.unwrap();
 
     let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
@@ -498,6 +514,69 @@ pub async fn send_tx(
     );
 
     banks_client.process_transaction(transaction).await
+}
+
+pub async fn send_v0_tx(
+    banks_client: &BanksClient,
+    mut ixs: Vec<solana_sdk::instruction::Instruction>,
+    payer: &Pubkey,
+    signers: Vec<&Keypair>,
+) -> Result<(), BanksClientError> {
+    for ix in &mut ixs {
+        append_zero_extra_routing(banks_client, ix).await?;
+    }
+    let recent_blockhash = banks_client.get_latest_blockhash().await.unwrap();
+    let message = solana_sdk::message::v0::Message::try_compile(payer, &ixs, &[], recent_blockhash)
+        .map_err(|_| BanksClientError::ClientError("failed to compile V0 message"))?;
+    let transaction = solana_sdk::transaction::VersionedTransaction::try_new(
+        solana_sdk::message::VersionedMessage::V0(message),
+        &signers,
+    )
+    .map_err(|_| BanksClientError::ClientError("failed to sign V0 transaction"))?;
+    banks_client.process_transaction(transaction).await
+}
+
+async fn append_zero_extra_routing(
+    banks_client: &BanksClient,
+    ix: &mut Instruction,
+) -> Result<(), BanksClientError> {
+    if ix.program_id != SECURITY_TOKEN_PROGRAM_ID || ix.accounts.len() < 2 || ix.data.is_empty() {
+        return Ok(());
+    }
+    let Some(account) = banks_client.get_account(ix.accounts[1].pubkey).await? else {
+        return Ok(());
+    };
+    if account.owner != SECURITY_TOKEN_PROGRAM_ID || account.data.first() != Some(&1) {
+        return Ok(());
+    }
+    let Ok(config) = VerificationConfig::from_bytes(&account.data) else {
+        return Ok(());
+    };
+    let target_discriminator = if ix.data[0] == 5 {
+        ix.data.get(1).copied()
+    } else {
+        ix.data.first().copied()
+    };
+    if target_discriminator != Some(config.instruction_discriminator)
+        || config
+            .programs
+            .iter()
+            .any(|program| !program.extra_accounts.is_empty())
+    {
+        return Ok(());
+    }
+    let already_appended = ix.accounts.len() >= config.programs.len()
+        && ix.accounts[ix.accounts.len() - config.programs.len()..]
+            .iter()
+            .zip(&config.programs)
+            .all(|(account, program)| account.pubkey == program.program_id);
+    if !already_appended {
+        ix.accounts
+            .extend(config.programs.into_iter().map(|program| {
+                solana_sdk::instruction::AccountMeta::new_readonly(program.program_id, false)
+            }));
+    }
+    Ok(())
 }
 
 pub fn find_mint_authority_pda(mint: &Pubkey, creator: &Pubkey) -> (Pubkey, u8) {

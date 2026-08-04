@@ -23,7 +23,7 @@ use crate::helpers::{
     find_transfer_hook_pda, find_verification_config_pda, get_default_verification_programs,
     get_mint_state, get_token_account_state, initialize_mint,
     initialize_mint_verification_and_mint_to_account, initialize_program,
-    initialize_verification_config, send_tx,
+    initialize_verification_config, send_tx, verification_program_configs,
 };
 use security_token_transfer_hook;
 use solana_program_test::*;
@@ -98,7 +98,7 @@ async fn test_basic_t22_operations() {
         let initialize_verification_config_args = InitializeVerificationConfigArgs {
             instruction_discriminator: discriminator,
             cpi_mode: false,
-            program_addresses: get_default_verification_programs(),
+            programs: verification_program_configs(get_default_verification_programs()),
         };
 
         initialize_verification_config(
@@ -280,7 +280,7 @@ async fn test_t22_extension_operations() {
     let pause_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: PAUSE_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: get_default_verification_programs(),
+        programs: verification_program_configs(get_default_verification_programs()),
     };
     initialize_verification_config(
         &mint_keypair,
@@ -323,7 +323,7 @@ async fn test_t22_extension_operations() {
     let resume_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: RESUME_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: get_default_verification_programs(),
+        programs: verification_program_configs(get_default_verification_programs()),
     };
 
     initialize_verification_config(
@@ -412,7 +412,7 @@ async fn test_t22_transfer_operations() {
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: get_default_verification_programs(),
+        programs: verification_program_configs(get_default_verification_programs()),
     };
 
     initialize_verification_config(
@@ -546,7 +546,7 @@ async fn test_p2p_transfer_direct_spl() {
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: vec![dummy_program_1_id, dummy_program_2_id],
+        programs: verification_program_configs([dummy_program_1_id, dummy_program_2_id]),
     };
 
     initialize_verification_config(
@@ -721,7 +721,7 @@ async fn test_transfer_hook_extra_account_metas_init_update_trim() {
         &InitializeVerificationConfigArgs {
             instruction_discriminator: TRANSFER_DISCRIMINATOR,
             cpi_mode: false,
-            program_addresses: vec![program_address_1, program_address_2],
+            programs: verification_program_configs([program_address_1, program_address_2]),
         },
     )
     .await;
@@ -762,7 +762,7 @@ async fn test_transfer_hook_extra_account_metas_init_update_trim() {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
         cpi_mode: false,
         offset: 2,
-        program_addresses: vec![program_address_3],
+        programs: verification_program_configs([program_address_3]),
     };
 
     let account_metas_pda = get_extra_account_metas_address(
