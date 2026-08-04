@@ -42,8 +42,8 @@ use crate::modules::{
     verify_system_program, verify_token22_program, verify_transfer_hook_program, verify_writable,
 };
 use crate::state::{
-    AccountDeserialize, AccountSerialize, MintAuthority, ProgramAccount,
-    SecurityTokenDiscriminators, VerificationConfig,
+    AccountDeserialize, AccountSerialize, MintAuthority, SecurityTokenDiscriminators,
+    VerificationConfig,
 };
 use crate::token22_extensions::metadata::{InitializeTokenMetadata, RemoveKey, TokenMetadata};
 use crate::token22_extensions::metadata_pointer::{InitializeMetadataPointer, MetadataPointer};
@@ -72,11 +72,321 @@ type ParsedRouting<'a> = (
     Vec<RoutingGroup<'a>>,
 );
 
+const TRANSFER_CANONICAL_ACCOUNT_COUNT: usize = 4;
+// SPL Execute has five fixed accounts before its resolved meta-list accounts, and its
+// amount starts after the 8-byte Execute discriminator rather than Core's 1-byte discriminator.
+const TRANSFER_HOOK_FIXED_ACCOUNT_COUNT: usize = 5;
+const TRANSFER_HOOK_EXECUTE_DATA_OFFSET: u8 = 8;
+
+fn checked_hook_index(index: usize) -> Result<u8, ProgramError> {
+    u8::try_from(index).map_err(|_| ProgramError::InvalidArgument)
+}
+
+fn remap_transfer_account_index(
+    local_index: u8,
+    previous_extra_indices: &[u8],
+) -> Result<u8, ProgramError> {
+    // Config indices use [source, mint, destination, authority, own previous extras].
+    // The hook meta list uses absolute Execute-account indices, so only previous extras move.
+    let local_index = local_index as usize;
+    if local_index < TRANSFER_CANONICAL_ACCOUNT_COUNT {
+        return checked_hook_index(local_index);
+    }
+    previous_extra_indices
+        .get(local_index - TRANSFER_CANONICAL_ACCOUNT_COUNT)
+        .copied()
+        .ok_or(ProgramError::InvalidArgument)
+}
+
+fn compile_transfer_seeds(
+    address_config: &[u8; 32],
+    previous_extra_indices: &[u8],
+) -> Result<Vec<ResolutionSeed>, ProgramError> {
+    // Translate the verifier-visible [Transfer discriminator | amount] namespace into
+    // SPL Execute data [8-byte discriminator | amount] without changing the derived PDA.
+    let seeds = ResolutionSeed::unpack_address_config(address_config)
+        .map_err(|_| ProgramError::InvalidArgument)?;
+    let mut compiled = Vec::with_capacity(seeds.len() + 1);
+    for seed in seeds {
+        match seed {
+            ResolutionSeed::Uninitialized => return Err(ProgramError::InvalidArgument),
+            ResolutionSeed::Literal { bytes } => {
+                compiled.push(ResolutionSeed::Literal { bytes });
+            }
+            ResolutionSeed::InstructionData { index, length } if index == 0 && length > 0 => {
+                compiled.push(ResolutionSeed::Literal {
+                    bytes: vec![SecurityTokenInstruction::Transfer.discriminant()],
+                });
+                if length > 1 {
+                    compiled.push(ResolutionSeed::InstructionData {
+                        index: TRANSFER_HOOK_EXECUTE_DATA_OFFSET,
+                        length: length - 1,
+                    });
+                }
+            }
+            ResolutionSeed::InstructionData { index, length } => {
+                let index = if length == 0 {
+                    TRANSFER_HOOK_EXECUTE_DATA_OFFSET
+                } else {
+                    index
+                        .checked_add(TRANSFER_HOOK_EXECUTE_DATA_OFFSET - 1)
+                        .ok_or(ProgramError::InvalidArgument)?
+                };
+                compiled.push(ResolutionSeed::InstructionData { index, length });
+            }
+            ResolutionSeed::AccountKey { index } => {
+                compiled.push(ResolutionSeed::AccountKey {
+                    index: remap_transfer_account_index(index, previous_extra_indices)?,
+                });
+            }
+            ResolutionSeed::AccountData {
+                account_index,
+                data_index,
+                length,
+            } => {
+                compiled.push(ResolutionSeed::AccountData {
+                    account_index: remap_transfer_account_index(
+                        account_index,
+                        previous_extra_indices,
+                    )?,
+                    data_index,
+                    length,
+                });
+            }
+        }
+    }
+    ResolutionSeed::pack_into_address_config(&compiled)
+        .map_err(|_| ProgramError::InvalidArgument)?;
+    Ok(compiled)
+}
+
+fn compile_transfer_meta(
+    meta: &VerificationAccountMeta,
+    verifier_program_index: u8,
+    previous_extra_indices: &[u8],
+) -> Result<ExtraAccountMeta, ProgramError> {
+    // Verifier PDAs become SPL external-PDA metas because the deriving program is a
+    // dynamically listed verifier, not the transfer hook itself.
+    match meta.discriminator {
+        0 => Ok(ExtraAccountMeta {
+            discriminator: 0,
+            address_config: meta.address_config,
+            is_signer: PodBool(meta.is_signer as u8),
+            is_writable: PodBool(meta.is_writable as u8),
+        }),
+        1 => {
+            let seeds = compile_transfer_seeds(&meta.address_config, previous_extra_indices)?;
+            ExtraAccountMeta::new_external_pda_with_seeds(
+                verifier_program_index,
+                &seeds,
+                meta.is_signer,
+                meta.is_writable,
+            )
+            .map_err(|_| ProgramError::InvalidArgument)
+        }
+        2 => {
+            let pubkey_data = PubkeyData::unpack(&meta.address_config)
+                .map_err(|_| ProgramError::InvalidArgument)?;
+            let compiled = match pubkey_data {
+                PubkeyData::AccountData {
+                    account_index,
+                    data_index,
+                } => PubkeyData::AccountData {
+                    account_index: remap_transfer_account_index(
+                        account_index,
+                        previous_extra_indices,
+                    )?,
+                    data_index,
+                },
+                PubkeyData::InstructionData { .. } | PubkeyData::Uninitialized => {
+                    return Err(ProgramError::InvalidArgument)
+                }
+            };
+            ExtraAccountMeta::new_with_pubkey_data(&compiled, meta.is_signer, meta.is_writable)
+                .map_err(|_| ProgramError::InvalidArgument)
+        }
+        _ => Err(ProgramError::InvalidArgument),
+    }
+}
+
+fn compile_transfer_account_metas(
+    verification_config_pda: Pubkey,
+    programs: &[VerificationProgramConfig],
+) -> Result<Vec<ExtraAccountMeta>, ProgramError> {
+    // Discovery order must match the runtime routing tail exactly:
+    // [config, program_0, own extras_0, program_1, own extras_1, ...].
+    let total_extras = programs
+        .iter()
+        .try_fold(0usize, |count, entry| {
+            count.checked_add(entry.extra_accounts.len())
+        })
+        .ok_or(ProgramError::InvalidArgument)?;
+    let capacity = 1usize
+        .checked_add(programs.len())
+        .and_then(|count| count.checked_add(total_extras))
+        .ok_or(ProgramError::InvalidArgument)?;
+    let mut account_metas = Vec::with_capacity(capacity);
+    account_metas.push(ExtraAccountMeta {
+        discriminator: 0,
+        address_config: verification_config_pda,
+        is_signer: PodBool(0),
+        is_writable: PodBool(0),
+    });
+
+    for program in programs {
+        let verifier_program_index = checked_hook_index(
+            TRANSFER_HOOK_FIXED_ACCOUNT_COUNT
+                .checked_add(account_metas.len())
+                .ok_or(ProgramError::InvalidArgument)?,
+        )?;
+        account_metas.push(ExtraAccountMeta {
+            discriminator: 0,
+            address_config: program.program_id,
+            is_signer: PodBool(0),
+            is_writable: PodBool(0),
+        });
+
+        let mut previous_extra_indices = Vec::with_capacity(program.extra_accounts.len());
+        for meta in &program.extra_accounts {
+            let compiled =
+                compile_transfer_meta(meta, verifier_program_index, &previous_extra_indices)?;
+            let global_index = checked_hook_index(
+                TRANSFER_HOOK_FIXED_ACCOUNT_COUNT
+                    .checked_add(account_metas.len())
+                    .ok_or(ProgramError::InvalidArgument)?,
+            )?;
+            account_metas.push(compiled);
+            previous_extra_indices.push(global_index);
+        }
+    }
+    Ok(account_metas)
+}
+
+#[cfg(test)]
+mod transfer_meta_compiler_tests {
+    use super::*;
+
+    fn local_meta(meta: ExtraAccountMeta) -> VerificationAccountMeta {
+        VerificationAccountMeta {
+            discriminator: meta.discriminator,
+            address_config: meta.address_config,
+            is_signer: bool::from(meta.is_signer),
+            is_writable: bool::from(meta.is_writable),
+        }
+    }
+
+    #[test]
+    fn compiles_external_pda_and_remaps_transfer_namespace() {
+        let fixed_key = [8; 32];
+        let fixed = VerificationAccountMeta {
+            discriminator: 0,
+            address_config: fixed_key,
+            is_signer: false,
+            is_writable: true,
+        };
+        let pda = ExtraAccountMeta::new_with_seeds(
+            &[
+                ResolutionSeed::InstructionData {
+                    index: 0,
+                    length: 9,
+                },
+                ResolutionSeed::AccountKey { index: 0 },
+                ResolutionSeed::AccountKey { index: 4 },
+            ],
+            false,
+            false,
+        )
+        .unwrap();
+        let metas = compile_transfer_account_metas(
+            [3; 32],
+            &[VerificationProgramConfig {
+                program_id: [7; 32],
+                extra_accounts: vec![fixed, local_meta(pda)],
+            }],
+        )
+        .unwrap();
+
+        assert_eq!(metas.len(), 4);
+        assert_eq!(metas[0].address_config, [3; 32]);
+        assert_eq!(metas[1].address_config, [7; 32]);
+        assert_eq!(metas[2].address_config, fixed_key);
+        assert_eq!(metas[3].discriminator, 128 + 6);
+        assert_eq!(
+            ResolutionSeed::unpack_address_config(&metas[3].address_config).unwrap(),
+            vec![
+                ResolutionSeed::Literal { bytes: vec![12] },
+                ResolutionSeed::InstructionData {
+                    index: 8,
+                    length: 8,
+                },
+                ResolutionSeed::AccountKey { index: 0 },
+                ResolutionSeed::AccountKey { index: 7 },
+            ]
+        );
+    }
+
+    #[test]
+    fn remaps_pubkey_account_data_to_previous_extra() {
+        let fixed = VerificationAccountMeta {
+            discriminator: 0,
+            address_config: [8; 32],
+            is_signer: false,
+            is_writable: false,
+        };
+        let pubkey_data = ExtraAccountMeta::new_with_pubkey_data(
+            &PubkeyData::AccountData {
+                account_index: 4,
+                data_index: 9,
+            },
+            false,
+            true,
+        )
+        .unwrap();
+        let metas = compile_transfer_account_metas(
+            [3; 32],
+            &[VerificationProgramConfig {
+                program_id: [7; 32],
+                extra_accounts: vec![fixed, local_meta(pubkey_data)],
+            }],
+        )
+        .unwrap();
+
+        assert_eq!(
+            PubkeyData::unpack(&metas[3].address_config).unwrap(),
+            PubkeyData::AccountData {
+                account_index: 7,
+                data_index: 9,
+            }
+        );
+        assert!(bool::from(metas[3].is_writable));
+    }
+
+    #[test]
+    fn resolves_pubkey_from_core_instruction_data() {
+        let expected = [6; 32];
+        let pubkey_data = ExtraAccountMeta::new_with_pubkey_data(
+            &PubkeyData::InstructionData { index: 9 },
+            false,
+            false,
+        )
+        .unwrap();
+        let mut instruction_data = vec![0; 41];
+        instruction_data[9..].copy_from_slice(&expected);
+        assert_eq!(
+            resolve_verification_meta(&local_meta(pubkey_data), &[7; 32], &[], &instruction_data,)
+                .unwrap(),
+            expected
+        );
+    }
+}
+
 fn canonical_accounts(
     discriminator: u8,
     core_accounts: &[AccountInfo],
 ) -> Result<Vec<&AccountInfo>, ProgramError> {
     if discriminator == SecurityTokenInstruction::Transfer.discriminant() {
+        // Forced Transfer uses a different Core layout, but verifiers always observe the
+        // same semantic order as a regular Token-2022 hook invocation.
         let [authority, mint, source, destination, _hook, _token] = core_accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -106,7 +416,9 @@ fn canonical_account_flags(discriminator: u8, index: usize) -> Result<(bool, boo
         Mint | Burn => matches!(index, 1 | 2),
         Pause | Resume => index == 1,
         Freeze | Thaw => index == 2,
-        Transfer => matches!(index, 0 | 2),
+        // Token-2022 de-escalates all four canonical accounts before invoking the hook.
+        // Core uses the same read-only verifier ABI so policies behave identically on both paths.
+        Transfer => false,
         CreateRateAccount => matches!(index, 0 | 1),
         UpdateRateAccount => index == 0,
         CloseRateAccount => matches!(index, 0 | 1),
@@ -229,8 +541,7 @@ fn parse_and_validate_routing<'a>(
     if core_count != core_account_count(config.instruction_discriminator)? {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
-    // NOTE: Remove verification program accounts from the end to the explicit instruction accounts
-    // As a side effect it will help in verification programs implementations
+    // Split the config-sized routing tail from the instruction's fixed accounts.
     let (core_accounts, routing_accounts) = instruction_accounts.split_at(core_count);
     let canonical = canonical_accounts(config.instruction_discriminator, core_accounts)?;
     if canonical.len() != canonical_base_count(config.instruction_discriminator)? {
@@ -239,7 +550,22 @@ fn parse_and_validate_routing<'a>(
 
     let mut cursor = 0usize;
     let mut groups = Vec::with_capacity(config.programs.len());
-    let mut resolved_privileges = HashMap::<Pubkey, (bool, bool)>::new();
+    // The same pubkey may appear in the canonical base and in a declared extra. Do not let
+    // that alias promote the verifier-visible role beyond the canonical contract.
+    let mut canonical_privileges = HashMap::<Pubkey, (bool, bool)>::new();
+    for (index, account) in canonical.iter().enumerate() {
+        let flags = canonical_account_flags(config.instruction_discriminator, index)?;
+        canonical_privileges
+            .entry(*account.key())
+            .and_modify(|existing| {
+                existing.0 |= flags.0;
+                existing.1 |= flags.1;
+            })
+            .or_insert(flags);
+    }
+    // Repeated extras are allowed, including across program entries, but their logical
+    // privileges must agree so CPI, introspection, and hook discovery cannot diverge.
+    let mut resolved_extra_privileges = HashMap::<Pubkey, (bool, bool)>::new();
     for entry in &config.programs {
         let program = routing_accounts
             .get(cursor)
@@ -269,14 +595,22 @@ fn parse_and_validate_routing<'a>(
             {
                 return Err(SecurityTokenError::AccountIntersectionMismatch.into());
             }
-            if let Some(flags) = resolved_privileges.get(&expected) {
+            if let Some((canonical_signer, canonical_writable)) =
+                canonical_privileges.get(&expected)
+            {
+                if (declaration.is_signer && !canonical_signer)
+                    || (declaration.is_writable && !canonical_writable)
+                {
+                    return Err(ProgramError::InvalidAccountData);
+                }
+            }
+            if let Some(flags) = resolved_extra_privileges.get(&expected) {
                 if *flags != (declaration.is_signer, declaration.is_writable) {
                     return Err(ProgramError::InvalidAccountData);
                 }
-            } else {
-                resolved_privileges
-                    .insert(expected, (declaration.is_signer, declaration.is_writable));
             }
+            resolved_extra_privileges
+                .insert(expected, (declaration.is_signer, declaration.is_writable));
             local_accounts.push(account);
         }
         groups.push(RoutingGroup { program, extras });
@@ -1162,52 +1496,22 @@ impl VerificationModule {
         let (account_metas_pda, _bump) = find_extra_account_metas_pda(mint_info.key());
         verify_pda_keys_match(&account_metas_pda, account_metas_pda_info.key())?;
 
-        let mut account_metas: Vec<ExtraAccountMeta> = Vec::new();
-        account_metas.push(ExtraAccountMeta {
-            discriminator: 0,
-            address_config: verification_config_pda,
-            is_signer: PodBool(0),
-            is_writable: PodBool(0),
-        });
-
-        for program in programs {
-            if !program.extra_accounts.is_empty() {
-                return Err(ProgramError::InvalidArgument);
-            }
-            account_metas.push(ExtraAccountMeta {
-                discriminator: 0,
-                address_config: program.program_id,
-                is_signer: PodBool(0),
-                is_writable: PodBool(0),
-            });
-        }
+        // VerificationConfig is authoritative; this list is derived discovery state for
+        // standard Token-2022 clients and is updated in the same transaction as the config.
+        let account_metas = compile_transfer_account_metas(verification_config_pda, programs)?;
 
         let new_account_size = ExtraAccountMetaList::size_of(account_metas.len())
             .map_err(|_| ProgramError::InvalidAccountData)?;
         let rent = Rent::get()?;
-
-        if is_initialization {
-            // Initialize: transfer full rent amount
-            let required_lamports = rent.minimum_balance(new_account_size);
+        let required_lamports = rent.minimum_balance(new_account_size);
+        let rent_deficit = required_lamports.saturating_sub(account_metas_pda_info.lamports());
+        if rent_deficit > 0 {
             let transfer = Transfer {
                 from: payer,
                 to: account_metas_pda_info,
-                lamports: required_lamports,
+                lamports: rent_deficit,
             };
             transfer.invoke()?;
-        } else {
-            let current_account_size = account_metas_pda_info.data_len();
-            if new_account_size > current_account_size {
-                let old_rent = rent.minimum_balance(current_account_size);
-                let new_rent = rent.minimum_balance(new_account_size);
-                let additional_rent = new_rent - old_rent;
-                let transfer = Transfer {
-                    from: payer,
-                    to: account_metas_pda_info,
-                    lamports: additional_rent,
-                };
-                transfer.invoke()?;
-            }
         }
 
         let bump_seed = [bump];
@@ -1344,21 +1648,31 @@ impl VerificationModule {
 
         let new_size = existing_config.serialized_size();
         let current_size = config_account.data_len();
+        let rent = Rent::get()?;
+        let current_minimum_balance = rent.minimum_balance(current_size);
+        let new_minimum_balance = rent.minimum_balance(new_size);
+        let mut recovered_rent = 0u64;
 
+        // Fund only the actual deficit and refund only the rent-minimum delta. Any existing
+        // surplus remains attached to the config rather than becoming claimable by an updater.
         if new_size > current_size {
-            let rent = Rent::get()?;
-            let old_rent = rent.minimum_balance(current_size);
-            let new_rent = rent.minimum_balance(new_size);
-            let additional_rent = new_rent - old_rent;
-            let transfer = Transfer {
-                from: payer,
-                to: config_account,
-                lamports: additional_rent,
-            };
-            transfer.invoke()?;
+            let rent_deficit = new_minimum_balance.saturating_sub(config_account.lamports());
+            if rent_deficit > 0 {
+                let transfer = Transfer {
+                    from: payer,
+                    to: config_account,
+                    lamports: rent_deficit,
+                };
+                transfer.invoke()?;
+            }
             config_account.resize(new_size)?;
         } else if new_size < current_size {
-            VerificationConfig::resize_account_and_rent(config_account, new_size, payer)?;
+            config_account.resize(new_size)?;
+            let rent_delta = current_minimum_balance.saturating_sub(new_minimum_balance);
+            let refundable_balance = config_account
+                .lamports()
+                .saturating_sub(new_minimum_balance);
+            recovered_rent = rent_delta.min(refundable_balance);
         }
 
         let config_bytes = existing_config.to_bytes();
@@ -1368,6 +1682,8 @@ impl VerificationModule {
             data[..config_bytes.len()].copy_from_slice(&config_bytes);
         }
 
+        // Synchronize derived hook discovery state before releasing the shrink refund. A CPI
+        // failure aborts the instruction, so config, meta list, and balances roll back together.
         if discriminator == SecurityTokenInstruction::Transfer as u8 {
             Self::update_transfer_hook_account_metas(
                 program_id,
@@ -1378,6 +1694,16 @@ impl VerificationModule {
                 *config_account.key(),
                 existing_config.programs.as_slice(),
             )?;
+        }
+        if recovered_rent > 0 {
+            let config_lamports = config_account.lamports();
+            let payer_lamports = payer.lamports();
+            *config_account.try_borrow_mut_lamports()? = config_lamports
+                .checked_sub(recovered_rent)
+                .ok_or(ProgramError::InsufficientFunds)?;
+            *payer.try_borrow_mut_lamports()? = payer_lamports
+                .checked_add(recovered_rent)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
         }
         Ok(())
     }

@@ -9,6 +9,9 @@ use crate::constants::{
 };
 use crate::instruction::SecurityTokenInstruction;
 
+const MAX_PDA_SEED_LEN: usize = 32;
+const TRANSFER_HOOK_EXECUTE_DATA_OFFSET: u8 = 8;
+
 /// Wire-compatible representation of SPL `ExtraAccountMeta`.
 #[repr(C)]
 #[derive(Clone, Debug, Eq, PartialEq, ShankType)]
@@ -71,7 +74,7 @@ fn read_u32(data: &[u8], offset: &mut usize) -> Result<usize, ProgramError> {
     Ok(value)
 }
 
-fn read_bool(data: &[u8], offset: &mut usize) -> Result<bool, ProgramError> {
+pub(crate) fn read_bool(data: &[u8], offset: &mut usize) -> Result<bool, ProgramError> {
     let value = *data
         .get(*offset)
         .ok_or(ProgramError::InvalidInstructionData)?;
@@ -239,18 +242,23 @@ fn validate_meta(
                     Seed::AccountKey { index } if index as usize >= available_accounts => {
                         return Err(ProgramError::InvalidArgument)
                     }
-                    Seed::AccountData { account_index, .. }
-                        if account_index as usize >= available_accounts =>
+                    Seed::AccountData {
+                        account_index,
+                        length,
+                        ..
+                    } if account_index as usize >= available_accounts
+                        || length as usize > MAX_PDA_SEED_LEN =>
                     {
                         return Err(ProgramError::InvalidArgument)
                     }
                     Seed::InstructionData { index, length }
-                        if instruction_data_len.is_some_and(|data_len| {
-                            match (index as usize).checked_add(length as usize) {
-                                Some(end) => end > data_len,
-                                None => true,
-                            }
-                        }) =>
+                        if length as usize > MAX_PDA_SEED_LEN
+                            || instruction_data_len.is_some_and(|data_len| {
+                                match (index as usize).checked_add(length as usize) {
+                                    Some(end) => end > data_len,
+                                    None => true,
+                                }
+                            }) =>
                     {
                         return Err(ProgramError::InvalidArgument)
                     }
@@ -292,6 +300,58 @@ fn validate_meta(
     }
 }
 
+fn validate_transfer_meta_compilation(meta: &VerificationAccountMeta) -> ProgramResult {
+    // Transfer declarations must fit the 32-byte SPL meta encoding after Core's local
+    // instruction/account indices are translated into the Hook Execute namespace.
+    match meta.discriminator {
+        0 => Ok(()),
+        1 => {
+            let seeds = Seed::unpack_address_config(&meta.address_config)
+                .map_err(|_| ProgramError::InvalidArgument)?;
+            let mut compiled = Vec::with_capacity(seeds.len() + 1);
+            for seed in seeds {
+                match seed {
+                    Seed::InstructionData { index: 0, length } if length > 0 => {
+                        compiled.push(Seed::Literal {
+                            bytes: vec![SecurityTokenInstruction::Transfer.discriminant()],
+                        });
+                        if length > 1 {
+                            compiled.push(Seed::InstructionData {
+                                index: TRANSFER_HOOK_EXECUTE_DATA_OFFSET,
+                                length: length - 1,
+                            });
+                        }
+                    }
+                    Seed::InstructionData { index, length } => {
+                        compiled.push(Seed::InstructionData {
+                            index: if length == 0 {
+                                TRANSFER_HOOK_EXECUTE_DATA_OFFSET
+                            } else {
+                                index
+                                    .checked_add(TRANSFER_HOOK_EXECUTE_DATA_OFFSET - 1)
+                                    .ok_or(ProgramError::InvalidArgument)?
+                            },
+                            length,
+                        });
+                    }
+                    seed => compiled.push(seed),
+                }
+            }
+            Seed::pack_into_address_config(&compiled).map_err(|_| ProgramError::InvalidArgument)?;
+            Ok(())
+        }
+        2 => match PubkeyData::unpack(&meta.address_config)
+            .map_err(|_| ProgramError::InvalidArgument)?
+        {
+            PubkeyData::AccountData { .. } => Ok(()),
+            PubkeyData::InstructionData { .. } | PubkeyData::Uninitialized => {
+                Err(ProgramError::InvalidArgument)
+            }
+        },
+        _ => Err(ProgramError::InvalidArgument),
+    }
+}
+
 pub fn validate_programs(
     instruction_discriminator: u8,
     programs: &[VerificationProgramConfig],
@@ -303,18 +363,34 @@ pub fn validate_programs(
 
     let base_count = canonical_base_count(instruction_discriminator)?;
     let instruction_data_len = fixed_instruction_data_len(instruction_discriminator);
-    let transfer = instruction_discriminator == SecurityTokenInstruction::Transfer.discriminant();
     let mut total_extras = 0usize;
+    // Statically known duplicate keys must carry one logical role across all entries.
+    // Dynamic duplicates receive the equivalent check during runtime resolution.
+    let mut fixed_privileges = Vec::<(Pubkey, bool, bool)>::new();
     for program in programs {
         // Validate program address and extra account declarations
         if program.program_id == Pubkey::default()
             || program.extra_accounts.len() > MAX_VERIFICATION_EXTRAS_PER_PROGRAM
-            || (transfer && !program.extra_accounts.is_empty())
         {
             return Err(ProgramError::InvalidArgument);
         }
         for (index, meta) in program.extra_accounts.iter().enumerate() {
             validate_meta(meta, base_count + index, instruction_data_len)?;
+            if instruction_discriminator == SecurityTokenInstruction::Transfer.discriminant() {
+                validate_transfer_meta_compilation(meta)?;
+            }
+            if meta.discriminator == 0 {
+                let key = Pubkey::from(meta.address_config);
+                if let Some((_, is_signer, is_writable)) =
+                    fixed_privileges.iter().find(|(fixed, _, _)| fixed == &key)
+                {
+                    if (*is_signer, *is_writable) != (meta.is_signer, meta.is_writable) {
+                        return Err(ProgramError::InvalidArgument);
+                    }
+                } else {
+                    fixed_privileges.push((key, meta.is_signer, meta.is_writable));
+                }
+            }
         }
         total_extras = total_extras
             .checked_add(program.extra_accounts.len())
@@ -371,11 +447,13 @@ impl InitializeVerificationConfigArgs {
         offset += 1;
 
         // Read cpi_mode (1 byte)
-        let cpi_mode = data[offset] != 0;
-        offset += 1;
+        let cpi_mode = read_bool(data, &mut offset)?;
 
         // Read programs and their extra account declarations
         let programs = parse_programs(data, &mut offset)?;
+        if offset != data.len() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
 
         Ok(Self {
             instruction_discriminator,
@@ -455,8 +533,7 @@ impl UpdateVerificationConfigArgs {
         offset_pos += 1;
 
         // Read cpi_mode (1 byte)
-        let cpi_mode = data[offset_pos] != 0;
-        offset_pos += 1;
+        let cpi_mode = read_bool(data, &mut offset_pos)?;
 
         // Read offset (1 byte)
         let offset = data[offset_pos];
@@ -464,6 +541,9 @@ impl UpdateVerificationConfigArgs {
 
         // Read programs and their extra account declarations
         let programs = parse_programs(data, &mut offset_pos)?;
+        if offset_pos != data.len() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
 
         Ok(Self {
             instruction_discriminator,
@@ -539,7 +619,7 @@ impl TrimVerificationConfigArgs {
 
     /// Deserialize from bytes using manual deserialization (following SAS pattern)
     pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::LEN {
+        if data.len() != Self::LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -554,7 +634,7 @@ impl TrimVerificationConfigArgs {
         offset += 1;
 
         // Read close (1 byte)
-        let close = data[offset] != 0; // Non-zero is true
+        let close = read_bool(data, &mut offset)?;
 
         Ok(Self {
             instruction_discriminator,
@@ -619,6 +699,48 @@ mod tests {
         assert_eq!(original.cpi_mode, deserialized.cpi_mode);
         assert_eq!(original.programs(), deserialized.programs());
         assert_eq!(programs, deserialized.programs());
+    }
+
+    #[test]
+    fn verification_config_args_reject_noncanonical_bools_and_trailing_bytes() {
+        let programs = vec![program(random_pubkey(), vec![])];
+
+        let initialize = InitializeVerificationConfigArgs::new(
+            SecurityTokenInstruction::Mint.discriminant(),
+            true,
+            &programs,
+        )
+        .unwrap();
+        let mut invalid_bool = initialize.to_bytes_inner();
+        invalid_bool[1] = 2;
+        assert!(InitializeVerificationConfigArgs::try_from_bytes(&invalid_bool).is_err());
+        let mut trailing = initialize.to_bytes_inner();
+        trailing.push(0);
+        assert!(InitializeVerificationConfigArgs::try_from_bytes(&trailing).is_err());
+
+        let update = UpdateVerificationConfigArgs::new(
+            SecurityTokenInstruction::Mint.discriminant(),
+            true,
+            &programs,
+            0,
+        )
+        .unwrap();
+        let mut invalid_bool = update.to_bytes_inner();
+        invalid_bool[1] = 2;
+        assert!(UpdateVerificationConfigArgs::try_from_bytes(&invalid_bool).is_err());
+        let mut trailing = update.to_bytes_inner();
+        trailing.push(0);
+        assert!(UpdateVerificationConfigArgs::try_from_bytes(&trailing).is_err());
+
+        let trim =
+            TrimVerificationConfigArgs::new(SecurityTokenInstruction::Mint.discriminant(), 1, true)
+                .unwrap();
+        let mut invalid_bool = trim.to_bytes_inner();
+        invalid_bool[2] = 2;
+        assert!(TrimVerificationConfigArgs::try_from_bytes(&invalid_bool).is_err());
+        let mut trailing = trim.to_bytes_inner();
+        trailing.push(0);
+        assert!(TrimVerificationConfigArgs::try_from_bytes(&trailing).is_err());
     }
 
     #[rstest]
@@ -759,10 +881,82 @@ mod tests {
     }
 
     #[test]
-    fn transfer_temporarily_rejects_extras() {
+    fn transfer_accepts_compilable_extras() {
         assert!(validate_programs(
             SecurityTokenInstruction::Transfer.discriminant(),
             &[program(random_pubkey(), vec![fixed(random_pubkey())])]
+        )
+        .is_ok());
+
+        let signer = VerificationAccountMeta {
+            is_signer: true,
+            ..fixed(random_pubkey())
+        };
+        assert!(validate_programs(
+            SecurityTokenInstruction::Transfer.discriminant(),
+            &[program(random_pubkey(), vec![signer])]
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn rejects_conflicting_fixed_privileges() {
+        let key = random_pubkey();
+        let readonly = VerificationAccountMeta {
+            is_writable: false,
+            ..fixed(key)
+        };
+        let writable = fixed(key);
+        assert!(validate_programs(
+            SecurityTokenInstruction::Mint.discriminant(),
+            &[
+                program(random_pubkey(), vec![readonly]),
+                program(random_pubkey(), vec![writable]),
+            ]
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn rejects_oversized_pda_seed_and_uncompilable_transfer_layout() {
+        let oversized = ExtraAccountMeta::new_with_seeds(
+            &[Seed::AccountData {
+                account_index: 0,
+                data_index: 0,
+                length: 33,
+            }],
+            false,
+            false,
+        )
+        .unwrap();
+        let oversized = VerificationAccountMeta {
+            discriminator: oversized.discriminator,
+            address_config: oversized.address_config,
+            is_signer: false,
+            is_writable: false,
+        };
+        assert!(validate_programs(
+            SecurityTokenInstruction::Transfer.discriminant(),
+            &[program(random_pubkey(), vec![oversized])]
+        )
+        .is_err());
+
+        let mut seeds = vec![Seed::AccountKey { index: 0 }; 14];
+        seeds.push(Seed::InstructionData {
+            index: 0,
+            length: 9,
+        });
+        let unpackable_after_translation =
+            ExtraAccountMeta::new_with_seeds(&seeds, false, false).unwrap();
+        let unpackable_after_translation = VerificationAccountMeta {
+            discriminator: unpackable_after_translation.discriminator,
+            address_config: unpackable_after_translation.address_config,
+            is_signer: false,
+            is_writable: false,
+        };
+        assert!(validate_programs(
+            SecurityTokenInstruction::Transfer.discriminant(),
+            &[program(random_pubkey(), vec![unpackable_after_translation])]
         )
         .is_err());
     }
@@ -786,6 +980,26 @@ mod tests {
             &[program(random_pubkey(), vec![valid])]
         )
         .is_ok());
+
+        let transfer_instruction_data = ExtraAccountMeta::new_with_pubkey_data(
+            &PubkeyData::InstructionData { index: 0 },
+            false,
+            false,
+        )
+        .unwrap();
+        assert!(validate_programs(
+            SecurityTokenInstruction::Transfer.discriminant(),
+            &[program(
+                random_pubkey(),
+                vec![VerificationAccountMeta {
+                    discriminator: transfer_instruction_data.discriminator,
+                    address_config: transfer_instruction_data.address_config,
+                    is_signer: false,
+                    is_writable: false,
+                }],
+            )]
+        )
+        .is_err());
 
         let out_of_range = ExtraAccountMeta::new_with_pubkey_data(
             &PubkeyData::InstructionData { index: 10 },

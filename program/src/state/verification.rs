@@ -2,7 +2,7 @@
 
 use crate::constants::seeds::VERIFICATION_CONFIG;
 use crate::instructions::verification_config::{
-    parse_programs, serialize_programs, validate_programs, VerificationAccountMeta,
+    parse_programs, read_bool, serialize_programs, validate_programs, VerificationAccountMeta,
     VerificationProgramConfig,
 };
 use crate::state::{
@@ -62,8 +62,8 @@ impl AccountDeserialize for VerificationConfig {
         let instruction_discriminator = data[offset];
         offset += 1;
 
-        let cpi_mode = data[offset] != 0;
-        offset += 1;
+        let cpi_mode =
+            read_bool(data, &mut offset).map_err(|_| ProgramError::InvalidAccountData)?;
 
         let bump = data[offset];
         offset += 1;
@@ -71,6 +71,9 @@ impl AccountDeserialize for VerificationConfig {
         // Read programs and their extra account declarations
         let programs =
             parse_programs(data, &mut offset).map_err(|_| ProgramError::InvalidAccountData)?;
+        if offset != data.len() {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
         let config = Self {
             instruction_discriminator,
@@ -200,5 +203,27 @@ mod tests {
         assert_eq!(decoded.cpi_mode, config.cpi_mode);
         assert_eq!(decoded.bump, config.bump);
         assert_eq!(decoded.programs, config.programs);
+    }
+
+    #[test]
+    fn nested_config_rejects_noncanonical_bool_and_trailing_bytes() {
+        let config = VerificationConfig::new(
+            SecurityTokenInstruction::Mint.discriminant(),
+            true,
+            7,
+            &[VerificationProgramConfig {
+                program_id: [1; 32],
+                extra_accounts: vec![],
+            }],
+        )
+        .unwrap();
+
+        let mut invalid_bool = config.to_bytes();
+        invalid_bool[2] = 2;
+        assert!(VerificationConfig::try_from_bytes(&invalid_bool).is_err());
+
+        let mut trailing = config.to_bytes();
+        trailing.push(0);
+        assert!(VerificationConfig::try_from_bytes(&trailing).is_err());
     }
 }
