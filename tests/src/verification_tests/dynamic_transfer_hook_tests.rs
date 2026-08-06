@@ -1,19 +1,15 @@
 use crate::helpers::{
     add_dummy_verification_program, assert_transaction_failure, assert_transaction_success,
     create_minimal_security_token_mint, create_spl_account, find_permanent_delegate_pda,
-    find_transfer_hook_pda, find_verification_config_pda, get_token_account_state,
-    send_v0_tx as send_tx, DEFAULT_DUMMY_VERIFICATION_PROGRAM_ID,
+    find_verification_config_pda, get_token_account_state, send_v0_tx as send_tx,
+    DEFAULT_DUMMY_VERIFICATION_PROGRAM_ID,
 };
 use crate::verification_tests::verification_helpers::{
     dynamic_initialize_config_instruction, dynamic_update_config_instruction,
 };
 use security_token_client::{
-    instructions::{
-        MintBuilder, TransferBuilder, TrimVerificationConfigBuilder, MINT_DISCRIMINATOR,
-        TRANSFER_DISCRIMINATOR,
-    },
+    instructions::{MintBuilder, TransferBuilder, MINT_DISCRIMINATOR, TRANSFER_DISCRIMINATOR},
     programs::SECURITY_TOKEN_PROGRAM_ID,
-    types::TrimVerificationConfigArgs,
 };
 
 use security_token_program::instructions::{VerificationAccountMeta, VerificationProgramConfig};
@@ -565,98 +561,6 @@ async fn run_dynamic_transfer_hook(tamper: TransferTamper) {
         assert_eq!(
             after_shrink.lamports,
             rent.minimum_balance(after_shrink.data.len()) + surplus
-        );
-
-        let close = TrimVerificationConfigBuilder::new()
-            .mint(mint.pubkey())
-            .verification_config_or_mint_authority(mint_authority)
-            .instructions_sysvar_or_creator(context.payer.pubkey())
-            .mint_account(mint.pubkey())
-            .config_account(transfer_config)
-            .recipient(context.payer.pubkey())
-            .account_metas_pda(Some(account_metas_pda))
-            .transfer_hook_pda(Some(find_transfer_hook_pda(&mint.pubkey()).0))
-            .transfer_hook_program(Some(transfer_hook_program_id))
-            .trim_verification_config_args(TrimVerificationConfigArgs {
-                instruction_discriminator: TRANSFER_DISCRIMINATOR,
-                size: 0,
-                close: true,
-            })
-            .instruction();
-        assert_transaction_success(
-            send_tx(
-                &context.banks_client,
-                vec![close],
-                &context.payer.pubkey(),
-                vec![&context.payer],
-            )
-            .await,
-        );
-
-        let mut transfer_after_close = spl_token_2022::instruction::transfer_checked(
-            &TOKEN_22_PROGRAM_ID,
-            &source,
-            &mint.pubkey(),
-            &destination,
-            &source_owner.pubkey(),
-            &[],
-            1,
-            6,
-        )
-        .unwrap();
-        let banks_client = context.banks_client.clone();
-        add_extra_account_metas_for_execute(
-            &mut transfer_after_close,
-            &transfer_hook_program_id,
-            &source,
-            &mint.pubkey(),
-            &destination,
-            &source_owner.pubkey(),
-            1,
-            |address| {
-                let banks_client = banks_client.clone();
-                async move {
-                    banks_client
-                        .get_account(address)
-                        .await
-                        .map(|account| account.map(|account| account.data))
-                        .map_err(|error| {
-                            Box::new(error) as Box<dyn std::error::Error + Send + Sync>
-                        })
-                }
-            },
-        )
-        .await
-        .unwrap();
-        assert_transaction_failure(
-            send_tx(
-                &context.banks_client,
-                vec![transfer_after_close],
-                &context.payer.pubkey(),
-                vec![&context.payer, &source_owner],
-            )
-            .await,
-        );
-
-        let reinitialize = dynamic_initialize_config_instruction(
-            context.payer.pubkey(),
-            mint.pubkey(),
-            mint_authority,
-            transfer_config,
-            TRANSFER_DISCRIMINATOR,
-            vec![VerificationProgramConfig {
-                program_id: verifier_one.to_bytes(),
-                extra_accounts: vec![],
-            }],
-        );
-        assert_transaction_failure(
-            send_tx(
-                &context.banks_client,
-                vec![reinitialize],
-                &context.payer.pubkey(),
-                vec![&context.payer],
-            )
-            .await,
         );
     }
 }

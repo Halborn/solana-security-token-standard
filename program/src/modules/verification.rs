@@ -1345,6 +1345,8 @@ impl VerificationModule {
         // Get current instruction index
         let instructions = Instructions::try_from(instructions_sysvar)?;
         let current_index = instructions.load_current_index() as usize;
+        // Bind one verifier block to one protected instruction; searching all earlier
+        // instructions would let one approval authorize repeated identical operations.
         let block_start = current_index
             .checked_sub(config.programs.len())
             .ok_or(SecurityTokenError::VerificationProgramNotFound)?;
