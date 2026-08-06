@@ -181,3 +181,36 @@ jobs:
 
       - name: Run tests with SBF
         run: cargo test --verbose --all
+
+  test-typescript:
+    name: Test TypeScript Client
+    runs-on: ubuntu-latest
+    needs: build-sbf
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: clients/typescript/pnpm-lock.yaml
+
+      - name: Download SBF artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: solana-program-sbf
+          path: target/deploy/
+
+      - name: Install TypeScript client dependencies
+        working-directory: clients/typescript
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and test TypeScript client
+        working-directory: clients/typescript
+        run: pnpm test

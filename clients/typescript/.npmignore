@@ -1,6 +1,10 @@
 pnpm-lock.yaml
 src/
+tests/
 tsconfig.json
+tsconfig.test.json
+vitest.e2e.config.mts
+vitest.unit.config.mts
 .gitignore
 node_modules/
 *.temp
