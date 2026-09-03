@@ -8,6 +8,8 @@
 
 import {
   combineCodec,
+  getBooleanDecoder,
+  getBooleanEncoder,
   getOptionDecoder,
   getOptionEncoder,
   getStructDecoder,
@@ -45,6 +47,7 @@ export type InitializeMintArgs = {
   ixMetadata: Option<TokenMetadataArgs>;
   ixScaledUiAmount: Option<ScaledUiAmountConfigArgs>;
   ixDefaultAccountState: Option<number>;
+  ixPermissionedBurn: boolean;
 };
 
 export type InitializeMintArgsArgs = {
@@ -53,6 +56,7 @@ export type InitializeMintArgsArgs = {
   ixMetadata: OptionOrNullable<TokenMetadataArgsArgs>;
   ixScaledUiAmount: OptionOrNullable<ScaledUiAmountConfigArgsArgs>;
   ixDefaultAccountState: OptionOrNullable<number>;
+  ixPermissionedBurn: boolean;
 };
 
 export function getInitializeMintArgsEncoder(): Encoder<InitializeMintArgsArgs> {
@@ -65,6 +69,7 @@ export function getInitializeMintArgsEncoder(): Encoder<InitializeMintArgsArgs> 
       getOptionEncoder(getScaledUiAmountConfigArgsEncoder()),
     ],
     ['ixDefaultAccountState', getOptionEncoder(getU8Encoder())],
+    ['ixPermissionedBurn', getBooleanEncoder()],
   ]);
 }
 
@@ -78,6 +83,7 @@ export function getInitializeMintArgsDecoder(): Decoder<InitializeMintArgs> {
       getOptionDecoder(getScaledUiAmountConfigArgsDecoder()),
     ],
     ['ixDefaultAccountState', getOptionDecoder(getU8Decoder())],
+    ['ixPermissionedBurn', getBooleanDecoder()],
   ]);
 }
 

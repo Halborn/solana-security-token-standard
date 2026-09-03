@@ -4,6 +4,8 @@
 
 set -e
 
+(cd tests/fixtures && sha256sum --check spl_token_2022_v11.sha256)
+
 echo "🧪 Running Security Token Tests..."
 
 # Function to run tests with proper error handling

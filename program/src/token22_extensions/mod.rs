@@ -5,6 +5,7 @@ pub mod metadata;
 pub mod metadata_pointer;
 pub mod pausable;
 pub mod permanent_delegate;
+pub mod permissioned_burn;
 pub mod scaled_ui_amount;
 pub mod transfer_hook;
 
@@ -101,6 +102,8 @@ pub enum ExtensionType {
     Pausable,
     /// Indicates that the account belongs to a pausable mint
     PausableAccount,
+    /// Restricts burns to the configured permissioned authority
+    PermissionedBurn,
 }
 
 impl ExtensionType {
@@ -135,6 +138,7 @@ impl ExtensionType {
             25 => ExtensionType::ScaledUiAmount,
             26 => ExtensionType::Pausable,
             27 => ExtensionType::PausableAccount,
+            28 => ExtensionType::PermissionedBurn,
             _ => return None,
         };
         Some(ext)

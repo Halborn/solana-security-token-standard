@@ -53,6 +53,7 @@ fn mint_args(
         ix_metadata: None,
         ix_scaled_ui_amount: None,
         ix_default_account_state: default_state,
+        ix_permissioned_burn: false,
     }
 }
 

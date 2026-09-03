@@ -8,10 +8,11 @@ use crate::{
     },
     helpers::{
         advance_slot, assert_account_exists, assert_transaction_success,
-        create_minimal_security_token_mint, create_mint_verification_config, create_spl_account,
-        create_token_account_and_mint_tokens, find_permanent_delegate_pda, from_ui_amount,
-        get_default_verification_programs, get_token_account_state, mint_tokens_to,
-        start_with_context, start_with_context_and_accounts,
+        create_minimal_security_token_mint, create_mint_verification_config,
+        create_permissioned_burn_mint, create_spl_account, create_token_account_and_mint_tokens,
+        find_permanent_delegate_pda, from_ui_amount, get_default_verification_programs,
+        get_mint_state, get_token_account_state, mint_tokens_to, start_with_context,
+        start_with_context_and_accounts, start_with_token_2022_v11_context,
     },
     rate_tests::rate_helpers::create_rate_account,
     receipt_tests::receipt_helpers::find_common_action_receipt_pda,
@@ -19,7 +20,7 @@ use crate::{
 
 #[tokio::test]
 async fn test_should_convert_successfully() {
-    let context = &mut start_with_context().await;
+    let context = &mut start_with_token_2022_v11_context().await;
 
     let mint_creator = &context.payer.insecure_clone();
     let mint_creator_pubkey = mint_creator.pubkey();
@@ -29,7 +30,7 @@ async fn test_should_convert_successfully() {
     let mint_keypair_from = Keypair::new();
     let mint_pubkey_from = mint_keypair_from.pubkey();
     let decimals_from = 6u8;
-    let (mint_authority_pda_from, _) = create_minimal_security_token_mint(
+    let (mint_authority_pda_from, _) = create_permissioned_burn_mint(
         context,
         &mint_keypair_from,
         Some(mint_creator),
@@ -158,6 +159,20 @@ async fn test_should_convert_successfully() {
         token_account_to_after.base.amount
     );
     assert_eq!(token_account_to_after.base.amount, expected_amount_to);
+    assert_eq!(
+        get_mint_state(&mut context.banks_client, mint_pubkey_from)
+            .await
+            .base
+            .supply,
+        expected_amount_from
+    );
+    assert_eq!(
+        get_mint_state(&mut context.banks_client, mint_pubkey_to)
+            .await
+            .base
+            .supply,
+        expected_amount_to
+    );
 
     // Verify receipt account has been created
     assert_account_exists(context, receipt_pda, true)

@@ -16,6 +16,7 @@ Thumbs.db
 
 # Solana
 *.so
+!tests/fixtures/spl_token_2022_v11.so
 test-ledger/
 program_id.txt
 transfer_hook_program_id.txt

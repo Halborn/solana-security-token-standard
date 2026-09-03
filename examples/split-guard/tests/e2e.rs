@@ -176,6 +176,8 @@ async fn initialize_mint(
             ix_metadata_pointer: None,
             ix_metadata: None,
             ix_scaled_ui_amount: None,
+            ix_default_account_state: None,
+            ix_permissioned_burn: true,
         })
         .instruction();
     let payer = context.payer.insecure_clone();

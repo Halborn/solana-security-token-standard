@@ -21,6 +21,13 @@ Notable data license:
 
 - webpki-root-certs, webpki-roots: CDLA-Permissive-2.0 (root certificate data)
 
+Distributed test fixture:
+
+- `tests/fixtures/spl_token_2022_v11.so`: Token-2022 `program@v11.0.0`,
+  copyright the `solana-program/token-2022` contributors, Apache-2.0. Source,
+  provenance, reproduction steps, and checksum are documented in
+  `tests/fixtures/README.md`.
+
 Copyleft note:
 
 - Some transitive dependencies are MPL-2.0. MPL is file-level copyleft; only

@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added optional Token-2022 Permissioned Burn initialization through the trailing
+  `ix_permissioned_burn` field. Protected mints use the program-owned permanent
+  delegate as the permissioned authority, closing direct holder `Burn` and
+  `BurnChecked` bypasses while preserving verified SSTS burn, split, and convert
+  flows.
+
+### Compatibility
+
+- Legacy `InitializeMint` payloads decode the missing field as `false`. Existing
+  mints without Permissioned Burn, or with its authority cleared, remain
+  unprotected from direct holder burns and require migration to a new protected
+  mint if that guarantee is needed.
+
 ## 0.3.0 - 2026-05-21
 
 ### Added

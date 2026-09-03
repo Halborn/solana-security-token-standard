@@ -435,12 +435,15 @@ Creates a new security token mint with required extensions and optional metadata
 //   a 1-byte presence flag (0 = absent, 1 = present) immediately followed by the
 //   field's bytes if present. Layout: flag | [payload], flag | [payload], ...
 //   ix_default_account_state payload is a single byte: 1 = Initialized, 2 = Frozen.
+// - ix_permissioned_burn is one trailing byte: 0 = disabled, 1 = enabled.
+//   Legacy payloads without this byte decode it as false.
 struct InitializeMintArgs {
     ix_mint: MintArgs,
     ix_metadata_pointer: Option<MetadataPointerArgs>,
     ix_metadata: Option<TokenMetadataArgs>,
     ix_scaled_ui_amount: Option<ScaledUiAmountConfigArgs>,
     ix_default_account_state: Option<u8>, // 1 = Initialized, 2 = Frozen
+    ix_permissioned_burn: bool,
 }
 
 // - MintArgs: decimals (1 byte), mint_authority (32 bytes), freeze_authority (32 bytes).
@@ -489,6 +492,7 @@ Initializes a new SPL Token 2022 mint with the following extensions:
 - **TokenMetadata** (optional) - Stores metadata in mint account
 - **ScaledUiAmount** (optional) - Display scaling for UI
 - **DefaultAccountState** (optional) - Sets the initial state for newly created token accounts (`Initialized` or `Frozen`). When `Frozen`, new accounts are frozen by default and must be explicitly thawed before use. Managed by the program-owned [FreezeAuthority PDA](#freezeauthority).
+- **PermissionedBurn** (optional) - When `ix_permissioned_burn` is `true`, prevents holders from calling native Token-2022 burn instructions directly. Its authority is the program-owned [PermanentDelegate PDA](#permanentdelegateauthority). Token-2022 v11 or newer is required.
 
 After initialization, mint authority is transferred to a program-controlled `MintAuthority` PDA. The provided `creator` is stored in the `MintAuthority` account, and the creator's signature may authorize subsequent instructions that use the [Initial Mint Authority](#initial-mint-authority) authorization type.
 
@@ -736,7 +740,17 @@ amount: u64
 
 **Description:**
 
-Decreases token supply and immediately debits the specified token account.
+Decreases token supply and immediately debits the specified token account. On a
+Permissioned Burn mint, Token-2022 requires both the configured permissioned
+authority and the token-account owner or delegate; SSTS supplies the
+PermanentDelegate PDA for both gates after verification succeeds.
+
+Legacy mints without the extension, and mints whose Permissioned Burn authority
+has been cleared, use native `BurnChecked` behavior. Their holders can still burn
+directly through Token-2022, so existing mints must be inventoried and marked as
+protected or legacy before rollout. Affected deployments should migrate to a new
+protected mint through a controlled conversion or swap; enabling this feature
+does not retrofit an existing mint.
 
 
 ### Pause

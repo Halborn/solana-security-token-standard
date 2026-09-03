@@ -28,6 +28,12 @@ pub enum SecurityTokenError {
     /// External metadata storage cannot accept metadata data in this instruction
     #[error("External metadata storage cannot accept metadata data in this instruction")]
     ExternalMetadataForbidsData = 7,
+    /// Permissioned Burn TLV or configuration is malformed
+    #[error("Malformed Permissioned Burn configuration")]
+    MalformedPermissionedBurn = 8,
+    /// Permissioned Burn authority does not match the permanent delegate PDA
+    #[error("Permissioned Burn authority mismatch")]
+    PermissionedBurnAuthorityMismatch = 9,
 }
 
 impl From<SecurityTokenError> for ProgramError {
