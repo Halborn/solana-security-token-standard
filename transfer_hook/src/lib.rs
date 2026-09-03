@@ -1,11 +1,14 @@
 //! Security Token transfer hook implementation
 #![allow(unexpected_cfgs)]
 
+mod helpers;
+mod verification;
+
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
-    pubkey::{checked_create_program_address, find_program_address, Pubkey},
+    pubkey::{find_program_address, Pubkey},
     sysvars::{rent::Rent, Sysvar},
     ProgramResult,
 };
@@ -24,13 +27,15 @@ use spl_transfer_hook_interface::instruction::{
 };
 pub static SECURITY_TOKEN_PROGRAM_ID: Pubkey =
     pubkey!("SSTS8Qk2bW3aVaBEsY1Ras95YdbaaYQQx21JWHxvjap");
-const PERMANENT_DELEGATE_SEED: &[u8] = b"mint.permanent_delegate";
+
+// Transfer Hook account seeds.
 const TRANSFER_HOOK_SEED: &[u8] = b"mint.transfer_hook";
 const EXTRA_ACCOUNT_METAS_SEED: &[u8] = b"extra-account-metas";
-const VERIFICATION_CONFIG_SEED: &[u8] = b"verification_config";
-const TRANSFER_DISCRIMINATOR: u8 = 12; // Security Token transfer instruction discriminator
-const TRANSFER_VERIFICATION_CONFIG_DISCRIMINATOR: u8 = 1; // Account discriminator for Security Token verification config
-const MAX_VERIFICATION_PROGRAMS: usize = 10;
+
+// Verification program interface.
+const TRANSFER_DISCRIMINATOR: u8 = 12;
+const TRANSFER_AMOUNT_LEN: usize = core::mem::size_of::<u64>();
+const VERIFIER_INSTRUCTION_DATA_LEN: usize = 1 + TRANSFER_AMOUNT_LEN;
 
 // NOTE: Replace with the finalized program ID generated for the transfer hook deployment.
 declare_id!("HookXqLKgPaNrHBJ9Jui7oQZz93vMbtA88JjsLa8bmfL");
@@ -49,6 +54,7 @@ use pinocchio::entrypoint;
 #[cfg(not(feature = "no-entrypoint"))]
 entrypoint!(process_instruction);
 
+/// Dispatches Transfer Hook instructions to their processors.
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -62,7 +68,7 @@ pub fn process_instruction(
         instruction_data.split_at(ExecuteInstruction::SPL_DISCRIMINATOR_SLICE.len());
 
     match discriminator {
-        ExecuteInstruction::SPL_DISCRIMINATOR_SLICE => process_execute(accounts, rest),
+        ExecuteInstruction::SPL_DISCRIMINATOR_SLICE => process_execute(program_id, accounts, rest),
         InitializeExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE => {
             process_initialize_extra_account_meta_list(program_id, accounts, rest)
         }
@@ -73,154 +79,49 @@ pub fn process_instruction(
     }
 }
 
-fn process_execute(accounts: &[AccountInfo], rest: &[u8]) -> ProgramResult {
-    let [_from, mint, _to, authority, extra_accounts @ ..] = accounts else {
+/// Processes a Token-2022 Transfer Hook execution.
+fn process_execute(program_id: &Pubkey, accounts: &[AccountInfo], rest: &[u8]) -> ProgramResult {
+    let [source, mint, destination, authority, remaining @ ..] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    if is_permanent_delegate_transfer(mint, authority, extra_accounts)? {
+    // Forced transfers originate in Core and intentionally invoke the hook without discovery
+    // accounts; Core already ran the configured verifiers for that operation.
+    if helpers::is_permanent_delegate_transfer(mint, authority, remaining)? {
         return Ok(());
     }
 
-    let verification_programs = load_verification_programs(mint, extra_accounts)?;
+    helpers::validate_transferring_token_account(source, mint)?;
+    helpers::validate_transferring_token_account(destination, mint)?;
 
-    if verification_programs.is_empty() {
-        //TODO fix return Ok(());
-        return Err(ProgramError::InvalidAccountData);
-    }
-    let amount = rest
-        .get(..8)
-        .and_then(|slice| slice.try_into().ok())
-        .map(u64::from_le_bytes)
-        .ok_or(ProgramError::InvalidInstructionData)?;
-    execute_verification_programs(&verification_programs, accounts, amount)?;
-    Ok(())
-}
-
-fn is_permanent_delegate_transfer(
-    mint: &AccountInfo,
-    authority: &AccountInfo,
-    extra_accounts: &[AccountInfo],
-) -> Result<bool, ProgramError> {
-    let (permanent_delegate_pda, _bump) = find_program_address(
-        &[PERMANENT_DELEGATE_SEED, mint.key().as_ref()],
-        &SECURITY_TOKEN_PROGRAM_ID,
-    );
-    // NOTE: Permanent delegate with no extra accounts means security token program call
-    Ok(authority.key() == &permanent_delegate_pda && extra_accounts.is_empty())
-}
-
-fn load_verification_programs(
-    mint: &AccountInfo,
-    extra_accounts: &[AccountInfo],
-) -> Result<Vec<[u8; 32]>, ProgramError> {
-    // [0] - validate_state_pubkey (added by Token-2022)
-    // [1] - verification_config_pda
-    if extra_accounts.len() < 2 {
+    let [meta_list, verification_config, routing_accounts @ ..] = remaining else {
         return Err(ProgramError::NotEnoughAccountKeys);
+    };
+
+    if rest.len() != TRANSFER_AMOUNT_LEN {
+        return Err(ProgramError::InvalidInstructionData);
     }
+    let amount = u64::from_le_bytes(
+        rest.try_into()
+            .map_err(|_| ProgramError::InvalidInstructionData)?,
+    );
+    let mut verifier_instruction_data = [0u8; VERIFIER_INSTRUCTION_DATA_LEN];
+    verifier_instruction_data[0] = TRANSFER_DISCRIMINATOR;
+    verifier_instruction_data[1..].copy_from_slice(&amount.to_le_bytes());
 
-    let verification_config = &extra_accounts[1];
-
-    if verification_config.data_is_empty() {
-        return Err(ProgramError::UninitializedAccount);
-    }
-
-    if !verification_config.is_owned_by(&SECURITY_TOKEN_PROGRAM_ID) {
-        return Err(ProgramError::IllegalOwner);
-    }
-
-    let config_data = verification_config.try_borrow_data()?;
-
-    let config_discriminator = config_data
-        .first()
-        .ok_or(ProgramError::InvalidAccountData)?;
-    if *config_discriminator != TRANSFER_VERIFICATION_CONFIG_DISCRIMINATOR {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    let operation_discriminator = config_data.get(1).ok_or(ProgramError::InvalidAccountData)?;
-    if *operation_discriminator != TRANSFER_DISCRIMINATOR {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    // Layout: [0] discriminator, [1] instruction_discriminator, [2] cpi_mode, [3] bump, [4-7] count, [8..] programs
-    if config_data.len() < 8 {
-        return Err(ProgramError::InvalidAccountData);
-    }
-    let bump = config_data[3];
-
-    let seeds = &[
-        VERIFICATION_CONFIG_SEED,
-        mint.key().as_ref(),
-        &[TRANSFER_DISCRIMINATOR],
-        &[bump],
-    ];
-
-    let verification_config_pda =
-        checked_create_program_address(seeds, &SECURITY_TOKEN_PROGRAM_ID)?;
-
-    if verification_config.key() != &verification_config_pda {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    let verification_programs_data = &config_data[8..];
-
-    if verification_programs_data.len() % 32 != 0 {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    let verification_programs_count = verification_programs_data.len() / 32;
-
-    // Anti CPI DDOS
-    if verification_programs_count > MAX_VERIFICATION_PROGRAMS {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    verification_programs_data
-        .chunks_exact(32)
-        .map(|chunk| {
-            chunk
-                .try_into()
-                .map_err(|_| ProgramError::InvalidAccountData)
-        })
-        .collect()
+    let canonical_accounts = [source, mint, destination, authority];
+    verification::verify_transfer(
+        program_id,
+        mint,
+        meta_list,
+        verification_config,
+        routing_accounts,
+        &canonical_accounts,
+        &verifier_instruction_data,
+    )
 }
 
-fn execute_verification_programs(
-    verification_programs: &[[u8; 32]],
-    accounts: &[AccountInfo],
-    amount: u64,
-) -> ProgramResult {
-    // Build instruction data: [discriminator (1 byte) | amount (8 bytes)]
-    let mut instruction_data = [0u8; 9];
-    instruction_data[0] = TRANSFER_DISCRIMINATOR;
-    instruction_data[1..9].copy_from_slice(&amount.to_le_bytes());
-
-    let verification_account_metas: Vec<pinocchio::instruction::AccountMeta> = accounts
-        .iter()
-        .map(|acc| pinocchio::instruction::AccountMeta {
-            pubkey: acc.key(),
-            is_signer: acc.is_signer(),
-            is_writable: acc.is_writable(),
-        })
-        .collect();
-
-    let account_refs: Vec<_> = accounts.iter().collect();
-
-    for program_id in verification_programs.iter() {
-        let verification_instruction = pinocchio::instruction::Instruction {
-            program_id,
-            accounts: &verification_account_metas,
-            data: &instruction_data,
-        };
-        // Use slice_invoke to handle the future variable number of accounts
-        pinocchio::program::slice_invoke(&verification_instruction, &account_refs)?;
-    }
-    Ok(())
-}
-
-/// Validate common account checks for extra account meta list operations
+/// Validates accounts shared by ExtraAccountMetaList lifecycle instructions.
 fn validate_extra_account_meta_accounts(
     program_id: &Pubkey,
     extra_meta_info: &AccountInfo,
@@ -260,6 +161,7 @@ fn validate_extra_account_meta_accounts(
     Ok((expected_pda.to_bytes(), bump))
 }
 
+/// Initializes the ExtraAccountMetaList used by Token-2022 account discovery.
 fn process_initialize_extra_account_meta_list(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -291,7 +193,8 @@ fn process_initialize_extra_account_meta_list(
     let account_size =
         ExtraAccountMetaList::size_of(count).map_err(|_| ProgramError::InvalidAccountData)?;
 
-    if extra_meta_info.lamports() == 0 {
+    let minimum_balance = Rent::get()?.minimum_balance(account_size);
+    if extra_meta_info.lamports() < minimum_balance {
         return Err(ProgramError::AccountNotRentExempt);
     }
 
@@ -323,12 +226,15 @@ fn process_initialize_extra_account_meta_list(
     Ok(())
 }
 
+/// Updates and resizes the ExtraAccountMetaList used by Token-2022.
 fn process_update_extra_account_meta_list(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     rest: &[u8],
 ) -> ProgramResult {
-    let [extra_meta_info, mint_info, authority_info, rest_accounts @ ..] = accounts else {
+    let [extra_meta_info, mint_info, authority_info, system_program_info, recipient_info] =
+        accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -337,6 +243,12 @@ fn process_update_extra_account_meta_list(
     }
 
     validate_extra_account_meta_accounts(program_id, extra_meta_info, mint_info, authority_info)?;
+    if system_program_info.key() != &pinocchio_system::ID {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    if !recipient_info.is_writable() {
+        return Err(ProgramError::InvalidAccountData);
+    }
 
     let pod_slice = PodSlice::<ExtraAccountMeta>::unpack(rest)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
@@ -346,14 +258,14 @@ fn process_update_extra_account_meta_list(
     let new_account_size =
         ExtraAccountMetaList::size_of(new_count).map_err(|_| ProgramError::InvalidAccountData)?;
     let current_account_size = extra_meta_info.data_len();
+    let rent = Rent::get()?;
+    let current_minimum_balance = rent.minimum_balance(current_account_size);
+    let new_minimum_balance = rent.minimum_balance(new_account_size);
+    if extra_meta_info.lamports() < new_minimum_balance {
+        return Err(ProgramError::AccountNotRentExempt);
+    }
 
     if new_account_size > current_account_size {
-        if !rest_accounts
-            .iter()
-            .any(|acc| acc.key() == &pinocchio_system::ID)
-        {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        }
         extra_meta_info.resize(new_account_size)?;
     }
     {
@@ -363,26 +275,15 @@ fn process_update_extra_account_meta_list(
     } // Release borrow before realloc
 
     if new_account_size < current_account_size {
-        let [system_program_info, recipient_info] = rest_accounts else {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        };
-
-        if system_program_info.key() != &pinocchio_system::ID {
-            return Err(ProgramError::IncorrectProgramId);
-        }
-
-        if !recipient_info.is_writable() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
         extra_meta_info.resize(new_account_size)?;
         let current_lamports = extra_meta_info.lamports();
-        let required_lamports = Rent::get()?.minimum_balance(new_account_size);
-        let lamports_to_return = current_lamports.saturating_sub(required_lamports);
+        // Return only the reduction in the rent minimum; preserve any pre-existing surplus.
+        let rent_delta = current_minimum_balance.saturating_sub(new_minimum_balance);
+        let refundable_balance = current_lamports.saturating_sub(new_minimum_balance);
+        let lamports_to_return = rent_delta.min(refundable_balance);
 
         if lamports_to_return > 0 {
-            *extra_meta_info.try_borrow_mut_lamports()? = extra_meta_info
-                .lamports()
+            *extra_meta_info.try_borrow_mut_lamports()? = current_lamports
                 .checked_sub(lamports_to_return)
                 .ok_or(ProgramError::InsufficientFunds)?;
             *recipient_info.try_borrow_mut_lamports()? = recipient_info

@@ -1,6 +1,10 @@
 //! Verification-related state structures
 
 use crate::constants::seeds::VERIFICATION_CONFIG;
+use crate::instructions::verification_config::{
+    parse_programs, read_bool, serialize_programs, validate_programs, VerificationAccountMeta,
+    VerificationProgramConfig,
+};
 use crate::state::{
     AccountDeserialize, AccountSerialize, Discriminator, SecurityTokenDiscriminators,
 };
@@ -18,8 +22,8 @@ pub struct VerificationConfig {
     pub cpi_mode: bool,
     /// PDA bump seed used for address derivation
     pub bump: u8,
-    /// Required verification programs
-    pub verification_programs: Vec<Pubkey>,
+    /// Required verification programs and their private extra-account declarations
+    pub programs: Vec<VerificationProgramConfig>,
 }
 
 impl Discriminator for VerificationConfig {
@@ -39,13 +43,8 @@ impl AccountSerialize for VerificationConfig {
         // Write bump (1 byte)
         data.push(self.bump);
 
-        // Write program count (4 bytes)
-        data.extend(&(self.verification_programs.len() as u32).to_le_bytes());
-
-        // Write each program address (32 bytes each)
-        for program in &self.verification_programs {
-            data.extend_from_slice(program.as_ref());
-        }
+        // Write programs and their extra account declarations
+        serialize_programs(&self.programs, &mut data);
 
         data
     }
@@ -63,40 +62,24 @@ impl AccountDeserialize for VerificationConfig {
         let instruction_discriminator = data[offset];
         offset += 1;
 
-        let cpi_mode = data[offset] != 0;
-        offset += 1;
+        let cpi_mode =
+            read_bool(data, &mut offset).map_err(|_| ProgramError::InvalidAccountData)?;
 
         let bump = data[offset];
         offset += 1;
 
-        // Read program count (4 bytes)
-        let program_count = u32::from_le_bytes(
-            data[offset..offset + 4]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidAccountData)?,
-        ) as usize;
-        offset += 4;
-
-        // Validate we have enough data for all programs
-        if data.len() < offset + (program_count * 32) {
+        // Read programs and their extra account declarations
+        let programs =
+            parse_programs(data, &mut offset).map_err(|_| ProgramError::InvalidAccountData)?;
+        if offset != data.len() {
             return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Read program addresses (32 bytes each)
-        let mut verification_programs = Vec::with_capacity(program_count);
-        for _ in 0..program_count {
-            let program_bytes: [u8; PUBKEY_BYTES] = data[offset..offset + PUBKEY_BYTES]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidAccountData)?;
-            verification_programs.push(Pubkey::from(program_bytes));
-            offset += PUBKEY_BYTES;
         }
 
         let config = Self {
             instruction_discriminator,
             cpi_mode,
             bump,
-            verification_programs,
+            programs,
         };
 
         // Validate the configuration
@@ -115,39 +98,37 @@ impl VerificationConfig {
         instruction_discriminator: u8,
         cpi_mode: bool,
         bump: u8,
-        verification_program_addresses: &[Pubkey],
+        programs: &[VerificationProgramConfig],
     ) -> Result<Self, ProgramError> {
         Ok(Self {
             instruction_discriminator,
             cpi_mode,
             bump,
-            verification_programs: verification_program_addresses.to_vec(),
+            programs: programs.to_vec(),
         })
     }
 
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), ProgramError> {
-        if self.verification_programs.is_empty() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        // Validate that all programs are non-zero (valid pubkeys)
-        for program in self.verification_programs.iter() {
-            // The Pubkey::default() actually represents a zeroed pubkey
-            if *program == Pubkey::default() {
-                return Err(ProgramError::InvalidAccountData);
-            }
-        }
-        Ok(())
+        validate_programs(self.instruction_discriminator, &self.programs)
+            .map_err(|_| ProgramError::InvalidAccountData)
     }
 
     /// Calculate the actual size needed for serialization
     pub fn serialized_size(&self) -> usize {
+        let extra_account_count = self
+            .programs
+            .iter()
+            .map(|program| program.extra_accounts.len())
+            .sum::<usize>();
+
         1 // account discriminator
             + 1 // instruction discriminator
             + 1 // cpi_mode
             + 1 // bump
             + 4 // vector length prefix
-            + (self.verification_programs.len() * PUBKEY_BYTES)
+            + (self.programs.len() * (PUBKEY_BYTES + 4))
+            + (extra_account_count * VerificationAccountMeta::LEN)
     }
 
     pub fn from_account_info(account: &AccountInfo) -> Result<Self, ProgramError> {
@@ -172,5 +153,77 @@ impl VerificationConfig {
             &[self.bump],
         ];
         checked_create_program_address(&seeds, &crate::id())
+    }
+}
+
+impl crate::state::ProgramAccount for VerificationConfig {
+    fn space(&self) -> u64 {
+        self.serialized_size() as u64
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::instruction::SecurityTokenInstruction;
+    use crate::instructions::verification_config::VerificationAccountMeta;
+
+    #[test]
+    fn nested_config_golden_size_and_roundtrip() {
+        let config = VerificationConfig::new(
+            SecurityTokenInstruction::Mint.discriminant(),
+            true,
+            7,
+            &[
+                VerificationProgramConfig {
+                    program_id: [1; 32],
+                    extra_accounts: vec![VerificationAccountMeta {
+                        discriminator: 0,
+                        address_config: [2; 32],
+                        is_signer: false,
+                        is_writable: true,
+                    }],
+                },
+                VerificationProgramConfig {
+                    program_id: [3; 32],
+                    extra_accounts: vec![],
+                },
+            ],
+        )
+        .unwrap();
+
+        let bytes = config.to_bytes();
+        assert_eq!(config.serialized_size(), 8 + 36 * 2 + 35);
+        assert_eq!(bytes.len(), config.serialized_size());
+        let decoded = VerificationConfig::try_from_bytes(&bytes).unwrap();
+        assert_eq!(
+            decoded.instruction_discriminator,
+            config.instruction_discriminator
+        );
+        assert_eq!(decoded.cpi_mode, config.cpi_mode);
+        assert_eq!(decoded.bump, config.bump);
+        assert_eq!(decoded.programs, config.programs);
+    }
+
+    #[test]
+    fn nested_config_rejects_noncanonical_bool_and_trailing_bytes() {
+        let config = VerificationConfig::new(
+            SecurityTokenInstruction::Mint.discriminant(),
+            true,
+            7,
+            &[VerificationProgramConfig {
+                program_id: [1; 32],
+                extra_accounts: vec![],
+            }],
+        )
+        .unwrap();
+
+        let mut invalid_bool = config.to_bytes();
+        invalid_bool[2] = 2;
+        assert!(VerificationConfig::try_from_bytes(&invalid_bool).is_err());
+
+        let mut trailing = config.to_bytes();
+        trailing.push(0);
+        assert!(VerificationConfig::try_from_bytes(&trailing).is_err());
     }
 }

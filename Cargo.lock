@@ -3793,6 +3793,7 @@ dependencies = [
  "spl-pod 0.4.0",
  "spl-tlv-account-resolution 0.9.0",
  "spl-transfer-hook-interface 0.9.0",
+ "spl-type-length-value 0.7.0",
 ]
 
 [[package]]
@@ -7781,6 +7782,7 @@ dependencies = [
  "solana-instruction",
  "solana-program-error",
  "solana-pubkey",
+ "spl-tlv-account-resolution 0.9.0",
  "thiserror 2.0.16",
 ]
 

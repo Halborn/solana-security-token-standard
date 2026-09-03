@@ -40,3 +40,7 @@ pub const ACTION_ID_LEN: usize = 8;
 
 /// Maximum number of verification programs that can be registered per instruction
 pub const MAX_VERIFICATION_PROGRAMS: usize = 10;
+/// Maximum number of extra accounts declared by one verification program
+pub const MAX_VERIFICATION_EXTRAS_PER_PROGRAM: usize = 8;
+/// Maximum total number of extra accounts declared by one verification config
+pub const MAX_TOTAL_VERIFICATION_EXTRAS: usize = 32;

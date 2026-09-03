@@ -7,15 +7,23 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
+    "test": "pnpm run build && pnpm run test:typecheck && pnpm run test:unit && pnpm run test:e2e",
+    "test:typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test:unit": "vitest run --config vitest.unit.config.mts",
+    "test:e2e": "vitest run --config vitest.e2e.config.mts",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "author": "SSTS Foundation",
   "license": "Apache-2.0",
   "dependencies": {
-    "@solana/kit": "^2.1.0"
+    "@solana/kit": "^7.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "@solana-program/token-2022": "0.14.1",
+    "@solana/kit-plugin-litesvm": "0.15.0",
+    "@types/node": "24.10.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
   },
   "files": [
     "dist"

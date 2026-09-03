@@ -55,6 +55,7 @@
     - [CloseClaimReceiptAccount](#closeclaimreceiptaccount)
     - [UpdateDefaultAccountState](#updatedefaultaccountstate)
 - [Verification Program Interface](#verification-program-interface)
+- [Client Configuration and Transaction Assembly](#client-configuration-and-transaction-assembly)
 
 
 ## Authorization
@@ -97,19 +98,17 @@ When using verification programs, the Security Token Program supports two verifi
 In introspection mode, the Security Token Program examines the Instructions Sysvar to verify that all required verification programs were called **before** the current instruction within the same transaction. In order to pass authorization via verification programs in introspection mode, the following conditions must be satisfied:
 
 - A corresponding instruction verification config exists with `cpi_mode` disabled and is passed to the Security Token Program.
-- All verification programs must be invoked **before** the Security Token instruction and must complete successfully.
+- Verification programs must form a contiguous block immediately before the Security Token instruction, in config order, and complete successfully.
 - Each verification program call must include the same instruction data and target instruction discriminator prefix.
-- Each verification program call must include **at least** all accounts used in the Security Token instruction. Additional accounts may be included for verification purposes if needed, provided they appear at the end of the instruction's required account list.
+- Each verification program call must include exactly its canonical operation accounts followed by its own configured extras.
 
 #### CPI Mode (`cpi_mode = true`)
 
 In CPI mode, the Security Token Program directly invokes (via CPI) each configured verification program during instruction processing. In order to pass authorization via verification programs in CPI mode, the following conditions must be satisfied:
 
 - A corresponding instruction verification config exists with `cpi_mode` enabled and is passed to the Security Token Program.
-- Verification program accounts must be appended at the end of the Security Token Program instruction accounts.
-- Each verification program receives the same instruction data and accounts (verification overhead and verification program accounts are stripped before CPI).
-
-**Important:** When verification programs are invoked in CPI, they receive **only the core instruction accounts** - the overhead accounts and CPI program accounts are stripped. This ensures verification programs have a consistent interface regardless of the verification mode used.
+- Ordered `[program, own extras...]` routing groups must be appended after the fixed Security Token instruction accounts.
+- Each verification program receives the same instruction data, canonical operation accounts, and only its own configured extras.
 
 
 ### Verification Overhead Accounts
@@ -187,9 +186,11 @@ Stores verification program configuration for a specific instruction type on a s
 | instruction_discriminator | u8            | 1          | Instruction type this config applies to                                |
 | cpi_mode                  | bool          | 1          | `true` for CPI mode, `false` for introspection mode                    |
 | bump                      | u8            | 1          | PDA bump seed                                                          |
-| verification_programs     | Vec\<Pubkey\> | 4 + 32 × N | List of verification program addresses (u32 length prefix + addresses) |
+| programs                  | Vec\<VerificationProgramConfig\> | variable | Ordered program IDs and private extra-account declarations |
 
 **Minimum size:** 8 bytes (empty program list)
+
+`VerificationProgramConfig` contains `program_id: Pubkey` and `extra_accounts: Vec<VerificationAccountMeta>`. Each 35-byte meta contains a discriminator, 32-byte address configuration, signer flag, and writable flag.
 
 **PDA Derivation:**
 
@@ -562,13 +563,15 @@ Creates a new verification configuration for a specific instruction type.
 
 ```rust
 // Serialization: instruction_discriminator (1 byte) + cpi_mode (1 byte, 0/1)
-// + program_addresses count (u32 LE) + each Pubkey (32 bytes).
+// + nested programs count (u32 LE) + each program and its extra accounts.
 struct InitializeVerificationConfigArgs {
     instruction_discriminator: u8,
     cpi_mode: bool,
-    program_addresses: Vec<Pubkey>,
+    programs: Vec<VerificationProgramConfig>,
 }
 ```
+
+**Limits:** `programs` must contain 1–10 entries. Each program may declare at most 8 extra accounts, with at most 32 extra accounts across the complete config.
 
 
 ### UpdateVerificationConfig
@@ -597,14 +600,16 @@ Updates an existing verification configuration.
 
 ```rust
 // Serialization: instruction_discriminator (1 byte) + cpi_mode (1 byte, 0/1)
-// + offset (1 byte) + program_addresses count (u32 LE) + each Pubkey (32 bytes).
+// + offset (1 byte) + nested programs count (u32 LE) + each program and its extras.
 struct UpdateVerificationConfigArgs {
     instruction_discriminator: u8,
     cpi_mode: bool,
     offset: u8,
-    program_addresses: Vec<Pubkey>,
+    programs: Vec<VerificationProgramConfig>,
 }
 ```
+
+**Limits:** `offset` must be less than 10 and `offset + programs.len()` must not exceed 10. An empty `programs` list changes only `cpi_mode`; otherwise each program may declare at most 8 extras and the resulting config may contain at most 32 extras in total.
 
 **Description:**
 
@@ -842,6 +847,8 @@ Transfers tokens between accounts (forced transfer).
 // Serialization: amount (u64 LE, 8 bytes).
 amount: u64
 ```
+
+Transfer verifiers receive canonical accounts in `[source, mint, destination, authority]` order in both Core and Hook paths. Transfer Hook CPI privileges remain limited to those granted by Token-2022.
 
 ### CreateRateAccount
 
@@ -1246,7 +1253,7 @@ The discriminator byte matches the Security Token instruction being verified, fo
 
 ### Account Format
 
-Verification programs receive the same accounts as the Security Token instruction (excluding verification overhead accounts).
+Verification programs receive the canonical operation accounts followed by only their own configured extras. Account matching is exact; unrelated trailing accounts are rejected.
 
 ### Expected Behavior
 
@@ -1256,3 +1263,69 @@ Verification programs receive the same accounts as the Security Token instructio
 In CPI mode, any error from a verification program will cause the entire Security Token instruction to fail.
 
 In introspection mode, the verification program must have been called successfully before the Security Token instruction.
+
+
+## Client Configuration and Transaction Assembly
+
+Configuration data and runtime accounts have different transaction-size constraints. An address lookup table compresses runtime account keys, but it does not compress serialized `InitializeVerificationConfig` or `UpdateVerificationConfig` arguments.
+
+### Creating a Configuration
+
+Build a new configuration with bounded V0 transactions and no lookup table:
+
+1. Send `InitializeVerificationConfig` with the first `VerificationProgramConfig` group.
+2. For every remaining group at index `i`, send `UpdateVerificationConfig` with `offset = i` and `programs = [group]`.
+3. Fetch and decode the final config, then verify its ordered program groups before enabling the affected operation.
+
+One group contains at most 8 extras, so each chunk fits without a lookup table. The complete config remains capped at 10 programs and 32 total extras. `UpdateVerificationConfig` replaces an existing group at its offset or appends it when the offset equals the current program count; it does not insert a group or truncate later groups.
+
+For Transfer, every chunk must pass `account_metas_pda`, `transfer_hook_pda`, and `transfer_hook_program`. Core updates the config and the Transfer Hook meta-list in the same transaction. A failed meta-list update rolls back the config update.
+
+Each successful chunk is immediately active. Initial setup should finish before transfers or other affected operations are enabled. Updating a live policy requires a maintenance window or another mechanism that pauses the affected operation. If policy replacement must be atomic without pausing, the complete encoded config must fit in one transaction; lookup tables cannot solve that instruction-data limit.
+
+### Preparing a Lookup Table
+
+Prepare the lookup table after the final config is known:
+
+1. Decode or fetch the config and resolve each group sequentially with the final operation instruction data and canonical accounts.
+2. Start with the unique resolved extra-account addresses.
+3. In CPI mode, also include verifier program IDs because they are routing accounts of the Security Token instruction.
+4. Optionally include other stable, non-signer canonical or fixed accounts used by the final transaction.
+5. Exclude the payer and every signer. Directly invoked program IDs remain static message keys and do not benefit from a lookup table.
+6. Create the table with its authority and a recent slot, then extend it in bounded address batches.
+7. Wait until the bank slot is later than the table's last extension slot, fetch the active table, and compile the final V0 transaction with it.
+
+With the Solana Rust crates, the setup instructions are created by `solana_address_lookup_table_interface::instruction::create_lookup_table(authority, payer, recent_slot)` and `extend_lookup_table(table_address, authority, Some(payer), address_batch)`. Send the create instruction first, then as many extend transactions as required by the serialized transaction-size check. Compile the operation only after fetching the active `AddressLookupTableAccount`:
+
+```rust
+let message = solana_sdk::message::v0::Message::try_compile(
+    &payer,
+    &operation_instructions,
+    &[lookup_table_account],
+    recent_blockhash,
+)?;
+```
+
+The lookup table is client infrastructure and is not stored in `VerificationConfig`. Updating a config requires resolving the routing again and extending or replacing the table when new stable addresses appear. Table membership does not grant signer or writable privileges; those still come from the instruction account metas.
+
+Resolution can depend on instruction data or current account data. If a resolved address changes per operation, either add the exact address before use or leave it as a static V0 key. Signer extras always remain static keys. Therefore the maximum routing size check assumes lookup-eligible, stable extras; every final serialized transaction must still be checked against the 1232-byte packet limit.
+
+### Executing with a Lookup Table
+
+For CPI mode, append ordered `[program, own extras...]` groups to the Security Token instruction, compile it as V0 with the active lookup table, serialize it, validate the packet size, and send it.
+
+For introspection mode, build the verifier instructions in config order, place that contiguous block immediately before the Security Token instruction, then compile the complete block as one V0 transaction. Verifier program IDs are directly invoked and remain static, while eligible canonical and extra accounts may be loaded from the table.
+
+Do not split one verified operation across transactions. CPI routing and the introspection block must remain atomic with the Security Token instruction.
+
+### Executing without a Lookup Table
+
+Use the same V0 assembly with an empty lookup-table list:
+
+1. Resolve the config and append the routing groups or build the contiguous introspection block.
+2. Compile and serialize the complete V0 transaction without lookup tables.
+3. Send it only when the serialized size is at most 1232 bytes.
+
+For the Rust compiler above, the no-LUT form passes `&[]` instead of `&[lookup_table_account]` to `try_compile`.
+
+There is no fixed no-LUT extras limit because the size also depends on canonical accounts, signers, instruction data, repeated keys, and the number of verifier instructions. If the complete transaction is too large, create a lookup table or reduce the routing config; splitting the operation is not supported by the new flow.

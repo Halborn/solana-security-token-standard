@@ -283,19 +283,14 @@ fn deactivate_halt(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResu
 ///
 /// In CPI mode this would instead be invoked directly by the transfer hook.
 ///
-/// The Transfer instruction accounts (after INSTRUCTION_ACCOUNTS_OFFSET, skipping
-/// [mint, verification_config, instructions_sysvar]) must be a prefix of these
-/// accounts. Introspection validation checks:
-///   verification_accounts.starts_with(transfer_accounts_after_offset)
-/// split_guard_pda is the extra trailing account beyond that prefix.
+/// Introspection requires the exact canonical Transfer base followed by this
+/// verifier's configured extra accounts.
 ///
-///   0. `[]` permanent_delegate_authority
+///   0. `[]` from_token_account
 ///   1. `[]` mint
-///   2. `[]` from_token_account
-///   3. `[]` to_token_account
-///   4. `[]` transfer_hook_program
-///   5. `[]` token_program
-///   6. `[]` split_guard_pda - PDA ["split_guard", mint]; checked for existence
+///   2. `[]` to_token_account
+///   3. `[]` permanent_delegate_authority
+///   4. `[]` split_guard_pda - PDA ["split_guard", mint]; checked for existence
 ///
 /// Instruction data: amount (u64 LE, 8 bytes)
 fn verify_transfer(
@@ -303,7 +298,7 @@ fn verify_transfer(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    let [_permanent_delegate_authority, mint, _from_token_account, _to_token_account, _transfer_hook_program, _token_program, split_guard_pda] =
+    let [_from_token_account, mint, _to_token_account, _permanent_delegate_authority, split_guard_pda] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);

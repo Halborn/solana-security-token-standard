@@ -26,7 +26,10 @@ use security_token_client::{
         MINT_DISCRIMINATOR, TRANSFER_DISCRIMINATOR,
     },
     programs::SECURITY_TOKEN_PROGRAM_ID,
-    types::{InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs},
+    types::{
+        InitializeMintArgs, InitializeVerificationConfigArgs, MintArgs, VerificationAccountMeta,
+        VerificationProgramConfig,
+    },
 };
 use security_token_program::{constants::seeds, error::SecurityTokenError};
 use solana_program::account_info::AccountInfo;
@@ -110,12 +113,13 @@ async fn send_tx(
     signers: Vec<&Keypair>,
 ) -> Result<(), BanksClientError> {
     let recent_blockhash = banks_client.get_latest_blockhash().await.unwrap();
-    let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &ixs,
-        Some(payer),
+    let message = solana_sdk::message::v0::Message::try_compile(payer, &ixs, &[], recent_blockhash)
+        .expect("compile V0 message");
+    let tx = solana_sdk::transaction::VersionedTransaction::try_new(
+        solana_sdk::message::VersionedMessage::V0(message),
         &signers,
-        recent_blockhash,
-    );
+    )
+    .expect("sign V0 transaction");
     banks_client.process_transaction(tx).await
 }
 
@@ -176,6 +180,7 @@ async fn initialize_mint(
             ix_metadata_pointer: None,
             ix_metadata: None,
             ix_scaled_ui_amount: None,
+            ix_default_account_state: None,
         })
         .instruction();
     let payer = context.payer.insecure_clone();
@@ -271,7 +276,10 @@ async fn mint_tokens(
         InitializeVerificationConfigArgs {
             instruction_discriminator: MINT_DISCRIMINATOR,
             cpi_mode: false,
-            program_addresses: vec![DUMMY_VERIFICATION_PROGRAM_ID],
+            programs: vec![VerificationProgramConfig {
+                program_id: DUMMY_VERIFICATION_PROGRAM_ID,
+                extra_accounts: vec![],
+            }],
         },
     )
     .await;
@@ -283,11 +291,15 @@ async fn mint_tokens(
         .mint_authority(mint_authority_pda)
         .destination(destination)
         .amount(amount)
+        .add_remaining_account(AccountMeta::new_readonly(
+            DUMMY_VERIFICATION_PROGRAM_ID,
+            false,
+        ))
         .instruction();
 
     let dummy_ix = Instruction {
         program_id: DUMMY_VERIFICATION_PROGRAM_ID,
-        accounts: mint_ix.accounts[3..].to_vec(),
+        accounts: mint_ix.accounts[3..7].to_vec(),
         data: mint_ix.data.clone(),
     };
 
@@ -341,25 +353,17 @@ fn deactivate_halt_ix(
 
 /// Verification instruction preceding security token Transfer in the same transaction.
 ///
-/// The Transfer instruction accounts (positions 0-5, after skipping the 3 overhead
-/// accounts) must be a prefix of this instruction's accounts. Introspection validation
-/// checks: verification_accounts.starts_with(transfer_accounts_after_offset).
-/// split_guard_pda is appended as an extra trailing account (position 6).
-///
-/// Transfer account layout after offset (positions 0-5):
-///   0. permanent_delegate_authority
+/// Exact verifier account layout:
+///   0. from_token_account
 ///   1. mint
-///   2. from_token_account
-///   3. to_token_account
-///   4. transfer_hook_program
-///   5. token_program (TOKEN_22_PROGRAM_ID)
-///   6. split_guard_pda (extra trailing account for split_guard_verify_ix)
+///   2. to_token_account
+///   3. permanent_delegate_authority
+///   4. split_guard_pda
 fn split_guard_verify_ix(
     permanent_delegate: &Pubkey,
     mint: &Pubkey,
     from: &Pubkey,
     to: &Pubkey,
-    transfer_hook_program: &Pubkey,
     split_guard_pda: &Pubkey,
     amount: u64,
 ) -> Instruction {
@@ -368,12 +372,10 @@ fn split_guard_verify_ix(
     Instruction {
         program_id: SPLIT_GUARD_PROGRAM_ID,
         accounts: vec![
-            AccountMeta::new_readonly(*permanent_delegate, false),
-            AccountMeta::new_readonly(*mint, false),
             AccountMeta::new_readonly(*from, false),
+            AccountMeta::new_readonly(*mint, false),
             AccountMeta::new_readonly(*to, false),
-            AccountMeta::new_readonly(*transfer_hook_program, false),
-            AccountMeta::new_readonly(TOKEN_22_PROGRAM_ID, false),
+            AccountMeta::new_readonly(*permanent_delegate, false),
             AccountMeta::new_readonly(*split_guard_pda, false),
         ],
         data,
@@ -438,7 +440,15 @@ async fn setup() -> Ctx {
         InitializeVerificationConfigArgs {
             instruction_discriminator: TRANSFER_DISCRIMINATOR,
             cpi_mode: false,
-            program_addresses: vec![SPLIT_GUARD_PROGRAM_ID],
+            programs: vec![VerificationProgramConfig {
+                program_id: SPLIT_GUARD_PROGRAM_ID,
+                extra_accounts: vec![VerificationAccountMeta {
+                    discriminator: 0,
+                    address_config: split_guard_pda.to_bytes(),
+                    is_signer: false,
+                    is_writable: false,
+                }],
+            }],
         },
     )
     .await;
@@ -477,7 +487,6 @@ impl Ctx {
             &self.mint.pubkey(),
             &self.source_account,
             &self.destination_account,
-            &self.transfer_hook_program_id,
             &self.split_guard_pda,
             self.amount,
         )
@@ -493,6 +502,8 @@ impl Ctx {
             .to_token_account(self.destination_account)
             .transfer_hook_program(self.transfer_hook_program_id)
             .amount(self.amount)
+            .add_remaining_account(AccountMeta::new_readonly(SPLIT_GUARD_PROGRAM_ID, false))
+            .add_remaining_account(AccountMeta::new_readonly(self.split_guard_pda, false))
             .instruction()
     }
 }

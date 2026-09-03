@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+- Introspection-mode verification now requires an exact, contiguous block of verifier instructions immediately before each protected Security Token instruction, in verification config order. Verifier instructions elsewhere earlier in the transaction are no longer accepted, preventing one approval block from authorizing repeated identical operations.
+
 ## 0.3.0 - 2026-05-21
 
 ### Added

@@ -6,6 +6,7 @@ use crate::helpers::{
     find_mint_authority_pda, find_mint_freeze_authority_pda, find_permanent_delegate_pda,
     find_transfer_hook_pda, find_verification_config_pda, get_default_verification_programs,
     initialize_mint, initialize_verification_config, send_tx, start_with_context,
+    verification_program_configs,
 };
 use borsh::BorshDeserialize;
 use security_token_client::accounts::{MintAuthority, VerificationConfig};
@@ -404,7 +405,7 @@ async fn test_update_metadata() {
     let verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: get_default_verification_programs(),
+        programs: verification_program_configs(get_default_verification_programs()),
     };
 
     initialize_verification_config(
@@ -742,7 +743,7 @@ async fn test_verification_config() {
     let verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: verification_programs.clone(),
+        programs: verification_program_configs(verification_programs.clone()),
     };
 
     initialize_verification_config(
@@ -777,14 +778,14 @@ async fn test_verification_config() {
     );
 
     assert_eq!(
-        stored_config.verification_programs.len(),
+        stored_config.programs.len(),
         verification_programs.len(),
         "Number of verification programs should match"
     );
 
     for (i, expected_program) in verification_programs.iter().enumerate() {
         assert_eq!(
-            stored_config.verification_programs[i], *expected_program,
+            stored_config.programs[i].program_id, *expected_program,
             "Program at index {} should match",
             i
         );
@@ -798,7 +799,7 @@ async fn test_verification_config() {
     let update_verification_config_args = UpdateVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: new_verification_programs.clone(),
+        programs: verification_program_configs(new_verification_programs.clone()),
         offset,
     };
 
@@ -840,7 +841,7 @@ async fn test_verification_config() {
 
     // The original program at index 0 should remain
     assert_eq!(
-        updated_config.verification_programs[0], verification_programs[0],
+        updated_config.programs[0].program_id, verification_programs[0],
         "Original program at index 0 should remain unchanged"
     );
 
@@ -848,7 +849,7 @@ async fn test_verification_config() {
     for (i, expected_program) in new_verification_programs.iter().enumerate() {
         let config_index = offset as usize + i;
         assert_eq!(
-            updated_config.verification_programs[config_index], *expected_program,
+            updated_config.programs[config_index].program_id, *expected_program,
             "Updated program at index {} should match",
             config_index
         );
@@ -866,7 +867,7 @@ async fn test_verification_config() {
     let update_verification_config_args = UpdateVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: [Pubkey::new_unique(), Pubkey::new_unique()].to_vec(),
+        programs: verification_program_configs([Pubkey::new_unique(), Pubkey::new_unique()]),
         offset: 4, // Current len is 3
     };
 
@@ -938,7 +939,7 @@ async fn test_verification_config() {
     );
 
     assert_eq!(
-        trimmed_config.verification_programs.len(),
+        trimmed_config.programs.len(),
         new_size as usize,
         "Verification programs count should be trimmed to {}",
         new_size
@@ -946,11 +947,11 @@ async fn test_verification_config() {
 
     // Verify that remaining programs are correct (first 2 programs should remain)
     assert_eq!(
-        trimmed_config.verification_programs[0], verification_programs[0],
+        trimmed_config.programs[0].program_id, verification_programs[0],
         "First program should remain unchanged"
     );
     assert_eq!(
-        trimmed_config.verification_programs[1], new_verification_programs[0],
+        trimmed_config.programs[1].program_id, new_verification_programs[0],
         "Second program should be the first updated program"
     );
 
@@ -1219,7 +1220,7 @@ async fn test_initialize_verification_config_rejects_empty_vector() {
     let verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: MINT_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: vec![], // Empty vector - should be rejected
+        programs: vec![], // Empty vector - should be rejected
     };
 
     let ix = InitializeVerificationConfigBuilder::new()
@@ -1280,7 +1281,7 @@ async fn test_update_verification_config_rejects_resulting_empty_vector() {
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: UPDATE_METADATA_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: verification_programs.clone(),
+        programs: verification_program_configs(verification_programs.clone()),
     };
 
     initialize_verification_config(
@@ -1361,7 +1362,7 @@ async fn test_mint_fails_with_empty_verification_config() {
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: MINT_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: vec![], // Empty vector
+        programs: vec![], // Empty vector
     };
 
     let init_ix = InitializeVerificationConfigBuilder::new()
@@ -1434,7 +1435,7 @@ async fn test_transfer_fails_with_empty_verification_config() {
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: vec![], // Empty vector - should be rejected
+        programs: vec![], // Empty vector - should be rejected
     };
 
     let init_ix = InitializeVerificationConfigBuilder::new()
@@ -1464,7 +1465,7 @@ async fn test_transfer_fails_with_empty_verification_config() {
     let valid_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: TRANSFER_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: vec![program_1],
+        programs: verification_program_configs([program_1]),
     };
 
     initialize_verification_config(
@@ -1486,7 +1487,7 @@ async fn test_transfer_fails_with_empty_verification_config() {
     let mint_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: MINT_DISCRIMINATOR,
         cpi_mode: false,
-        program_addresses: get_default_verification_programs(), // Valid non-empty vector
+        programs: verification_program_configs(get_default_verification_programs()), // Valid non-empty vector
     };
 
     initialize_verification_config(

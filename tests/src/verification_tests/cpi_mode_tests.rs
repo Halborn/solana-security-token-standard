@@ -2,7 +2,7 @@ use crate::{
     helpers::{
         assert_custom_error, assert_transaction_failure, assert_transaction_success,
         create_minimal_security_token_mint, create_spl_account, find_verification_config_pda,
-        initialize_verification_config, send_tx,
+        initialize_verification_config, send_tx, verification_program_configs,
     },
     verification_tests::verification_helpers::failing_dummy_program_processor,
 };
@@ -67,7 +67,7 @@ async fn test_mint_cpi_mode() {
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: MINT_DISCRIMINATOR,
         cpi_mode: true,
-        program_addresses: verification_program_ids.clone(),
+        programs: verification_program_configs(verification_program_ids.clone()),
     };
 
     initialize_verification_config(
@@ -103,9 +103,9 @@ async fn test_mint_cpi_mode() {
         .amount(1000);
 
     // Add verification program accounts from config (simulating client behavior)
-    for program_id in &verification_config.verification_programs {
+    for program in &verification_config.programs {
         mint_builder.add_remaining_account(solana_sdk::instruction::AccountMeta::new_readonly(
-            *program_id,
+            program.program_id,
             false,
         ));
     }
@@ -152,7 +152,7 @@ async fn test_mint_cpi_mode_error_cases() {
     let initialize_verification_config_args = InitializeVerificationConfigArgs {
         instruction_discriminator: MINT_DISCRIMINATOR,
         cpi_mode: true,
-        program_addresses: vec![dummy_program_1, dummy_program_2],
+        programs: verification_program_configs([dummy_program_1, dummy_program_2]),
     };
 
     initialize_verification_config(
@@ -198,9 +198,9 @@ async fn test_mint_cpi_mode_error_cases() {
 
     // Transaction should fail without verification program accounts
     assert_transaction_failure(result);
-    for program_id in &verification_config.verification_programs {
+    for program in &verification_config.programs {
         mint_builder.add_remaining_account(solana_sdk::instruction::AccountMeta::new_readonly(
-            *program_id,
+            program.program_id,
             false,
         ));
     }

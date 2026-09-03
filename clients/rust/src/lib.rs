@@ -1,4 +1,5 @@
 mod generated;
+pub mod verification;
 
 use generated::*;
 
